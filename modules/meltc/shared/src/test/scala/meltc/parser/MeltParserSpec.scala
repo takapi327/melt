@@ -195,6 +195,308 @@ class MeltParserSpec extends munit.FunSuite:
     assertEquals(meltFile.template.head.asInstanceOf[TemplateNode.Element].tag, "div")
   }
 
+  // ── Scala language constructs in script section ───────────────────────────
+
+  test("enum and case class definitions in script are preserved") {
+    val src =
+      """<script lang="scala">
+        |  enum Status:
+        |    case Active, Inactive
+        |  case class Item(id: Int, status: Status)
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("enum Status:"))
+    assert(code.contains("case Active, Inactive"))
+    assert(code.contains("case class Item(id: Int, status: Status)"))
+  }
+
+  test("given/using context parameters in script are preserved") {
+    val src =
+      """<script lang="scala">
+        |  given Ordering[Int] = Ordering.Int
+        |  def sorted[A](xs: List[A])(using ord: Ordering[A]): List[A] = xs.sorted
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("given Ordering[Int]"))
+    assert(code.contains("using ord: Ordering[A]"))
+  }
+
+  test("extension method in script is preserved") {
+    val src =
+      """<script lang="scala">
+        |  extension (s: String)
+        |    def shout: String = s.toUpperCase + "!"
+        |  val msg = "hello".shout
+        |</script>
+        |<p>{msg}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("extension (s: String)"))
+    assert(code.contains("""val msg = "hello".shout"""))
+    // Template still correctly parsed
+    val p = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(p.children, List(TemplateNode.Expression("msg")))
+  }
+
+  test("generic methods and type aliases in script are preserved") {
+    val src =
+      """<script lang="scala">
+        |  type Id[A] = A
+        |  def wrap[A](x: A): List[A] = List(x)
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("type Id[A] = A"))
+    assert(code.contains("def wrap[A](x: A): List[A] = List(x)"))
+  }
+
+  test("pattern matching in script is preserved") {
+    val src =
+      """<script lang="scala">
+        |  val label = count match
+        |    case 0 => "none"
+        |    case 1 => "one"
+        |    case n => s"$n items"
+        |</script>
+        |<p>{label}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("count match"))
+    assert(code.contains("""case 0 => "none""""))
+    assert(code.contains("""case n => s"$n items""""))
+  }
+
+  test("comparison operators < and > in script do not affect template parsing") {
+    val src =
+      """<script lang="scala">
+        |  val ok = x > 0 && x < 100
+        |</script>
+        |<p>{ok}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("x > 0 && x < 100"))
+    assertEquals(meltFile.template.size, 1)
+  }
+
+  test("HTML-like string in script does not confuse section splitting") {
+    val src =
+      """<script lang="scala">
+        |  val tag = "<div>hello</div>"
+        |</script>
+        |<p>{tag}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("""val tag = "<div>hello</div>""""))
+    assertEquals(meltFile.template.size, 1)
+  }
+
+  // ── HTML-returning functions in script section ────────────────────────────
+
+  test("inline HTML-returning function in script is preserved and template is correctly parsed") {
+    val src =
+      """<script lang="scala">
+        |  def badge(text: String): Html = <span class="badge">{text}</span>
+        |</script>
+        |<div>{badge("new")}</div>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("""def badge(text: String): Html = <span class="badge">{text}</span>"""))
+    // Template: <div>{badge("new")}</div>
+    val div = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.tag, "div")
+    assertEquals(div.children, List(TemplateNode.Expression("""badge("new")""")))
+  }
+
+  test("multi-line HTML-returning function in script is preserved verbatim") {
+    val src =
+      """<script lang="scala">
+        |  def card(title: String): Html = {
+        |    <div class="card">
+        |      <h2>{title}</h2>
+        |    </div>
+        |  }
+        |</script>
+        |<main>{card("Hello")}</main>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("""<div class="card">"""))
+    assert(code.contains("<h2>{title}</h2>"))
+    assert(code.contains("</div>"))
+    assertEquals(meltFile.template.size, 1)
+    val main = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(main.tag, "main")
+  }
+
+  test("HTML function calling another HTML function is preserved and template parses correctly") {
+    val src =
+      """<script lang="scala">
+        |  def icon(name: String): Html = <i class={s"icon $name"}></i>
+        |  def button(label: String, ico: String): Html = {
+        |    <button>{icon(ico)}{label}</button>
+        |  }
+        |</script>
+        |<div>{button("Save", "save")}</div>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("def icon(name: String): Html"))
+    assert(code.contains("def button(label: String, ico: String): Html"))
+    assert(code.contains("{icon(ico)}{label}"))
+    val div = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.children, List(TemplateNode.Expression("""button("Save", "save")""")))
+  }
+
+  test("closing HTML tags inside script do not interfere with section splitting") {
+    // </div>, </tr>, </td> etc. inside script must not confuse </script> detection
+    val src =
+      """<script lang="scala">
+        |  def row(a: String, b: String): Html =
+        |    <tr><td>{a}</td><td>{b}</td></tr>
+        |</script>
+        |<table>{row("x", "y")}</table>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<tr>"))
+    assert(code.contains("</tr>"))
+    // Template must not accidentally include the script's HTML
+    val table = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(table.tag, "table")
+    assertEquals(table.children, List(TemplateNode.Expression("""row("x", "y")""")))
+  }
+
+  test("Counter.melt badge function (from Appendix A) is preserved in ScriptSection.code") {
+    val src =
+      """<script lang="scala" props="Props">
+        |  case class Props(label: String, count: Int = 0)
+        |  val internal = Var(props.count)
+        |  def badge(text: String): Html = {
+        |    <span class="badge">{text}</span>
+        |  }
+        |</script>
+        |<div>{badge("hi")}</div>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("def badge(text: String): Html = {"))
+    assert(code.contains("""<span class="badge">{text}</span>"""))
+  }
+
+  // ── Complex HTML patterns inside HTML-returning functions ─────────────────
+
+  test("deeply nested HTML in script function is preserved; template is unaffected") {
+    val src =
+      """<script lang="scala">
+        |  def layout(): Html = {
+        |    <div>
+        |      <header><nav><a href="/">{siteName}</a></nav></header>
+        |      <main><section><article>{content}</article></section></main>
+        |      <footer><p>{year}</p></footer>
+        |    </div>
+        |  }
+        |</script>
+        |<div>{layout()}</div>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<header><nav>"))
+    assert(code.contains("</article></section></main>"))
+    assert(code.contains("<footer><p>{year}</p></footer>"))
+    val div = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.tag, "div")
+    assertEquals(div.children, List(TemplateNode.Expression("layout()")))
+  }
+
+  test("HTML function with directive attributes is preserved; template is unaffected") {
+    val src =
+      """<script lang="scala">
+        |  def animatedBox(): Html =
+        |    <div transition:fade={opts} use:tooltip={tip} class:active={on}>
+        |      {content}
+        |    </div>
+        |</script>
+        |<section>{animatedBox()}</section>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("transition:fade={opts}"))
+    assert(code.contains("use:tooltip={tip}"))
+    assert(code.contains("class:active={on}"))
+    assertEquals(meltFile.template.size, 1)
+  }
+
+  test("HTML function with SVG is preserved; template is unaffected") {
+    val src =
+      """<script lang="scala">
+        |  def icon(color: String): Html =
+        |    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" style:fill={color} /></svg>
+        |</script>
+        |<p>{icon("red")}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("""<svg viewBox="0 0 24 24">"""))
+    assert(code.contains("style:fill={color}"))
+    val p = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(p.children, List(TemplateNode.Expression("""icon("red")""")))
+  }
+
+  // ── Malformed HTML inside HTML-returning functions ────────────────────────
+  // The script body is a raw string — the parser does not validate its contents.
+  // Malformed HTML in a script function must not corrupt section splitting or
+  // template parsing.
+
+  test("unclosed tag in HTML function is stored verbatim; template parses correctly") {
+    val src =
+      """<script lang="scala">
+        |  def broken(): Html = <div><p>unclosed
+        |</script>
+        |<main><p>ok</p></main>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<div><p>unclosed"))
+    val main = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(main.tag, "main")
+    assertEquals(main.children, List(TemplateNode.Element("p", Nil, List(TemplateNode.Text("ok")))))
+  }
+
+  test("mismatched closing tag in HTML function is stored verbatim; template parses correctly") {
+    val src =
+      """<script lang="scala">
+        |  def broken(): Html = <div>hello</span>
+        |</script>
+        |<p>world</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<div>hello</span>"))
+    val p = meltFile.template.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(p.tag, "p")
+    assertEquals(p.children, List(TemplateNode.Text("world")))
+  }
+
+  test("extra closing tag in HTML function is stored verbatim; template parses correctly") {
+    val src =
+      """<script lang="scala">
+        |  def broken(): Html = <div></div></div>
+        |</script>
+        |<span>ok</span>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<div></div></div>"))
+    assertEquals(meltFile.template.head.asInstanceOf[TemplateNode.Element].tag, "span")
+  }
+
+  test("self-closing non-void in HTML function is stored verbatim; template parses correctly") {
+    val src =
+      """<script lang="scala">
+        |  def broken(): Html = <section />
+        |</script>
+        |<p>ok</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("<section />"))
+    assertEquals(meltFile.template.head.asInstanceOf[TemplateNode.Element].tag, "p")
+  }
+
   // ── Error cases ───────────────────────────────────────────────────────────
 
   test("returns Left for unclosed <script lang=\"scala\"> tag") {

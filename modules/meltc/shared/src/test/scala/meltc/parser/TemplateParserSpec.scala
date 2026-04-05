@@ -1109,3 +1109,175 @@ class TemplateParserSpec extends munit.FunSuite:
       )
     )
   }
+
+  // ── Attr.Spread ───────────────────────────────────────────────────────────
+
+  test("spread attribute on HTML element") {
+    assertEquals(
+      parse("""<div {...attrs}></div>"""),
+      List(TemplateNode.Element("div", List(Attr.Spread("attrs")), Nil))
+    )
+  }
+
+  test("spread attribute on Component") {
+    assertEquals(
+      parse("""<Counter {...counterProps} />"""),
+      List(TemplateNode.Component("Counter", List(Attr.Spread("counterProps")), Nil))
+    )
+  }
+
+  test("spread attribute with method call expression") {
+    assertEquals(
+      parse("""<div {...getAttrs()}></div>"""),
+      List(TemplateNode.Element("div", List(Attr.Spread("getAttrs()")), Nil))
+    )
+  }
+
+  test("spread attribute with complex expression") {
+    assertEquals(
+      parse("""<div {...Map("id" -> "main", "class" -> cls)}></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Spread("""Map("id" -> "main", "class" -> cls)""")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("spread attribute mixed with static attribute") {
+    assertEquals(
+      parse("""<div id="container" {...attrs}></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Static("id", "container"), Attr.Spread("attrs")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("spread attribute followed by another attribute") {
+    assertEquals(
+      parse("""<div {...attrs} class="extra"></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Spread("attrs"), Attr.Static("class", "extra")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("multiple spread attributes") {
+    assertEquals(
+      parse("""<div {...baseAttrs} {...extraAttrs}></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Spread("baseAttrs"), Attr.Spread("extraAttrs")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("spread attribute on self-closing element") {
+    assertEquals(
+      parse("""<input {...inputProps} />"""),
+      List(TemplateNode.Element("input", List(Attr.Spread("inputProps")), Nil))
+    )
+  }
+
+  // ── Attr.Shorthand ────────────────────────────────────────────────────────
+
+  test("shorthand attribute on HTML element") {
+    assertEquals(
+      parse("""<div {id}></div>"""),
+      List(TemplateNode.Element("div", List(Attr.Shorthand("id")), Nil))
+    )
+  }
+
+  test("shorthand attribute on Component") {
+    assertEquals(
+      parse("""<Counter {label} />"""),
+      List(TemplateNode.Component("Counter", List(Attr.Shorthand("label")), Nil))
+    )
+  }
+
+  test("multiple shorthand attributes on Component") {
+    assertEquals(
+      parse("""<Counter {label} {count} />"""),
+      List(
+        TemplateNode.Component(
+          "Counter",
+          List(Attr.Shorthand("label"), Attr.Shorthand("count")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("shorthand attribute mixed with static attribute") {
+    assertEquals(
+      parse("""<div class="box" {id}></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Static("class", "box"), Attr.Shorthand("id")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("shorthand attribute followed by dynamic attribute") {
+    assertEquals(
+      parse("""<div {id} class={cls}></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(Attr.Shorthand("id"), Attr.Dynamic("class", "cls")),
+          Nil
+        )
+      )
+    )
+  }
+
+  // ── Spread + Shorthand mixed ──────────────────────────────────────────────
+
+  test("spread and shorthand attributes together on Component") {
+    assertEquals(
+      parse("""<Counter {label} {...extraProps} />"""),
+      List(
+        TemplateNode.Component(
+          "Counter",
+          List(Attr.Shorthand("label"), Attr.Spread("extraProps")),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("all attribute kinds together") {
+    assertEquals(
+      parse("""<div id="box" {cls} {...attrs} class={dynCls} onclick={handler} disabled></div>"""),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(
+            Attr.Static("id", "box"),
+            Attr.Shorthand("cls"),
+            Attr.Spread("attrs"),
+            Attr.Dynamic("class", "dynCls"),
+            Attr.EventHandler("click", "handler"),
+            Attr.BooleanAttr("disabled")
+          ),
+          Nil
+        )
+      )
+    )
+  }
