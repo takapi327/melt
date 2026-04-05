@@ -113,6 +113,13 @@ melt/
 - [ ] コレクション extension — `append`, `prepend`, `removeWhere` 等（§20.3）
 - [ ] 全 API のユニットテスト
 
+> **⚠️ 注意 — `map` / `flatMap` で追加したサブスクライバーの解除**
+>
+> `map` / `flatMap` は内部でサブスクライバーを登録するが、外側からそのサブスクリプションを解除する手段がない。
+> Phase 4 (DOM バインディング) でコンポーネント破棄時のクリーンアップが必要になる際、
+> 派生 Signal が保持するサブスクライバーが残り続けてメモリリークが発生しうる。
+> Phase 4 実装時に `onCleanup` / スコープ付きエフェクト等と組み合わせた回収設計が必要。
+
 ### 完了条件
 
 ```scala
@@ -237,12 +244,20 @@ h1 { color: #ff3e00; }
 
 - [ ] `Bind.text` 実装 — Signal/Var のテキストバインディング
 - [ ] `Bind.attr` 実装 — リアクティブ属性バインディング
-- [ ] コード生成: `{expression}` → `Bind.text(expr, parent)` 
+- [ ] コード生成: `{expression}` → `Bind.text(expr, parent)`
 - [ ] コード生成: `onclick={handler}` → `addEventListener("click", handler)`
 - [ ] イベント型の自動推論（要素名 + イベント名 → `dom.MouseEvent` 等）
 - [ ] `bind:value` 実装（`Bind.inputValue` — 文字列のみ）
 - [ ] コード生成: `bind:value={var}` → `Bind.inputValue(input, var)`
 - [ ] `Option` / `Boolean` の属性自動処理（`Bind.optionalAttr`, `Bind.booleanAttr`）
+- [ ] コンポーネント破棄時のサブスクリプション解除（`onCleanup` / スコープ付きエフェクト）
+
+> **⚠️ 注意 — Phase 1 で積み残したサブスクリプション解除問題**
+>
+> `map` / `flatMap` で追加したサブスクライバーは外側から解除する手段がない。
+> コンポーネント破棄時にこれらのサブスクライバーが残り続けるとメモリリークになる。
+> `onCleanup` をスコープ付きで管理する仕組み（グローバルクリーンアップリスト方式、§21.3 参照）を
+> この Phase で必ず実装し、`map` / `flatMap` 派生 Signal もその対象に含めること。
 
 ### 完了条件
 
