@@ -66,8 +66,8 @@ final class Var[A] private (private var _current: A):
     * unsubscribed and a fresh one is obtained by calling `f`.
     */
   def flatMap[B](f: A => Signal[B]): Signal[B] =
-    var inner                   = f(_current)
-    val s                       = new Signal[B](inner.now())
+    var inner = f(_current)
+    val s     = new Signal[B](inner.now())
     var cancelInner: () => Unit = inner.subscribe(b => s.emit(b))
     subscribers += { a =>
       cancelInner()

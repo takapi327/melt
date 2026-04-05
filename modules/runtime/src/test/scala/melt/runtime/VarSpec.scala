@@ -30,7 +30,7 @@ class VarSpec extends munit.FunSuite:
   // ── subscribe ─────────────────────────────────────────────────────────────
 
   test("subscribe() is called when value changes") {
-    val v       = Var(0)
+    val v        = Var(0)
     var received = -1
     v.subscribe(x => received = x)
     v.set(7)
@@ -48,9 +48,9 @@ class VarSpec extends munit.FunSuite:
   }
 
   test("multiple subscribers are all notified") {
-    val v  = Var(0)
-    var a  = 0
-    var b  = 0
+    val v = Var(0)
+    var a = 0
+    var b = 0
     v.subscribe(x => a = x)
     v.subscribe(x => b = x * 10)
     v.set(3)
@@ -61,7 +61,7 @@ class VarSpec extends munit.FunSuite:
   // ── map / Signal ──────────────────────────────────────────────────────────
 
   test("map() creates a derived Signal with the transformed initial value") {
-    val v      = Var(5)
+    val v       = Var(5)
     val doubled = v.map(_ * 2)
     assertEquals(doubled.now(), 10)
   }
@@ -90,7 +90,7 @@ class VarSpec extends munit.FunSuite:
     count += 1
     assertEquals(doubled.now(), 2)
 
-    val name = Var("Alice")
+    val name     = Var("Alice")
     val greeting = for
       n <- name
       d <- doubled
@@ -99,9 +99,9 @@ class VarSpec extends munit.FunSuite:
   }
 
   test("flatMap() switches inner Signal when outer Var changes") {
-    val flag = Var(true)
-    val a    = Var(10)
-    val b    = Var(20)
+    val flag   = Var(true)
+    val a      = Var(10)
+    val b      = Var(20)
     val result = flag.flatMap(f => if f then a.signal else b.signal)
     assertEquals(result.now(), 10)
     flag.set(false)
@@ -111,8 +111,8 @@ class VarSpec extends munit.FunSuite:
   }
 
   test("for comprehension over two Vars yields correct Signal") {
-    val x = Var(1)
-    val y = Var(2)
+    val x   = Var(1)
+    val y   = Var(2)
     val sum = for
       a <- x
       b <- y

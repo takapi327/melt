@@ -31,10 +31,10 @@ class SignalSpec extends munit.FunSuite:
   }
 
   test("unsubscribe function stops notifications") {
-    val v        = Var(0)
-    val s        = v.signal
-    var count    = 0
-    val cancel   = s.subscribe(_ => count += 1)
+    val v      = Var(0)
+    val s      = v.signal
+    var count  = 0
+    val cancel = s.subscribe(_ => count += 1)
     v.set(1)
     cancel()
     v.set(2)
@@ -75,30 +75,30 @@ class SignalSpec extends munit.FunSuite:
   }
 
   test("flatMap() unsubscribes from the previous inner Signal") {
-    val flag   = Var(true)
-    val a      = Var(1)
-    val b      = Var(2)
-    var calls  = 0
+    val flag  = Var(true)
+    val a     = Var(1)
+    val b     = Var(2)
+    var calls = 0
     // derived tracks changes; we count how many times the derived Signal emits
     val result = flag.signal.flatMap(f => if f then a.signal else b.signal)
     result.subscribe(_ => calls += 1)
 
-    a.set(10)  // result listens to a
+    a.set(10) // result listens to a
     assertEquals(calls, 1)
-    flag.set(false)  // result now listens to b; subscription to a is cancelled
+    flag.set(false) // result now listens to b; subscription to a is cancelled
     calls = 0
-    a.set(20)  // should NOT trigger result
+    a.set(20) // should NOT trigger result
     assertEquals(calls, 0)
-    b.set(30)  // should trigger result
+    b.set(30) // should trigger result
     assertEquals(calls, 1)
   }
 
   // ── for comprehension ─────────────────────────────────────────────────────
 
   test("for comprehension over Signal and Var") {
-    val x     = Var(3)
-    val y     = Var(4)
-    val hyp   = for
+    val x   = Var(3)
+    val y   = Var(4)
+    val hyp = for
       a <- x.signal
       b <- y.signal
     yield math.sqrt((a * a + b * b).toDouble)
