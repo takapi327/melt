@@ -92,6 +92,40 @@ class MeltParserSpec extends munit.FunSuite:
     assertEquals(p.children, List(TemplateNode.Expression("""m.getOrElse(1, "?")""")))
   }
 
+  // ── Component in template ─────────────────────────────────────────────────
+
+  test("component reference in template is parsed as Component node") {
+    val src =
+      """<script lang="scala">val t = "Hi"</script>
+        |<Card title={t} />""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    assertEquals(meltFile.template.size, 1)
+    val card = meltFile.template.head.asInstanceOf[TemplateNode.Component]
+    assertEquals(card.name, "Card")
+    assertEquals(card.attrs, List(Attr.Dynamic("title", "t")))
+  }
+
+  // ── Multiple top-level template nodes ─────────────────────────────────────
+
+  test("multiple top-level template elements") {
+    val src =
+      """<script lang="scala">val x = 1</script>
+        |<h1>Title</h1>
+        |<p>Body</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    assertEquals(meltFile.template.size, 2)
+    assertEquals(meltFile.template(0).asInstanceOf[TemplateNode.Element].tag, "h1")
+    assertEquals(meltFile.template(1).asInstanceOf[TemplateNode.Element].tag, "p")
+  }
+
+  // ── lang='scala' single-quote form ────────────────────────────────────────
+
+  test("lang='scala' single-quote variant is accepted") {
+    val src = "<script lang='scala'>val n = 42</script><p>{n}</p>"
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    assertEquals(meltFile.script.map(_.code), Some("val n = 42"))
+  }
+
   // ── Error cases ───────────────────────────────────────────────────────────
 
   test("returns Left for unclosed <script lang=\"scala\"> tag") {
