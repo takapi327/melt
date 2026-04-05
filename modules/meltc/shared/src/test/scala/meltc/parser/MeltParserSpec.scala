@@ -126,6 +126,75 @@ class MeltParserSpec extends munit.FunSuite:
     assertEquals(meltFile.script.map(_.code), Some("val n = 42"))
   }
 
+  // ── Import statements ─────────────────────────────────────────────────────
+
+  test("script section preserves a plain import statement") {
+    val src =
+      """<script lang="scala">
+        |  import scala.math.sqrt
+        |  val x = sqrt(4.0)
+        |</script>
+        |<p>{x}</p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.math.sqrt"))
+    assert(code.contains("val x = sqrt(4.0)"))
+  }
+
+  test("grouped import with curly braces is preserved verbatim") {
+    // import scala.{List, Map} must not be confused with template expressions
+    val src =
+      """<script lang="scala">
+        |  import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.collection.mutable.{ArrayBuffer, ListBuffer}"))
+  }
+
+  test("Scala 3 import rename with 'as' keyword is preserved verbatim") {
+    val src =
+      """<script lang="scala">
+        |  import scala.collection.mutable.{Map as MMap}
+        |  val m = MMap.empty[String, Int]
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.collection.mutable.{Map as MMap}"))
+  }
+
+  test("wildcard import is preserved verbatim") {
+    val src =
+      """<script lang="scala">
+        |  import scala.math.*
+        |</script>
+        |<p></p>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.math.*"))
+  }
+
+  test("multiple imports of different styles are all preserved") {
+    val src =
+      """<script lang="scala">
+        |  import scala.math.*
+        |  import scala.collection.mutable.{Map as MMap, Set as MSet}
+        |  import java.time.{Instant, ZoneId}
+        |  val now = Instant.now()
+        |</script>
+        |<div>{now.toString}</div>""".stripMargin
+    val meltFile = parse(src).getOrElse(fail("unexpected error"))
+    val code     = meltFile.script.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.math.*"))
+    assert(code.contains("import scala.collection.mutable.{Map as MMap, Set as MSet}"))
+    assert(code.contains("import java.time.{Instant, ZoneId}"))
+    // Template is also correctly parsed
+    assertEquals(meltFile.template.size, 1)
+    assertEquals(meltFile.template.head.asInstanceOf[TemplateNode.Element].tag, "div")
+  }
+
   // ── Error cases ───────────────────────────────────────────────────────────
 
   test("returns Left for unclosed <script lang=\"scala\"> tag") {

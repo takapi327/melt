@@ -238,6 +238,66 @@ class SectionSplitterSpec extends munit.FunSuite:
     assert(css.contains("h1 { color: #ff3e00; }"))
   }
 
+  // ── Import statements in script body ─────────────────────────────────────
+
+  test("single import is preserved verbatim in code") {
+    val src =
+      """<script lang="scala">
+        |  import scala.collection.mutable.ListBuffer
+        |  val xs = ListBuffer.empty[Int]
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assert(sections.rawScript.map(_.code).exists(_.contains("import scala.collection.mutable.ListBuffer")))
+  }
+
+  test("grouped import with braces is preserved verbatim") {
+    // import scala.{List, Map} — the {} must not confuse the splitter
+    val src =
+      """<script lang="scala">
+        |  import scala.{List, Map}
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assert(sections.rawScript.map(_.code).exists(_.contains("import scala.{List, Map}")))
+  }
+
+  test("Scala 3 import rename (as) is preserved verbatim") {
+    val src =
+      """<script lang="scala">
+        |  import scala.collection.mutable.{ListBuffer as LB}
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assert(sections.rawScript.map(_.code).exists(_.contains("import scala.collection.mutable.{ListBuffer as LB}")))
+  }
+
+  test("wildcard import is preserved verbatim") {
+    val src =
+      """<script lang="scala">
+        |  import scala.math.*
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assert(sections.rawScript.map(_.code).exists(_.contains("import scala.math.*")))
+  }
+
+  test("multiple imports are all preserved in code") {
+    val src =
+      """<script lang="scala">
+        |  import scala.math.*
+        |  import scala.collection.mutable.{Map as MMap, Set as MSet}
+        |  import java.time.Instant
+        |  val now = Instant.now()
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    val code     = sections.rawScript.map(_.code).getOrElse(fail("no script"))
+    assert(code.contains("import scala.math.*"))
+    assert(code.contains("import scala.collection.mutable.{Map as MMap, Set as MSet}"))
+    assert(code.contains("import java.time.Instant"))
+  }
+
   // ── Template content integrity ────────────────────────────────────────────
 
   test("template source does not contain script or style tags after splitting") {
