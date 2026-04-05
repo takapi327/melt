@@ -1,0 +1,34 @@
+# sbt
+target/
+project/target/
+project/project/target/
+
+# IDE
+.idea/
+.idea_modules/
+*.iml
+.metals/
+.bsp/
+.bloop/
+
+# Scala
+*.class
+*.tasty
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Scalafmt
+.scalafmt-cache
+
+# Node.js (Scala.js)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Generated
+out/
