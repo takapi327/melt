@@ -12,19 +12,20 @@ ThisBuild / githubWorkflowJavaVersions := Seq(
   JavaSpec.corretto(java21),
   JavaSpec.corretto(java25)
 )
-ThisBuild / githubWorkflowBuildMatrixAdditions += "project" -> List("meltcJVM", "meltcJS", "meltcNative")
+ThisBuild / githubWorkflowBuildMatrixAdditions +=
+  "project" -> List("meltcJVM", "meltcJS", "meltcNative")
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   // JS / Native run on Java 17 only
-  MatrixExclude(Map("project" -> "meltcJS",     "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltcJS",     "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java25")),
   // Scala 3.8.3 runs on Java 17 only
   MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
-  MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38)),
+  MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
 )
-ThisBuild / githubWorkflowBuildPreamble    += Workflows.installNativeDeps
-ThisBuild / githubWorkflowBuild            := Seq(
+ThisBuild / githubWorkflowBuildPreamble += Workflows.installNativeDeps
+ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     // The plugin prepends '++ ${{ matrix.scala }}' automatically; only project switching is needed here
     List(
@@ -50,12 +51,12 @@ ThisBuild / githubWorkflowBuild            := Seq(
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "test"),
     name = Some("Test")
-  ),
+  )
 )
 ThisBuild / githubWorkflowTargetBranches        := Seq("**")
 ThisBuild / githubWorkflowTargetTags            := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
-ThisBuild / githubWorkflowAddedJobs             += Workflows.sbtScripted.value
+ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
 // ── Core compiler (JVM + JS + Native) ──
 lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -64,11 +65,11 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "meltc", // override "melt-meltc" → "meltc"
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.2.4" % Test,
-    ),
+      "org.scalameta" %%% "munit" % "1.2.4" % Test
+    )
   )
   .jsSettings(
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
   )
   .nativeSettings(
     // Reserved for future Native CLI configuration
@@ -78,7 +79,7 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 // Note: dependsOn(meltc.jvm) will be added in Phase 3 after cross-compilation is configured.
 lazy val `sbt-meltc` = BuildSettings.MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
+    crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
   )
 
 // ── Runtime (Scala.js library) ──
@@ -88,9 +89,9 @@ lazy val runtime = project
   .settings(
     name := "melt-runtime",
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.1",
-      "org.scalameta" %%% "munit"      % "1.2.4" % Test,
-    ),
+      "org.scala-js"  %%% "scalajs-dom" % "2.8.1",
+      "org.scalameta" %%% "munit"       % "1.2.4" % Test
+    )
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
 
@@ -101,9 +102,9 @@ lazy val `language-server` = project
   .settings(
     name := "melt-language-server",
     libraryDependencies ++= Seq(
-      "org.eclipse.lsp4j" %  "org.eclipse.lsp4j" % "1.0.0",
-      "org.scalameta"     %% "munit"              % "1.2.4" % Test,
-    ),
+      "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "1.0.0",
+      "org.scalameta"    %% "munit"             % "1.2.4" % Test
+    )
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(meltc.jvm)
@@ -115,8 +116,8 @@ lazy val `melt-testing` = project
   .settings(
     name := "melt-testing",
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.2.4",
-    ),
+      "org.scalameta" %%% "munit" % "1.2.4"
+    )
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
@@ -131,10 +132,10 @@ lazy val root = project
     `sbt-meltc`,
     runtime,
     `melt-testing`,
-    `language-server`,
+    `language-server`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty, // root project does not cross-compile
+    crossScalaVersions := Seq.empty // root project does not cross-compile
   )

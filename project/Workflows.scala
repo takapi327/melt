@@ -18,8 +18,8 @@ object Workflows {
 
   val sbtScripted: Def.Initialize[WorkflowJob] = Def.setting(
     WorkflowJob(
-      id    = "sbtScripted",
-      name  = "sbt scripted",
+      id = "sbtScripted",
+      name = "sbt scripted",
       steps = githubWorkflowJobSetup.value.toList ::: List(
         WorkflowStep.Run(
           List("sbt +publishLocal"),
@@ -31,7 +31,7 @@ object Workflows {
         )
       ),
       scalas = List(scala3),
-      javas  = List(JavaSpec.corretto(java17), JavaSpec.corretto(java21))
+      javas = List(JavaSpec.corretto(java17), JavaSpec.corretto(java21))
     )
   )
 }
