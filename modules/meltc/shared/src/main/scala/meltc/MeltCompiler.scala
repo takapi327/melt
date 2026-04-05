@@ -6,6 +6,7 @@
 
 package meltc
 
+import meltc.codegen.ScalaCodeGen
 import meltc.parser.MeltParser
 
 /** Entry point of the meltc compiler. */
@@ -13,16 +14,32 @@ object MeltCompiler:
 
   /** Compiles a `.melt` source file into `.scala` code.
     *
-    * Phase 2: parses the source into an AST and reports syntax errors.
-    * Code generation (Phase 3) is not yet implemented; `scalaCode` is always `None`.
+    * @param source     raw `.melt` source text
+    * @param filename   file name used in error messages (e.g. `"App.melt"`)
+    * @param objectName Scala object name to generate (e.g. `"App"`)
+    * @param pkg        Scala package (may be empty)
     */
-  def compile(source: String, filename: String): CompileResult =
+  def compile(
+    source:     String,
+    filename:   String,
+    objectName: String,
+    pkg:        String
+  ): CompileResult =
     MeltParser.parse(source) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
-      case Right(_) =>
-        // Code generation will be implemented in Phase 3
-        CompileResult(None, None, Nil, Nil)
+      case Right(ast) =>
+        val scopeId = ScalaCodeGen.scopeIdFor(objectName)
+        val code    = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
+        CompileResult(Some(code), ast.style.map(_.css), Nil, Nil)
+
+  /** Convenience overload — derives `objectName` from `filename` and uses no package.
+    *
+    * `"App.melt"` → `objectName = "App"`, `pkg = ""`
+    */
+  def compile(source: String, filename: String): CompileResult =
+    val objectName = filename.stripSuffix(".melt").capitalize
+    compile(source, filename, objectName, "")
 
 /** Result of a compilation. */
 case class CompileResult(
