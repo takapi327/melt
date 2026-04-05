@@ -1,7 +1,7 @@
 import sbt._
 
-import sbtghactions.{ UseRef }
 import sbtghactions.GenerativePlugin.autoImport._
+import sbtghactions.UseRef
 
 import JavaVersions._
 import ScalaVersions._

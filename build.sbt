@@ -60,8 +60,8 @@ ThisBuild / githubWorkflowBuild := Seq(
 ThisBuild / githubWorkflowGeneratedUploadSteps   := Workflows.uploadSteps
 ThisBuild / githubWorkflowGeneratedDownloadSteps := Workflows.downloadSteps
 ThisBuild / githubWorkflowTargetBranches         := Seq("**")
-ThisBuild / githubWorkflowTargetTags            := Seq("v*")
-ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
+ThisBuild / githubWorkflowTargetTags             := Seq("v*")
+ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
 // ── Core compiler (JVM + JS + Native) ──
