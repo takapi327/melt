@@ -6,16 +6,23 @@
 
 package meltc
 
-/** Entry point of the meltc compiler.
-  *
-  * Phase 0: stub implementation Parser and code generation will be implemented in Phase 2 and
-  * beyond.
-  */
+import meltc.parser.MeltParser
+
+/** Entry point of the meltc compiler. */
 object MeltCompiler:
 
-  /** Compiles a .melt source file into .scala code. */
+  /** Compiles a `.melt` source file into `.scala` code.
+    *
+    * Phase 2: parses the source into an AST and reports syntax errors.
+    * Code generation (Phase 3) is not yet implemented; `scalaCode` is always `None`.
+    */
   def compile(source: String, filename: String): CompileResult =
-    CompileResult(None, None, Nil, Nil)
+    MeltParser.parse(source) match
+      case Left(err) =>
+        CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
+      case Right(_) =>
+        // Code generation will be implemented in Phase 3
+        CompileResult(None, None, Nil, Nil)
 
 /** Result of a compilation. */
 case class CompileResult(
