@@ -1,8 +1,7 @@
-/**
- * Copyright (c) 2026 by Takahiko Tominaga
- * This software is licensed under the Apache License, Version 2.0 (the "License").
- * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
- */
+/** Copyright (c) 2026 by Takahiko Tominaga This software is licensed under the Apache License,
+  * Version 2.0 (the "License"). For more information see LICENSE or
+  * https://www.apache.org/licenses/LICENSE-2.0
+  */
 
 package meltc.sbt
 
@@ -13,8 +12,7 @@ import sbt.Keys._
   *
   * Detects .melt files and invokes the meltc compiler to generate .scala files.
   *
-  * Phase 0: stub implementation
-  * Integration with MeltCompiler will be implemented in Phase 3.
+  * Phase 0: stub implementation Integration with MeltCompiler will be implemented in Phase 3.
   */
 object MeltcPlugin extends AutoPlugin {
 
@@ -38,6 +36,6 @@ object MeltcPlugin extends AutoPlugin {
     meltcSourceDirectory := (Compile / sourceDirectory).value / "components",
     meltcOutputDirectory := (Compile / sourceManaged).value / "meltc",
     meltcGenerate        := Seq.empty,
-    Compile / sourceGenerators += meltcGenerate.taskValue,
+    Compile / sourceGenerators += meltcGenerate.taskValue
   )
 }
