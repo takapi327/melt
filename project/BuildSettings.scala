@@ -28,8 +28,8 @@ object BuildSettings {
 
   /** Settings shared across all projects. */
   def commonSettings: Seq[Setting[_]] = Def.settings(
-    organization     := "dev.meltc",
-    organizationName := "meltc",
+    organization     := "io.github.takapi327",
+    organizationName := "takapi327",
     startYear        := Some(2026),
     homepage         := Some(url("https://github.com/takapi327/melt")),
     licenses         := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
