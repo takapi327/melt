@@ -97,13 +97,19 @@ jobs:
       - name: Test
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' test
 
+      - name: Make target directories
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
+        run: mkdir -p modules/meltc/jvm/target modules/meltc/js/target modules/meltc/native/target modules/sbt-meltc/target modules/runtime/target modules/melt-testing/target editors/language-server/target target project/target
+
       - name: Compress target directories
-        run: tar cf targets.tar modules/sbt-meltc/target modules/meltc/jvm/target target editors/language-server/target modules/melt-testing/target modules/meltc/js/target modules/meltc/native/target modules/runtime/target project/target
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
+        run: tar cf targets.tar modules/meltc/jvm/target modules/meltc/js/target modules/meltc/native/target modules/sbt-meltc/target modules/runtime/target modules/melt-testing/target editors/language-server/target target project/target
 
       - name: Upload target directories
+        if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
         uses: actions/upload-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.scala }}-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.project }}
           path: targets.tar
 
   publish:
@@ -149,22 +155,32 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Download target directories (3.3.7)
+      - name: Download target directories (3.3.7, meltcJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-3.3.7-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcJVM
 
-      - name: Inflate target directories (3.3.7)
+      - name: Inflate target directories (3.3.7, meltcJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.8.3)
+      - name: Download target directories (3.3.7, meltcJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-3.8.3-${{ matrix.java }}
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcJS
 
-      - name: Inflate target directories (3.8.3)
+      - name: Inflate target directories (3.3.7, meltcJS)
+        run: |
+          tar xf targets.tar
+          rm targets.tar
+
+      - name: Download target directories (3.3.7, meltcNative)
+        uses: actions/download-artifact@v4
+        with:
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcNative
+
+      - name: Inflate target directories (3.3.7, meltcNative)
         run: |
           tar xf targets.tar
           rm targets.tar

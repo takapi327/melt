@@ -53,7 +53,13 @@ ThisBuild / githubWorkflowBuild := Seq(
     name = Some("Test")
   )
 )
-ThisBuild / githubWorkflowTargetBranches        := Seq("**")
+// Override upload/download steps to match ldbc's pattern:
+//   - mkdir -p ensures missing platform targets don't cause tar to fail
+//   - all three steps (mkdir, tar, upload) are gated to tag-push only
+//   - artifact name includes matrix.project to avoid conflicts across platform jobs
+ThisBuild / githubWorkflowGeneratedUploadSteps   := Workflows.uploadSteps
+ThisBuild / githubWorkflowGeneratedDownloadSteps := Workflows.downloadSteps
+ThisBuild / githubWorkflowTargetBranches         := Seq("**")
 ThisBuild / githubWorkflowTargetTags            := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
