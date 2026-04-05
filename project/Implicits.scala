@@ -16,16 +16,16 @@ object Implicits {
 
     def module(_name: String, projectDescription: String): CrossProject =
       project
-        .in(file(s"modules/${_name}"))
+        .in(file(s"modules/${ _name }"))
         .settings(
-          name        := s"melt-${_name}",
+          name        := s"melt-${ _name }",
           description := projectDescription
         )
         .defaultSettings
 
     def example(_name: String, projectDescription: String): CrossProject =
       project
-        .in(file(s"examples/${_name}"))
+        .in(file(s"examples/${ _name }"))
         .settings(
           name        := _name,
           description := projectDescription

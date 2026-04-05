@@ -1,9 +1,9 @@
 import sbt._
-import sbt.Keys._
 import sbt.plugins.SbtPlugin
+import sbt.Keys._
 import sbt.ScriptedPlugin.autoImport._
 
-import de.heikoseeberger.sbtheader.{AutomateHeaderPlugin, CommentBlockCreator, CommentStyle}
+import de.heikoseeberger.sbtheader.{ AutomateHeaderPlugin, CommentBlockCreator, CommentStyle }
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport.HeaderPattern.commentBetween
 
@@ -21,7 +21,7 @@ object BuildSettings {
   def scriptedSettings: Seq[Setting[_]] = Seq(
     scriptedLaunchOpts := {
       scriptedLaunchOpts.value ++
-        Seq("-Xmx1024M", s"-Dplugin.version=${version.value}")
+        Seq("-Xmx1024M", s"-Dplugin.version=${ version.value }")
     },
     scriptedBufferLog := false
   )
@@ -35,10 +35,10 @@ object BuildSettings {
     licenses         := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     run / fork       := true,
     developers += Developer(
-      id = "takapi327",
-      name = "Takahiko Tominaga",
+      id    = "takapi327",
+      name  = "Takahiko Tominaga",
       email = "",
-      url = url("https://github.com/takapi327")
+      url   = url("https://github.com/takapi327")
     ),
     headerMappings := headerMappings.value + (HeaderFileType.scala -> customCommentStyle),
     headerLicense  := Some(

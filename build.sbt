@@ -77,7 +77,8 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 
 // ── sbt plugin ──
 // Note: dependsOn(meltc.jvm) will be added in Phase 3 after cross-compilation is configured.
-lazy val `sbt-meltc` = BuildSettings.MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
+lazy val `sbt-meltc` = BuildSettings
+  .MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
     crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
   )
