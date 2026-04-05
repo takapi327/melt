@@ -37,8 +37,15 @@ private[parser] final class TemplateParser(src: String):
     var stop  = false
 
     while !stop && pos < src.length do
-      if insideTag && src.startsWith("</", pos) then
-        stop = true
+      if src.startsWith("</", pos) then
+        if insideTag then
+          stop = true
+        else
+          // Stray closing tag at the top level — skip it to avoid an infinite loop.
+          // A well-formed .melt template should not have unmatched closing tags,
+          // but we parse leniently rather than crashing.
+          val gtPos = src.indexOf('>', pos)
+          pos = if gtPos < 0 then src.length else gtPos + 1
       else
         src(pos) match
           case '{' =>
@@ -107,7 +114,12 @@ private[parser] final class TemplateParser(src: String):
 
     skipSpaces()
     if pos >= src.length || src(pos) != '=' then
-      return Some(Attr.BooleanAttr(name))
+      // Directive with no value (e.g. `transition:fade`) or plain boolean attribute
+      val colon = name.indexOf(':')
+      return Some(
+        if colon >= 0 then Attr.Directive(name.substring(0, colon), name.substring(colon + 1), None)
+        else Attr.BooleanAttr(name)
+      )
 
     pos += 1 // skip '='
     skipSpaces()
