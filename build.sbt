@@ -1,10 +1,63 @@
 import Implicits._
+import JavaVersions._
+import ScalaVersions._
 
 ThisBuild / version            := "0.1.0-SNAPSHOT"
-ThisBuild / scalaVersion       := ScalaVersions.scala3
-ThisBuild / crossScalaVersions := Seq(ScalaVersions.scala3, ScalaVersions.scala38)
+ThisBuild / scalaVersion       := scala3
+ThisBuild / crossScalaVersions := Seq(scala3, scala38)
 
-// ── コアコンパイラ（JVM + JS + Native）──
+// ── GitHub Actions ──
+ThisBuild / githubWorkflowJavaVersions := Seq(
+  JavaSpec.corretto(java17),
+  JavaSpec.corretto(java21),
+  JavaSpec.corretto(java25)
+)
+ThisBuild / githubWorkflowBuildMatrixAdditions += "project" -> List("meltcJVM", "meltcJS", "meltcNative")
+ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
+  // JS / Native run on Java 17 only
+  MatrixExclude(Map("project" -> "meltcJS",     "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltcJS",     "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java25")),
+  // Scala 3.8.3 runs on Java 17 only
+  MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
+  MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38)),
+)
+ThisBuild / githubWorkflowBuildPreamble    += Workflows.installNativeDeps
+ThisBuild / githubWorkflowBuild            := Seq(
+  WorkflowStep.Sbt(
+    // The plugin prepends '++ ${{ matrix.scala }}' automatically; only project switching is needed here
+    List(
+      "project ${{ matrix.project }}",
+      "headerCheckAll",
+      "scalafmtCheckAll",
+      "project /",
+      "scalafmtSbtCheck"
+    ),
+    name = Some("Check headers and formatting"),
+    cond = Some(s"matrix.java == 'corretto@$java17'")
+  ),
+  WorkflowStep.Sbt(
+    List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
+    name = Some("scalaJSLink"),
+    cond = Some("matrix.project == 'meltcJS'")
+  ),
+  WorkflowStep.Sbt(
+    List("project ${{ matrix.project }}", "Test/nativeLink"),
+    name = Some("nativeLink"),
+    cond = Some("matrix.project == 'meltcNative'")
+  ),
+  WorkflowStep.Sbt(
+    List("project ${{ matrix.project }}", "test"),
+    name = Some("Test")
+  ),
+)
+ThisBuild / githubWorkflowTargetBranches        := Seq("**")
+ThisBuild / githubWorkflowTargetTags            := Seq("v*")
+ThisBuild / githubWorkflowPublishTargetBranches := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
+ThisBuild / githubWorkflowAddedJobs             += Workflows.sbtScripted.value
+
+// ── Core compiler (JVM + JS + Native) ──
 lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .module("meltc", "Core compiler: .melt → .scala")
@@ -18,17 +71,17 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
   )
   .nativeSettings(
-    // 将来の Native CLI 向け設定
+    // Reserved for future Native CLI configuration
   )
 
-// ── sbt プラグイン ──
-// Note: meltc.jvm（Scala 3）への dependsOn は Phase 3 で cross-compilation 設定後に追加予定。
+// ── sbt plugin ──
+// Note: dependsOn(meltc.jvm) will be added in Phase 3 after cross-compilation is configured.
 lazy val `sbt-meltc` = BuildSettings.MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2), // sbt プラグインは Scala 2.12 のみ
+    crossScalaVersions := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
   )
 
-// ── ランタイム（Scala.js ライブラリ）──
+// ── Runtime (Scala.js library) ──
 lazy val runtime = project
   .in(file("modules/runtime"))
   .settings(BuildSettings.commonSettings)
@@ -41,7 +94,7 @@ lazy val runtime = project
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
 
-// ── Language Server（LSP — 全エディタ共通）──
+// ── Language Server (LSP — shared across all editors) ──
 lazy val `language-server` = project
   .in(file("editors/language-server"))
   .settings(BuildSettings.commonSettings)
@@ -55,7 +108,7 @@ lazy val `language-server` = project
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(meltc.jvm)
 
-// ── テストユーティリティ（Scala.js）──
+// ── Test utilities (Scala.js) ──
 lazy val `melt-testing` = project
   .in(file("modules/melt-testing"))
   .settings(BuildSettings.commonSettings)
@@ -68,7 +121,7 @@ lazy val `melt-testing` = project
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
-// ── ルート（publish しない）──
+// ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
   .aggregate(
@@ -83,5 +136,5 @@ lazy val root = project
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty, // ルートは cross-compile しない
+    crossScalaVersions := Seq.empty, // root project does not cross-compile
   )

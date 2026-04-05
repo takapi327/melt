@@ -17,7 +17,7 @@ object BuildSettings {
       commentBetween("""/\**+""", "*", """\*/""")
     )
 
-  /** scripted テスト用の設定 */
+  /** Settings for scripted tests. */
   def scriptedSettings: Seq[Setting[_]] = Seq(
     scriptedLaunchOpts := {
       scriptedLaunchOpts.value ++
@@ -26,7 +26,7 @@ object BuildSettings {
     scriptedBufferLog := false
   )
 
-  /** 全プロジェクト共通の設定 */
+  /** Settings shared across all projects. */
   def commonSettings: Seq[Setting[_]] = Def.settings(
     organization     := "dev.meltc",
     organizationName := "meltc",
@@ -51,7 +51,7 @@ object BuildSettings {
     )
   )
 
-  /** sbt プラグインプロジェクト用ヘルパー */
+  /** Helper for sbt plugin projects. */
   object MeltSbtPluginProject {
     def apply(name: String, dir: String): Project =
       Project(name, file(dir))
