@@ -8,6 +8,6 @@ package melt.runtime
 
 class VarSpec extends munit.FunSuite:
 
-  test("placeholder - Phase 1 で実装予定") {
-    // Phase 1 で Var / Signal / Bind の実装後にテストを追加する
+  test("placeholder - to be implemented in Phase 1") {
+    // Tests will be added after Var / Signal / Bind are implemented in Phase 1
   }

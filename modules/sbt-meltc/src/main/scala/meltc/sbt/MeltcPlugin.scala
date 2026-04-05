@@ -9,17 +9,17 @@ package meltc.sbt
 import sbt._
 import sbt.Keys._
 
-/** sbt-meltc プラグイン
+/** sbt-meltc plugin
   *
-  * .melt ファイルを検出し、meltc コンパイラを呼び出して .scala ファイルを生成する。
+  * Detects .melt files and invokes the meltc compiler to generate .scala files.
   *
-  * Phase 0: スタブ実装
-  * Phase 3 で MeltCompiler との連携を実装予定
+  * Phase 0: stub implementation
+  * Integration with MeltCompiler will be implemented in Phase 3.
   */
 object MeltcPlugin extends AutoPlugin {
 
-  // Phase 3 で自動有効化を検討
-  // 現時点では enablePlugins(MeltcPlugin) で明示的に有効化する
+  // Auto-triggering will be considered in Phase 3.
+  // For now, enable explicitly with enablePlugins(MeltcPlugin).
   override def trigger  = noTrigger
   override def requires = plugins.JvmPlugin
 

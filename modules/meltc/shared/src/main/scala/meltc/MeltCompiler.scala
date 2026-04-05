@@ -6,18 +6,18 @@
 
 package meltc
 
-/** meltc コンパイラのエントリーポイント
+/** Entry point of the meltc compiler.
   *
-  * Phase 0: スタブ実装
-  * Phase 2 以降でパーサー・コード生成を実装予定
+  * Phase 0: stub implementation
+  * Parser and code generation will be implemented in Phase 2 and beyond.
   */
 object MeltCompiler:
 
-  /** .melt ソースを .scala コードにコンパイルする */
+  /** Compiles a .melt source file into .scala code. */
   def compile(source: String, filename: String): CompileResult =
     CompileResult(None, None, Nil, Nil)
 
-/** コンパイル結果 */
+/** Result of a compilation. */
 case class CompileResult(
   scalaCode: Option[String],
   scopedCss:  Option[String],
@@ -26,7 +26,7 @@ case class CompileResult(
 ):
   def isSuccess: Boolean = errors.isEmpty
 
-/** コンパイルエラー */
+/** A compilation error. */
 case class CompileError(
   message:  String,
   line:     Int,
@@ -34,7 +34,7 @@ case class CompileError(
   filename: String,
 )
 
-/** コンパイル警告 */
+/** A compilation warning. */
 case class CompileWarning(
   message:  String,
   line:     Int,

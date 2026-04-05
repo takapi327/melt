@@ -6,10 +6,10 @@
 
 package melt.runtime
 
-/** リアクティブな可変値。
+/** A reactive mutable value.
   *
-  * Phase 0: スタブ実装
-  * Phase 1 で complete な実装を行う予定。
+  * Phase 0: stub implementation
+  * A complete implementation will be provided in Phase 1.
   */
 class Var[A] private (private var current: A)
 

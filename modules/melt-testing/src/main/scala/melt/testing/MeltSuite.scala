@@ -6,9 +6,9 @@
 
 package melt.testing
 
-/** Melt コンポーネントのテスト用ベースクラス。
+/** Base class for testing Melt components.
   *
-  * Phase 0: スタブ実装
-  * Phase 10 で MountedComponent / mount / devtools を実装予定
+  * Phase 0: stub implementation
+  * MountedComponent / mount / devtools will be implemented in Phase 10.
   */
 abstract class MeltSuite extends munit.FunSuite
