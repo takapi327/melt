@@ -206,6 +206,19 @@ class SectionSplitterSpec extends munit.FunSuite:
     assert(sections.templateSource.contains("<style scoped>"))
   }
 
+  // ── Multiple style blocks ─────────────────────────────────────────────────
+
+  test("only the first <style> block is extracted; second stays in template") {
+    val src =
+      """<p></p>
+        |<style>p { color: red; }</style>
+        |<div></div>
+        |<style>div { margin: 0; }</style>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.style, Some("p { color: red; }"))
+    assert(sections.templateSource.contains("div { margin: 0; }"))
+  }
+
   // ── Multiline CSS in style section ────────────────────────────────────────
 
   test("multiline CSS is preserved as-is") {

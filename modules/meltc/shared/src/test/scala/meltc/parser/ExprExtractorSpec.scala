@@ -148,6 +148,28 @@ class ExprExtractorSpec extends munit.FunSuite:
     assertEquals(extract(multiline), multiline)
   }
 
+  // ── Comment handling ──────────────────────────────────────────────────────
+
+  test("block comment with closing brace inside is not counted") {
+    assertEquals(extract("/* } */ x"), "/* } */ x")
+  }
+
+  test("block comment spanning whole expression") {
+    assertEquals(extract("/* comment */"), "/* comment */")
+  }
+
+  test("line comment with closing brace inside is not counted") {
+    assertEquals(extract("// }\nx"), "// }\nx")
+  }
+
+  test("expression after line comment") {
+    assertEquals(extract("// comment\nx + 1"), "// comment\nx + 1")
+  }
+
+  test("block comment with nested braces inside") {
+    assertEquals(extract("/* { nested } */ result"), "/* { nested } */ result")
+  }
+
   // ── Robustness (unclosed brace) ───────────────────────────────────────────
 
   test("unclosed brace consumes to end of input without throwing") {

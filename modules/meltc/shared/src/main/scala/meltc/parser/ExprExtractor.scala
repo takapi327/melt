@@ -65,6 +65,20 @@ private[parser] object ExprExtractor:
           if i < src.length && src(i) == '\'' then
             buf += '\''; i += 1
 
+        case '/' if i + 1 < src.length && src(i + 1) == '*' =>
+          // Block comment — scan to `*/`; braces inside are NOT depth-counted
+          buf += '/'; buf += '*'; i += 2
+          while i + 1 < src.length && !(src(i) == '*' && src(i + 1) == '/') do
+            buf += src(i); i += 1
+          if i + 1 < src.length then
+            buf += '*'; buf += '/'; i += 2
+
+        case '/' if i + 1 < src.length && src(i + 1) == '/' =>
+          // Line comment — scan to end of line; braces inside are NOT depth-counted
+          buf += '/'; buf += '/'; i += 2
+          while i < src.length && src(i) != '\n' do
+            buf += src(i); i += 1
+
         case '{' =>
           depth += 1; buf += '{'; i += 1
 

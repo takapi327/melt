@@ -405,10 +405,113 @@ class TemplateParserSpec extends munit.FunSuite:
     )
   }
 
-  test("transition: directive") {
+  test("transition: directive without params") {
     assertEquals(
       parse("<div transition:fade></div>"),
       List(TemplateNode.Element("div", List(Attr.Directive("transition", "fade", None)), Nil))
+    )
+  }
+
+  test("transition: directive with params") {
+    assertEquals(
+      parse("<div transition:fade={params}></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("transition", "fade", Some("params"))), Nil))
+    )
+  }
+
+  test("in: directive without params") {
+    assertEquals(
+      parse("<div in:fly></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("in", "fly", None)), Nil))
+    )
+  }
+
+  test("in: directive with params") {
+    assertEquals(
+      parse("<div in:fly={params}></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("in", "fly", Some("params"))), Nil))
+    )
+  }
+
+  test("out: directive without params") {
+    assertEquals(
+      parse("<div out:fade></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("out", "fade", None)), Nil))
+    )
+  }
+
+  test("out: directive with params") {
+    assertEquals(
+      parse("<div out:slide={opts}></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("out", "slide", Some("opts"))), Nil))
+    )
+  }
+
+  test("in: and out: directives together") {
+    assertEquals(
+      parse("<div in:fly={inOpts} out:fade={outOpts}></div>"),
+      List(
+        TemplateNode.Element(
+          "div",
+          List(
+            Attr.Directive("in", "fly", Some("inOpts")),
+            Attr.Directive("out", "fade", Some("outOpts"))
+          ),
+          Nil
+        )
+      )
+    )
+  }
+
+  test("animate: directive") {
+    assertEquals(
+      parse("<div animate:flip></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("animate", "flip", None)), Nil))
+    )
+  }
+
+  test("animate: directive with params") {
+    assertEquals(
+      parse("<div animate:flip={flipParams}></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("animate", "flip", Some("flipParams"))), Nil))
+    )
+  }
+
+  test("let: directive on Component") {
+    assertEquals(
+      parse("<List let:item={x}><span>{x}</span></List>"),
+      List(
+        TemplateNode.Component(
+          "List",
+          List(Attr.Directive("let", "item", Some("x"))),
+          List(
+            TemplateNode.Element("span", Nil, List(TemplateNode.Expression("x")))
+          )
+        )
+      )
+    )
+  }
+
+  test("style: directive with |important modifier") {
+    // The modifier is preserved in the directive name as-is
+    assertEquals(
+      parse("<div style:color|important={c}></div>"),
+      List(TemplateNode.Element("div", List(Attr.Directive("style", "color|important", Some("c"))), Nil))
+    )
+  }
+
+  test("on: event directive (Svelte-style colon syntax)") {
+    // on:click={handler} is parsed as Directive("on", "click", Some("handler"))
+    // (distinct from onclick={handler} → EventHandler("click", "handler"))
+    assertEquals(
+      parse("<button on:click={handler}>click</button>"),
+      List(
+        TemplateNode.Element(
+          "button",
+          List(Attr.Directive("on", "click", Some("handler"))),
+          List(TemplateNode.Text("click"))
+        )
+      )
     )
   }
 
@@ -915,6 +1018,49 @@ class TemplateParserSpec extends munit.FunSuite:
         TemplateNode.Element("p", Nil, List(TemplateNode.Text("Body")))
       )
     )
+  }
+
+  // ── Mixed text+expression in attribute value ──────────────────────────────
+
+  test("quoted attribute with embedded {expr} is treated as static (current behaviour)") {
+    // The parser reads until the closing quote without evaluating `{}`,
+    // so the literal brace content becomes part of the static value.
+    val result = parse("""<div class="header {active}"></div>""")
+    val div    = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Static("class", "header {active}")))
+  }
+
+  // ── Expression with Scala block comment ───────────────────────────────────
+
+  test("expression containing a block comment with closing brace") {
+    // `}` inside /* */ must not terminate expression extraction
+    val result = parse("""{/* } */ x}""")
+    assertEquals(result, List(TemplateNode.Expression("/* } */ x")))
+  }
+
+  test("expression containing a line comment with closing brace") {
+    // `}` inside // ... \n must not terminate expression extraction
+    val result = parse("{// }\nx}")
+    assertEquals(result, List(TemplateNode.Expression("// }\nx")))
+  }
+
+  // ── Attribute = with no value ──────────────────────────────────────────────
+
+  test("attribute with = but no value yields empty static attribute") {
+    // <div class=> — nothing after '='; the unquoted-value branch reads empty string
+    val result = parse("<div class=></div>")
+    val div    = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Static("class", "")))
+  }
+
+  // ── Void element content (lenient) ────────────────────────────────────────
+
+  test("content after void element is not consumed as its children") {
+    // <br> is void; the following text belongs to the parent, not to <br>
+    val result = parse("<p><br>after</p>")
+    val p      = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(p.children.head.asInstanceOf[TemplateNode.Element].tag, "br")
+    assertEquals(p.children(1), TemplateNode.Text("after"))
   }
 
   // ── Counter.melt integration test ─────────────────────────────────────────
