@@ -22,7 +22,7 @@ object ScalaCodeGen:
   /** Generates a scope ID from the component name (deterministic hash). */
   def scopeIdFor(objectName: String): String =
     val hash = objectName.foldLeft(17)((acc, c) => acc * 31 + c.toInt)
-    f"melt-${math.abs(hash) % 0xffffff}%06x"
+    f"melt-${ math.abs(hash) % 0xffffff }%06x"
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string.
     *
@@ -63,7 +63,7 @@ object ScalaCodeGen:
 
     val roots = ast.template.filter {
       case TemplateNode.Text(t) => !t.isBlank
-      case _                   => true
+      case _                    => true
     }
 
     roots match
@@ -102,12 +102,12 @@ object ScalaCodeGen:
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         val v = ctr.nextEl()
-        buf ++= s"""${indent}val $v = dom.document.createElement("$tag")\n"""
-        buf ++= s"${indent}$v.classList.add(_scopeId)\n"
+        buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
+        buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         attrs.foreach(emitAttr(buf, v, _, indent))
         children.foreach { child =>
           val cv = emitNode(buf, child, indent, ctr, isRoot = false)
-          if cv.nonEmpty then buf ++= s"${indent}$v.appendChild($cv)\n"
+          if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
         }
         v
 
@@ -116,13 +116,13 @@ object ScalaCodeGen:
         else
           val v       = ctr.nextTxt()
           val escaped = escapeString(content)
-          buf ++= s"""${indent}val $v = dom.document.createTextNode("$escaped")\n"""
+          buf ++= s"""${ indent }val $v = dom.document.createTextNode("$escaped")\n"""
           v
 
       case TemplateNode.Expression(code) =>
         // Phase 3: static render — emit expression result as text
         val v = ctr.nextTxt()
-        buf ++= s"""${indent}val $v = dom.document.createTextNode(($code).toString)\n"""
+        buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
         v
 
       case TemplateNode.Component(_, _, _) =>
@@ -134,15 +134,15 @@ object ScalaCodeGen:
   private def emitAttr(buf: StringBuilder, v: String, attr: Attr, indent: String): Unit =
     attr match
       case Attr.Static(name, value) =>
-        buf ++= s"""${indent}$v.setAttribute("$name", "${escapeString(value)}")\n"""
+        buf ++= s"""${ indent }$v.setAttribute("$name", "${ escapeString(value) }")\n"""
       case Attr.BooleanAttr(name) =>
-        buf ++= s"""${indent}$v.setAttribute("$name", "")\n"""
+        buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case Attr.Dynamic(name, expr) =>
-        buf ++= s"""${indent}$v.setAttribute("$name", ($expr).toString)\n"""
+        buf ++= s"""${ indent }$v.setAttribute("$name", ($expr).toString)\n"""
       case Attr.EventHandler(event, expr) =>
-        buf ++= s"""${indent}$v.addEventListener("$event", $expr)\n"""
+        buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
       case Attr.Directive(_, _, _) | Attr.Spread(_) | Attr.Shorthand(_) =>
-        // Phase 4/5/6: not yet implemented
+      // Phase 4/5/6: not yet implemented
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -156,5 +156,5 @@ object ScalaCodeGen:
   private final class Counter:
     private var el  = 0
     private var txt = 0
-    def nextEl():  String = { val v = s"_el$el";   el  += 1; v }
+    def nextEl():  String = { val v = s"_el$el"; el += 1; v }
     def nextTxt(): String = { val v = s"_txt$txt"; txt += 1; v }

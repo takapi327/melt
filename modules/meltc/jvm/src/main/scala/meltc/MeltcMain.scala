@@ -37,13 +37,13 @@ object MeltcMain:
       try new String(Files.readAllBytes(inputPath), StandardCharsets.UTF_8)
       catch
         case e: Exception =>
-          System.err.println(s"meltc: cannot read ${inputPath}: ${e.getMessage}")
+          System.err.println(s"meltc: cannot read ${ inputPath }: ${ e.getMessage }")
           sys.exit(1)
 
     val result = MeltCompiler.compile(source, inputPath.getFileName.toString, objectName, pkg)
 
     if result.errors.nonEmpty then
-      result.errors.foreach(e => System.err.println(s"meltc error: ${e.message}"))
+      result.errors.foreach(e => System.err.println(s"meltc error: ${ e.message }"))
       sys.exit(1)
 
     result.scalaCode match
@@ -52,10 +52,9 @@ object MeltcMain:
         sys.exit(1)
       case Some(code) =>
         try
-          if outputPath.getParent != null then
-            Files.createDirectories(outputPath.getParent)
+          if outputPath.getParent != null then Files.createDirectories(outputPath.getParent)
           Files.write(outputPath, code.getBytes(StandardCharsets.UTF_8))
         catch
           case e: Exception =>
-            System.err.println(s"meltc: cannot write ${outputPath}: ${e.getMessage}")
+            System.err.println(s"meltc: cannot write ${ outputPath }: ${ e.getMessage }")
             sys.exit(1)

@@ -6,8 +6,9 @@
 
 package melt.runtime
 
-import org.scalajs.dom
 import scala.collection.mutable
+
+import org.scalajs.dom
 
 /** Injects component-scoped CSS into the document `<head>`.
   *

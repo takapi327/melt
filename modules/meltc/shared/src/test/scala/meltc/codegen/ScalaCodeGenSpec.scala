@@ -6,8 +6,8 @@
 
 package meltc.codegen
 
-import meltc.MeltCompiler
 import meltc.ast.*
+import meltc.MeltCompiler
 
 /** Tests for [[ScalaCodeGen]].
   *
@@ -20,7 +20,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   /** Compile source, assert success, return generated Scala. */
   private def compile(src: String, name: String = "App", pkg: String = ""): String =
     val result = MeltCompiler.compile(src, s"$name.melt", name, pkg)
-    assert(result.errors.isEmpty, s"Compile errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
     result.scalaCode.getOrElse(fail("No generated code"))
 
   // ── scopeIdFor ────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   test("scopeIdFor produces deterministic melt-xxxxxx string") {
     val id = ScalaCodeGen.scopeIdFor("App")
     assert(id.startsWith("melt-"), id)
-    assertEquals(id.length, 11) // "melt-" (5) + 6 hex digits
+    assertEquals(id.length, 11)                      // "melt-" (5) + 6 hex digits
     assertEquals(id, ScalaCodeGen.scopeIdFor("App")) // deterministic
   }
 
@@ -160,7 +160,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   }
 
   test("classList.add(_scopeId) called on every element") {
-    val code = compile("<div><p></p></div>")
+    val code  = compile("<div><p></p></div>")
     val count = code.split("classList.add\\(_scopeId\\)", -1).length - 1
     assertEquals(count, 2) // div and p
   }

@@ -5,6 +5,7 @@
  */
 
 import org.scalajs.dom
+
 import components.App
 
 object Main:

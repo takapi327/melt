@@ -153,7 +153,8 @@ object MeltcPlugin extends AutoPlugin {
 
       // Derive sub-package from the relative path between srcDir and the file's parent directory.
       // e.g. srcDir=src/main/components, file=src/main/components/atom/Button.melt → subPkg="atom"
-      val subPkg = IO.relativize(srcDir, meltFile.getParentFile)
+      val subPkg = IO
+        .relativize(srcDir, meltFile.getParentFile)
         .map(_.replace(java.io.File.separatorChar, '.'))
         .getOrElse("")
       val fullPkg = (pkg, subPkg) match {
@@ -163,16 +164,18 @@ object MeltcPlugin extends AutoPlugin {
       }
 
       // Mirror directory structure in the output so that each package lives in its own sub-folder.
-      val outSubDir = IO.relativize(srcDir, meltFile.getParentFile)
+      val outSubDir = IO
+        .relativize(srcDir, meltFile.getParentFile)
         .map(rel => new java.io.File(outDir, rel))
         .getOrElse(outDir)
       IO.createDirectory(outSubDir)
       val outFile = outSubDir / s"$objectName.scala"
 
-      log.info(s"[sbt-meltc] Compiling ${meltFile.getName} → ${outFile.getName}")
+      log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
       val javaArgs = Seq(
-        "-cp", cpStr,
+        "-cp",
+        cpStr,
         "meltc.MeltcMain",
         meltFile.getAbsolutePath,
         outFile.getAbsolutePath,
@@ -183,10 +186,10 @@ object MeltcPlugin extends AutoPlugin {
       val exitCode = Fork.java(ForkOptions(), javaArgs)
 
       if (exitCode == 0) {
-        log.info(s"[sbt-meltc] Generated ${outFile.getAbsolutePath}")
+        log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
         Seq(outFile)
       } else {
-        log.error(s"[sbt-meltc] Compilation failed for ${meltFile.getName} (exit $exitCode)")
+        log.error(s"[sbt-meltc] Compilation failed for ${ meltFile.getName } (exit $exitCode)")
         Seq.empty
       }
     }
