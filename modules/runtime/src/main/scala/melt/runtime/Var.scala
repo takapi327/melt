@@ -6,11 +6,76 @@
 
 package melt.runtime
 
-/** A reactive mutable value.
+import scala.collection.mutable
+
+/** A mutable reactive variable.
   *
-  * Phase 0: stub implementation A complete implementation will be provided in Phase 1.
+  * Calling [[set]] or [[update]] notifies all subscribers and propagates
+  * changes through any derived [[Signal]] instances created via [[map]],
+  * [[flatMap]], or `for`-comprehensions.
+  *
+  * {{{
+  * val count   = Var(0)
+  * val doubled = count.map(_ * 2)
+  * count += 1
+  * assert(doubled.now() == 2)
+  * }}}
   */
-class Var[A] private (private var current: A)
+final class Var[A] private (private var _current: A):
+
+  private val subscribers = mutable.ListBuffer.empty[A => Unit]
+
+  /** Returns the current value without registering any reactive dependency. */
+  def now(): A = _current
+
+  /** Replaces the current value and notifies all subscribers. */
+  def set(value: A): Unit =
+    _current = value
+    subscribers.foreach(_(value))
+
+  /** Updates the current value using `f` and notifies all subscribers. */
+  def update(f: A => A): Unit = set(f(_current))
+
+  /** Subscribes to future value changes.
+    *
+    * @return an unsubscribe function; call it to stop receiving notifications.
+    */
+  def subscribe(f: A => Unit): () => Unit =
+    subscribers += f
+    () => { subscribers -= f; () }
+
+  /** Returns a read-only view of this variable as a [[Signal]].
+    *
+    * The returned Signal always reflects the current value of this Var.
+    * The same Signal instance is returned on subsequent calls.
+    */
+  lazy val signal: Signal[A] =
+    val s = new Signal[A](_current)
+    subscribers += (v => s.emit(v))
+    s
+
+  /** Derives a new [[Signal]] by transforming each emitted value with `f`. */
+  def map[B](f: A => B): Signal[B] =
+    val s = new Signal[B](f(_current))
+    subscribers += (v => s.emit(f(v)))
+    s
+
+  /** Derives a new [[Signal]] by flat-mapping, supporting dynamic source switching.
+    *
+    * When this Var emits a new value, the previous inner Signal is
+    * unsubscribed and a fresh one is obtained by calling `f`.
+    */
+  def flatMap[B](f: A => Signal[B]): Signal[B] =
+    var inner = f(_current)
+    val s     = new Signal[B](inner.now())
+    var cancelInner: () => Unit = inner.subscribe(b => s.emit(b))
+    subscribers += { a =>
+      cancelInner()
+      inner = f(a)
+      s.emit(inner.now())
+      cancelInner = inner.subscribe(b => s.emit(b))
+    }
+    s
 
 object Var:
   def apply[A](initial: A): Var[A] = new Var(initial)
