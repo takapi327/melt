@@ -1,0 +1,12 @@
+<script lang="scala">
+</script>
+
+<div>
+  <h1>Hello, Melt!</h1>
+  <p>Static content works.</p>
+</div>
+
+<style>
+h1 { color: #ff3e00; }
+p  { color: #555; }
+</style>
