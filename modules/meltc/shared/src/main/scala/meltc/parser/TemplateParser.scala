@@ -120,6 +120,20 @@ private[parser] final class TemplateParser(src: String):
   private def collectOneAttr(): Option[Attr] =
     if pos >= src.length || src(pos) == '>' || src(pos) == '/' then return None
 
+    // Spread attribute `{...expr}` or shorthand attribute `{varName}`
+    if src(pos) == '{' then
+      pos += 1 // consume '{'
+      val isSpread = pos + 2 < src.length && src(pos) == '.' && src(pos + 1) == '.' && src(pos + 2) == '.'
+      if isSpread then
+        pos += 3 // consume '...'
+        val (expr, end) = ExprExtractor.extract(src, pos)
+        pos = end
+        return Some(Attr.Spread(expr))
+      else
+        val (varName, end) = ExprExtractor.extract(src, pos)
+        pos = end
+        return Some(Attr.Shorthand(varName))
+
     val name = collectAttrName()
     if name.isEmpty then { pos += 1; return None } // skip unknown char
 

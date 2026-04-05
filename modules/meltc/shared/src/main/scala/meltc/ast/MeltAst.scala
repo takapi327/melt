@@ -64,3 +64,15 @@ enum Attr:
 
   /** A boolean attribute present without a value: `disabled`, `checked`. */
   case BooleanAttr(name: String)
+
+  /** A spread attribute that forwards all key-value pairs of an expression:
+    * `{...counterProps}` → `Spread("counterProps")`.
+    * Used in §10.2 (Component System) to pass props objects wholesale.
+    */
+  case Spread(expr: String)
+
+  /** A shorthand attribute where the variable name is also the attribute name:
+    * `{label}` → `Shorthand("label")`, equivalent to `label={label}`.
+    * Used in §10.2 (Component System).
+    */
+  case Shorthand(varName: String)
