@@ -6,7 +6,7 @@
 
 package meltc.parser
 
-import meltc.ast.{Attr, TemplateNode}
+import meltc.ast.{ Attr, TemplateNode }
 
 /** Parses an HTML template string into a list of [[TemplateNode]] values.
   *
@@ -24,8 +24,20 @@ private[parser] final class TemplateParser(src: String):
 
   /** HTML void elements that never have a closing tag. */
   private val VoidElements: Set[String] = Set(
-    "area", "base", "br", "col", "embed", "hr", "img", "input",
-    "link", "meta", "param", "source", "track", "wbr"
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr"
   )
 
   def parse(): List[TemplateNode] = parseNodes(insideTag = false)
@@ -38,8 +50,7 @@ private[parser] final class TemplateParser(src: String):
 
     while !stop && pos < src.length do
       if src.startsWith("</", pos) then
-        if insideTag then
-          stop = true
+        if insideTag then stop = true
         else
           // Stray closing tag at the top level — skip it to avoid an infinite loop.
           // A well-formed .melt template should not have unmatched closing tags,
@@ -150,8 +161,7 @@ private[parser] final class TemplateParser(src: String):
 
       case _ =>
         val start = pos
-        while pos < src.length && !src(pos).isWhitespace && src(pos) != '>' && src(pos) != '/' do
-          pos += 1
+        while pos < src.length && !src(pos).isWhitespace && src(pos) != '>' && src(pos) != '/' do pos += 1
         Some(makeAttrStatic(name, src.substring(start, pos)))
 
   private def makeAttrStatic(name: String, value: String): Attr =
@@ -161,12 +171,9 @@ private[parser] final class TemplateParser(src: String):
 
   private def makeAttrExpr(name: String, expr: String): Attr =
     val colon = name.indexOf(':')
-    if colon >= 0 then
-      Attr.Directive(name.substring(0, colon), name.substring(colon + 1), Some(expr))
-    else if name.startsWith("on") && name.length > 2 then
-      Attr.EventHandler(name.substring(2), expr)
-    else
-      Attr.Dynamic(name, expr)
+    if colon >= 0 then Attr.Directive(name.substring(0, colon), name.substring(colon + 1), Some(expr))
+    else if name.startsWith("on") && name.length > 2 then Attr.EventHandler(name.substring(2), expr)
+    else Attr.Dynamic(name, expr)
 
   // ── Node factory ──────────────────────────────────────────────────────────
 
@@ -187,8 +194,8 @@ private[parser] final class TemplateParser(src: String):
   private def collectName(): String =
     val start = pos
     while pos < src.length &&
-          (src(pos).isLetterOrDigit || src(pos) == '-' || src(pos) == '_' || src(pos) == '.') do
-      pos += 1
+      (src(pos).isLetterOrDigit || src(pos) == '-' || src(pos) == '_' || src(pos) == '.')
+    do pos += 1
     src.substring(start, pos)
 
   /** Reads an attribute name (stops at `=`, whitespace, `>`, `/`).
@@ -197,8 +204,8 @@ private[parser] final class TemplateParser(src: String):
   private def collectAttrName(): String =
     val start = pos
     while pos < src.length && src(pos) != '=' && !src(pos).isWhitespace &&
-          src(pos) != '>' && src(pos) != '/' do
-      pos += 1
+      src(pos) != '>' && src(pos) != '/'
+    do pos += 1
     src.substring(start, pos)
 
   /** Reads text until `{`, a tag-start `<letter`, a closing `</`, or an HTML comment. */
@@ -210,8 +217,7 @@ private[parser] final class TemplateParser(src: String):
         case '{' => stop = true
         case '<' =>
           val next = if pos + 1 < src.length then src(pos + 1) else '\u0000'
-          if next.isLetter || next == '_' || next == '/' || src.startsWith("<!--", pos) then
-            stop = true
+          if next.isLetter || next == '_' || next == '/' || src.startsWith("<!--", pos) then stop = true
           else
             buf += '<'; pos += 1
         case c =>

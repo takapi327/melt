@@ -15,14 +15,14 @@ class ExprExtractorSpec extends munit.FunSuite:
 
   /** Convenience wrapper: wraps `src` in `{ }` and extracts. */
   private def extract(src: String): String =
-    val full       = "{" + src + "}"
-    val (expr, _)  = ExprExtractor.extract(full, 1)
+    val full      = "{" + src + "}"
+    val (expr, _) = ExprExtractor.extract(full, 1)
     expr
 
   /** Returns the end-position after extracting from `{ ... }`. */
   private def endPos(src: String): Int =
-    val full      = "{" + src + "}"
-    val (_, end)  = ExprExtractor.extract(full, 1)
+    val full     = "{" + src + "}"
+    val (_, end) = ExprExtractor.extract(full, 1)
     end
 
   // ── Basic expressions ─────────────────────────────────────────────────────
@@ -36,12 +36,11 @@ class ExprExtractorSpec extends munit.FunSuite:
   }
 
   test("method call chain") {
-    assertEquals(extract("list.map(_.toString).mkString(\", \")"),
-      "list.map(_.toString).mkString(\", \")")
+    assertEquals(extract("list.map(_.toString).mkString(\", \")"), "list.map(_.toString).mkString(\", \")")
   }
 
   test("end position is just after the closing brace") {
-    val src  = "{hello}"
+    val src      = "{hello}"
     val (_, end) = ExprExtractor.extract(src, 1)
     assertEquals(end, src.length)
   }
@@ -75,13 +74,11 @@ class ExprExtractorSpec extends munit.FunSuite:
   }
 
   test("interpolated string with ${...}") {
-    assertEquals(extract("""s"Count: ${count.now()}""""),
-      """s"Count: ${count.now()}"""")
+    assertEquals(extract("""s"Count: ${count.now()}""""), """s"Count: ${count.now()}"""")
   }
 
   test("interpolated string with multiple holes") {
-    assertEquals(extract("""s"$firstName $lastName""""),
-      """s"$firstName $lastName"""")
+    assertEquals(extract("""s"$firstName $lastName""""), """s"$firstName $lastName"""")
   }
 
   // ── Triple-quoted strings ─────────────────────────────────────────────────
@@ -91,8 +88,7 @@ class ExprExtractorSpec extends munit.FunSuite:
   }
 
   test("triple-quoted string with braces inside") {
-    assertEquals(extract("\"\"\"{ not an expression }\"\"\""),
-      "\"\"\"{ not an expression }\"\"\"")
+    assertEquals(extract("\"\"\"{ not an expression }\"\"\""), "\"\"\"{ not an expression }\"\"\"")
   }
 
   // ── Character literals ────────────────────────────────────────────────────
@@ -112,13 +108,11 @@ class ExprExtractorSpec extends munit.FunSuite:
   }
 
   test("if-then-else expression") {
-    assertEquals(extract("if x > 0 then \"pos\" else \"non-pos\""),
-      "if x > 0 then \"pos\" else \"non-pos\"")
+    assertEquals(extract("if x > 0 then \"pos\" else \"non-pos\""), "if x > 0 then \"pos\" else \"non-pos\"")
   }
 
   test("if-then-else with braced branches") {
-    assertEquals(extract("if flag then { a } else { b }"),
-      "if flag then { a } else { b }")
+    assertEquals(extract("if flag then { a } else { b }"), "if flag then { a } else { b }")
   }
 
   // ── Empty expression ──────────────────────────────────────────────────────
@@ -142,7 +136,7 @@ class ExprExtractorSpec extends munit.FunSuite:
   // ── Mixed content ─────────────────────────────────────────────────────────
 
   test("expression followed by text outside braces is not consumed") {
-    val src = "{count} items"
+    val src         = "{count} items"
     val (expr, end) = ExprExtractor.extract(src, 1)
     assertEquals(expr, "count")
     // ' ' after '}' remains in src
@@ -157,7 +151,7 @@ class ExprExtractorSpec extends munit.FunSuite:
   // ── Robustness (unclosed brace) ───────────────────────────────────────────
 
   test("unclosed brace consumes to end of input without throwing") {
-    val src = "{unclosed"
+    val src         = "{unclosed"
     val (expr, end) = ExprExtractor.extract(src, 1)
     // Should not throw; returns whatever was accumulated
     assertEquals(expr, "unclosed")
@@ -167,14 +161,14 @@ class ExprExtractorSpec extends munit.FunSuite:
   // ── Position tracking ─────────────────────────────────────────────────────
 
   test("end position advances past the closing brace") {
-    val src = "{count} remaining"
+    val src         = "{count} remaining"
     val (expr, end) = ExprExtractor.extract(src, 1)
     assertEquals(expr, "count")
-    assertEquals(end, 7)  // points at ' ' after '}'
+    assertEquals(end, 7) // points at ' ' after '}'
   }
 
   test("consecutive expressions can be extracted in sequence") {
-    val src    = "{a}{b}"
+    val src      = "{a}{b}"
     val (e1, p1) = ExprExtractor.extract(src, 1)
     assertEquals(e1, "a")
     assertEquals(p1, 3)

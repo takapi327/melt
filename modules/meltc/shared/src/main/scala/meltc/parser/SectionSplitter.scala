@@ -42,29 +42,27 @@ private[parser] object SectionSplitter:
   def split(source: String): Either[String, Sections] =
     // ── 1. Extract <script lang="scala"> section ──────────────────────────
     val (rawScript, afterScript) = ScriptOpenTag.findFirstMatchIn(source) match
-      case None => (None, source)
+      case None    => (None, source)
       case Some(m) =>
         val bodyStart = m.end
         val bodyEnd   = source.indexOf(CloseScript, bodyStart)
-        if bodyEnd < 0 then
-          return Left("""Unclosed <script lang="scala"> tag""")
+        if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
         val code      = source.substring(bodyStart, bodyEnd).trim
         val propsType = PropsAttr.findFirstMatchIn(m.group(1)).map(_.group(1))
         val remaining = source.substring(0, m.start) + source.substring(bodyEnd + CloseScript.length)
         (Some(RawScript(code, propsType)), remaining)
 
     // ── 2. Extract <style> section ────────────────────────────────────────
-    val styleStart = afterScript.indexOf(StyleOpen)
+    val styleStart              = afterScript.indexOf(StyleOpen)
     val (styleOpt, templateRaw) =
       if styleStart < 0 then (None, afterScript)
       else
         val cssStart = styleStart + StyleOpen.length
         val cssEnd   = afterScript.indexOf(StyleClose, cssStart)
-        if cssEnd < 0 then
-          return Left("Unclosed <style> tag")
+        if cssEnd < 0 then return Left("Unclosed <style> tag")
         val css       = afterScript.substring(cssStart, cssEnd).trim
         val remaining = afterScript.substring(0, styleStart) +
-                        afterScript.substring(cssEnd + StyleClose.length)
+          afterScript.substring(cssEnd + StyleClose.length)
         (Some(css), remaining)
 
     Right(Sections(rawScript, templateRaw.trim, styleOpt))

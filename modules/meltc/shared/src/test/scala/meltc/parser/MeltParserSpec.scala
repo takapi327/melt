@@ -6,7 +6,7 @@
 
 package meltc.parser
 
-import meltc.ast.{Attr, MeltFile, ScriptSection, StyleSection, TemplateNode}
+import meltc.ast.{ Attr, MeltFile, ScriptSection, StyleSection, TemplateNode }
 
 class MeltParserSpec extends munit.FunSuite:
 
@@ -74,7 +74,7 @@ class MeltParserSpec extends munit.FunSuite:
   }
 
   test("script-only file") {
-    val src = """<script lang="scala">val x = 42</script>"""
+    val src      = """<script lang="scala">val x = 42</script>"""
     val meltFile = parse(src).getOrElse(fail("unexpected error"))
     assertEquals(meltFile.script.map(_.code), Some("val x = 42"))
     assertEquals(meltFile.template, Nil)
@@ -121,7 +121,7 @@ class MeltParserSpec extends munit.FunSuite:
   // ── lang='scala' single-quote form ────────────────────────────────────────
 
   test("lang='scala' single-quote variant is accepted") {
-    val src = "<script lang='scala'>val n = 42</script><p>{n}</p>"
+    val src      = "<script lang='scala'>val n = 42</script><p>{n}</p>"
     val meltFile = parse(src).getOrElse(fail("unexpected error"))
     assertEquals(meltFile.script.map(_.code), Some("val n = 42"))
   }

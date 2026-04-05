@@ -6,7 +6,7 @@
 
 package meltc.parser
 
-import meltc.ast.{Attr, TemplateNode}
+import meltc.ast.{ Attr, TemplateNode }
 
 class TemplateParserSpec extends munit.FunSuite:
 
@@ -27,8 +27,10 @@ class TemplateParserSpec extends munit.FunSuite:
   }
 
   test("HTML comment is discarded") {
-    assertEquals(parse("<!-- this is a comment --><p>hi</p>"),
-      List(TemplateNode.Element("p", Nil, List(TemplateNode.Text("hi")))))
+    assertEquals(
+      parse("<!-- this is a comment --><p>hi</p>"),
+      List(TemplateNode.Element("p", Nil, List(TemplateNode.Text("hi"))))
+    )
   }
 
   // ── Elements ──────────────────────────────────────────────────────────────
@@ -64,11 +66,13 @@ class TemplateParserSpec extends munit.FunSuite:
   test("event handler attribute (onclick)") {
     assertEquals(
       parse("<button onclick={handler}>Click</button>"),
-      List(TemplateNode.Element(
-        "button",
-        List(Attr.EventHandler("click", "handler")),
-        List(TemplateNode.Text("Click"))
-      ))
+      List(
+        TemplateNode.Element(
+          "button",
+          List(Attr.EventHandler("click", "handler")),
+          List(TemplateNode.Text("Click"))
+        )
+      )
     )
   }
 
@@ -104,21 +108,35 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("nested elements") {
     val result = parse("<div><p>Hi</p></div>")
-    assertEquals(result, List(
-      TemplateNode.Element("div", Nil, List(
-        TemplateNode.Element("p", Nil, List(TemplateNode.Text("Hi")))
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "div",
+          Nil,
+          List(
+            TemplateNode.Element("p", Nil, List(TemplateNode.Text("Hi")))
+          )
+        )
+      )
+    )
   }
 
   test("sibling text and expression in same element") {
     val result = parse("<p>Count: {n}</p>")
-    assertEquals(result, List(
-      TemplateNode.Element("p", Nil, List(
-        TemplateNode.Text("Count: "),
-        TemplateNode.Expression("n")
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "p",
+          Nil,
+          List(
+            TemplateNode.Text("Count: "),
+            TemplateNode.Expression("n")
+          )
+        )
+      )
+    )
   }
 
   // ── Component (uppercase tag) ─────────────────────────────────────────────
@@ -164,97 +182,146 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("element with multiple attributes") {
     val result = parse("""<input type="text" bind:value={name} placeholder="Name" />""")
-    assertEquals(result, List(
-      TemplateNode.Element("input", List(
-        Attr.Static("type", "text"),
-        Attr.Directive("bind", "value", Some("name")),
-        Attr.Static("placeholder", "Name")
-      ), Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "input",
+          List(
+            Attr.Static("type", "text"),
+            Attr.Directive("bind", "value", Some("name")),
+            Attr.Static("placeholder", "Name")
+          ),
+          Nil
+        )
+      )
+    )
   }
 
   // ── Multiple sibling elements ─────────────────────────────────────────────
 
   test("two sibling top-level elements") {
     val result = parse("<h1>Title</h1><p>Body</p>")
-    assertEquals(result, List(
-      TemplateNode.Element("h1", Nil, List(TemplateNode.Text("Title"))),
-      TemplateNode.Element("p",  Nil, List(TemplateNode.Text("Body")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("h1", Nil, List(TemplateNode.Text("Title"))),
+        TemplateNode.Element("p", Nil, List(TemplateNode.Text("Body")))
+      )
+    )
   }
 
   test("expression between two elements") {
     val result = parse("<span>A</span>{sep}<span>B</span>")
-    assertEquals(result, List(
-      TemplateNode.Element("span", Nil, List(TemplateNode.Text("A"))),
-      TemplateNode.Expression("sep"),
-      TemplateNode.Element("span", Nil, List(TemplateNode.Text("B")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("span", Nil, List(TemplateNode.Text("A"))),
+        TemplateNode.Expression("sep"),
+        TemplateNode.Element("span", Nil, List(TemplateNode.Text("B")))
+      )
+    )
   }
 
   // ── Deep nesting ──────────────────────────────────────────────────────────
 
   test("three levels of nesting") {
     val result = parse("<ul><li><a href=\"#\">link</a></li></ul>")
-    assertEquals(result, List(
-      TemplateNode.Element("ul", Nil, List(
-        TemplateNode.Element("li", Nil, List(
-          TemplateNode.Element("a", List(Attr.Static("href", "#")), List(TemplateNode.Text("link")))
-        ))
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "ul",
+          Nil,
+          List(
+            TemplateNode.Element(
+              "li",
+              Nil,
+              List(
+                TemplateNode.Element("a", List(Attr.Static("href", "#")), List(TemplateNode.Text("link")))
+              )
+            )
+          )
+        )
+      )
+    )
   }
 
   test("sibling elements inside parent") {
     val result = parse("<div><span>A</span><span>B</span></div>")
-    assertEquals(result, List(
-      TemplateNode.Element("div", Nil, List(
-        TemplateNode.Element("span", Nil, List(TemplateNode.Text("A"))),
-        TemplateNode.Element("span", Nil, List(TemplateNode.Text("B")))
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "div",
+          Nil,
+          List(
+            TemplateNode.Element("span", Nil, List(TemplateNode.Text("A"))),
+            TemplateNode.Element("span", Nil, List(TemplateNode.Text("B")))
+          )
+        )
+      )
+    )
   }
 
   // ── Multiple consecutive expressions ──────────────────────────────────────
 
   test("two consecutive expressions with text between them") {
     val result = parse("<p>{first} and {second}</p>")
-    assertEquals(result, List(
-      TemplateNode.Element("p", Nil, List(
-        TemplateNode.Expression("first"),
-        TemplateNode.Text(" and "),
-        TemplateNode.Expression("second")
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "p",
+          Nil,
+          List(
+            TemplateNode.Expression("first"),
+            TemplateNode.Text(" and "),
+            TemplateNode.Expression("second")
+          )
+        )
+      )
+    )
   }
 
   test("three consecutive expressions without separator") {
     val result = parse("{a}{b}{c}")
-    assertEquals(result, List(
-      TemplateNode.Expression("a"),
-      TemplateNode.Expression("b"),
-      TemplateNode.Expression("c")
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Expression("a"),
+        TemplateNode.Expression("b"),
+        TemplateNode.Expression("c")
+      )
+    )
   }
 
   // ── If-then-else expression ───────────────────────────────────────────────
 
   test("if-then-else expression in element") {
     val result = parse("""<span class={if active then "on" else "off"}></span>""")
-    assertEquals(result, List(
-      TemplateNode.Element("span",
-        List(Attr.Dynamic("class", """if active then "on" else "off"""")),
-        Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("span", List(Attr.Dynamic("class", """if active then "on" else "off"""")), Nil)
+      )
+    )
   }
 
   test("if-then-else expression as child node") {
     val result = parse("""<p>{if n > 0 then "positive" else "non-positive"}</p>""")
-    assertEquals(result, List(
-      TemplateNode.Element("p", Nil, List(
-        TemplateNode.Expression("""if n > 0 then "positive" else "non-positive"""")
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "p",
+          Nil,
+          List(
+            TemplateNode.Expression("""if n > 0 then "positive" else "non-positive"""")
+          )
+        )
+      )
+    )
   }
 
   // ── Single-quoted attribute values ────────────────────────────────────────
@@ -276,13 +343,20 @@ class TemplateParserSpec extends munit.FunSuite:
         |  placeholder="Enter name"
         |/>""".stripMargin
     )
-    assertEquals(result, List(
-      TemplateNode.Element("input", List(
-        Attr.Static("type", "text"),
-        Attr.Directive("bind", "value", Some("name")),
-        Attr.Static("placeholder", "Enter name")
-      ), Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "input",
+          List(
+            Attr.Static("type", "text"),
+            Attr.Directive("bind", "value", Some("name")),
+            Attr.Static("placeholder", "Enter name")
+          ),
+          Nil
+        )
+      )
+    )
   }
 
   // ── Various void elements ─────────────────────────────────────────────────
@@ -293,12 +367,19 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("<img> with attributes") {
     val result = parse("""<img src="photo.png" alt="photo">""")
-    assertEquals(result, List(
-      TemplateNode.Element("img", List(
-        Attr.Static("src", "photo.png"),
-        Attr.Static("alt", "photo")
-      ), Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element(
+          "img",
+          List(
+            Attr.Static("src", "photo.png"),
+            Attr.Static("alt", "photo")
+          ),
+          Nil
+        )
+      )
+    )
   }
 
   test("<meta> void element") {
@@ -351,19 +432,28 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("Component with child elements") {
     val result = parse("<Card><p>content</p></Card>")
-    assertEquals(result, List(
-      TemplateNode.Component("Card", Nil, List(
-        TemplateNode.Element("p", Nil, List(TemplateNode.Text("content")))
-      ))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Component(
+          "Card",
+          Nil,
+          List(
+            TemplateNode.Element("p", Nil, List(TemplateNode.Text("content")))
+          )
+        )
+      )
+    )
   }
 
   test("Component with dynamic prop and child text") {
     val result = parse("""<Modal title={t}>Hello</Modal>""")
-    assertEquals(result, List(
-      TemplateNode.Component("Modal", List(Attr.Dynamic("title", "t")),
-        List(TemplateNode.Text("Hello")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Component("Modal", List(Attr.Dynamic("title", "t")), List(TemplateNode.Text("Hello")))
+      )
+    )
   }
 
   // ── Empty element ─────────────────────────────────────────────────────────
@@ -394,8 +484,7 @@ class TemplateParserSpec extends munit.FunSuite:
     val tbody = sections(1).asInstanceOf[TemplateNode.Element]
     assertEquals(tbody.tag, "tbody")
     // tbody > tr > td > Expression
-    val td = tbody.children.head.asInstanceOf[TemplateNode.Element]
-      .children.head.asInstanceOf[TemplateNode.Element]
+    val td = tbody.children.head.asInstanceOf[TemplateNode.Element].children.head.asInstanceOf[TemplateNode.Element]
     assertEquals(td.children, List(TemplateNode.Expression("name")))
   }
 
@@ -414,29 +503,38 @@ class TemplateParserSpec extends munit.FunSuite:
     assertEquals(form.children.size, 4)
     // password input
     val pwInput = form.children(1).asInstanceOf[TemplateNode.Element]
-    assertEquals(pwInput.attrs, List(
-      Attr.Static("type", "password"),
-      Attr.Directive("bind", "value", Some("password"))
-    ))
+    assertEquals(
+      pwInput.attrs,
+      List(
+        Attr.Static("type", "password"),
+        Attr.Directive("bind", "value", Some("password"))
+      )
+    )
     // checkbox
     val checkbox = form.children(2).asInstanceOf[TemplateNode.Element]
-    assertEquals(checkbox.attrs, List(
-      Attr.Static("type", "checkbox"),
-      Attr.Directive("bind", "checked", Some("remember"))
-    ))
+    assertEquals(
+      checkbox.attrs,
+      List(
+        Attr.Static("type", "checkbox"),
+        Attr.Directive("bind", "checked", Some("remember"))
+      )
+    )
   }
 
   test("inline elements mixed with text") {
-    val html = "<p>Hello <strong>world</strong> and <em>everyone</em>!</p>"
+    val html   = "<p>Hello <strong>world</strong> and <em>everyone</em>!</p>"
     val result = parse(html)
-    val p = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(p.children, List(
-      TemplateNode.Text("Hello "),
-      TemplateNode.Element("strong", Nil, List(TemplateNode.Text("world"))),
-      TemplateNode.Text(" and "),
-      TemplateNode.Element("em", Nil, List(TemplateNode.Text("everyone"))),
-      TemplateNode.Text("!")
-    ))
+    val p      = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      p.children,
+      List(
+        TemplateNode.Text("Hello "),
+        TemplateNode.Element("strong", Nil, List(TemplateNode.Text("world"))),
+        TemplateNode.Text(" and "),
+        TemplateNode.Element("em", Nil, List(TemplateNode.Text("everyone"))),
+        TemplateNode.Text("!")
+      )
+    )
   }
 
   test("navigation list with links") {
@@ -449,8 +547,8 @@ class TemplateParserSpec extends munit.FunSuite:
         |  </ul>
         |</nav>""".stripMargin
     val result = parse(html)
-    val nav  = result.head.asInstanceOf[TemplateNode.Element]
-    val ul   = nav.children.head.asInstanceOf[TemplateNode.Element]
+    val nav    = result.head.asInstanceOf[TemplateNode.Element]
+    val ul     = nav.children.head.asInstanceOf[TemplateNode.Element]
     assertEquals(ul.tag, "ul")
     assertEquals(ul.children.size, 3)
     val firstLi = ul.children.head.asInstanceOf[TemplateNode.Element]
@@ -462,7 +560,7 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("div with mixed void and non-void children") {
     val html = "<div><img src=\"a.png\" alt=\"\"/><p>text</p><br/><span>x</span></div>"
-    val div = parse(html).head.asInstanceOf[TemplateNode.Element]
+    val div  = parse(html).head.asInstanceOf[TemplateNode.Element]
     assertEquals(div.children.size, 4)
     assertEquals(div.children(0).asInstanceOf[TemplateNode.Element].tag, "img")
     assertEquals(div.children(1).asInstanceOf[TemplateNode.Element].tag, "p")
@@ -483,13 +581,16 @@ class TemplateParserSpec extends munit.FunSuite:
         |</div>""".stripMargin
     )
     val div = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(div.attrs, List(
-      Attr.Static("id", "main"),
-      Attr.Dynamic("class", "cls"),
-      Attr.Directive("style", "color", Some("color")),
-      Attr.Directive("use", "tooltip", Some("tip")),
-      Attr.Static("aria-label", "Main")
-    ))
+    assertEquals(
+      div.attrs,
+      List(
+        Attr.Static("id", "main"),
+        Attr.Dynamic("class", "cls"),
+        Attr.Directive("style", "color", Some("color")),
+        Attr.Directive("use", "tooltip", Some("tip")),
+        Attr.Static("aria-label", "Main")
+      )
+    )
   }
 
   // ── Malformed input (lenient parsing) ─────────────────────────────────────
@@ -529,39 +630,51 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("hyphenated custom element tag is parsed as Element") {
     val result = parse("<my-component>text</my-component>")
-    assertEquals(result, List(
-      TemplateNode.Element("my-component", Nil, List(TemplateNode.Text("text")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("my-component", Nil, List(TemplateNode.Text("text")))
+      )
+    )
   }
 
   test("web component with attributes") {
     val result = parse("""<my-button variant="primary" onclick={handler}>Click</my-button>""")
-    val el = result.head.asInstanceOf[TemplateNode.Element]
+    val el     = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(el.tag, "my-button")
-    assertEquals(el.attrs, List(
-      Attr.Static("variant", "primary"),
-      Attr.EventHandler("click", "handler")
-    ))
+    assertEquals(
+      el.attrs,
+      List(
+        Attr.Static("variant", "primary"),
+        Attr.EventHandler("click", "handler")
+      )
+    )
   }
 
   // ── data-* and aria-* attributes ──────────────────────────────────────────
 
   test("data-* static attributes") {
     val result = parse("""<div data-id="123" data-label="item"></div>""")
-    val div = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(div.attrs, List(
-      Attr.Static("data-id", "123"),
-      Attr.Static("data-label", "item")
-    ))
+    val div    = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      div.attrs,
+      List(
+        Attr.Static("data-id", "123"),
+        Attr.Static("data-label", "item")
+      )
+    )
   }
 
   test("data-* dynamic attribute") {
     val result = parse("<li data-index={idx} data-selected={isActive}></li>")
-    val li = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(li.attrs, List(
-      Attr.Dynamic("data-index", "idx"),
-      Attr.Dynamic("data-selected", "isActive")
-    ))
+    val li     = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      li.attrs,
+      List(
+        Attr.Dynamic("data-index", "idx"),
+        Attr.Dynamic("data-selected", "isActive")
+      )
+    )
   }
 
   test("aria-* attributes") {
@@ -569,30 +682,39 @@ class TemplateParserSpec extends munit.FunSuite:
       """<button aria-expanded={isOpen} aria-controls="panel" aria-label="Toggle">+</button>"""
     )
     val btn = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(btn.attrs, List(
-      Attr.Dynamic("aria-expanded", "isOpen"),
-      Attr.Static("aria-controls", "panel"),
-      Attr.Static("aria-label", "Toggle")
-    ))
+    assertEquals(
+      btn.attrs,
+      List(
+        Attr.Dynamic("aria-expanded", "isOpen"),
+        Attr.Static("aria-controls", "panel"),
+        Attr.Static("aria-label", "Toggle")
+      )
+    )
   }
 
   // ── Comparison operator > in attribute expression ─────────────────────────
 
   test("attribute expression with > operator does not break tag parsing") {
     val result = parse("""<div class={if count > 0 then "pos" else "zero"}></div>""")
-    val div = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(div.attrs, List(
-      Attr.Dynamic("class", """if count > 0 then "pos" else "zero"""")
-    ))
+    val div    = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      div.attrs,
+      List(
+        Attr.Dynamic("class", """if count > 0 then "pos" else "zero"""")
+      )
+    )
     assertEquals(div.children, Nil)
   }
 
   test("attribute expression with chained comparisons") {
     val result = parse("""<span class={if x > 0 && y < 100 then "valid" else "invalid"}></span>""")
-    val span = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(span.attrs, List(
-      Attr.Dynamic("class", """if x > 0 && y < 100 then "valid" else "invalid"""")
-    ))
+    val span   = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      span.attrs,
+      List(
+        Attr.Dynamic("class", """if x > 0 && y < 100 then "valid" else "invalid"""")
+      )
+    )
   }
 
   // ── Self-closing without space (<br/>, <input/>) ──────────────────────────
@@ -612,48 +734,60 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("multiple boolean attributes") {
     val result = parse("<input disabled readonly required />")
-    val input = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(input.attrs, List(
-      Attr.BooleanAttr("disabled"),
-      Attr.BooleanAttr("readonly"),
-      Attr.BooleanAttr("required")
-    ))
+    val input  = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      input.attrs,
+      List(
+        Attr.BooleanAttr("disabled"),
+        Attr.BooleanAttr("readonly"),
+        Attr.BooleanAttr("required")
+      )
+    )
   }
 
   test("boolean attributes mixed with static and dynamic") {
     val result = parse("""<input type="text" disabled bind:value={v} readonly />""")
-    val input = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(input.attrs, List(
-      Attr.Static("type", "text"),
-      Attr.BooleanAttr("disabled"),
-      Attr.Directive("bind", "value", Some("v")),
-      Attr.BooleanAttr("readonly")
-    ))
+    val input  = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      input.attrs,
+      List(
+        Attr.Static("type", "text"),
+        Attr.BooleanAttr("disabled"),
+        Attr.Directive("bind", "value", Some("v")),
+        Attr.BooleanAttr("readonly")
+      )
+    )
   }
 
   // ── Unquoted attribute values ─────────────────────────────────────────────
 
   test("unquoted attribute value") {
     val result = parse("<div id=main></div>")
-    assertEquals(result, List(
-      TemplateNode.Element("div", List(Attr.Static("id", "main")), Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("div", List(Attr.Static("id", "main")), Nil)
+      )
+    )
   }
 
   test("multiple unquoted attribute values") {
     val result = parse("<input type=text id=username />")
-    val input = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(input.attrs, List(
-      Attr.Static("type", "text"),
-      Attr.Static("id", "username")
-    ))
+    val input  = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      input.attrs,
+      List(
+        Attr.Static("type", "text"),
+        Attr.Static("id", "username")
+      )
+    )
   }
 
   // ── <script> and <style> elements in template ─────────────────────────────
 
   test("<script> without lang=scala in template is parsed as Element") {
     val result = parse("""<script>console.log("hi")</script>""")
-    val el = result.head.asInstanceOf[TemplateNode.Element]
+    val el     = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(el.tag, "script")
     // The JS content becomes a text child
     assertEquals(el.children.size, 1)
@@ -661,7 +795,7 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("<script src=...> is parsed as Element") {
     val result = parse("""<script src="app.js"></script>""")
-    val el = result.head.asInstanceOf[TemplateNode.Element]
+    val el     = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(el.tag, "script")
     assertEquals(el.attrs, List(Attr.Static("src", "app.js")))
     assertEquals(el.children, Nil)
@@ -671,40 +805,49 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("SVG element with viewBox attribute") {
     val result = parse("""<svg viewBox="0 0 100 100"></svg>""")
-    assertEquals(result, List(
-      TemplateNode.Element("svg", List(Attr.Static("viewBox", "0 0 100 100")), Nil)
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("svg", List(Attr.Static("viewBox", "0 0 100 100")), Nil)
+      )
+    )
   }
 
   test("SVG circle self-closing") {
     val result = parse("""<svg><circle cx="50" cy="50" r="30" /></svg>""")
-    val svg = result.head.asInstanceOf[TemplateNode.Element]
+    val svg    = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(svg.tag, "svg")
     val circle = svg.children.head.asInstanceOf[TemplateNode.Element]
     assertEquals(circle.tag, "circle")
-    assertEquals(circle.attrs, List(
-      Attr.Static("cx", "50"),
-      Attr.Static("cy", "50"),
-      Attr.Static("r", "30")
-    ))
+    assertEquals(
+      circle.attrs,
+      List(
+        Attr.Static("cx", "50"),
+        Attr.Static("cy", "50"),
+        Attr.Static("r", "30")
+      )
+    )
     assertEquals(circle.children, Nil)
   }
 
   test("SVG with reactive fill attribute") {
     val result = parse("""<circle cx="50" cy="50" r="30" style:fill={color} />""")
     val circle = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(circle.attrs, List(
-      Attr.Static("cx", "50"),
-      Attr.Static("cy", "50"),
-      Attr.Static("r", "30"),
-      Attr.Directive("style", "fill", Some("color"))
-    ))
+    assertEquals(
+      circle.attrs,
+      List(
+        Attr.Static("cx", "50"),
+        Attr.Static("cy", "50"),
+        Attr.Static("r", "30"),
+        Attr.Directive("style", "fill", Some("color"))
+      )
+    )
   }
 
   test("nested SVG structure") {
     val result = parse("""<svg><g><rect x="10" y="10" width="80" height="80" /></g></svg>""")
-    val svg = result.head.asInstanceOf[TemplateNode.Element]
-    val g   = svg.children.head.asInstanceOf[TemplateNode.Element]
+    val svg    = result.head.asInstanceOf[TemplateNode.Element]
+    val g      = svg.children.head.asInstanceOf[TemplateNode.Element]
     assertEquals(g.tag, "g")
     val rect = g.children.head.asInstanceOf[TemplateNode.Element]
     assertEquals(rect.tag, "rect")
@@ -715,24 +858,27 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("literal < in text content (not followed by letter)") {
     val result = parse("<p>price < $100</p>")
-    val p = result.head.asInstanceOf[TemplateNode.Element]
+    val p      = result.head.asInstanceOf[TemplateNode.Element]
     // '<' followed by ' ' is not a tag start, so it becomes literal text
     assertEquals(p.children, List(TemplateNode.Text("price < $100")))
   }
 
   test("left-shift operator << in text content") {
     val result = parse("<p>x << 2</p>")
-    val p = result.head.asInstanceOf[TemplateNode.Element]
+    val p      = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(p.children, List(TemplateNode.Text("x << 2")))
   }
 
   test("expression with < operator in template text") {
     val result = parse("<p>{items.filter(x => x < 10).size} items</p>")
-    val p = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(p.children, List(
-      TemplateNode.Expression("items.filter(x => x < 10).size"),
-      TemplateNode.Text(" items")
-    ))
+    val p      = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      p.children,
+      List(
+        TemplateNode.Expression("items.filter(x => x < 10).size"),
+        TemplateNode.Text(" items")
+      )
+    )
   }
 
   // ── DOCTYPE declaration ───────────────────────────────────────────────────
@@ -752,17 +898,23 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("multiple comments are all discarded") {
     val result = parse("<!--first--><p>text</p><!--second-->")
-    assertEquals(result, List(
-      TemplateNode.Element("p", Nil, List(TemplateNode.Text("text")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("p", Nil, List(TemplateNode.Text("text")))
+      )
+    )
   }
 
   test("comment between sibling elements is discarded") {
     val result = parse("<h1>Title</h1><!-- separator --><p>Body</p>")
-    assertEquals(result, List(
-      TemplateNode.Element("h1", Nil, List(TemplateNode.Text("Title"))),
-      TemplateNode.Element("p",  Nil, List(TemplateNode.Text("Body")))
-    ))
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Element("h1", Nil, List(TemplateNode.Text("Title"))),
+        TemplateNode.Element("p", Nil, List(TemplateNode.Text("Body")))
+      )
+    )
   }
 
   // ── Counter.melt integration test ─────────────────────────────────────────
@@ -803,8 +955,11 @@ class TemplateParserSpec extends munit.FunSuite:
     // <p>Doubled: {doubled}</p>
     val p = children(3).asInstanceOf[TemplateNode.Element]
     assertEquals(p.tag, "p")
-    assertEquals(p.children, List(
-      TemplateNode.Text("Doubled: "),
-      TemplateNode.Expression("doubled")
-    ))
+    assertEquals(
+      p.children,
+      List(
+        TemplateNode.Text("Doubled: "),
+        TemplateNode.Expression("doubled")
+      )
+    )
   }

@@ -6,7 +6,7 @@
 
 package meltc.parser
 
-import meltc.ast.{MeltFile, ScriptSection, StyleSection}
+import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
 
 /** Top-level parser for `.melt` files.
   *

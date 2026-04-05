@@ -30,7 +30,7 @@ class SectionSplitterSpec extends munit.FunSuite:
   }
 
   test("template-only file (no script, no style)") {
-    val src = "<div>Hello</div>"
+    val src      = "<div>Hello</div>"
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript, None)
     assertEquals(sections.templateSource, "<div>Hello</div>")
@@ -69,19 +69,19 @@ class SectionSplitterSpec extends munit.FunSuite:
   }
 
   test("propsType is None when props attribute is absent") {
-    val src = """<script lang="scala">val x = 1</script><div></div>"""
+    val src      = """<script lang="scala">val x = 1</script><div></div>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.flatMap(_.propsType), None)
   }
 
   test("attribute order: lang before props") {
-    val src = """<script lang="scala" props="MyProps">val x = 1</script><p></p>"""
+    val src      = """<script lang="scala" props="MyProps">val x = 1</script><p></p>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
   }
 
   test("attribute order: props before lang") {
-    val src = """<script props="MyProps" lang="scala">val x = 1</script><p></p>"""
+    val src      = """<script props="MyProps" lang="scala">val x = 1</script><p></p>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
   }
@@ -98,7 +98,7 @@ class SectionSplitterSpec extends munit.FunSuite:
   }
 
   test("<script type=\"module\"> is not the Scala section") {
-    val src = """<script type="module">import x from './lib.js'</script><span></span>"""
+    val src      = """<script type="module">import x from './lib.js'</script><span></span>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript, None)
   }
@@ -106,14 +106,14 @@ class SectionSplitterSpec extends munit.FunSuite:
   // ── Quote style variations ────────────────────────────────────────────────
 
   test("lang='scala' with single quotes is recognised") {
-    val src = "<script lang='scala'>val x = 1</script><p></p>"
+    val src      = "<script lang='scala'>val x = 1</script><p></p>"
     val sections = split(src).getOrElse(fail("unexpected error"))
     assert(sections.rawScript.isDefined)
     assertEquals(sections.rawScript.map(_.code), Some("val x = 1"))
   }
 
   test("props with single quotes is extracted") {
-    val src = "<script lang='scala' props='MyProps'>val x = 1</script><p></p>"
+    val src      = "<script lang='scala' props='MyProps'>val x = 1</script><p></p>"
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
   }
@@ -121,13 +121,13 @@ class SectionSplitterSpec extends munit.FunSuite:
   // ── Empty and whitespace-only bodies ──────────────────────────────────────
 
   test("empty script body") {
-    val src = """<script lang="scala"></script><div></div>"""
+    val src      = """<script lang="scala"></script><div></div>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.map(_.code), Some(""))
   }
 
   test("empty style body") {
-    val src = """<div></div><style></style>"""
+    val src      = """<div></div><style></style>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.style, Some(""))
   }
@@ -200,7 +200,7 @@ class SectionSplitterSpec extends munit.FunSuite:
 
   test("<style> with an extra attribute stays in template (not extracted)") {
     // <style scoped> is non-standard; the splitter only matches plain <style>
-    val src = "<p></p><style scoped>div { color: red; }</style>"
+    val src      = "<p></p><style scoped>div { color: red; }</style>"
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.style, None)
     assert(sections.templateSource.contains("<style scoped>"))
@@ -219,7 +219,7 @@ class SectionSplitterSpec extends munit.FunSuite:
         |  h1 { color: #ff3e00; }
         |</style>""".stripMargin
     val sections = split(src).getOrElse(fail("unexpected error"))
-    val css = sections.style.getOrElse(fail("style missing"))
+    val css      = sections.style.getOrElse(fail("style missing"))
     assert(css.contains(".counter"))
     assert(css.contains("text-align: center;"))
     assert(css.contains("h1 { color: #ff3e00; }"))

@@ -33,10 +33,13 @@ case class StyleSection(css: String)
 enum TemplateNode:
   /** An HTML element such as `<div class="foo">...</div>`. */
   case Element(tag: String, attrs: List[Attr], children: List[TemplateNode])
+
   /** A plain text node. */
   case Text(content: String)
+
   /** A Scala expression enclosed in braces: `{count}`. */
   case Expression(code: String)
+
   /** A component reference — tag name starts with an uppercase letter: `<Counter />`. */
   case Component(name: String, attrs: List[Attr], children: List[TemplateNode])
 
@@ -44,8 +47,10 @@ enum TemplateNode:
 enum Attr:
   /** A static string attribute: `class="foo"`. */
   case Static(name: String, value: String)
+
   /** A dynamic expression attribute: `class={cls}`. */
   case Dynamic(name: String, expr: String)
+
   /** A directive attribute: `bind:value={v}`, `class:active={flag}`.
     *
     * @param kind the directive kind (`bind`, `class`, `style`, `use`, ...)
@@ -53,7 +58,9 @@ enum Attr:
     * @param expr the optional expression value
     */
   case Directive(kind: String, name: String, expr: Option[String])
+
   /** An event handler attribute: `onclick={handler}` → EventHandler("click", "handler"). */
   case EventHandler(event: String, expr: String)
+
   /** A boolean attribute present without a value: `disabled`, `checked`. */
   case BooleanAttr(name: String)
