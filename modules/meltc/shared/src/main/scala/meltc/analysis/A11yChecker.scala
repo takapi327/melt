@@ -10,39 +10,32 @@ import scala.collection.mutable
 
 import meltc.ast.*
 
-/** Static analysis pass that checks for common accessibility issues in templates.
-  *
-  * Produces `(message, line)` pairs where `line` is the 1-based line number
-  * in the original `.melt` source.
-  */
+/** Static analysis pass that checks for common accessibility issues in templates. */
 object A11yChecker:
 
-  /** Checks the template AST for a11y issues.
-    *
-    * @param ast    the parsed `.melt` file
-    * @param source the raw `.melt` source text (used for line number resolution)
-    */
   def check(ast: MeltFile, source: String = ""): List[(String, Int)] =
     val w         = mutable.ListBuffer.empty[(String, Int)]
     val lineIndex = buildLineIndex(source)
-    ast.template.foreach(checkNode(_, w, source, lineIndex))
+    val tagCount  = mutable.Map.empty[String, Int]
+    ast.template.foreach(checkNode(_, w, source, lineIndex, tagCount))
     w.toList
 
   private def checkNode(
     node:      TemplateNode,
     w:         mutable.ListBuffer[(String, Int)],
     source:    String,
-    lineIndex: Array[Int]
+    lineIndex: Array[Int],
+    tagCount:  mutable.Map[String, Int]
   ): Unit =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
-        checkElement(tag, attrs, children, w, source, lineIndex)
-        children.foreach(checkNode(_, w, source, lineIndex))
+        checkElement(tag, attrs, children, w, source, lineIndex, tagCount)
+        children.foreach(checkNode(_, w, source, lineIndex, tagCount))
       case TemplateNode.Component(_, _, children) =>
-        children.foreach(checkNode(_, w, source, lineIndex))
+        children.foreach(checkNode(_, w, source, lineIndex, tagCount))
       case TemplateNode.InlineTemplate(parts) =>
         parts.foreach {
-          case InlineTemplatePart.Html(nodes) => nodes.foreach(checkNode(_, w, source, lineIndex))
+          case InlineTemplatePart.Html(nodes) => nodes.foreach(checkNode(_, w, source, lineIndex, tagCount))
           case _                              =>
         }
       case _ =>
@@ -53,11 +46,13 @@ object A11yChecker:
     children:  List[TemplateNode],
     w:         mutable.ListBuffer[(String, Int)],
     source:    String,
-    lineIndex: Array[Int]
+    lineIndex: Array[Int],
+    tagCount:  mutable.Map[String, Int]
   ): Unit =
-    val line = findTagLine(tag, source, lineIndex)
+    val nth = tagCount.getOrElse(tag, 0)
+    tagCount(tag) = nth + 1
+    val line = findNthTagLine(tag, source, lineIndex, nth)
 
-    // ── img alt ──
     if tag == "img" then
       val hasAlt = attrs.exists {
         case Attr.Static("alt", _) | Attr.Dynamic("alt", _) | Attr.Shorthand("alt") => true
@@ -65,7 +60,6 @@ object A11yChecker:
       }
       if !hasAlt then w += ((s"a11y: <img> element should have an alt attribute", line))
 
-    // ── heading content ──
     if Set("h1", "h2", "h3", "h4", "h5", "h6").contains(tag) then
       val hasContent = children.exists {
         case TemplateNode.Text(t)       => t.trim.nonEmpty
@@ -74,7 +68,6 @@ object A11yChecker:
       }
       if !hasContent then w += ((s"a11y: <$tag> element should have text content", line))
 
-    // ── click on non-interactive ──
     val interactive = Set("button", "a", "input", "select", "textarea", "details", "summary")
     if !interactive.contains(tag) then
       val hasClick = attrs.exists {
@@ -93,7 +86,6 @@ object A11yChecker:
         if !hasRole || !hasTabindex then
           w += ((s"a11y: <$tag> with onclick should have role and tabindex attributes", line))
 
-    // ── redundant role ──
     val redundant = Map(
       "button" -> "button",
       "a"      -> "link",
@@ -110,7 +102,6 @@ object A11yChecker:
       }
     }
 
-    // ── video without track ──
     if tag == "video" then
       val hasTrack = children.exists {
         case TemplateNode.Element("track", _, _) => true
@@ -120,7 +111,6 @@ object A11yChecker:
 
   // ── Line number utilities ──────────────────────────────────────────────
 
-  /** Builds an array where `lineIndex(i)` is the character offset of line `i+1`. */
   private def buildLineIndex(source: String): Array[Int] =
     if source.isEmpty then return Array(0)
     val offsets = mutable.ArrayBuffer(0)
@@ -130,14 +120,20 @@ object A11yChecker:
       i += 1
     offsets.toArray
 
-  /** Finds the 1-based line number of the first occurrence of `<tag` in source. */
-  private def findTagLine(tag: String, source: String, lineIndex: Array[Int]): Int =
+  /** Finds the 1-based line of the Nth (0-based) occurrence of `<tag` in source. */
+  private def findNthTagLine(tag: String, source: String, lineIndex: Array[Int], nth: Int): Int =
     if source.isEmpty then return 0
-    val idx = source.indexOf(s"<$tag")
-    if idx < 0 then 0
-    else offsetToLine(idx, lineIndex)
+    val needle = s"<$tag"
+    var idx    = 0
+    var count  = 0
+    while idx < source.length do
+      val found = source.indexOf(needle, idx)
+      if found < 0 then return 0
+      if count == nth then return offsetToLine(found, lineIndex)
+      count += 1
+      idx = found + needle.length
+    0
 
-  /** Converts a character offset to a 1-based line number. */
   private def offsetToLine(offset: Int, lineIndex: Array[Int]): Int =
     var lo = 0
     var hi = lineIndex.length - 1
@@ -145,4 +141,4 @@ object A11yChecker:
       val mid = (lo + hi) / 2
       if lineIndex(mid) <= offset then lo = mid + 1
       else hi                             = mid - 1
-    lo // 1-based (lo is the count of lines whose start offset <= offset)
+    lo

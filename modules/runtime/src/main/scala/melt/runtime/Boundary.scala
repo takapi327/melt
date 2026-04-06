@@ -10,12 +10,6 @@ import org.scalajs.dom
 
 /** Error boundary component that catches exceptions during child rendering
   * and displays a fallback UI.
-  *
-  * {{{
-  * <Boundary fallback={(e, retry) => <p>Error: {e.getMessage} <button onclick={_ => retry()}>Retry</button></p>}>
-  *   <RiskyComponent />
-  * </Boundary>
-  * }}}
   */
 object Boundary:
 
@@ -27,21 +21,31 @@ object Boundary:
 
   def create(props: Props): dom.Element =
     val container = dom.document.createElement("div")
+    var childCleanups: List[() => Unit] = Nil
 
     def render(): Unit =
+      // Clean up previous child subscriptions
+      Cleanup.runAll(childCleanups)
+      childCleanups = Nil
       while container.firstChild != null do container.removeChild(container.firstChild)
+
+      Cleanup.pushScope()
       try
         val child = props.children()
         container.appendChild(child)
+        childCleanups = Cleanup.popScope()
       catch
-        case e: Exception =>
-          props.onError(e)
-          val fb = props.fallback(e, () => render())
-          container.appendChild(fb)
+        // JavaScriptException must come before Exception (it extends Exception)
         case e: scalajs.js.JavaScriptException =>
+          childCleanups = Cleanup.popScope()
           val wrapped = new RuntimeException(e.getMessage)
           props.onError(wrapped)
           val fb = props.fallback(wrapped, () => render())
+          container.appendChild(fb)
+        case e: Exception =>
+          childCleanups = Cleanup.popScope()
+          props.onError(e)
+          val fb = props.fallback(e, () => render())
           container.appendChild(fb)
 
     render()

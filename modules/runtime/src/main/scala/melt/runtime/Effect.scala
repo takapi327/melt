@@ -48,7 +48,10 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
   val cancel = dep.subscribe(run)
   Cleanup.register(() => { cancel(); Cleanup.runAll(innerCleanups) })
 
-/** Two-dependency effect — re-runs when either dependency changes. */
+/** Two-dependency effect — re-runs when either dependency changes.
+  * Uses a scheduled run pattern so that if both change inside a `batch`,
+  * the effect body runs only once.
+  */
 def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
   var innerCleanups: List[() => Unit] = Nil
 
@@ -58,7 +61,14 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
     f(depA.now(), depB.now())
     innerCleanups = Cleanup.popScope()
 
+  // Shared schedule function for batch dedup
+  lazy val scheduleRun: () => Unit = () => run()
+
+  def trigger(): Unit =
+    if Batch.isBatching then Batch.enqueue(scheduleRun)
+    else run()
+
   run()
-  val cancelA = depA.subscribe(_ => run())
-  val cancelB = depB.subscribe(_ => run())
+  val cancelA = depA.subscribe(_ => trigger())
+  val cancelB = depB.subscribe(_ => trigger())
   Cleanup.register(() => { cancelA(); cancelB(); Cleanup.runAll(innerCleanups) })

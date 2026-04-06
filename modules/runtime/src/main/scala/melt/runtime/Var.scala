@@ -28,14 +28,15 @@ final class Var[A] private (private var _current: A):
   /** Returns the current value without registering any reactive dependency. */
   def now(): A = _current
 
+  /** Per-instance flush function for batch dedup. */
+  private lazy val _batchFlush: () => Unit = () => subscribers.foreach(_(_current))
+
   /** Replaces the current value and notifies all subscribers.
-    * If inside a `batch { }` block, notifications are deferred until the batch completes.
+    * If inside a `batch { }` block, notifications are deferred and coalesced.
     */
   def set(value: A): Unit =
     _current = value
-    if Batch.isBatching then
-      val subs = subscribers.toList
-      Batch.enqueue(() => subs.foreach(_(value)))
+    if Batch.isBatching then Batch.enqueue(_batchFlush)
     else subscribers.foreach(_(value))
 
   /** Updates the current value using `f` and notifies all subscribers. */

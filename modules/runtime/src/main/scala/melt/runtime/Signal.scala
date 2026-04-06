@@ -65,12 +65,13 @@ final class Signal[A] private[runtime] (private var _current: A):
     Cleanup.register(() => { cancelInner(); cancelOuter(); () })
     derived
 
+  /** Per-instance flush function for batch dedup. */
+  private lazy val _batchFlush: () => Unit = () => subscribers.foreach(_(_current))
+
   /** Pushes a new value to all subscribers. Package-private; called by [[Var]] and derived Signals.
-    * If inside a `batch { }` block, notifications are deferred.
+    * If inside a `batch { }` block, notifications are deferred and coalesced.
     */
   private[runtime] def emit(value: A): Unit =
     _current = value
-    if Batch.isBatching then
-      val subs = subscribers.toList
-      Batch.enqueue(() => subs.foreach(_(value)))
+    if Batch.isBatching then Batch.enqueue(_batchFlush)
     else subscribers.foreach(_(value))

@@ -18,32 +18,35 @@ object Window:
     Cleanup.register(() => dom.window.removeEventListener(event, listener))
 
   /** Reactive window scroll Y position. */
-  lazy val scrollY: Signal[Double] =
-    val v = Var(dom.window.scrollY)
-    dom.window.addEventListener("scroll", (_: dom.Event) => v.set(dom.window.scrollY))
-    v.signal
+  lazy val scrollY: Signal[Double] = windowSignal(dom.window.scrollY, "scroll", _ => dom.window.scrollY)
 
   /** Reactive window scroll X position. */
-  lazy val scrollX: Signal[Double] =
-    val v = Var(dom.window.scrollX)
-    dom.window.addEventListener("scroll", (_: dom.Event) => v.set(dom.window.scrollX))
-    v.signal
+  lazy val scrollX: Signal[Double] = windowSignal(dom.window.scrollX, "scroll", _ => dom.window.scrollX)
 
   /** Reactive window inner width. */
   lazy val innerWidth: Signal[Double] =
-    val v = Var(dom.window.innerWidth.toDouble)
-    dom.window.addEventListener("resize", (_: dom.Event) => v.set(dom.window.innerWidth.toDouble))
-    v.signal
+    windowSignal(dom.window.innerWidth.toDouble, "resize", _ => dom.window.innerWidth.toDouble)
 
   /** Reactive window inner height. */
   lazy val innerHeight: Signal[Double] =
-    val v = Var(dom.window.innerHeight.toDouble)
-    dom.window.addEventListener("resize", (_: dom.Event) => v.set(dom.window.innerHeight.toDouble))
-    v.signal
+    windowSignal(dom.window.innerHeight.toDouble, "resize", _ => dom.window.innerHeight.toDouble)
 
   /** Reactive online status. */
   lazy val online: Signal[Boolean] =
     val v = Var(dom.window.navigator.onLine)
-    dom.window.addEventListener("online", (_: dom.Event) => v.set(true))
-    dom.window.addEventListener("offline", (_: dom.Event) => v.set(false))
+    val onlineListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
+    val offlineListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
+    dom.window.addEventListener("online", onlineListener)
+    dom.window.addEventListener("offline", offlineListener)
+    Cleanup.register(() => {
+      dom.window.removeEventListener("online", onlineListener)
+      dom.window.removeEventListener("offline", offlineListener)
+    })
+    v.signal
+
+  private def windowSignal[A](initial: A, event: String, update: dom.Event => A): Signal[A] =
+    val v = Var(initial)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = e => v.set(update(e))
+    dom.window.addEventListener(event, listener)
+    Cleanup.register(() => dom.window.removeEventListener(event, listener))
     v.signal
