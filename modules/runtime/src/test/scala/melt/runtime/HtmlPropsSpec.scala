@@ -32,8 +32,8 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("HtmlProps allHtmlAttrs collects set fields") {
     val props = new HtmlProps {}
-    props.id = Some("test")
-    props.role = Some("button")
+    props.id       = Some("test")
+    props.role     = Some("button")
     props.tabindex = Some(0)
     val attrs = props.allHtmlAttrs
     assertEquals(attrs.entries("id"), "test")
@@ -70,9 +70,9 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("ButtonHtmlProps has button-specific fields") {
     val props = new ButtonHtmlProps {}
-    props.disabled = Some(true)
+    props.disabled   = Some(true)
     props.buttonType = Some("submit")
-    props.name = Some("btn")
+    props.name       = Some("btn")
     assertEquals(props.disabled, Some(true))
     assertEquals(props.buttonType, Some("submit"))
     assertEquals(props.name, Some("btn"))
@@ -80,7 +80,7 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("ButtonHtmlProps inherits global attributes") {
     val props = new ButtonHtmlProps {}
-    props.id = Some("my-btn")
+    props.id       = Some("my-btn")
     props.disabled = Some(true)
     val attrs = props.allHtmlAttrs
     assertEquals(attrs.entries("id"), "my-btn")
@@ -90,11 +90,11 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("InputHtmlProps has input-specific fields") {
     val props = new InputHtmlProps {}
-    props.inputType = Some("email")
+    props.inputType   = Some("email")
     props.placeholder = Some("Enter email")
-    props.required = Some(true)
-    props.maxLength = Some(100)
-    props.pattern = Some("[a-z]+")
+    props.required    = Some(true)
+    props.maxLength   = Some(100)
+    props.pattern     = Some("[a-z]+")
     assertEquals(props.inputType, Some("email"))
     assertEquals(props.placeholder, Some("Enter email"))
     assertEquals(props.required, Some(true))
@@ -105,9 +105,9 @@ class HtmlPropsSpec extends munit.FunSuite:
   test("InputHtmlProps numeric fields") {
     val props = new InputHtmlProps {}
     props.inputType = Some("number")
-    props.min = Some("0")
-    props.max = Some("100")
-    props.step = Some("0.1")
+    props.min       = Some("0")
+    props.max       = Some("100")
+    props.step      = Some("0.1")
     assertEquals(props.min, Some("0"))
     assertEquals(props.max, Some("100"))
     assertEquals(props.step, Some("0.1"))
@@ -117,9 +117,9 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("AnchorHtmlProps has anchor-specific fields") {
     val props = new AnchorHtmlProps {}
-    props.href = Some("https://example.com")
-    props.target = Some("_blank")
-    props.rel = Some("noopener noreferrer")
+    props.href     = Some("https://example.com")
+    props.target   = Some("_blank")
+    props.rel      = Some("noopener noreferrer")
     props.download = Some("file.pdf")
     assertEquals(props.href, Some("https://example.com"))
     assertEquals(props.target, Some("_blank"))
@@ -131,9 +131,9 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("FormHtmlProps has form-specific fields") {
     val props = new FormHtmlProps {}
-    props.action = Some("/submit")
-    props.method = Some("POST")
-    props.enctype = Some("multipart/form-data")
+    props.action     = Some("/submit")
+    props.method     = Some("POST")
+    props.enctype    = Some("multipart/form-data")
     props.novalidate = Some(true)
     assertEquals(props.action, Some("/submit"))
     assertEquals(props.method, Some("POST"))
@@ -144,10 +144,10 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("ImgHtmlProps has img-specific fields") {
     val props = new ImgHtmlProps {}
-    props.src = Some("photo.jpg")
-    props.alt = Some("A photo")
-    props.width = Some(640)
-    props.height = Some(480)
+    props.src     = Some("photo.jpg")
+    props.alt     = Some("A photo")
+    props.width   = Some(640)
+    props.height  = Some(480)
     props.loading = Some("lazy")
     assertEquals(props.src, Some("photo.jpg"))
     assertEquals(props.alt, Some("A photo"))
@@ -161,7 +161,7 @@ class HtmlPropsSpec extends munit.FunSuite:
   test("SelectHtmlProps has select-specific fields") {
     val props = new SelectHtmlProps {}
     props.multiple = Some(true)
-    props.size = Some(5)
+    props.size     = Some(5)
     props.required = Some(true)
     assertEquals(props.multiple, Some(true))
     assertEquals(props.size, Some(5))
@@ -172,12 +172,12 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("TextAreaHtmlProps has textarea-specific fields") {
     val props = new TextAreaHtmlProps {}
-    props.rows = Some(10)
-    props.cols = Some(40)
+    props.rows        = Some(10)
+    props.cols        = Some(40)
     props.placeholder = Some("Enter text...")
-    props.maxLength = Some(500)
-    props.wrap = Some("soft")
-    props.readonly = Some(true)
+    props.maxLength   = Some(500)
+    props.wrap        = Some("soft")
+    props.readonly    = Some(true)
     assertEquals(props.rows, Some(10))
     assertEquals(props.cols, Some(40))
     assertEquals(props.placeholder, Some("Enter text..."))
@@ -203,9 +203,9 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("ButtonHtmlProps allHtmlAttrs collects global + element-specific + custom entries") {
     val props = new ButtonHtmlProps {}
-    props.id = Some("btn-1")
-    props.role = Some("menuitem")
-    props.disabled = Some(true)
+    props.id         = Some("btn-1")
+    props.role       = Some("menuitem")
+    props.disabled   = Some(true)
     props.buttonType = Some("submit")
     props.withHtml(HtmlAttrs("aria-label" -> "Submit form"))
     val entries = props.allHtmlAttrs.entries
@@ -218,12 +218,12 @@ class HtmlPropsSpec extends munit.FunSuite:
 
   test("InputHtmlProps allHtmlAttrs collects global + element-specific entries") {
     val props = new InputHtmlProps {}
-    props.id = Some("email-input")
-    props.tabindex = Some(1)
-    props.inputType = Some("email")
+    props.id          = Some("email-input")
+    props.tabindex    = Some(1)
+    props.inputType   = Some("email")
     props.placeholder = Some("Enter email")
-    props.required = Some(true)
-    props.maxLength = Some(100)
+    props.required    = Some(true)
+    props.maxLength   = Some(100)
     val entries = props.allHtmlAttrs.entries
     assertEquals(entries("id"), "email-input")
     assertEquals(entries("tabindex"), "1")
