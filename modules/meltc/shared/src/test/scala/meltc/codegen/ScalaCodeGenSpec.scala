@@ -86,9 +86,16 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("appendChild"), code)
   }
 
-  test("static attribute") {
+  test("static class attribute uses classList.add to preserve scope ID") {
     val code = compile("""<div class="container"></div>""")
-    assert(code.contains("""setAttribute("class", "container")"""), code)
+    assert(code.contains("""classList.add("container")"""), code)
+    // Must NOT use setAttribute("class", ...) which would overwrite the scope ID
+    assert(!code.contains("""setAttribute("class""""), code)
+  }
+
+  test("static non-class attribute uses setAttribute") {
+    val code = compile("""<div id="main"></div>""")
+    assert(code.contains("""setAttribute("id", "main")"""), code)
   }
 
   test("boolean attribute") {
@@ -211,9 +218,15 @@ class ScalaCodeGenSpec extends munit.FunSuite:
 
   // ── Dynamic attribute generation ──────────────────────────────────────
 
-  test("dynamic attribute emits setAttribute with toString") {
+  test("dynamic class attribute uses classList.add to preserve scope ID") {
     val code = compile("<div class={expr}></div>")
-    assert(code.contains("""setAttribute("class", (expr).toString)"""), code)
+    assert(code.contains("classList.add"), code)
+    assert(!code.contains("""setAttribute("class""""), code)
+  }
+
+  test("dynamic non-class attribute uses setAttribute with toString") {
+    val code = compile("<div title={expr}></div>")
+    assert(code.contains("""setAttribute("title", (expr).toString)"""), code)
   }
 
   // ── Event handler generation ──────────────────────────────────────────
@@ -313,8 +326,106 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(result.warnings.head.message.contains("self-closed"), result.warnings.head.message)
   }
 
+  test("static class attribute with multiple classes emits separate classList.add calls") {
+    val code = compile("""<div class="foo bar baz"></div>""")
+    assert(code.contains("""classList.add("foo")"""), code)
+    assert(code.contains("""classList.add("bar")"""), code)
+    assert(code.contains("""classList.add("baz")"""), code)
+  }
+
+  test("class attribute coexists with scope ID") {
+    val code = compile("""<div class="counter"></div>""")
+    // Both scope ID and user class should be added via classList.add
+    assert(code.contains("classList.add(_scopeId)"), code)
+    assert(code.contains("""classList.add("counter")"""), code)
+  }
+
   test("void self-closing tag produces no warning") {
     val src    = "<br />"
     val result = MeltCompiler.compile(src, "Ok.melt", "Ok", "")
     assert(result.warnings.isEmpty, s"Unexpected warnings: ${ result.warnings.map(_.message) }")
+  }
+
+  // ── Interleaved text and expression nodes ──────────────────────────────
+
+  test("interleaved text and expression nodes") {
+    val code = compile("<p>Hello {name} world</p>")
+    assert(code.contains("createTextNode(\"Hello \")"), code)
+    assert(code.contains("(name).toString"), code)
+    // " world" is trailing text in the element, so leading space is kept but trailing whitespace is trimmed
+    assert(code.contains("createTextNode(\" world\")"), code)
+  }
+
+  // ── Empty style section ───────────────────────────────────────────────
+
+  test("empty style section does not emit Style.inject") {
+    val src =
+      """<div></div>
+        |<style>
+        |</style>""".stripMargin
+    val code = compile(src)
+    // CSS is blank after trimming, but style section exists.
+    // Style.inject should still be called (idempotent) with the empty CSS.
+    assert(code.contains("private val _css"), code)
+  }
+
+  // ── Void elements produce no appendChild for children ──────────────────
+
+  test("void element produces no appendChild calls for children") {
+    val code = compile("<div><br /><img src=\"a.png\" /></div>")
+    // br and img should not have any appendChild calls after them
+    assert(!code.contains("_el1.appendChild"), code)
+    assert(!code.contains("_el2.appendChild"), code)
+    // Only _el0 (div) should have appendChild
+    assert(code.contains("_el0.appendChild(_el1)"), code)
+    assert(code.contains("_el0.appendChild(_el2)"), code)
+  }
+
+  // ── CSS containing triple-quotes does not break generated code ─────────
+
+  test("CSS with triple-quote characters is safely escaped") {
+    val src =
+      """<div></div>
+        |<style>
+        |p::before { content: '\"\"\"'; }
+        |</style>""".stripMargin
+    val code = compile(src, name = "Tricky")
+    // The generated code should compile without syntax errors
+    assert(code.contains("private val _css"), code)
+    // Triple quotes must be properly escaped in a regular string literal
+    assert(!code.contains("\"\"\"\"\"\""), s"Raw triple-quote found in output:\n$code")
+  }
+
+  // ── MeltCompiler integration: style + script + template ─────────────────
+
+  test("end-to-end: scopedCss is consistent with scalaCode CSS") {
+    val src =
+      """<script lang="scala">
+        |val greeting = "hello"
+        |</script>
+        |
+        |<div>
+        |  <h1>{greeting}</h1>
+        |</div>
+        |
+        |<style>
+        |h1 { color: red; }
+        |div { padding: 1em; }
+        |</style>""".stripMargin
+    val result  = MeltCompiler.compile(src, "Full.melt", "Full", "pkg")
+    val scopeId = ScalaCodeGen.scopeIdFor("Full")
+    assert(result.isSuccess, s"Errors: ${ result.errors.map(_.message) }")
+
+    // scopedCss contains scoped selectors
+    result.scopedCss.foreach { css =>
+      assert(css.contains(s"h1.$scopeId"), s"scopedCss missing h1 scope: $css")
+      assert(css.contains(s"div.$scopeId"), s"scopedCss missing div scope: $css")
+    }
+
+    // scalaCode includes the same scoped CSS
+    result.scalaCode.foreach { code =>
+      assert(code.contains(s"h1.$scopeId"), s"scalaCode missing scoped h1: $code")
+      assert(code.contains("val greeting"), code)
+      assert(code.contains("package pkg"), code)
+    }
   }

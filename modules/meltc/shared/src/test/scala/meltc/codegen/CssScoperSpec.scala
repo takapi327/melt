@@ -162,6 +162,26 @@ class CssScoperSpec extends munit.FunSuite:
 
   // ── Real-world hello-world CSS ────────────────────────────────────────
 
+  // ── @supports ────────────────────────────────────────────────────────
+
+  test("@supports — selectors inside are scoped") {
+    val result = scope("@supports (display: grid) { .container { display: grid; } }")
+    assert(result.contains("@supports (display: grid)"), result)
+    assert(result.contains(".container.melt-abc123"), result)
+  }
+
+  // ── Nested at-rules ──────────────────────────────────────────────────
+
+  test("@media nested inside @supports — selectors are scoped") {
+    val css    = "@supports (display: grid) { @media (min-width: 600px) { .nav { display: flex; } } }"
+    val result = scope(css)
+    assert(result.contains("@supports (display: grid)"), result)
+    assert(result.contains("@media (min-width: 600px)"), result)
+    assert(result.contains(".nav.melt-abc123"), result)
+  }
+
+  // ── Real-world hello-world CSS ────────────────────────────────────────
+
   test("hello-world CSS is scoped correctly") {
     val css    = "h1 { color: #ff3e00; }\np  { color: #555; }"
     val result = scope(css)

@@ -52,7 +52,7 @@ object MeltcPlugin extends AutoPlugin {
   object autoImport {
 
     /** Directory that contains `.melt` source files.
-      * Default: `src/main/components`
+      * Default: `src/main/scala`
       */
     val meltcSourceDirectory =
       settingKey[File]("Directory containing .melt source files")
