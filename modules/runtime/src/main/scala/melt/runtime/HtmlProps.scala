@@ -7,6 +7,7 @@
 package melt.runtime
 
 import org.scalajs.dom
+import AttrBuilder.*
 
 /** A container for HTML attributes to be forwarded to a component's root element.
   *
@@ -104,7 +105,7 @@ trait HtmlProps:
 
   /** Adds global HTML attributes to the builder. Called by sub-trait overrides. */
   protected def collectGlobalAttrs(b: scala.collection.mutable.Builder[(String, String), Map[String, String]]): Unit =
-    import AttrBuilder.*
+
     addStr(b, "id", id)
     addStr(b, "title", this.title)
     addBool(b, "hidden", hidden)
@@ -137,7 +138,7 @@ trait ButtonHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addBool(b, "disabled", disabled)
     addStr(b, "type", buttonType)
     addStr(b, "name", name)
@@ -181,7 +182,7 @@ trait InputHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "type", inputType)
     addStr(b, "placeholder", placeholder)
     addStr(b, "name", name)
@@ -219,7 +220,7 @@ trait AnchorHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "href", href)
     addStr(b, "target", target)
     addStr(b, "rel", rel)
@@ -247,7 +248,7 @@ trait FormHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "action", action)
     addStr(b, "method", method)
     addStr(b, "enctype", enctype)
@@ -279,7 +280,7 @@ trait ImgHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "src", src)
     addStr(b, "alt", alt)
     addInt(b, "width", width)
@@ -310,7 +311,7 @@ trait SelectHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "name", name)
     addBool(b, "disabled", disabled)
     addBool(b, "required", required)
@@ -343,7 +344,7 @@ trait TextAreaHtmlProps extends HtmlProps:
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
-    import AttrBuilder.*
+
     addStr(b, "name", name)
     addStr(b, "placeholder", placeholder)
     addInt(b, "rows", rows)
