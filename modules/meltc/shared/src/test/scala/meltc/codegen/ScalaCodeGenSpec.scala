@@ -694,3 +694,31 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     val code = compile("""<input type="number" bind:value-double={price} />""")
     assert(code.contains("Bind.inputDouble("), code)
   }
+
+  // ── Phase 8: use: directive ──────────────────────────────────────────────
+
+  test("use: directive with parameter emits Bind.action") {
+    val code = compile("""<div use:tooltip={"Help text"}></div>""")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("tooltip"), code)
+  }
+
+  test("use: directive without parameter emits Bind.action with unit") {
+    val code = compile("<input use:autoFocus />")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("autoFocus"), code)
+  }
+
+  // ── Phase 8: spread on HTML element ────────────────────────────────────
+
+  test("spread attribute on HTML element emits apply") {
+    val code = compile("<div {...htmlAttrs}></div>")
+    assert(code.contains("htmlAttrs.apply("), code)
+  }
+
+  // ── Phase 8: a11y warnings in CompileResult ────────────────────────────
+
+  test("a11y warning for img without alt") {
+    val result = meltc.MeltCompiler.compile("""<img src="x.png" />""", "A11y.melt", "A11y", "")
+    assert(result.warnings.exists(_.message.contains("alt")), result.warnings.toString)
+  }
