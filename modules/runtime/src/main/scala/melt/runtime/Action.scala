@@ -45,8 +45,8 @@ val autoFocus: Action[Unit] = Action.simple { el =>
 
 /** Calls the handler when a click occurs outside the element. */
 val clickOutside: Action[() => Unit] = Action[(() => Unit)] { (el, handler) =>
-  val listener: scalajs.js.Function1[dom.Event, Unit] = (e: dom.Event) =>
-    if !el.contains(e.target.asInstanceOf[dom.Node]) then handler()
+  val listener: scalajs.js.Function1[dom.Event, Unit] =
+    (e: dom.Event) => if !el.contains(e.target.asInstanceOf[dom.Node]) then handler()
   dom.document.addEventListener("click", listener)
   () => dom.document.removeEventListener("click", listener)
 }

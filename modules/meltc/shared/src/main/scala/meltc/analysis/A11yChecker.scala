@@ -28,7 +28,7 @@ object A11yChecker:
       case TemplateNode.InlineTemplate(parts) =>
         parts.foreach {
           case InlineTemplatePart.Html(nodes) => nodes.foreach(checkNode(_, w))
-          case _                             =>
+          case _                              =>
         }
       case _ =>
 
@@ -42,7 +42,7 @@ object A11yChecker:
     if tag == "img" then
       val hasAlt = attrs.exists {
         case Attr.Static("alt", _) | Attr.Dynamic("alt", _) | Attr.Shorthand("alt") => true
-        case _ => false
+        case _                                                                      => false
       }
       if !hasAlt then w += (("a11y: <img> element should have an alt attribute", 0))
 
@@ -65,19 +65,23 @@ object A11yChecker:
       if hasClick then
         val hasRole = attrs.exists {
           case Attr.Static("role", _) | Attr.Dynamic("role", _) => true
-          case _                                                 => false
+          case _                                                => false
         }
         val hasTabindex = attrs.exists {
           case Attr.Static("tabindex", _) | Attr.Dynamic("tabindex", _) => true
-          case _                                                         => false
+          case _                                                        => false
         }
         if !hasRole || !hasTabindex then
           w += ((s"a11y: <$tag> with onclick should have role and tabindex attributes", 0))
 
     // ── redundant role ──
     val redundant = Map(
-      "button" -> "button", "a" -> "link", "nav" -> "navigation",
-      "main" -> "main", "header" -> "banner", "footer" -> "contentinfo"
+      "button" -> "button",
+      "a"      -> "link",
+      "nav"    -> "navigation",
+      "main"   -> "main",
+      "header" -> "banner",
+      "footer" -> "contentinfo"
     )
     redundant.get(tag).foreach { expected =>
       attrs.foreach {

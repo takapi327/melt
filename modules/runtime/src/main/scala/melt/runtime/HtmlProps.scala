@@ -21,13 +21,13 @@ case class HtmlAttrs(entries: Map[String, String]):
     entries.foreach { case (k, v) => el.setAttribute(k, v) }
 
 object HtmlAttrs:
-  val empty: HtmlAttrs = HtmlAttrs(Map.empty)
+  val empty:                           HtmlAttrs = HtmlAttrs(Map.empty)
   def apply(pairs: (String, String)*): HtmlAttrs = HtmlAttrs(pairs.toMap)
 
 /** Trait for component Props that support HTML attribute forwarding. */
 trait HtmlProps:
-  private var _html: HtmlAttrs = HtmlAttrs.empty
-  def html: HtmlAttrs          = _html
+  private var _html:              HtmlAttrs = HtmlAttrs.empty
+  def html:                       HtmlAttrs = _html
   def withHtml(attrs: HtmlAttrs): this.type =
     _html = attrs
     this
