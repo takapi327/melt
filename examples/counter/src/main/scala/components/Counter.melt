@@ -1,16 +1,40 @@
 <script lang="scala">
+import scala.concurrent.Future
+import MeltEffect.given
+
 val count = Var(0)
 val name = Var("")
 val doubled = count.map(_ * 2)
+
+// Phase 7: memo — only propagates when parity changes
+val isEven = memo(count)(_ % 2 == 0)
+
+// Phase 7: effect — logs count changes
+effect(count) { n =>
+  dom.console.log(s"Count changed to: $n")
+}
+
+// Phase 7: Context
+val ThemeCtx = Context.create("light")
+
+// Phase 7: batch — multiple updates at once
+def resetAll(): Unit = batch {
+  count.set(0)
+  name.set("")
+}
+
+// Phase 7: asyncState — simulated async fetch
+val greeting = AsyncState.create[Future, String](Future.successful("Welcome to Melt!"))
 </script>
 
 <div class="counter">
   <h1>Melt Counter</h1>
   <p>Count: {count}</p>
   <p>Doubled: {doubled}</p>
+  <p>Even: {isEven}</p>
   <button onclick={_ => count += 1}>+1</button>
   <button onclick={_ => count -= 1}>-1</button>
-  <button onclick={_ => count.set(0)}>Reset</button>
+  <button onclick={_ => resetAll()}>Reset All</button>
   <hr />
   <input bind:value={name} placeholder="Your name" />
   <p>Hello, {name}!</p>
