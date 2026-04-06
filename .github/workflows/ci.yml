@@ -230,7 +230,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: sbt publishLocal
-        run: sbt +publishLocal
+        run: sbt publishLocal
 
       - name: sbt scripted
         run: sbt scripted
