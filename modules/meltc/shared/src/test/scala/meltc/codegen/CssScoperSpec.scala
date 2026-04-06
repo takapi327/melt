@@ -182,6 +182,23 @@ class CssScoperSpec extends munit.FunSuite:
 
   // ── Real-world hello-world CSS ────────────────────────────────────────
 
+  // ── CSS custom properties transparency ──────────────────────────────
+
+  test("CSS custom property values (var()) are not mangled by scoping") {
+    val result = scope(".btn { background: var(--btn-bg, blue); color: var(--text-color); }")
+    assert(result.contains("var(--btn-bg, blue)"), result)
+    assert(result.contains("var(--text-color)"), result)
+    assert(result.contains(".btn.melt-abc123"), result)
+  }
+
+  test("CSS custom property declarations are preserved unchanged") {
+    val result = scope(":root { --btn-bg: #007bff; --text-color: #333; }")
+    assert(result.contains("--btn-bg: #007bff"), result)
+    assert(result.contains("--text-color: #333"), result)
+  }
+
+  // ── Real-world hello-world CSS ────────────────────────────────────────
+
   test("hello-world CSS is scoped correctly") {
     val css    = "h1 { color: #ff3e00; }\np  { color: #555; }"
     val result = scope(css)
