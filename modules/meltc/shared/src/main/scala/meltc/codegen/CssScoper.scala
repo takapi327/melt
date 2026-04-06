@@ -51,20 +51,18 @@ object CssScoper:
     while i < css.length do
       skipWhitespace(css, i) match
         case j if j >= css.length => i = j
-        case j =>
+        case j                    =>
           i = j
           if css(i) == '/' && i + 1 < css.length && css(i + 1) == '*' then
-            val end = css.indexOf("*/", i + 2)
+            val end        = css.indexOf("*/", i + 2)
             val commentEnd = if end < 0 then css.length else end + 2
             buf ++= css.substring(i, commentEnd)
             i = commentEnd
-          else if css(i) == '@' then
-            i = processAtRule(css, i, scopeId, buf)
+          else if css(i) == '@' then i = processAtRule(css, i, scopeId, buf)
           else if css(i) == '}' then
             buf += '}'
             i += 1
-          else
-            i = processRule(css, i, scopeId, buf)
+          else i = processRule(css, i, scopeId, buf)
 
     buf.toString
 
@@ -78,7 +76,7 @@ object CssScoper:
       name += css(i)
       i += 1
 
-    val ruleName     = name.toString
+    val ruleName      = name.toString
     val isPassthrough = PassthroughAtRules.exists(n => ruleName.endsWith(n))
 
     // Read until '{' to capture the at-rule condition
@@ -98,7 +96,7 @@ object CssScoper:
 
     if isPassthrough then
       // Pass through the block content without scoping
-      var depth = 1
+      var depth      = 1
       val blockStart = i
       while i < css.length && depth > 0 do
         if css(i) == '{' then depth += 1
@@ -123,14 +121,12 @@ object CssScoper:
             buf ++= "}\n"
             i += 1
         else if css(i) == '/' && i + 1 < css.length && css(i + 1) == '*' then
-          val end = css.indexOf("*/", i + 2)
+          val end        = css.indexOf("*/", i + 2)
           val commentEnd = if end < 0 then css.length else end + 2
           buf ++= css.substring(i, commentEnd)
           i = commentEnd
-        else if css(i) == '@' then
-          i = processAtRule(css, i, scopeId, buf)
-        else
-          i = processRule(css, i, scopeId, buf)
+        else if css(i) == '@' then i = processAtRule(css, i, scopeId, buf)
+        else i                       = processRule(css, i, scopeId, buf)
 
     i
 
@@ -138,8 +134,8 @@ object CssScoper:
 
   private def processRule(css: String, start: Int, scopeId: String, buf: StringBuilder): Int =
     // Read selector(s) until '{'
-    var i       = start
-    val selBuf  = new StringBuilder
+    var i      = start
+    val selBuf = new StringBuilder
     while i < css.length && css(i) != '{' do
       selBuf += css(i)
       i += 1
@@ -148,7 +144,7 @@ object CssScoper:
       buf ++= css.substring(start, i)
       return i
 
-    val rawSelector = selBuf.toString.trim
+    val rawSelector    = selBuf.toString.trim
     val scopedSelector = scopeGroupSelector(rawSelector, scopeId)
     buf ++= scopedSelector
     buf ++= " {"
@@ -183,8 +179,8 @@ object CssScoper:
     var i       = 0
     while i < selector.length do
       selector(i) match
-        case '(' => depth += 1; current += '('; i += 1
-        case ')' => depth -= 1; current += ')'; i += 1
+        case '('               => depth += 1; current += '('; i += 1
+        case ')'               => depth -= 1; current += ')'; i += 1
         case ',' if depth == 0 =>
           parts += current.toString
           current.clear()
@@ -198,13 +194,11 @@ object CssScoper:
     if selector.isEmpty then return selector
 
     // Handle :global(...) — strip wrapper and emit unscoped
-    if selector.startsWith(":global(") && selector.endsWith(")") then
-      return selector.substring(8, selector.length - 1)
+    if selector.startsWith(":global(") && selector.endsWith(")") then return selector.substring(8, selector.length - 1)
 
     // Handle selectors that contain :global() as part of a compound selector
     val globalIdx = selector.indexOf(":global(")
-    if globalIdx >= 0 then
-      return scopeSelectorWithGlobal(selector, scopeId)
+    if globalIdx >= 0 then return scopeSelectorWithGlobal(selector, scopeId)
 
     // Split into combinator-separated segments and scope the last one
     val segments = splitByCombinators(selector)
@@ -214,10 +208,11 @@ object CssScoper:
     val last = scopeSimpleSelector(segments.last._1.trim, scopeId)
 
     val result = new StringBuilder
-    init.foreach { case (seg, comb) =>
-      result ++= seg
-      result += ' '
-      if comb.nonEmpty then result ++= comb; result += ' '
+    init.foreach {
+      case (seg, comb) =>
+        result ++= seg
+        result += ' '
+        if comb.nonEmpty then result ++= comb; result += ' '
     }
     result ++= last
     result.toString
@@ -226,17 +221,17 @@ object CssScoper:
   private def scopeSelectorWithGlobal(selector: String, scopeId: String): String =
     val globalIdx = selector.indexOf(":global(")
     // Find matching closing paren
-    var depth     = 0
-    var end       = globalIdx + 8
+    var depth = 0
+    var end   = globalIdx + 8
     while end < selector.length && (depth > 0 || selector(end) != ')') do
       if selector(end) == '(' then depth += 1
       else if selector(end) == ')' then depth -= 1
       end += 1
     if end < selector.length then end += 1 // skip ')'
 
-    val before  = selector.substring(0, globalIdx)
-    val inner   = selector.substring(globalIdx + 8, end - 1)
-    val after   = selector.substring(end)
+    val before = selector.substring(0, globalIdx)
+    val inner  = selector.substring(globalIdx + 8, end - 1)
+    val after  = selector.substring(end)
 
     // Scope the 'before' part if non-empty, leave global inner unscoped
     val scopedBefore =
@@ -324,8 +319,7 @@ object CssScoper:
         val lastColon = selector.lastIndexOf(':')
         if lastColon > 0 && !selector.substring(lastColon).startsWith("::") then
           selector.substring(0, lastColon) + scopeClass + selector.substring(lastColon)
-        else
-          selector + scopeClass
+        else selector + scopeClass
       }
 
   // ── Helpers ─────────────────────────────────────────────────────────────

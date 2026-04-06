@@ -46,8 +46,8 @@ object ScalaCodeGen:
     // ── CSS ──────────────────────────────────────────────────────────────────
     ast.style.foreach { s =>
       val scoped = CssScoper.scope(s.css, scopeId)
-      val css    = scoped.replace("\\", "\\\\").replace("\"\"\"", "\\\"\\\"\\\"")
-      buf ++= s"""  private val _css =\n    \"\"\"$css\"\"\"\n\n"""
+      val css    = escapeString(scoped)
+      buf ++= s"""  private val _css =\n    "$css"\n\n"""
     }
 
     // ── User script code ─────────────────────────────────────────────────────
@@ -134,10 +134,18 @@ object ScalaCodeGen:
 
   private def emitAttr(buf: StringBuilder, v: String, attr: Attr, indent: String): Unit =
     attr match
+      case Attr.Static("class", value) =>
+        // Use classList.add to avoid overwriting the scope ID already added via classList.add(_scopeId)
+        value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
+          buf ++= s"""${ indent }$v.classList.add("${ escapeString(cls) }")\n"""
+        }
       case Attr.Static(name, value) =>
         buf ++= s"""${ indent }$v.setAttribute("$name", "${ escapeString(value) }")\n"""
       case Attr.BooleanAttr(name) =>
         buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
+      case Attr.Dynamic("class", expr) =>
+        // Use className += to append without overwriting the scope ID
+        buf ++= s"""${ indent }($expr).toString.split("\\\\s+").filter(_.nonEmpty).foreach($v.classList.add(_))\n"""
       case Attr.Dynamic(name, expr) =>
         buf ++= s"""${ indent }$v.setAttribute("$name", ($expr).toString)\n"""
       case Attr.EventHandler(event, expr) =>
