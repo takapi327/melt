@@ -58,7 +58,10 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   test("always imports dom and runtime") {
     val code = compile("<div></div>")
     assert(code.contains("import org.scalajs.dom"), code)
-    assert(code.contains("import melt.runtime.{ Mount, Style }"), code)
+    assert(code.contains("Bind"), code)
+    assert(code.contains("Cleanup"), code)
+    assert(code.contains("Mount"), code)
+    assert(code.contains("Style"), code)
   }
 
   test("creates() and mount() methods are present") {
@@ -119,12 +122,13 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("_root.appendChild"), code)
   }
 
-  // ── Expression nodes ─────────────────────────────────────────────────────
+  // ── Expression nodes (reactive via Bind.text) ───���───────────────────────
 
-  test("expression node becomes text node with toString") {
+  test("expression node emits Bind.text for reactive binding") {
     val code = compile("<p>{count}</p>")
-    assert(code.contains("(count).toString"), code)
-    assert(code.contains("createTextNode"), code)
+    assert(code.contains("Bind.text(count,"), code)
+    // Should NOT use static createTextNode for expressions
+    assert(!code.contains("createTextNode((count).toString)"), code)
   }
 
   // ── Script section ───────────────────────────────────────────────────────
@@ -224,9 +228,9 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("""setAttribute("class""""), code)
   }
 
-  test("dynamic non-class attribute uses setAttribute with toString") {
+  test("dynamic non-class attribute emits Bind.attr") {
     val code = compile("<div title={expr}></div>")
-    assert(code.contains("""setAttribute("title", (expr).toString)"""), code)
+    assert(code.contains("""Bind.attr(_el0, "title", expr)"""), code)
   }
 
   // ── Event handler generation ──────────────────────────────────────────
@@ -234,6 +238,11 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   test("event handler emits addEventListener") {
     val code = compile("<button onclick={handler}>Click</button>")
     assert(code.contains("""addEventListener("click", handler)"""), code)
+  }
+
+  test("keydown event handler") {
+    val code = compile("<input onkeydown={handler} />")
+    assert(code.contains("""addEventListener("keydown", handler)"""), code)
   }
 
   // ── Component node (no-op in Phase 3) ─────────────────────────────────
@@ -351,8 +360,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   test("interleaved text and expression nodes") {
     val code = compile("<p>Hello {name} world</p>")
     assert(code.contains("createTextNode(\"Hello \")"), code)
-    assert(code.contains("(name).toString"), code)
-    // " world" is trailing text in the element, so leading space is kept but trailing whitespace is trimmed
+    assert(code.contains("Bind.text(name,"), code)
     assert(code.contains("createTextNode(\" world\")"), code)
   }
 
@@ -394,6 +402,50 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("private val _css"), code)
     // Triple quotes must be properly escaped in a regular string literal
     assert(!code.contains("\"\"\"\"\"\""), s"Raw triple-quote found in output:\n$code")
+  }
+
+  // ── Phase 4: Reactive bindings ──────────────────────────────────────────
+
+  test("create() includes Cleanup.pushScope and popScope with stored cleanups") {
+    val code = compile("<div></div>")
+    assert(code.contains("Cleanup.pushScope()"), code)
+    assert(code.contains("val _cleanups = Cleanup.popScope()"), code)
+  }
+
+  test("bind:value directive emits Bind.inputValue") {
+    val code = compile("""<input bind:value={name} />""")
+    assert(code.contains("Bind.inputValue("), code)
+    assert(code.contains(".asInstanceOf[dom.html.Input]"), code)
+    assert(code.contains("name"), code)
+  }
+
+  test("Counter.melt completion criteria generates correct code") {
+    val src =
+      """<script lang="scala">
+        |val count = Var(0)
+        |val name = Var("")
+        |</script>
+        |<div>
+        |  <p>Count: {count}</p>
+        |  <button onclick={_ => count += 1}>+1</button>
+        |  <input bind:value={name} placeholder="Your name" />
+        |  <p>Hello, {name}!</p>
+        |</div>""".stripMargin
+    val code = compile(src, name = "Counter")
+    // Reactive text bindings
+    assert(code.contains("Bind.text(count,"), code)
+    assert(code.contains("Bind.text(name,"), code)
+    // Event handler
+    assert(code.contains("""addEventListener("click","""), code)
+    // Two-way bind:value
+    assert(code.contains("Bind.inputValue("), code)
+    // Static text
+    assert(code.contains("createTextNode(\"Count: \")"), code)
+    assert(code.contains("createTextNode(\"Hello, \")"), code)
+    // Script code
+    assert(code.contains("val count = Var(0)"), code)
+    // Cleanup
+    assert(code.contains("Cleanup.pushScope()"), code)
   }
 
   // ── MeltCompiler integration: style + script + template ─────────────────
