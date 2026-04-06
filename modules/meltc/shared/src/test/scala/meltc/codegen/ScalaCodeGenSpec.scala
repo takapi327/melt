@@ -564,3 +564,133 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Divider.create()"), code)
     assert(!code.contains("Divider.Props"), code)
   }
+
+  // ── Phase 6: Template directives ──────────────────────────────────────────
+
+  test("class: directive emits Bind.classToggle") {
+    val code = compile("<div class:active={isActive}></div>")
+    assert(code.contains("""Bind.classToggle(_el0, "active", isActive)"""), code)
+  }
+
+  test("class: shorthand (no value) uses variable name") {
+    val code = compile("<div class:selected></div>")
+    assert(code.contains("""Bind.classToggle(_el0, "selected", selected)"""), code)
+  }
+
+  test("style: directive emits Bind.style") {
+    val code = compile("<div style:color={textColor}></div>")
+    assert(code.contains("""Bind.style(_el0, "color", textColor)"""), code)
+  }
+
+  test("bind:checked emits Bind.inputChecked") {
+    val code = compile("<input bind:checked={done} />")
+    assert(code.contains("Bind.inputChecked("), code)
+    assert(code.contains("done"), code)
+  }
+
+  test("bind:this emits ref.set call") {
+    val code = compile("<canvas bind:this={canvasRef}></canvas>")
+    assert(code.contains("canvasRef.set("), code)
+  }
+
+  // ── Phase 6: List rendering ───────────────────────────────────────────────
+
+  test(".map() expression with DOM body emits anchor + Bind.list") {
+    val src  = "<ul>{items.map(item => { val li = dom.document.createElement(\"li\"); li })}</ul>"
+    val code = compile(src)
+    assert(code.contains("createComment(\"melt\")"), code)
+    assert(code.contains("Bind.list(items,"), code)
+  }
+
+  test(".map() expression without DOM body stays as Bind.text") {
+    val code = compile("<p>{items.map(_.size)}</p>")
+    assert(code.contains("Bind.text(items.map(_.size),"), code)
+    assert(!code.contains("Bind.list"), code)
+  }
+
+  test(".keyed().map() expression emits anchor + Bind.each") {
+    val src  = "<ul>{items.keyed(_.id).map(item => { val li = dom.document.createElement(\"li\"); li })}</ul>"
+    val code = compile(src)
+    assert(code.contains("createComment(\"melt\")"), code)
+    assert(code.contains("Bind.each(items,"), code)
+    assert(code.contains("_.id"), code)
+  }
+
+  test("plain text expression still uses Bind.text") {
+    val code = compile("<p>{name}</p>")
+    assert(code.contains("Bind.text(name,"), code)
+    assert(!code.contains("Bind.list"), code)
+  }
+
+  // ── Phase 6: Inline HTML in expressions ──────────────────────────────────
+
+  test("inline HTML in .map() generates DOM construction code") {
+    val src =
+      """<ul>{items.map((item: String) =>
+        |  <li>{item}</li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""createElement("li")"""), code)
+    assert(code.contains("Bind.list(items,"), code)
+    assert(code.contains("Bind.text(item,"), code)
+  }
+
+  test("inline HTML with attributes generates correct code") {
+    val src =
+      """<ul>{items.map((item: Item) =>
+        |  <li class="entry" onclick={handler}>
+        |    <span>{item.name}</span>
+        |  </li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""classList.add("entry")"""), code)
+    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(code.contains("Bind.text(item.name,"), code)
+  }
+
+  test("expression without HTML stays as Expression node") {
+    val code = compile("<p>{count + 1}</p>")
+    assert(code.contains("Bind.text(count + 1,"), code)
+    assert(!code.contains("Bind.list"), code)
+  }
+
+  // ── Phase 6: if/else and match ────────────────────────────────────────────
+
+  test("if/else with inline HTML emits Bind.show") {
+    val src =
+      """<div>{if visible then <p>Yes</p> else <span>No</span>}</div>"""
+    val code = compile(src)
+    assert(code.contains("Bind.show("), code)
+    assert(code.contains("createComment(\"melt\")"), code)
+  }
+
+  test("if/else with plain text stays as Bind.text") {
+    val src  = """<p>{if x > 0 then "positive" else "negative"}</p>"""
+    val code = compile(src)
+    assert(code.contains("Bind.text("), code)
+    assert(!code.contains("Bind.show"), code)
+  }
+
+  // ── Phase 6: bind:group radio vs checkbox ─────────────────────────────────
+
+  test("bind:group on radio emits Bind.radioGroup") {
+    val code = compile("""<input type="radio" bind:group={selected} value="a" />""")
+    assert(code.contains("Bind.radioGroup("), code)
+  }
+
+  test("bind:group on checkbox emits Bind.checkboxGroup") {
+    val code = compile("""<input type="checkbox" bind:group={toppings} value="cheese" />""")
+    assert(code.contains("Bind.checkboxGroup("), code)
+  }
+
+  // ── Phase 6: numeric bind:value ───────────────────────────────────────────
+
+  test("bind:value-int emits Bind.inputInt") {
+    val code = compile("""<input type="number" bind:value-int={count} />""")
+    assert(code.contains("Bind.inputInt("), code)
+  }
+
+  test("bind:value-double emits Bind.inputDouble") {
+    val code = compile("""<input type="number" bind:value-double={price} />""")
+    assert(code.contains("Bind.inputDouble("), code)
+  }
