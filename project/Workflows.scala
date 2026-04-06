@@ -89,7 +89,7 @@ object Workflows {
       name  = "sbt scripted",
       steps = githubWorkflowJobSetup.value.toList ::: List(
         WorkflowStep.Run(
-          List("sbt +publishLocal"),
+          List("sbt publishLocal"),
           name = Some("sbt publishLocal")
         ),
         WorkflowStep.Run(

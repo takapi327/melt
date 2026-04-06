@@ -534,7 +534,7 @@ val form = Form.create[UserForm]
 - [ ] API リファレンス（melt-runtime, melt-forms）
 - [ ] チュートリアル（Counter → Todo → Dashboard の段階的ガイド）
 - [ ] example プロジェクト充実（hello-world, counter, todo, dashboard, form）
-- [ ] Giter8 テンプレート（`sbt new dev.meltc/melt-vite.g8`）
+- [ ] Giter8 テンプレート（`sbt new io.github.takapi327/melt-vite.g8`）
 - [ ] Maven Central publish 設定（sbt-ci-release）
 - [ ] npm publish 設定（将来の CLI 用）
 - [ ] CHANGELOG 作成
@@ -544,7 +544,7 @@ val form = Form.create[UserForm]
 
 ```bash
 # ユーザーがこれだけで始められる
-sbt new dev.meltc/melt-vite.g8
+sbt new io.github.takapi327/melt-vite.g8
 cd my-app
 sbt ~fastLinkJS   # Terminal 1
 npm run dev        # Terminal 2

@@ -173,7 +173,7 @@ melt-language-server（meltc.jvm + LSP4J に依存）
 ### 2.1 build.sbt
 
 ```scala
-ThisBuild / organization := "dev.meltc"
+ThisBuild / organization := "io.github.takapi327"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.5.0"
 
@@ -403,13 +403,13 @@ object MeltcPlugin extends AutoPlugin:
 
 ```scala
 // project/plugins.sbt
-addSbtPlugin("dev.meltc" % "sbt-meltc" % "0.1.0")
+addSbtPlugin("io.github.takapi327" % "sbt-meltc" % "0.1.0")
 
 // build.sbt
 enablePlugins(ScalaJSPlugin, MeltcPlugin)
 
 scalaVersion := "3.5.0"
-libraryDependencies += "dev.meltc" %%% "melt-runtime" % "0.1.0"
+libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % "0.1.0"
 
 // デフォルト: src/main/components/*.melt → target/scala-3.5.0/src_managed/main/meltc/*.scala
 // カスタマイズ:
@@ -424,12 +424,12 @@ libraryDependencies += "dev.meltc" %%% "melt-runtime" % "0.1.0"
 
 ユーザーの `build.sbt`:
 ```scala
-libraryDependencies += "dev.meltc" %%% "melt-runtime" % "0.1.0"
+libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % "0.1.0"
 ```
 
 ユーザーの scala-cli:
 ```scala
-//> using dep "dev.meltc::melt-runtime::0.1.0"
+//> using dep "io.github.takapi327::melt-runtime::0.1.0"
 ```
 
 ### 3.4 将来の拡張
@@ -948,7 +948,7 @@ melt/
 
 ```bash
 # ユーザーが新しいプロジェクトを作る
-sbt new dev.meltc/melt-vite.g8
+sbt new io.github.takapi327/melt-vite.g8
 cd my-app
 sbt ~meltcGenerate   # Terminal 1
 npm run dev          # Terminal 2

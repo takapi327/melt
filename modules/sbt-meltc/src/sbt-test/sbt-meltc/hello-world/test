@@ -1,0 +1,9 @@
+# Verify that meltcGenerate produces the expected Scala file from App.melt
+> meltcGenerate
+$ exists target/scala-3.3.7/src_managed/main/meltc/components/App.scala
+
+# Verify the full project compiles (includes the generated App.scala + Main.scala)
+> compile
+
+# Verify Scala.js linking succeeds (Phase 3 completion criteria)
+> fastLinkJS

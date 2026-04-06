@@ -82,7 +82,10 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
 
 // ── sbt plugin ──
-// Note: dependsOn(meltc.jvm) will be added in Phase 3 after cross-compilation is configured.
+// The plugin forks a JVM process to run meltc.MeltcMain, avoiding Scala 2.12/3 binary
+// incompatibility. In external projects the classpath is auto-resolved via the internal
+// `meltc-compiler` Ivy configuration after `publishLocal`. In this monorepo the
+// hello-world example wires meltc.jvm directly (see below).
 lazy val `sbt-meltc` = BuildSettings
   .MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
@@ -129,6 +132,22 @@ lazy val `melt-testing` = project
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Hello World ──────────────────────────────────────────────────────
+// MeltcPlugin is loaded from source via project/build.sbt (no publishLocal needed).
+// meltcCompilerClasspath is wired directly from meltc.jvm, so Fork.java is invoked
+// with the correct classpath without any manual setup.
+lazy val `hello-world` = project
+  .in(file("examples/hello-world"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "hello-world",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -139,7 +158,8 @@ lazy val root = project
     `sbt-meltc`,
     runtime,
     `melt-testing`,
-    `language-server`
+    `language-server`,
+    `hello-world`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
