@@ -1,0 +1,32 @@
+<script lang="scala">
+import models.Todo
+
+val todos = Var(List(
+  Todo(1, "Learn Melt", false),
+  Todo(2, "Build a Todo app", false)
+))
+var nextId = 3
+
+def addTodo(text: String): Unit =
+  todos.append(Todo(nextId, text, false))
+  nextId += 1
+
+def toggleTodo(id: Int): Unit =
+  todos.updateWhere(_.id == id)(t => t.copy(done = !t.done))
+
+def removeTodo(id: Int): Unit =
+  todos.removeWhere(_.id == id)
+</script>
+
+<div class="app">
+  <h1>Melt Todo</h1>
+  <TodoInput onadd={addTodo} />
+  <TodoList items={todos} ontoggle={toggleTodo} onremove={removeTodo} />
+  <p class="count">{todos.map(_.size)} items</p>
+</div>
+
+<style>
+.app { font-family: sans-serif; max-width: 500px; margin: 2em auto; padding: 1em; }
+h1 { color: #ff3e00; margin-bottom: 0.5em; }
+.count { color: #888; font-size: 0.9em; margin-top: 1em; }
+</style>
