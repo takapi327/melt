@@ -148,6 +148,19 @@ lazy val `hello-world` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Counter (Phase 4 — reactive bindings) ��─────────────────────────
+lazy val counter = project
+  .in(file("examples/counter"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "counter",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -159,7 +172,8 @@ lazy val root = project
     runtime,
     `melt-testing`,
     `language-server`,
-    `hello-world`
+    `hello-world`,
+    counter
   )
   .settings(BuildSettings.commonSettings)
   .settings(

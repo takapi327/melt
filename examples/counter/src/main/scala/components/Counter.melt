@@ -1,0 +1,26 @@
+<script lang="scala">
+val count = Var(0)
+val name = Var("")
+val doubled = count.map(_ * 2)
+</script>
+
+<div class="counter">
+  <h1>Melt Counter</h1>
+  <p>Count: {count}</p>
+  <p>Doubled: {doubled}</p>
+  <button onclick={_ => count += 1}>+1</button>
+  <button onclick={_ => count -= 1}>-1</button>
+  <button onclick={_ => count.set(0)}>Reset</button>
+  <hr />
+  <input bind:value={name} placeholder="Your name" />
+  <p>Hello, {name}!</p>
+</div>
+
+<style>
+.counter { font-family: sans-serif; max-width: 400px; margin: 2em auto; padding: 1em; }
+h1 { color: #ff3e00; }
+p { color: #333; }
+button { margin: 0 0.25em; padding: 0.5em 1em; cursor: pointer; }
+input { padding: 0.5em; width: 100%; box-sizing: border-box; margin-top: 1em; }
+hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+</style>
