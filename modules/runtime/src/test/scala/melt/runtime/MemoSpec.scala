@@ -30,7 +30,7 @@ class MemoSpec extends munit.FunSuite:
 
   test("memo propagates when value changes") {
     Cleanup.pushScope()
-    val v     = Var(1)
+    val v       = Var(1)
     val clamped = memo(v)(n => Math.min(n, 10))
     assertEquals(clamped.now(), 1)
     v.set(5)

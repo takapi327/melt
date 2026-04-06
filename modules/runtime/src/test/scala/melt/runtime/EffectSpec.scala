@@ -30,8 +30,8 @@ class EffectSpec extends munit.FunSuite:
 
   test("onCleanup inside effect runs before re-execution") {
     Cleanup.pushScope()
-    val v          = Var(0)
-    var cleanedUp  = false
+    val v         = Var(0)
+    var cleanedUp = false
     effect(v) { _ =>
       onCleanup(() => cleanedUp = true)
     }
