@@ -8,8 +8,16 @@ package melt.runtime
 
 import org.scalajs.dom
 
-/** A container for HTML attributes to be forwarded to a component's root element. */
+/** A container for HTML attributes to be forwarded to a component's root element.
+  *
+  * {{{
+  * val attrs = HtmlAttrs("id" -> "main", "class" -> "container")
+  * attrs.apply(el) // sets id="main" class="container" on the element
+  * }}}
+  */
 case class HtmlAttrs(entries: Map[String, String]):
+
+  /** Applies all entries as attributes to the given DOM element. */
   def apply(el: dom.Element): Unit =
     entries.foreach { case (k, v) => el.setAttribute(k, v) }
 
@@ -19,7 +27,10 @@ object HtmlAttrs:
 
 // ── Attribute map builder helpers ────────────────────────────────────────
 
+/** Internal helpers for building `Map[String, String]` from `Option` fields. */
 private[runtime] object AttrBuilder:
+
+  /** Adds a `String` option as an attribute entry. */
   def addStr(
     b:    scala.collection.mutable.Builder[(String, String), Map[String, String]],
     name: String,
@@ -27,7 +38,7 @@ private[runtime] object AttrBuilder:
   ): Unit =
     v.foreach(b += name -> _)
 
-  /** Adds an int option to a builder. */
+  /** Adds an `Int` option as a stringified attribute entry. */
   def addInt(
     b:    scala.collection.mutable.Builder[(String, String), Map[String, String]],
     name: String,
@@ -35,7 +46,10 @@ private[runtime] object AttrBuilder:
   ): Unit =
     v.foreach(n => b += name -> n.toString)
 
-  /** Adds a boolean option to a builder (present = empty string, absent = not included). */
+  /** Adds a `Boolean` option as an attribute entry.
+    * `true` emits the attribute with an empty value (e.g. `disabled=""`);
+    * `false` is not included.
+    */
   def addBool(
     b:    scala.collection.mutable.Builder[(String, String), Map[String, String]],
     name: String,
@@ -45,6 +59,26 @@ private[runtime] object AttrBuilder:
 
 // ── Base trait ───────────────────────────────────────────────────────────
 
+/** Base trait for component Props that support HTML attribute forwarding.
+  *
+  * Provides global HTML attributes (`id`, `title`, `hidden`, `tabindex`,
+  * `role`, `lang`, `dir`, `draggable`) common to all element types,
+  * plus a [[HtmlAttrs]] container for arbitrary pass-through attributes
+  * (e.g. `aria-*`, `data-*`).
+  *
+  * Extend one of the element-specific sub-traits (e.g. [[ButtonHtmlProps]],
+  * [[InputHtmlProps]]) to also expose element-specific attributes.
+  *
+  * {{{
+  * case class Props(label: String) extends ButtonHtmlProps
+  *
+  * // Caller:
+  * val p = Props("Click me")
+  * p.disabled = Some(true)
+  * p.id = Some("my-btn")
+  * // In template: <button {...props.allHtmlAttrs}>{props.label}</button>
+  * }}}
+  */
 trait HtmlProps:
   var id:        Option[String]  = None
   var title:     Option[String]  = None
@@ -59,13 +93,16 @@ trait HtmlProps:
   def html:                       HtmlAttrs = _html
   def withHtml(attrs: HtmlAttrs): this.type = { _html = attrs; this }
 
-  /** Collects all non-None attribute fields into an HtmlAttrs map. Subtraits override to add their own. */
+  /** Collects all non-None attribute fields + custom [[HtmlAttrs]] into a single map.
+    * Element-specific sub-traits override this to include their own fields.
+    */
   def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
     collectGlobalAttrs(b)
     b ++= _html.entries
     HtmlAttrs(b.result())
 
+  /** Adds global HTML attributes to the builder. Called by sub-trait overrides. */
   protected def collectGlobalAttrs(b: scala.collection.mutable.Builder[(String, String), Map[String, String]]): Unit =
     import AttrBuilder.*
     addStr(b, "id", id)
@@ -79,6 +116,14 @@ trait HtmlProps:
 
 // ── Element-specific traits ──────────────────────────────────────────────
 
+/** Props for components whose root element is `<button>`.
+  *
+  * Exposes button-specific HTML attributes:
+  * `disabled`, `type` (via `buttonType`), `name`, `value`,
+  * `form`, `formaction`, `formmethod`, `formnovalidate`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button MDN: button]]
+  */
 trait ButtonHtmlProps extends HtmlProps:
   var disabled:       Option[Boolean] = None
   var buttonType:     Option[String]  = None
@@ -104,6 +149,16 @@ trait ButtonHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<input>`.
+  *
+  * Exposes input-specific HTML attributes:
+  * `type` (via `inputType`), `placeholder`, `name`, `value`,
+  * `disabled`, `readonly`, `required`, `maxlength`, `minlength`,
+  * `min`, `max`, `step`, `pattern`, `accept`, `multiple`,
+  * `checked`, `autocomplete`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input MDN: input]]
+  */
 trait InputHtmlProps extends HtmlProps:
   var inputType:    Option[String]  = None
   var placeholder:  Option[String]  = None
@@ -147,6 +202,13 @@ trait InputHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<a>` (anchor).
+  *
+  * Exposes anchor-specific HTML attributes:
+  * `href`, `target`, `rel`, `download`, `hreflang`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a MDN: a]]
+  */
 trait AnchorHtmlProps extends HtmlProps:
   var href:     Option[String] = None
   var target:   Option[String] = None
@@ -166,6 +228,14 @@ trait AnchorHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<form>`.
+  *
+  * Exposes form-specific HTML attributes:
+  * `action`, `method`, `enctype`, `target` (via `formTarget`),
+  * `novalidate`, `name`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form MDN: form]]
+  */
 trait FormHtmlProps extends HtmlProps:
   var action:     Option[String]  = None
   var method:     Option[String]  = None
@@ -187,6 +257,14 @@ trait FormHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<img>`.
+  *
+  * Exposes image-specific HTML attributes:
+  * `src`, `alt`, `width`, `height`, `loading`, `decoding`,
+  * `srcset`, `sizes`, `crossorigin`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img MDN: img]]
+  */
 trait ImgHtmlProps extends HtmlProps:
   var src:         Option[String] = None
   var alt:         Option[String] = None
@@ -214,6 +292,13 @@ trait ImgHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<select>`.
+  *
+  * Exposes select-specific HTML attributes:
+  * `name`, `disabled`, `required`, `multiple`, `size`, `form`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select MDN: select]]
+  */
 trait SelectHtmlProps extends HtmlProps:
   var name:     Option[String]  = None
   var disabled: Option[Boolean] = None
@@ -235,6 +320,14 @@ trait SelectHtmlProps extends HtmlProps:
     b ++= html.entries
     HtmlAttrs(b.result())
 
+/** Props for components whose root element is `<textarea>`.
+  *
+  * Exposes textarea-specific HTML attributes:
+  * `name`, `placeholder`, `rows`, `cols`, `disabled`, `readonly`,
+  * `required`, `maxlength`, `minlength`, `wrap`.
+  *
+  * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea MDN: textarea]]
+  */
 trait TextAreaHtmlProps extends HtmlProps:
   var name:        Option[String]  = None
   var placeholder: Option[String]  = None
