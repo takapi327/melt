@@ -161,6 +161,19 @@ lazy val counter = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
+lazy val `todo-app` = project
+  .in(file("examples/todo-app"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "todo-app",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -173,7 +186,8 @@ lazy val root = project
     `melt-testing`,
     `language-server`,
     `hello-world`,
-    counter
+    counter,
+    `todo-app`
   )
   .settings(BuildSettings.commonSettings)
   .settings(

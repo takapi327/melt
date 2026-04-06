@@ -11,8 +11,8 @@ import meltc.ast.*
 /** Generates Scala.js source code from a parsed [[meltc.ast.MeltFile]].
   *
   * Each `.melt` file becomes a Scala `object` with:
-  *   - `create(): dom.Element` — builds and returns the DOM tree with reactive bindings
-  *   - `mount(target: dom.Element): Unit` — appends the component into `target`
+  *   - `create(): dom.Element` or `create(props: Props): dom.Element`
+  *   - `mount(target: dom.Element): Unit` or `mount(target: dom.Element, props: Props): Unit`
   */
 object ScalaCodeGen:
 
@@ -23,13 +23,7 @@ object ScalaCodeGen:
     val hash = objectName.foldLeft(17)((acc, c) => acc * 31 + c.toInt)
     f"melt-${ (hash & 0x7fffffff) % 0xffffff }%06x"
 
-  /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string.
-    *
-    * @param ast        the parsed AST
-    * @param objectName the generated object name (e.g. `"App"`)
-    * @param pkg        the Scala package (may be empty)
-    * @param scopeId    the scope class added to every DOM element for CSS isolation
-    */
+  /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string. */
   def generate(ast: meltc.ast.MeltFile, objectName: String, pkg: String, scopeId: String): String =
     val buf = new StringBuilder
     val ctr = new Counter
@@ -50,19 +44,42 @@ object ScalaCodeGen:
       buf ++= s"""  private val _css =\n    "$css"\n\n"""
     }
 
-    // ── User script code ─────────────────────────────────────────────────────
+    // ── Props type definition (object level) ─────────────────────────────────
+    val propsType = ast.script.flatMap(_.propsType)
     ast.script.foreach { sc =>
       if sc.code.nonEmpty then
-        sc.code.linesIterator.foreach(line => buf ++= s"  $line\n")
-        buf += '\n'
+        propsType match
+          case Some(typeName) =>
+            val (propsDef, _) = splitPropsDefinition(sc.code, typeName)
+            if propsDef.nonEmpty then
+              propsDef.linesIterator.foreach(line => buf ++= s"  $line\n")
+              buf += '\n'
+          case None => // no props definition to emit at object level
     }
 
     // ── create() ─────────────────────────────────────────────────────────────
-    buf ++= "  def create(): dom.Element = {\n"
+    propsType match
+      case Some(typeName) =>
+        buf ++= s"  def create(props: $typeName): dom.Element = {\n"
+      case None =>
+        buf ++= "  def create(): dom.Element = {\n"
+
     buf ++= "    Cleanup.pushScope()\n"
 
     if ast.style.isDefined then buf ++= "    Style.inject(_scopeId, _css)\n"
 
+    // ── User script code (inside create for per-instance state) ──────────────
+    ast.script.foreach { sc =>
+      if sc.code.nonEmpty then
+        val bodyCode = propsType match
+          case Some(typeName) => splitPropsDefinition(sc.code, typeName)._2
+          case None           => sc.code
+        if bodyCode.trim.nonEmpty then
+          bodyCode.linesIterator.foreach(line => buf ++= s"    $line\n")
+          buf += '\n'
+    }
+
+    // ── Template ─────────────────────────────────────────────────────────────
     val roots = ast.template.filter {
       case TemplateNode.Text(t) => !t.isBlank
       case _                    => true
@@ -88,19 +105,18 @@ object ScalaCodeGen:
     buf ++= "    _result\n"
     buf ++= "  }\n\n"
 
-    buf ++= "  def mount(target: dom.Element): Unit = Mount(target, create())\n\n"
+    // ── mount() ──────────────────────────────────────────────────────────────
+    propsType match
+      case Some(typeName) =>
+        buf ++= s"  def mount(target: dom.Element, props: $typeName): Unit = Mount(target, create(props))\n\n"
+      case None =>
+        buf ++= "  def mount(target: dom.Element): Unit = Mount(target, create())\n\n"
+
     buf ++= "}\n"
     buf.toString
 
   // ── Node emission ──────────────────────────────────────────────────────────
 
-  /** Emits statements that build `node` and returns the variable name holding it.
-    * Returns `""` if the node produces no DOM node (blank text, unimplemented component)
-    * or if the node was already appended to `parentVar` (e.g. by `Bind.text`).
-    *
-    * @param parentVar variable name of the parent DOM element, if available.
-    *                  Used by Expression nodes to emit `Bind.text(expr, parent)`.
-    */
   private def emitNode(
     buf:       StringBuilder,
     node:      TemplateNode,
@@ -132,27 +148,48 @@ object ScalaCodeGen:
       case TemplateNode.Expression(code) =>
         parentVar match
           case Some(parent) =>
-            // Reactive binding — Bind.text creates the node and appends it to parent.
-            // Overload resolution picks Var/Signal-aware overload when applicable,
-            // otherwise falls back to Any (static text).
             buf ++= s"${ indent }Bind.text($code, $parent)\n"
-            "" // already appended by Bind.text
+            ""
           case None =>
-            // Root-level expression without a parent — fall back to static text node
             val v = ctr.nextTxt()
             buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
             v
 
-      case TemplateNode.Component(_, _, _) =>
-        // Phase 5: not yet implemented
-        ""
+      case TemplateNode.Component(name, attrs, children) =>
+        val v = ctr.nextEl()
+
+        // Check for spread attribute
+        val spreadExpr = attrs.collectFirst { case Attr.Spread(expr) => expr }
+
+        // Check for `styled` attribute
+        val hasStyled = attrs.exists {
+          case Attr.BooleanAttr("styled") => true
+          case _                          => false
+        }
+
+        // Filter children
+        val filteredChildren = children.filter {
+          case TemplateNode.Text(t) => !t.isBlank
+          case _                    => true
+        }
+
+        // Build create call
+        spreadExpr match
+          case Some(expr) =>
+            buf ++= s"${ indent }val $v = $name.create($expr)\n"
+          case None =>
+            val propsArgs = buildPropsArgs(attrs, filteredChildren, indent, ctr, buf)
+            if propsArgs.nonEmpty then buf ++= s"${ indent }val $v = $name.create($name.Props($propsArgs))\n"
+            else buf ++= s"${ indent }val $v = $name.create()\n"
+
+        if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
+        v
 
   // ── Attribute emission ─────────────────────────────────────────────────────
 
   private def emitAttr(buf: StringBuilder, v: String, attr: Attr, indent: String): Unit =
     attr match
       case Attr.Static("class", value) =>
-        // Use classList.add to avoid overwriting the scope ID already added via classList.add(_scopeId)
         value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
           buf ++= s"""${ indent }$v.classList.add("${ escapeString(cls) }")\n"""
         }
@@ -169,7 +206,114 @@ object ScalaCodeGen:
       case Attr.Directive("bind", "value", Some(expr)) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive(_, _, _) | Attr.Spread(_) | Attr.Shorthand(_) =>
-      // Phase 5/6: not yet implemented
+      // Spread/Shorthand handled at component level; directives deferred to Phase 6
+
+  // ── Component props building ───────────────────────────────────────────────
+
+  /** Builds the Props constructor argument string from component attributes and children. */
+  private def buildPropsArgs(
+    attrs:    List[Attr],
+    children: List[TemplateNode],
+    indent:   String,
+    ctr:      Counter,
+    buf:      StringBuilder
+  ): String =
+    val args = List.newBuilder[String]
+
+    attrs.foreach {
+      case Attr.Static(name, value) =>
+        args += s"""$name = "${ escapeString(value) }""""
+      case Attr.Dynamic(name, expr) =>
+        args += s"$name = $expr"
+      case Attr.Shorthand(varName) =>
+        args += s"$varName = $varName"
+      case Attr.EventHandler(event, expr) =>
+        // On components, event handlers become props (e.g., onAdd = handler)
+        val propName = s"on${ event.charAt(0).toUpper }${ event.substring(1) }"
+        args += s"$propName = $expr"
+      case Attr.BooleanAttr("styled") =>
+      // handled separately, not a prop
+      case Attr.BooleanAttr(name) =>
+        args += s"$name = true"
+      case _ => // Spread handled at caller; Directive not a prop
+    }
+
+    // Children as a `() => dom.Element` prop
+    if children.nonEmpty then
+      val childVar = emitChildrenLambda(children, indent, ctr, buf)
+      args += s"children = $childVar"
+
+    args.result().mkString(", ")
+
+  /** Emits a `val _childrenN = () => { ... }` lambda that builds the children DOM tree.
+    * Returns the variable name (e.g. `_children0`).
+    */
+  private def emitChildrenLambda(
+    children: List[TemplateNode],
+    indent:   String,
+    ctr:      Counter,
+    buf:      StringBuilder
+  ): String =
+    val childCtr = new Counter
+    val varName  = s"_children${ ctr.nextChildIdx() }"
+    val inner    = indent + "  "
+
+    buf ++= s"${ indent }val $varName: (() => dom.Element) = () => {\n"
+
+    children match
+      case single :: Nil =>
+        val cv = emitNode(buf, single, inner, childCtr, isRoot = false, parentVar = None)
+        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
+        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
+      case multiple =>
+        buf ++= s"${ inner }val _frag = dom.document.createElement(\"div\")\n"
+        multiple.foreach { child =>
+          val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"))
+          if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
+        }
+        buf ++= s"${ inner }_frag\n"
+
+    buf ++= s"${ indent }}\n"
+    varName
+
+  // ── Props definition splitting ─────────────────────────────────────────────
+
+  /** Splits script code into (propsDefinition, bodyCode).
+    * The props definition (e.g. `case class Props(...)`) goes at object level;
+    * everything else goes inside `create()`.
+    */
+  private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
+    val lines      = code.linesWithSeparators.toArray
+    val propsDef   = new StringBuilder
+    val bodyCode   = new StringBuilder
+    var i          = 0
+    var inPropsDef = false
+    var depth      = 0
+
+    while i < lines.length do
+      val line    = lines(i)
+      val trimmed = line.trim
+
+      if !inPropsDef && trimmed.startsWith(s"case class $propsTypeName") then
+        inPropsDef = true
+        depth      = 0
+        // Count parens to find end of case class
+        for c <- line do
+          if c == '(' then depth += 1
+          else if c == ')' then depth -= 1
+        propsDef ++= line
+        if depth <= 0 then inPropsDef = false
+      else if inPropsDef then
+        for c <- line do
+          if c == '(' then depth += 1
+          else if c == ')' then depth -= 1
+        propsDef ++= line
+        if depth <= 0 then inPropsDef = false
+      else bodyCode ++= line
+
+      i += 1
+
+    (propsDef.toString.trim, bodyCode.toString)
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -181,7 +325,9 @@ object ScalaCodeGen:
       .replace("\t", "\\t")
 
   private final class Counter:
-    private var el  = 0
-    private var txt = 0
-    def nextEl():  String = { val v = s"_el$el"; el += 1; v }
-    def nextTxt(): String = { val v = s"_txt$txt"; txt += 1; v }
+    private var el       = 0
+    private var txt      = 0
+    private var childIdx = 0
+    def nextEl():       String = { val v = s"_el$el"; el += 1; v }
+    def nextTxt():      String = { val v = s"_txt$txt"; txt += 1; v }
+    def nextChildIdx(): Int    = { val v = childIdx; childIdx += 1; v }

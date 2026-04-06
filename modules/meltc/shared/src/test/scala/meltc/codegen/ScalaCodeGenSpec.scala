@@ -133,7 +133,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
 
   // ── Script section ───────────────────────────────────────────────────────
 
-  test("script code is included in object body") {
+  test("script code is inside create() for per-instance isolation") {
     val src =
       """<script lang="scala">
         |val count = 42
@@ -141,6 +141,14 @@ class ScalaCodeGenSpec extends munit.FunSuite:
         |<p>{count}</p>""".stripMargin
     val code = compile(src)
     assert(code.contains("val count = 42"), code)
+    // Script code should be inside create(), after Cleanup.pushScope()
+    val createIdx  = code.indexOf("def create()")
+    val scriptIdx  = code.indexOf("val count = 42")
+    val closingIdx = code.indexOf("val _cleanups")
+    assert(
+      createIdx >= 0 && scriptIdx > createIdx && scriptIdx < closingIdx,
+      s"Script should be inside create():\n$code"
+    )
   }
 
   // ── Style section ─────────────────────────────────────────────────────────
@@ -480,4 +488,79 @@ class ScalaCodeGenSpec extends munit.FunSuite:
       assert(code.contains("val greeting"), code)
       assert(code.contains("package pkg"), code)
     }
+  }
+
+  // ── Phase 5: Component system ─────────────────────────────────────────────
+
+  test("props type generates case class at object level and create(props)") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String, count: Int)
+        |val doubled = count * 2
+        |</script>
+        |<p>{props.label}</p>""".stripMargin
+    val code = compile(src, name = "Counter")
+    // Props definition at object level (before create)
+    assert(code.contains("case class Props(label: String, count: Int)"), code)
+    val propsDefIdx = code.indexOf("case class Props")
+    val createIdx   = code.indexOf("def create(")
+    assert(propsDefIdx < createIdx, s"Props def should be before create():\n$code")
+    // create takes props parameter
+    assert(code.contains("def create(props: Props): dom.Element"), code)
+    // mount takes props parameter
+    assert(code.contains("def mount(target: dom.Element, props: Props)"), code)
+    // body code is inside create
+    assert(code.contains("val doubled = count * 2"), code)
+  }
+
+  test("component reference without props generates create()") {
+    val code = compile("<div><Footer /></div>")
+    assert(code.contains("Footer.create()"), code)
+  }
+
+  test("component reference with static props") {
+    val code = compile("""<div><Counter label="Hello" /></div>""")
+    assert(code.contains("Counter.create(Counter.Props("), code)
+    assert(code.contains("""label = "Hello""""), code)
+  }
+
+  test("component reference with dynamic props") {
+    val code = compile("<div><Counter count={n} /></div>")
+    assert(code.contains("Counter.create(Counter.Props("), code)
+    assert(code.contains("count = n"), code)
+  }
+
+  test("component reference with shorthand attribute") {
+    val code = compile("<div><Counter {label} /></div>")
+    assert(code.contains("label = label"), code)
+  }
+
+  test("component reference with spread attribute") {
+    val code = compile("<div><Counter {...counterProps} /></div>")
+    assert(code.contains("Counter.create(counterProps)"), code)
+  }
+
+  test("component with event handler as prop") {
+    val code = compile("<div><TodoInput onadd={handler} /></div>")
+    assert(code.contains("onAdd = handler"), code)
+  }
+
+  test("styled attribute adds parent scope ID to component root") {
+    val code        = compile("<div><Button styled /></div>")
+    val createIdx   = code.indexOf("Button.create()")
+    val classAddIdx = code.indexOf("classList.add(_scopeId)", createIdx)
+    assert(createIdx >= 0 && classAddIdx > createIdx, s"styled should add _scopeId after create:\n$code")
+  }
+
+  test("component with children generates children lambda") {
+    val code = compile("<div><Card><p>Content</p></Card></div>")
+    assert(code.contains("Card.create(Card.Props(children ="), code)
+    assert(code.contains("() => {"), code)
+    assert(code.contains("""createElement("p")"""), code)
+  }
+
+  test("no-props component omits Props constructor") {
+    val code = compile("<div><Divider /></div>")
+    assert(code.contains("Divider.create()"), code)
+    assert(!code.contains("Divider.Props"), code)
   }

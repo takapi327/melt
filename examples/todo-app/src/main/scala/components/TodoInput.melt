@@ -1,0 +1,15 @@
+<script lang="scala" props="Props">
+case class Props(onAdd: String => Unit)
+val text = Var("")
+</script>
+
+<div class="todo-input">
+  <input bind:value={text} placeholder="What needs to be done?" />
+  <button onclick={_ => { if text.now().nonEmpty then { props.onAdd(text.now()); text.set("") } }}>Add</button>
+</div>
+
+<style>
+.todo-input { display: flex; gap: 0.5em; margin-bottom: 1em; }
+input { flex: 1; padding: 0.5em; }
+button { padding: 0.5em 1em; cursor: pointer; }
+</style>
