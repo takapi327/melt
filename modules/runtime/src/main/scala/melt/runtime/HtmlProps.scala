@@ -82,13 +82,28 @@ private[runtime] object AttrBuilder:
   * }}}
   */
 trait HtmlProps:
-  var id:        Option[String]  = None
-  var title:     Option[String]  = None
-  var hidden:    Option[Boolean] = None
-  var tabindex:  Option[Int]     = None
-  var role:      Option[String]  = None
-  var lang:      Option[String]  = None
-  var dir:       Option[String]  = None
+  /** The unique identifier of the element. Maps to the `id` HTML attribute. */
+  var id: Option[String] = None
+
+  /** Advisory information about the element, often shown as a tooltip. Maps to the `title` HTML attribute. */
+  var title: Option[String] = None
+
+  /** When `true`, the element is not rendered. Maps to the `hidden` HTML attribute. */
+  var hidden: Option[Boolean] = None
+
+  /** The tab order of the element for keyboard navigation. Maps to the `tabindex` HTML attribute. */
+  var tabindex: Option[Int] = None
+
+  /** The ARIA role of the element for accessibility. Maps to the `role` HTML attribute. */
+  var role: Option[String] = None
+
+  /** The language of the element's content (e.g. `"en"`, `"ja"`). Maps to the `lang` HTML attribute. */
+  var lang: Option[String] = None
+
+  /** The text directionality of the element's content (`"ltr"`, `"rtl"`, `"auto"`). Maps to the `dir` HTML attribute. */
+  var dir: Option[String] = None
+
+  /** Whether the element is draggable. Maps to the `draggable` HTML attribute. */
   var draggable: Option[Boolean] = None
 
   private var _html:              HtmlAttrs = HtmlAttrs.empty
@@ -127,13 +142,28 @@ trait HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/button MDN: button]]
   */
 trait ButtonHtmlProps extends HtmlProps:
-  var disabled:       Option[Boolean] = None
-  var buttonType:     Option[String]  = None
-  var name:           Option[String]  = None
-  var value:          Option[String]  = None
-  var form:           Option[String]  = None
-  var formAction:     Option[String]  = None
-  var formMethod:     Option[String]  = None
+  /** Disables the button when `true`. Maps to the `disabled` HTML attribute. */
+  var disabled: Option[Boolean] = None
+
+  /** The type of button (`"button"`, `"submit"`, `"reset"`). Maps to the `type` HTML attribute. */
+  var buttonType: Option[String] = None
+
+  /** The name of the button, submitted as part of form data. Maps to the `name` HTML attribute. */
+  var name: Option[String] = None
+
+  /** The value of the button, submitted as part of form data. Maps to the `value` HTML attribute. */
+  var value: Option[String] = None
+
+  /** Associates the button with a `<form>` element by its `id`. Maps to the `form` HTML attribute. */
+  var form: Option[String] = None
+
+  /** Overrides the form's `action` URL on submission. Maps to the `formaction` HTML attribute. */
+  var formAction: Option[String] = None
+
+  /** Overrides the form's HTTP method (`"get"` or `"post"`). Maps to the `formmethod` HTML attribute. */
+  var formMethod: Option[String] = None
+
+  /** When `true`, bypasses form validation on submission. Maps to the `formnovalidate` HTML attribute. */
   var formNoValidate: Option[Boolean] = None
 
   override def allHtmlAttrs: HtmlAttrs =
@@ -162,23 +192,56 @@ trait ButtonHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input MDN: input]]
   */
 trait InputHtmlProps extends HtmlProps:
-  var inputType:    Option[String]  = None
-  var placeholder:  Option[String]  = None
-  var name:         Option[String]  = None
-  var value:        Option[String]  = None
-  var disabled:     Option[Boolean] = None
-  var readonly:     Option[Boolean] = None
-  var required:     Option[Boolean] = None
-  var maxLength:    Option[Int]     = None
-  var minLength:    Option[Int]     = None
-  var min:          Option[String]  = None
-  var max:          Option[String]  = None
-  var step:         Option[String]  = None
-  var pattern:      Option[String]  = None
-  var accept:       Option[String]  = None
-  var multiple:     Option[Boolean] = None
-  var checked:      Option[Boolean] = None
-  var autocomplete: Option[String]  = None
+  /** The type of input control (e.g. `"text"`, `"email"`, `"password"`, `"checkbox"`). Maps to the `type` HTML attribute. */
+  var inputType: Option[String] = None
+
+  /** Hint text displayed when the field is empty. Maps to the `placeholder` HTML attribute. */
+  var placeholder: Option[String] = None
+
+  /** The name of the input, submitted as part of form data. Maps to the `name` HTML attribute. */
+  var name: Option[String] = None
+
+  /** The current value of the input. Maps to the `value` HTML attribute. */
+  var value: Option[String] = None
+
+  /** Disables the input when `true`. Maps to the `disabled` HTML attribute. */
+  var disabled: Option[Boolean] = None
+
+  /** Makes the input read-only when `true`. Maps to the `readonly` HTML attribute. */
+  var readonly: Option[Boolean] = None
+
+  /** Marks the input as required for form submission when `true`. Maps to the `required` HTML attribute. */
+  var required: Option[Boolean] = None
+
+  /** The maximum number of characters allowed. Maps to the `maxlength` HTML attribute. */
+  var maxLength: Option[Int] = None
+
+  /** The minimum number of characters required. Maps to the `minlength` HTML attribute. */
+  var minLength: Option[Int] = None
+
+  /** The minimum value for numeric or date inputs. Maps to the `min` HTML attribute. */
+  var min: Option[String] = None
+
+  /** The maximum value for numeric or date inputs. Maps to the `max` HTML attribute. */
+  var max: Option[String] = None
+
+  /** The stepping interval for numeric or date inputs. Maps to the `step` HTML attribute. */
+  var step: Option[String] = None
+
+  /** A regex pattern the input value must match. Maps to the `pattern` HTML attribute. */
+  var pattern: Option[String] = None
+
+  /** A comma-separated list of accepted file types (for `type="file"`). Maps to the `accept` HTML attribute. */
+  var accept: Option[String] = None
+
+  /** Allows multiple values or files to be selected when `true`. Maps to the `multiple` HTML attribute. */
+  var multiple: Option[Boolean] = None
+
+  /** Whether the checkbox or radio button is checked. Maps to the `checked` HTML attribute. */
+  var checked: Option[Boolean] = None
+
+  /** Browser autocomplete hint (e.g. `"on"`, `"off"`, `"email"`). Maps to the `autocomplete` HTML attribute. */
+  var autocomplete: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
@@ -212,10 +275,19 @@ trait InputHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a MDN: a]]
   */
 trait AnchorHtmlProps extends HtmlProps:
-  var href:     Option[String] = None
-  var target:   Option[String] = None
-  var rel:      Option[String] = None
+  /** The URL the link points to. Maps to the `href` HTML attribute. */
+  var href: Option[String] = None
+
+  /** Where to open the linked URL (e.g. `"_blank"`, `"_self"`). Maps to the `target` HTML attribute. */
+  var target: Option[String] = None
+
+  /** The relationship between the current document and the linked URL (e.g. `"noopener"`, `"noreferrer"`). Maps to the `rel` HTML attribute. */
+  var rel: Option[String] = None
+
+  /** Prompts a file download; the value becomes the suggested file name. Maps to the `download` HTML attribute. */
   var download: Option[String] = None
+
+  /** The language of the linked resource (e.g. `"en"`, `"ja"`). Maps to the `hreflang` HTML attribute. */
   var hreflang: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
@@ -239,12 +311,23 @@ trait AnchorHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form MDN: form]]
   */
 trait FormHtmlProps extends HtmlProps:
-  var action:     Option[String]  = None
-  var method:     Option[String]  = None
-  var enctype:    Option[String]  = None
-  var formTarget: Option[String]  = None
+  /** The URL to which form data is sent on submission. Maps to the `action` HTML attribute. */
+  var action: Option[String] = None
+
+  /** The HTTP method used to submit the form (`"get"` or `"post"`). Maps to the `method` HTML attribute. */
+  var method: Option[String] = None
+
+  /** How the form data is encoded for submission (e.g. `"multipart/form-data"`). Maps to the `enctype` HTML attribute. */
+  var enctype: Option[String] = None
+
+  /** Where to display the response after submission (e.g. `"_blank"`, `"_self"`). Maps to the `target` HTML attribute. */
+  var formTarget: Option[String] = None
+
+  /** When `true`, bypasses native browser validation on submission. Maps to the `novalidate` HTML attribute. */
   var novalidate: Option[Boolean] = None
-  var name:       Option[String]  = None
+
+  /** The name of the form, used to reference it from JavaScript. Maps to the `name` HTML attribute. */
+  var name: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
@@ -268,14 +351,31 @@ trait FormHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img MDN: img]]
   */
 trait ImgHtmlProps extends HtmlProps:
-  var src:         Option[String] = None
-  var alt:         Option[String] = None
-  var width:       Option[Int]    = None
-  var height:      Option[Int]    = None
-  var loading:     Option[String] = None
-  var decoding:    Option[String] = None
-  var srcset:      Option[String] = None
-  var sizes:       Option[String] = None
+  /** The URL of the image. Maps to the `src` HTML attribute. */
+  var src: Option[String] = None
+
+  /** The alternative text description of the image, used for accessibility. Maps to the `alt` HTML attribute. */
+  var alt: Option[String] = None
+
+  /** The intrinsic width of the image in pixels. Maps to the `width` HTML attribute. */
+  var width: Option[Int] = None
+
+  /** The intrinsic height of the image in pixels. Maps to the `height` HTML attribute. */
+  var height: Option[Int] = None
+
+  /** How the browser should load the image (`"eager"` or `"lazy"`). Maps to the `loading` HTML attribute. */
+  var loading: Option[String] = None
+
+  /** How the browser should decode the image (`"sync"`, `"async"`, `"auto"`). Maps to the `decoding` HTML attribute. */
+  var decoding: Option[String] = None
+
+  /** A comma-separated list of image URLs and descriptors for responsive images. Maps to the `srcset` HTML attribute. */
+  var srcset: Option[String] = None
+
+  /** Media conditions that specify which srcset entry to use at different viewport widths. Maps to the `sizes` HTML attribute. */
+  var sizes: Option[String] = None
+
+  /** How the element handles cross-origin requests (`"anonymous"`, `"use-credentials"`). Maps to the `crossorigin` HTML attribute. */
   var crossorigin: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
@@ -302,12 +402,23 @@ trait ImgHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select MDN: select]]
   */
 trait SelectHtmlProps extends HtmlProps:
-  var name:     Option[String]  = None
+  /** The name of the select control, submitted as part of form data. Maps to the `name` HTML attribute. */
+  var name: Option[String] = None
+
+  /** Disables the select control when `true`. Maps to the `disabled` HTML attribute. */
   var disabled: Option[Boolean] = None
+
+  /** Marks the select as required for form submission when `true`. Maps to the `required` HTML attribute. */
   var required: Option[Boolean] = None
+
+  /** Allows multiple options to be selected simultaneously when `true`. Maps to the `multiple` HTML attribute. */
   var multiple: Option[Boolean] = None
-  var size:     Option[Int]     = None
-  var form:     Option[String]  = None
+
+  /** The number of visible options in the list box. Maps to the `size` HTML attribute. */
+  var size: Option[Int] = None
+
+  /** Associates the select with a `<form>` element by its `id`. Maps to the `form` HTML attribute. */
+  var form: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
@@ -331,16 +442,35 @@ trait SelectHtmlProps extends HtmlProps:
   * @see [[https://developer.mozilla.org/en-US/docs/Web/HTML/Element/textarea MDN: textarea]]
   */
 trait TextAreaHtmlProps extends HtmlProps:
-  var name:        Option[String]  = None
-  var placeholder: Option[String]  = None
-  var rows:        Option[Int]     = None
-  var cols:        Option[Int]     = None
-  var disabled:    Option[Boolean] = None
-  var readonly:    Option[Boolean] = None
-  var required:    Option[Boolean] = None
-  var maxLength:   Option[Int]     = None
-  var minLength:   Option[Int]     = None
-  var wrap:        Option[String]  = None
+  /** The name of the textarea, submitted as part of form data. Maps to the `name` HTML attribute. */
+  var name: Option[String] = None
+
+  /** Hint text displayed when the textarea is empty. Maps to the `placeholder` HTML attribute. */
+  var placeholder: Option[String] = None
+
+  /** The visible number of text lines. Maps to the `rows` HTML attribute. */
+  var rows: Option[Int] = None
+
+  /** The visible width in average character widths. Maps to the `cols` HTML attribute. */
+  var cols: Option[Int] = None
+
+  /** Disables the textarea when `true`. Maps to the `disabled` HTML attribute. */
+  var disabled: Option[Boolean] = None
+
+  /** Makes the textarea read-only when `true`. Maps to the `readonly` HTML attribute. */
+  var readonly: Option[Boolean] = None
+
+  /** Marks the textarea as required for form submission when `true`. Maps to the `required` HTML attribute. */
+  var required: Option[Boolean] = None
+
+  /** The maximum number of characters allowed. Maps to the `maxlength` HTML attribute. */
+  var maxLength: Option[Int] = None
+
+  /** The minimum number of characters required. Maps to the `minlength` HTML attribute. */
+  var minLength: Option[Int] = None
+
+  /** How the text is wrapped on form submission (`"soft"`, `"hard"`). Maps to the `wrap` HTML attribute. */
+  var wrap: Option[String] = None
 
   override def allHtmlAttrs: HtmlAttrs =
     val b = Map.newBuilder[String, String]
