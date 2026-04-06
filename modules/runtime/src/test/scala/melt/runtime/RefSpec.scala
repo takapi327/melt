@@ -16,7 +16,7 @@ class RefSpec extends munit.FunSuite:
   }
 
   test("foreach does nothing when empty") {
-    val ref  = Ref.empty[dom.Element]
+    val ref    = Ref.empty[dom.Element]
     var called = false
     ref.foreach(_ => called = true)
     assert(!called)

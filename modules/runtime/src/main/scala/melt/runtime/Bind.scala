@@ -104,8 +104,7 @@ object Bind:
   def inputInt(input: dom.html.Input, v: Var[Int]): Unit =
     input.value = v.now().toString
     val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
-    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
-      input.value.toIntOption.foreach(v.set)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toIntOption.foreach(v.set)
     input.addEventListener("input", listener)
     Cleanup.register(cancelSub)
     Cleanup.register(() => input.removeEventListener("input", listener))
@@ -114,8 +113,7 @@ object Bind:
   def inputDouble(input: dom.html.Input, v: Var[Double]): Unit =
     input.value = v.now().toString
     val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
-    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
-      input.value.toDoubleOption.foreach(v.set)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toDoubleOption.foreach(v.set)
     input.addEventListener("input", listener)
     Cleanup.register(cancelSub)
     Cleanup.register(() => input.removeEventListener("input", listener))
@@ -133,8 +131,7 @@ object Bind:
   def radioGroup(input: dom.html.Input, v: Var[String], value: String): Unit =
     input.checked = v.now() == value
     val cancelSub = v.subscribe(s => input.checked = s == value)
-    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
-      if input.checked then v.set(value)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => if input.checked then v.set(value)
     input.addEventListener("change", listener)
     Cleanup.register(cancelSub)
     Cleanup.register(() => input.removeEventListener("change", listener))
@@ -221,8 +218,8 @@ object Bind:
     * Used for `{items.map(renderFn)}` in templates.
     */
   def list[A](source: Var[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    val parent   = anchor.parentNode
-    var nodes    = mutable.ListBuffer.empty[dom.Node]
+    val parent = anchor.parentNode
+    var nodes  = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
       nodes.foreach(n => parent.removeChild(n))
@@ -265,8 +262,8 @@ object Bind:
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
-      val newKeys     = items.map(keyFn).toSet
-      val oldKeys     = nodeMap.keySet
+      val newKeys = items.map(keyFn).toSet
+      val oldKeys = nodeMap.keySet
       // Remove nodes whose keys no longer exist
       (oldKeys -- newKeys).foreach { k =>
         nodeMap.get(k).foreach(n => parent.removeChild(n))
@@ -275,7 +272,7 @@ object Bind:
       // Add/reorder
       val newMap = mutable.LinkedHashMap.empty[K, dom.Node]
       items.foreach { item =>
-        val k = keyFn(item)
+        val k    = keyFn(item)
         val node = nodeMap.getOrElse(k, renderFn(item))
         parent.insertBefore(node, anchor)
         newMap(k) = node
