@@ -35,27 +35,34 @@ final class Signal[A] private[runtime] (private var _current: A):
     subscribers += f
     () => { subscribers -= f; () }
 
-  /** Derives a new [[Signal]] by transforming each emitted value with `f`. */
+  /** Derives a new [[Signal]] by transforming each emitted value with `f`.
+    *
+    * The internal subscription is registered with [[Cleanup]] so that
+    * component destruction can release it and prevent memory leaks.
+    */
   def map[B](f: A => B): Signal[B] =
     val derived = new Signal[B](f(_current))
-    subscribe(a => derived.emit(f(a)))
+    val cancel  = subscribe(a => derived.emit(f(a)))
+    Cleanup.register(cancel)
     derived
 
   /** Derives a new [[Signal]] by flat-mapping, supporting dynamic source switching.
     *
     * When the outer Signal emits a new value, the previous inner Signal is
     * unsubscribed and a fresh one is obtained by calling `f`.
+    * The internal subscriptions are registered with [[Cleanup]].
     */
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner   = f(_current)
     val derived = new Signal[B](inner.now())
     var cancelInner: () => Unit = inner.subscribe(b => derived.emit(b))
-    subscribe { a =>
+    val cancelOuter = subscribe { a =>
       cancelInner()
       inner = f(a)
       derived.emit(inner.now())
       cancelInner = inner.subscribe(b => derived.emit(b))
     }
+    Cleanup.register(() => { cancelInner(); cancelOuter(); () })
     derived
 
   /** Pushes a new value to all subscribers. Package-private; called by [[Var]] and derived Signals. */

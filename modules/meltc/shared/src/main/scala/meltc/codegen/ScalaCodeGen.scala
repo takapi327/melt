@@ -10,9 +10,8 @@ import meltc.ast.*
 
 /** Generates Scala.js source code from a parsed [[meltc.ast.MeltFile]].
   *
-  * Phase 3 scope: static DOM construction only (no reactive bindings, no components).
   * Each `.melt` file becomes a Scala `object` with:
-  *   - `create(): dom.Element` — builds and returns the DOM tree
+  *   - `create(): dom.Element` — builds and returns the DOM tree with reactive bindings
   *   - `mount(target: dom.Element): Unit` — appends the component into `target`
   */
 object ScalaCodeGen:
@@ -38,7 +37,8 @@ object ScalaCodeGen:
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
     buf ++= "import org.scalajs.dom\n"
-    buf ++= "import melt.runtime.{ Mount, Style }\n\n"
+    buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Style, Var, Signal }\n"
+    buf ++= "import melt.runtime.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
@@ -59,6 +59,7 @@ object ScalaCodeGen:
 
     // ── create() ─────────────────────────────────────────────────────────────
     buf ++= "  def create(): dom.Element = {\n"
+    buf ++= "    Cleanup.pushScope()\n"
 
     if ast.style.isDefined then buf ++= "    Style.inject(_scopeId, _css)\n"
 
@@ -69,19 +70,22 @@ object ScalaCodeGen:
 
     roots match
       case Nil =>
-        buf ++= "    dom.document.createElement(\"div\")\n"
+        buf ++= "    val _result = dom.document.createElement(\"div\")\n"
       case single :: Nil =>
-        val v = emitNode(buf, single, "    ", ctr, isRoot = true)
-        if v.nonEmpty then buf ++= s"    $v\n"
+        val v = emitNode(buf, single, "    ", ctr, isRoot = true, parentVar = None)
+        if v.nonEmpty then buf ++= s"    val _result = $v\n"
+        else buf ++= "    val _result = dom.document.createElement(\"div\")\n"
       case multiple =>
         buf ++= "    val _root = dom.document.createElement(\"div\")\n"
         buf ++= "    _root.classList.add(_scopeId)\n"
         multiple.foreach { node =>
-          val v = emitNode(buf, node, "    ", ctr, isRoot = false)
+          val v = emitNode(buf, node, "    ", ctr, isRoot = false, parentVar = Some("_root"))
           if v.nonEmpty then buf ++= s"    _root.appendChild($v)\n"
         }
-        buf ++= "    _root\n"
+        buf ++= "    val _result = _root\n"
 
+    buf ++= "    val _cleanups = Cleanup.popScope()\n"
+    buf ++= "    _result\n"
     buf ++= "  }\n\n"
 
     buf ++= "  def mount(target: dom.Element): Unit = Mount(target, create())\n\n"
@@ -91,14 +95,19 @@ object ScalaCodeGen:
   // ── Node emission ──────────────────────────────────────────────────────────
 
   /** Emits statements that build `node` and returns the variable name holding it.
-    * Returns `""` if the node produces no DOM node (blank text, unimplemented component).
+    * Returns `""` if the node produces no DOM node (blank text, unimplemented component)
+    * or if the node was already appended to `parentVar` (e.g. by `Bind.text`).
+    *
+    * @param parentVar variable name of the parent DOM element, if available.
+    *                  Used by Expression nodes to emit `Bind.text(expr, parent)`.
     */
   private def emitNode(
-    buf:    StringBuilder,
-    node:   TemplateNode,
-    indent: String,
-    ctr:    Counter,
-    isRoot: Boolean
+    buf:       StringBuilder,
+    node:      TemplateNode,
+    indent:    String,
+    ctr:       Counter,
+    isRoot:    Boolean,
+    parentVar: Option[String]
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
@@ -107,7 +116,7 @@ object ScalaCodeGen:
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         attrs.foreach(emitAttr(buf, v, _, indent))
         children.foreach { child =>
-          val cv = emitNode(buf, child, indent, ctr, isRoot = false)
+          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v))
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
         }
         v
@@ -121,10 +130,18 @@ object ScalaCodeGen:
           v
 
       case TemplateNode.Expression(code) =>
-        // Phase 3: static render — emit expression result as text
-        val v = ctr.nextTxt()
-        buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
-        v
+        parentVar match
+          case Some(parent) =>
+            // Reactive binding — Bind.text creates the node and appends it to parent.
+            // Overload resolution picks Var/Signal-aware overload when applicable,
+            // otherwise falls back to Any (static text).
+            buf ++= s"${ indent }Bind.text($code, $parent)\n"
+            "" // already appended by Bind.text
+          case None =>
+            // Root-level expression without a parent — fall back to static text node
+            val v = ctr.nextTxt()
+            buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
+            v
 
       case TemplateNode.Component(_, _, _) =>
         // Phase 5: not yet implemented
@@ -144,14 +161,15 @@ object ScalaCodeGen:
       case Attr.BooleanAttr(name) =>
         buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case Attr.Dynamic("class", expr) =>
-        // Use className += to append without overwriting the scope ID
         buf ++= s"""${ indent }($expr).toString.split("\\\\s+").filter(_.nonEmpty).foreach($v.classList.add(_))\n"""
       case Attr.Dynamic(name, expr) =>
-        buf ++= s"""${ indent }$v.setAttribute("$name", ($expr).toString)\n"""
+        buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""
       case Attr.EventHandler(event, expr) =>
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
+      case Attr.Directive("bind", "value", Some(expr)) =>
+        buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive(_, _, _) | Attr.Spread(_) | Attr.Shorthand(_) =>
-      // Phase 4/5/6: not yet implemented
+      // Phase 5/6: not yet implemented
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
