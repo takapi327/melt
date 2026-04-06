@@ -49,6 +49,19 @@ private[parser] final class TemplateParser(src: String):
     val raw = parseNodes(insideTag = false)
     collapseWhitespace(raw)
 
+  /** Parses a single top-level element (or self-closing tag) and returns.
+    * Used by [[ExprExtractor.extractRich]] to parse inline HTML fragments.
+    */
+  def parseFragment(): List[TemplateNode] =
+    skipSpaces()
+    if pos < src.length && src(pos) == '<' && isOpenTagAt(pos) then
+      val node = parseElement()
+      List(node)
+    else Nil
+
+  /** Current parser position — used by callers to determine how many characters were consumed. */
+  def position: Int = pos
+
   def warnings: List[(String, Int)] = _warnings.result()
 
   // ── Node-sequence parsing ─────────────────────────────────────────────────
@@ -70,9 +83,15 @@ private[parser] final class TemplateParser(src: String):
         src(pos) match
           case '{' =>
             pos += 1
-            val (expr, end) = ExprExtractor.extract(src, pos)
+            val (parts, end) = ExprExtractor.extractRich(src, pos)
             pos = end
-            if expr.nonEmpty then nodes += TemplateNode.Expression(expr)
+            val hasHtml = parts.exists(_.isInstanceOf[meltc.ast.InlineTemplatePart.Html])
+            if hasHtml then
+              if parts.nonEmpty then nodes += TemplateNode.InlineTemplate(parts)
+            else
+              // Pure Scala expression — flatten to Expression node
+              val expr = parts.collect { case meltc.ast.InlineTemplatePart.Code(c) => c }.mkString
+              if expr.nonEmpty then nodes += TemplateNode.Expression(expr)
 
           case '<' if isOpenTagAt(pos) =>
             nodes += parseElement()

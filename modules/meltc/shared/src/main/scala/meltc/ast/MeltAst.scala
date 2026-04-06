@@ -43,6 +43,20 @@ enum TemplateNode:
   /** A component reference — tag name starts with an uppercase letter: `<Counter />`. */
   case Component(name: String, attrs: List[Attr], children: List[TemplateNode])
 
+  /** A Scala expression containing inline HTML template fragments.
+    * The `parts` interleave Scala code with parsed HTML trees.
+    * Example: `items.map(item =>` + `<li>...</li>` + `)`
+    */
+  case InlineTemplate(parts: List[InlineTemplatePart])
+
+/** A part of an [[TemplateNode.InlineTemplate]] expression. */
+enum InlineTemplatePart:
+  /** A raw Scala code fragment. */
+  case Code(code: String)
+
+  /** A parsed HTML template fragment. */
+  case Html(nodes: List[TemplateNode])
+
 /** An attribute on an HTML element or component. */
 enum Attr:
   /** A static string attribute: `class="foo"`. */

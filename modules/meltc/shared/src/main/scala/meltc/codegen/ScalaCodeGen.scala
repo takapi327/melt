@@ -7,6 +7,7 @@
 package meltc.codegen
 
 import meltc.ast.*
+import meltc.ast.InlineTemplatePart
 
 /** Generates Scala.js source code from a parsed [[meltc.ast.MeltFile]].
   *
@@ -31,7 +32,7 @@ object ScalaCodeGen:
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
     buf ++= "import org.scalajs.dom\n"
-    buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Style, Var, Signal }\n"
+    buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     buf ++= "import melt.runtime.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
@@ -130,7 +131,7 @@ object ScalaCodeGen:
         val v = ctr.nextEl()
         buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
-        attrs.foreach(emitAttr(buf, v, _, indent))
+        attrs.foreach(emitAttr(buf, v, _, indent, attrs))
         children.foreach { child =>
           val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v))
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
@@ -146,14 +147,78 @@ object ScalaCodeGen:
           v
 
       case TemplateNode.Expression(code) =>
-        parentVar match
-          case Some(parent) =>
-            buf ++= s"${ indent }Bind.text($code, $parent)\n"
+        classifyExpr(code) match
+          case ExprKind.ListMap =>
+            // {source.map(renderFn)} → anchor + Bind.list
+            val anchor = ctr.nextTxt()
+            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            val dotMap = code.lastIndexOf(".map(")
+            val source = code.substring(0, dotMap).trim
+            val fnBody = code.substring(dotMap + 5, code.length - 1).trim // remove trailing ')'
+            buf ++= s"${ indent }Bind.list($source, $fnBody, $anchor)\n"
             ""
-          case None =>
-            val v = ctr.nextTxt()
-            buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
-            v
+
+          case ExprKind.KeyedMap =>
+            // {source.keyed(keyFn).map(renderFn)} → anchor + Bind.each
+            val anchor = ctr.nextTxt()
+            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            val keyedIdx   = code.indexOf(".keyed(")
+            val source     = code.substring(0, keyedIdx).trim
+            val afterKeyed = code.substring(keyedIdx + 7)
+            val keyEnd     = findBalancedParen(afterKeyed, 0)
+            val keyFn      = afterKeyed.substring(0, keyEnd).trim
+            val rest       = afterKeyed.substring(keyEnd + 1) // skip ')'
+            val dotMap     = rest.indexOf(".map(")
+            val fnBody     = rest.substring(dotMap + 5, rest.length - 1).trim
+            buf ++= s"${ indent }Bind.each($source, $keyFn, $fnBody, $anchor)\n"
+            ""
+
+          case ExprKind.DomExpr =>
+            // if/else or match returning DOM nodes — use Bind.show with anchor
+            val anchor = ctr.nextTxt()
+            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            buf ++= s"${ indent }Bind.show(() => { $code }, $anchor)\n"
+            ""
+
+          case ExprKind.PlainText =>
+            parentVar match
+              case Some(parent) =>
+                buf ++= s"${ indent }Bind.text($code, $parent)\n"
+                ""
+              case None =>
+                val v = ctr.nextTxt()
+                buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
+                v
+
+      case TemplateNode.InlineTemplate(parts) =>
+        // Build a Scala expression by converting HTML parts to DOM construction code
+        val exprBuf = new StringBuilder
+        parts.foreach {
+          case InlineTemplatePart.Code(code) =>
+            exprBuf ++= code
+          case InlineTemplatePart.Html(nodes) =>
+            val innerBuf = new StringBuilder
+            val innerCtr = new Counter
+            nodes match
+              case Nil =>
+                exprBuf ++= s"dom.document.createTextNode(\"\")"
+              case single :: Nil =>
+                val v = emitNode(innerBuf, single, indent + "  ", innerCtr, isRoot = false, parentVar = None)
+                exprBuf ++= s"{\n$innerBuf${ indent }  $v\n${ indent }}"
+              case multiple =>
+                innerBuf ++= s"${ indent }  val _frag = dom.document.createElement(\"div\")\n"
+                multiple.foreach { n =>
+                  val v =
+                    emitNode(innerBuf, n, indent + "  ", innerCtr, isRoot = false, parentVar = Some("_frag"))
+                  if v.nonEmpty then innerBuf ++= s"${ indent }  _frag.appendChild($v)\n"
+                }
+                exprBuf ++= s"{\n$innerBuf${ indent }  _frag\n${ indent }}"
+        }
+        // Re-emit as a regular Expression with the expanded code
+        emitNode(buf, TemplateNode.Expression(exprBuf.toString), indent, ctr, isRoot, parentVar)
 
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
@@ -187,7 +252,13 @@ object ScalaCodeGen:
 
   // ── Attribute emission ─────────────────────────────────────────────────────
 
-  private def emitAttr(buf: StringBuilder, v: String, attr: Attr, indent: String): Unit =
+  private def emitAttr(
+    buf:      StringBuilder,
+    v:        String,
+    attr:     Attr,
+    indent:   String,
+    allAttrs: List[Attr] = Nil
+  ): Unit =
     attr match
       case Attr.Static("class", value) =>
         value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
@@ -205,8 +276,31 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
       case Attr.Directive("bind", "value", Some(expr)) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
+      case Attr.Directive("bind", "value-int", Some(expr)) =>
+        buf ++= s"""${ indent }Bind.inputInt($v.asInstanceOf[dom.html.Input], $expr)\n"""
+      case Attr.Directive("bind", "value-double", Some(expr)) =>
+        buf ++= s"""${ indent }Bind.inputDouble($v.asInstanceOf[dom.html.Input], $expr)\n"""
+      case Attr.Directive("bind", "checked", Some(expr)) =>
+        buf ++= s"""${ indent }Bind.inputChecked($v.asInstanceOf[dom.html.Input], $expr)\n"""
+      case Attr.Directive("bind", "group", Some(expr)) =>
+        val isCheckbox = allAttrs.exists {
+          case Attr.Static("type", "checkbox") => true
+          case _                               => false
+        }
+        if isCheckbox then
+          buf ++= s"""${ indent }Bind.checkboxGroup($v.asInstanceOf[dom.html.Input], $expr, $v.asInstanceOf[dom.html.Input].value)\n"""
+        else
+          buf ++= s"""${ indent }Bind.radioGroup($v.asInstanceOf[dom.html.Input], $expr, $v.asInstanceOf[dom.html.Input].value)\n"""
+      case Attr.Directive("bind", "this", Some(expr)) =>
+        buf ++= s"""${ indent }$expr.set($v.asInstanceOf[dom.Element])\n"""
+      case Attr.Directive("class", name, Some(expr)) =>
+        buf ++= s"""${ indent }Bind.classToggle($v, "$name", $expr)\n"""
+      case Attr.Directive("class", name, None) =>
+        buf ++= s"""${ indent }Bind.classToggle($v, "$name", $name)\n"""
+      case Attr.Directive("style", property, Some(expr)) =>
+        buf ++= s"""${ indent }Bind.style($v, "$property", $expr)\n"""
       case Attr.Directive(_, _, _) | Attr.Spread(_) | Attr.Shorthand(_) =>
-      // Spread/Shorthand handled at component level; directives deferred to Phase 6
+      // Spread/Shorthand handled at component level; remaining directives deferred
 
   // ── Component props building ───────────────────────────────────────────────
 
@@ -314,6 +408,53 @@ object ScalaCodeGen:
       i += 1
 
     (propsDef.toString.trim, bodyCode.toString)
+
+  // ── Expression classification ───────────────────────────────────────────
+
+  private enum ExprKind:
+    case ListMap   // contains ".map(" with DOM body — list rendering
+    case KeyedMap  // contains ".keyed(" ... ".map(" — keyed list
+    case DomExpr   // if/else or match that produces DOM nodes
+    case PlainText // everything else — rendered as text via Bind.text
+
+  /** Classifies a template expression to determine rendering strategy.
+    *
+    * A `.map(` expression is classified as list rendering only if the map
+    * body appears to produce DOM nodes (contains `createElement`, multi-line
+    * block, or explicit `: dom.Node` type annotation). Simple `.map(_.size)`
+    * style expressions remain as plain text (Bind.text).
+    */
+  /** Checks whether the expression produces DOM nodes (contains inline HTML or createElement). */
+  private def containsDomConstruction(code: String): Boolean =
+    code.contains("createElement") ||
+      code.contains("dom.document") ||
+      code.contains(": dom.Node") ||
+      code.contains(": dom.Element") ||
+      code.count(_ == '\n') > 1
+
+  private def classifyExpr(code: String): ExprKind =
+    val trimmed = code.trim
+    if trimmed.contains(".keyed(") && trimmed.contains(".map(") then ExprKind.KeyedMap
+    else if trimmed.contains(".map(") then
+      val dotMap  = trimmed.lastIndexOf(".map(")
+      val mapBody = trimmed.substring(dotMap + 5)
+      if containsDomConstruction(mapBody) then ExprKind.ListMap else ExprKind.PlainText
+    else if (trimmed.startsWith("if ") || trimmed.startsWith("if(")) && containsDomConstruction(trimmed) then
+      ExprKind.DomExpr
+    else if trimmed.contains(" match") && containsDomConstruction(trimmed) then ExprKind.DomExpr
+    else ExprKind.PlainText
+
+  /** Finds the position of the closing `)` matching the first `(` in `s` starting at `start`. */
+  private def findBalancedParen(s: String, start: Int): Int =
+    var depth = 0
+    var i     = start
+    while i < s.length do
+      if s(i) == '(' then depth += 1
+      else if s(i) == ')' then
+        depth -= 1
+        if depth < 0 then return i
+      i += 1
+    i
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
