@@ -16,6 +16,14 @@ class A11yCheckerSpec extends munit.FunSuite:
 
   // ── img alt ──
 
+  test("img without alt produces warning with line number") {
+    val src        = "<div>\n  <img src=\"photo.png\" />\n</div>"
+    val result     = meltc.MeltCompiler.compile(src, "Test.melt", "Test", "")
+    val imgWarning = result.warnings.find(_.message.contains("alt"))
+    assert(imgWarning.isDefined, result.warnings.toString)
+    assertEquals(imgWarning.get.line, 2) // <img> is on line 2
+  }
+
   test("img without alt produces warning") {
     val w = warnings("""<img src="photo.png" />""")
     assert(w.exists(_.contains("alt")), w.toString)
