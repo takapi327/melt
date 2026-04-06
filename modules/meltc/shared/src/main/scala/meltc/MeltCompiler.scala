@@ -6,7 +6,7 @@
 
 package meltc
 
-import meltc.codegen.ScalaCodeGen
+import meltc.codegen.{ CssScoper, ScalaCodeGen }
 import meltc.parser.MeltParser
 
 /** Entry point of the meltc compiler. */
@@ -25,13 +25,18 @@ object MeltCompiler:
     objectName: String,
     pkg:        String
   ): CompileResult =
-    MeltParser.parse(source) match
+    MeltParser.parseWithWarnings(source) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
-      case Right(ast) =>
-        val scopeId = ScalaCodeGen.scopeIdFor(objectName)
-        val code    = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
-        CompileResult(Some(code), ast.style.map(_.css), Nil, Nil)
+      case Right(result) =>
+        val ast      = result.ast
+        val scopeId  = ScalaCodeGen.scopeIdFor(objectName)
+        val code     = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
+        val warnings = result.warnings.map {
+          case (msg, pos) =>
+            CompileWarning(msg, 0, pos, filename)
+        }
+        CompileResult(Some(code), ast.style.map(s => CssScoper.scope(s.css, scopeId)), Nil, warnings)
 
   /** Convenience overload — derives `objectName` from `filename` and uses no package.
     *
