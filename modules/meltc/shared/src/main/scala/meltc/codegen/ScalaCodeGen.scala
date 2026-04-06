@@ -22,7 +22,7 @@ object ScalaCodeGen:
   /** Generates a scope ID from the component name (deterministic hash). */
   def scopeIdFor(objectName: String): String =
     val hash = objectName.foldLeft(17)((acc, c) => acc * 31 + c.toInt)
-    f"melt-${ math.abs(hash) % 0xffffff }%06x"
+    f"melt-${ (hash & 0x7fffffff) % 0xffffff }%06x"
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string.
     *
@@ -45,7 +45,8 @@ object ScalaCodeGen:
 
     // ── CSS ──────────────────────────────────────────────────────────────────
     ast.style.foreach { s =>
-      val css = s.css.replace("\\", "\\\\").replace("\"\"\"", "\\\"\\\"\\\"")
+      val scoped = CssScoper.scope(s.css, scopeId)
+      val css    = scoped.replace("\\", "\\\\").replace("\"\"\"", "\\\"\\\"\\\"")
       buf ++= s"""  private val _css =\n    \"\"\"$css\"\"\"\n\n"""
     }
 
