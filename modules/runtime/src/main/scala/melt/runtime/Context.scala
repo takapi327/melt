@@ -48,5 +48,5 @@ final class OptionalContext[A] private[runtime]:
     if stack.nonEmpty then Some(stack.top) else None
 
 object Context:
-  def create[A](default: A): Context[A]       = new Context(default)
-  def createOptional[A]: OptionalContext[A]    = new OptionalContext[A]
+  def create[A](default: A): Context[A]         = new Context(default)
+  def createOptional[A]:     OptionalContext[A] = new OptionalContext[A]

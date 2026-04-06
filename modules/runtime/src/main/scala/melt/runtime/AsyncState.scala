@@ -53,7 +53,7 @@ object AsyncState:
 
   /** Runs an async effect that re-executes whenever `dep` changes. */
   def derived[F[_]: MeltEffect, A, B](dep: Var[A])(f: A => F[B]): AsyncState[B] =
-    val state              = new AsyncState[B]
+    val state = new AsyncState[B]
     var cancelPrev: () => Unit = () => ()
 
     effect(dep) { a =>
@@ -68,7 +68,7 @@ object AsyncState:
     state
 
   def derived[F[_]: MeltEffect, A, B](dep: Signal[A])(f: A => F[B]): AsyncState[B] =
-    val state              = new AsyncState[B]
+    val state = new AsyncState[B]
     var cancelPrev: () => Unit = () => ()
 
     effect(dep) { a =>

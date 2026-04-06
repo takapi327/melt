@@ -12,7 +12,7 @@ import scala.collection.mutable
   * after all mutations in a `batch { }` block complete.
   */
 object Batch:
-  private var depth                                   = 0
+  private var depth = 0
   private val pending: mutable.ListBuffer[() => Unit] = mutable.ListBuffer.empty
 
   def isBatching: Boolean = depth > 0

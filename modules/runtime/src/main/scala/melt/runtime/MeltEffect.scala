@@ -16,7 +16,7 @@ import scala.util.{ Failure, Success }
   */
 trait MeltEffect[F[_]]:
   def runAsync[A](fa: F[A])(onSuccess: A => Unit, onError: Throwable => Unit): () => Unit
-  def delay[A](a: => A): F[A]
+  def delay[A](a:     => A):                                                   F[A]
 
 object MeltEffect:
   given executionContext: ExecutionContext = ExecutionContext.global

@@ -18,7 +18,7 @@ package melt.runtime
   */
 def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] =
   val derived = new Signal[B](f(dep.now()))
-  val cancel = dep.subscribe { a =>
+  val cancel  = dep.subscribe { a =>
     val newVal = f(a)
     if newVal != derived.now() then derived.emit(newVal)
   }
