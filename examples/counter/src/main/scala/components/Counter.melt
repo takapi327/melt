@@ -1,7 +1,4 @@
 <script lang="scala">
-import scala.concurrent.Future
-import MeltEffect.given
-
 val count = Var(0)
 val name = Var("")
 val doubled = count.map(_ * 2)
@@ -23,8 +20,11 @@ def resetAll(): Unit = batch {
   name.set("")
 }
 
-// Phase 7: asyncState — simulated async fetch
-val greeting = AsyncState.create[Future, String](Future.successful("Welcome to Melt!"))
+// Phase 8: Window API — track window width reactively
+val windowWidth = Window.innerWidth
+
+// Phase 8: Document title — reactive document title
+Document.title(name.map(n => if n.isEmpty then "Melt Counter" else s"Hello, $n!"))
 </script>
 
 <div class="counter">
@@ -32,11 +32,12 @@ val greeting = AsyncState.create[Future, String](Future.successful("Welcome to M
   <p>Count: {count}</p>
   <p>Doubled: {doubled}</p>
   <p>Even: {isEven}</p>
+  <p class="meta">Window width: {windowWidth}</p>
   <button onclick={_ => count += 1}>+1</button>
   <button onclick={_ => count -= 1}>-1</button>
   <button onclick={_ => resetAll()}>Reset All</button>
   <hr />
-  <input bind:value={name} placeholder="Your name" />
+  <input use:autoFocus bind:value={name} placeholder="Your name" />
   <p>Hello, {name}!</p>
 </div>
 
@@ -44,6 +45,7 @@ val greeting = AsyncState.create[Future, String](Future.successful("Welcome to M
 .counter { font-family: sans-serif; max-width: 400px; margin: 2em auto; padding: 1em; }
 h1 { color: #ff3e00; }
 p { color: #333; }
+.meta { color: #888; font-size: 0.85em; }
 button { margin: 0 0.25em; padding: 0.5em 1em; cursor: pointer; }
 input { padding: 0.5em; width: 100%; box-sizing: border-box; margin-top: 1em; }
 hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
