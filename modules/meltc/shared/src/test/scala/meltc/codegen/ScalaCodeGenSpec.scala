@@ -208,3 +208,113 @@ class ScalaCodeGenSpec extends munit.FunSuite:
       assert(code.contains("object Counter {"), code)
     }
   }
+
+  // ── Dynamic attribute generation ──────────────────────────────────────
+
+  test("dynamic attribute emits setAttribute with toString") {
+    val code = compile("<div class={expr}></div>")
+    assert(code.contains("""setAttribute("class", (expr).toString)"""), code)
+  }
+
+  // ── Event handler generation ──────────────────────────────────────────
+
+  test("event handler emits addEventListener") {
+    val code = compile("<button onclick={handler}>Click</button>")
+    assert(code.contains("""addEventListener("click", handler)"""), code)
+  }
+
+  // ── Component node (no-op in Phase 3) ─────────────────────────────────
+
+  test("component node produces no createElement output") {
+    val code = compile("<div><Counter /></div>")
+    assert(!code.contains("""createElement("Counter")"""), code)
+    // The <div> should still be present
+    assert(code.contains("""createElement("div")"""), code)
+  }
+
+  // ── Special characters in text ─────────────────────────────────────────
+
+  test("whitespace in text is collapsed to single space") {
+    val code = compile("<p>line1\nline2\ttab</p>")
+    // Whitespace collapsing turns \n and \t into single space
+    assert(code.contains("line1 line2 tab"), code)
+  }
+
+  test("double quotes in text are escaped") {
+    val src  = "<p>He said &quot;hello&quot;</p>"
+    val code = compile(src)
+    assert(code.contains("\\\""), code)
+  }
+
+  // ── Special characters in attribute values ─────────────────────────────
+
+  test("backslash in attribute value is escaped") {
+    val code = compile("""<div title="a\\b"></div>""")
+    assert(code.contains("\\\\"), code)
+  }
+
+  // ── Deep nesting (3+ levels) ───────────────────────────────────────────
+
+  test("deeply nested elements (3 levels) produce correct structure") {
+    val code = compile("<div><ul><li>Item</li></ul></div>")
+    assert(code.contains("_el0"), code) // div
+    assert(code.contains("_el1"), code) // ul
+    assert(code.contains("_el2"), code) // li
+    assert(code.contains("_el1.appendChild(_el2)"), code)
+    assert(code.contains("_el0.appendChild(_el1)"), code)
+  }
+
+  // ── scopeIdFor edge cases ─────────────────────────────────────────────
+
+  test("scopeIdFor always produces valid hex (no negative values)") {
+    val ids = (0 to 500).map(i => ScalaCodeGen.scopeIdFor(s"Component$i"))
+    ids.foreach { id =>
+      assert(id.matches("melt-[0-9a-f]{6}"), s"Invalid scope ID: $id")
+    }
+  }
+
+  test("scopeIdFor produces valid hex for empty string") {
+    val id = ScalaCodeGen.scopeIdFor("")
+    assert(id.matches("melt-[0-9a-f]{6}"), s"Bad scopeId: $id")
+  }
+
+  // ── CSS scoping in generated code ──────────────────────────────────────
+
+  test("style section CSS is scoped with scope ID in selectors") {
+    val src =
+      """<div></div>
+        |<style>
+        |h1 { color: red; }
+        |</style>""".stripMargin
+    val code    = compile(src, name = "App")
+    val scopeId = ScalaCodeGen.scopeIdFor("App")
+    assert(code.contains(s"h1.$scopeId"), s"CSS should contain scoped selector, got:\n$code")
+  }
+
+  test("MeltCompiler.scopedCss field returns scoped CSS") {
+    val src =
+      """<div></div>
+        |<style>
+        |p { color: blue; }
+        |</style>""".stripMargin
+    val result  = MeltCompiler.compile(src, "Test.melt", "Test", "")
+    val scopeId = ScalaCodeGen.scopeIdFor("Test")
+    result.scopedCss.foreach { css =>
+      assert(css.contains(s"p.$scopeId"), s"scopedCss should contain scoped selector, got: $css")
+    }
+  }
+
+  // ── Non-void self-closing tag warning ──────────────────────────────────
+
+  test("non-void self-closing tag produces warning") {
+    val src    = "<span />"
+    val result = MeltCompiler.compile(src, "Warn.melt", "Warn", "")
+    assert(result.warnings.nonEmpty, "Expected warning for <span />")
+    assert(result.warnings.head.message.contains("self-closed"), result.warnings.head.message)
+  }
+
+  test("void self-closing tag produces no warning") {
+    val src    = "<br />"
+    val result = MeltCompiler.compile(src, "Ok.melt", "Ok", "")
+    assert(result.warnings.isEmpty, s"Unexpected warnings: ${ result.warnings.map(_.message) }")
+  }
