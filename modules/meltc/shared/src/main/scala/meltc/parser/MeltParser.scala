@@ -21,11 +21,20 @@ import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
   */
 object MeltParser:
 
+  /** Result of parsing a `.melt` file, containing both the AST and any warnings. */
+  case class ParseResult(ast: MeltFile, warnings: List[(String, Int)])
+
   def parse(source: String): Either[String, MeltFile] =
+    parseWithWarnings(source).map(_.ast)
+
+  /** Parses a `.melt` source and returns the AST together with any warnings. */
+  def parseWithWarnings(source: String): Either[String, ParseResult] =
     SectionSplitter.split(source).map { sections =>
-      MeltFile(
+      val (nodes, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
+      val ast                       = MeltFile(
         script   = sections.rawScript.map(r => ScriptSection(r.code, r.propsType)),
-        template = TemplateParser.parse(sections.templateSource),
+        template = nodes,
         style    = sections.style.map(css => StyleSection(css))
       )
+      ParseResult(ast, templateWarnings)
     }

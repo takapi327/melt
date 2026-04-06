@@ -17,10 +17,15 @@ import meltc.ast.{ Attr, TemplateNode }
   *   - Static, dynamic, directive, event-handler, and boolean attributes
   *   - Self-closing tags `<br />` and void elements
   *   - HTML comments `<!-- ... -->` (discarded)
+  *   - HTML entity decoding in text and static attribute values
+  *   - Whitespace collapsing between elements
+  *   - Warnings for non-void self-closing tags
   */
 private[parser] final class TemplateParser(src: String):
 
   private var pos: Int = 0
+
+  private val _warnings = List.newBuilder[(String, Int)]
 
   /** HTML void elements that never have a closing tag. */
   private val VoidElements: Set[String] = Set(
@@ -40,7 +45,11 @@ private[parser] final class TemplateParser(src: String):
     "wbr"
   )
 
-  def parse(): List[TemplateNode] = parseNodes(insideTag = false)
+  def parse(): List[TemplateNode] =
+    val raw = parseNodes(insideTag = false)
+    collapseWhitespace(raw)
+
+  def warnings: List[(String, Int)] = _warnings.result()
 
   // ── Node-sequence parsing ─────────────────────────────────────────────────
 
@@ -74,7 +83,7 @@ private[parser] final class TemplateParser(src: String):
 
           case _ =>
             val text = collectText()
-            if !text.isBlank then nodes += TemplateNode.Text(text)
+            if !text.isBlank then nodes += TemplateNode.Text(HtmlEntities.decode(text))
 
     nodes.result()
 
@@ -88,7 +97,11 @@ private[parser] final class TemplateParser(src: String):
     val attrs = collectAttrs()
 
     val selfClose = pos < src.length && src(pos) == '/'
-    if selfClose then pos += 1
+    if selfClose then
+      // Warn if a non-void element is self-closed (e.g., <span />)
+      if !VoidElements.contains(tag.toLowerCase) && tag.charAt(0).isLower then
+        _warnings += ((s"<$tag /> is self-closed but is not a void element — use <$tag></$tag> instead", pos))
+      pos += 1
     if pos < src.length && src(pos) == '>' then pos += 1
 
     val children =
@@ -96,7 +109,7 @@ private[parser] final class TemplateParser(src: String):
       else
         val ch = parseNodes(insideTag = true)
         consumeClosingTag()
-        ch
+        collapseWhitespace(ch)
 
     makeNode(tag, attrs, children)
 
@@ -155,7 +168,7 @@ private[parser] final class TemplateParser(src: String):
         pos += 1
         val start = pos
         while pos < src.length && src(pos) != '"' do pos += 1
-        val value = src.substring(start, pos)
+        val value = HtmlEntities.decode(src.substring(start, pos))
         if pos < src.length then pos += 1
         Some(makeAttrStatic(name, value))
 
@@ -163,7 +176,7 @@ private[parser] final class TemplateParser(src: String):
         pos += 1
         val start = pos
         while pos < src.length && src(pos) != '\'' do pos += 1
-        val value = src.substring(start, pos)
+        val value = HtmlEntities.decode(src.substring(start, pos))
         if pos < src.length then pos += 1
         Some(makeAttrStatic(name, value))
 
@@ -176,7 +189,7 @@ private[parser] final class TemplateParser(src: String):
       case _ =>
         val start = pos
         while pos < src.length && !src(pos).isWhitespace && src(pos) != '>' && src(pos) != '/' do pos += 1
-        Some(makeAttrStatic(name, src.substring(start, pos)))
+        Some(makeAttrStatic(name, HtmlEntities.decode(src.substring(start, pos))))
 
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
@@ -194,6 +207,48 @@ private[parser] final class TemplateParser(src: String):
   private def makeNode(tag: String, attrs: List[Attr], children: List[TemplateNode]): TemplateNode =
     if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
     else TemplateNode.Element(tag, attrs, children)
+
+  // ── Whitespace collapsing ────────────────────────────────────────────────
+
+  /** Collapses inter-element whitespace in a list of nodes, following Svelte conventions.
+    *
+    *   - Runs of whitespace in text nodes are collapsed to a single space
+    *   - Leading whitespace of the first text node and trailing whitespace of the last
+    *     text node (within a parent) are trimmed
+    *   - Text nodes that become empty after collapsing are removed
+    */
+  private def collapseWhitespace(nodes: List[TemplateNode]): List[TemplateNode] =
+    if nodes.isEmpty then return nodes
+
+    val collapsed = nodes.map {
+      case TemplateNode.Text(content) =>
+        val ws = content.replaceAll("\\s+", " ")
+        TemplateNode.Text(ws)
+      case other => other
+    }
+
+    // Trim leading whitespace of first text node
+    val trimmed1 = collapsed match
+      case TemplateNode.Text(t) :: rest =>
+        val lt = t.stripLeading()
+        if lt.isEmpty then rest else TemplateNode.Text(lt) :: rest
+      case other => other
+
+    // Trim trailing whitespace of last text node
+    val trimmed2 =
+      if trimmed1.isEmpty then trimmed1
+      else
+        trimmed1.last match
+          case TemplateNode.Text(t) =>
+            val tt = t.stripTrailing()
+            if tt.isEmpty then trimmed1.init else trimmed1.init :+ TemplateNode.Text(tt)
+          case _ => trimmed1
+
+    // Remove empty text nodes
+    trimmed2.filter {
+      case TemplateNode.Text("") => false
+      case _                     => true
+    }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -244,3 +299,9 @@ private[parser] final class TemplateParser(src: String):
 object TemplateParser:
   def parse(templateSource: String): List[TemplateNode] =
     new TemplateParser(templateSource).parse()
+
+  /** Parses the template and also returns any warnings generated during parsing. */
+  def parseWithWarnings(templateSource: String): (List[TemplateNode], List[(String, Int)]) =
+    val p     = new TemplateParser(templateSource)
+    val nodes = p.parse()
+    (nodes, p.warnings)
