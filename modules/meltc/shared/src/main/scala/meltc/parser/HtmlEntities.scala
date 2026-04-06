@@ -76,5 +76,4 @@ private[parser] object HtmlEntities:
     else if ref.startsWith("#") then
       try Some(Integer.parseInt(ref.substring(1)).toChar.toString)
       catch case _: NumberFormatException => None
-    else
-      NamedEntities.get(ref)
+    else NamedEntities.get(ref)
