@@ -53,8 +53,8 @@ final class Signal[A] private[runtime] (private var _current: A):
     * The internal subscriptions are registered with [[Cleanup]].
     */
   def flatMap[B](f: A => Signal[B]): Signal[B] =
-    var inner       = f(_current)
-    val derived     = new Signal[B](inner.now())
+    var inner   = f(_current)
+    val derived = new Signal[B](inner.now())
     var cancelInner: () => Unit = inner.subscribe(b => derived.emit(b))
     val cancelOuter = subscribe { a =>
       cancelInner()

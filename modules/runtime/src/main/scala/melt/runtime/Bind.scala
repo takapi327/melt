@@ -23,7 +23,7 @@ object Bind:
     * the text content updates whenever `v` changes.
     */
   def text(v: Var[?], parent: dom.Node): dom.Text =
-    val node   = dom.document.createTextNode(v.now().toString)
+    val node = dom.document.createTextNode(v.now().toString)
     parent.appendChild(node)
     val cancel = v.subscribe(a => node.textContent = a.toString)
     Cleanup.register(cancel)
@@ -31,7 +31,7 @@ object Bind:
 
   /** Reactive text binding for [[Signal]]. */
   def text(signal: Signal[?], parent: dom.Node): dom.Text =
-    val node   = dom.document.createTextNode(signal.now().toString)
+    val node = dom.document.createTextNode(signal.now().toString)
     parent.appendChild(node)
     val cancel = signal.subscribe(a => node.textContent = a.toString)
     Cleanup.register(cancel)
