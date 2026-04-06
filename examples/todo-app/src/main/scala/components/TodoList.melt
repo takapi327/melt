@@ -1,0 +1,21 @@
+<script lang="scala" props="Props">
+case class Props(items: Var[List[models.Todo]], onToggle: Int => Unit, onRemove: Int => Unit)
+</script>
+
+<ul class="todo-list">
+  {props.items.map((item: models.Todo) =>
+    <li class:done={item.done}>
+      <input type="checkbox" checked={item.done} onclick={(_: dom.Event) => props.onToggle(item.id)} />
+      <span>{item.text}</span>
+      <button onclick={(_: dom.Event) => props.onRemove(item.id)}>×</button>
+    </li>
+  )}
+</ul>
+
+<style>
+.todo-list { list-style: none; padding: 0; }
+li { display: flex; align-items: center; gap: 0.5em; padding: 0.5em 0; border-bottom: 1px solid #eee; }
+li.done span { text-decoration: line-through; color: #999; }
+span { flex: 1; }
+button { background: none; border: none; color: #c00; cursor: pointer; font-size: 1.2em; }
+</style>
