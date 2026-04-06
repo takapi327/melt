@@ -35,11 +35,12 @@ object MeltCompiler:
         val code           = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
         val parserWarnings = result.warnings.map {
           case (msg, pos) =>
-            CompileWarning(msg, 0, pos, filename)
+            val line = offsetToLine(source, pos)
+            CompileWarning(msg, line, 0, filename)
         }
-        val a11yWarnings = A11yChecker.check(ast).map {
-          case (msg, pos) =>
-            CompileWarning(msg, 0, pos, filename)
+        val a11yWarnings = A11yChecker.check(ast, source).map {
+          case (msg, line) =>
+            CompileWarning(msg, line, 0, filename)
         }
         CompileResult(
           Some(code),
@@ -47,6 +48,11 @@ object MeltCompiler:
           Nil,
           parserWarnings ++ a11yWarnings
         )
+
+  /** Converts a character offset to a 1-based line number. */
+  private def offsetToLine(source: String, offset: Int): Int =
+    if offset <= 0 || source.isEmpty then 1
+    else source.take(offset).count(_ == '\n') + 1
 
   /** Convenience overload — derives `objectName` from `filename` and uses no package.
     *
