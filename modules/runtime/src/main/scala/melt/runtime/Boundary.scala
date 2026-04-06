@@ -27,7 +27,7 @@ object Boundary:
       // Clean up previous child subscriptions
       Cleanup.runAll(childCleanups)
       childCleanups = Nil
-      while container.firstChild != null do container.removeChild(container.firstChild)
+      while Option(container.firstChild).isDefined do container.removeChild(container.firstChild)
 
       Cleanup.pushScope()
       try
