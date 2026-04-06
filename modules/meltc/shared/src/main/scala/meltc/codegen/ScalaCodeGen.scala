@@ -299,8 +299,15 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }Bind.classToggle($v, "$name", $name)\n"""
       case Attr.Directive("style", property, Some(expr)) =>
         buf ++= s"""${ indent }Bind.style($v, "$property", $expr)\n"""
-      case Attr.Directive(_, _, _) | Attr.Spread(_) | Attr.Shorthand(_) =>
-      // Spread/Shorthand handled at component level; remaining directives deferred
+      case Attr.Directive("use", actionName, Some(expr)) =>
+        buf ++= s"""${ indent }Bind.action($v, $actionName, $expr)\n"""
+      case Attr.Directive("use", actionName, None) =>
+        buf ++= s"""${ indent }Bind.action($v, $actionName, ())\n"""
+      case Attr.Spread(expr) =>
+        // On HTML elements: apply HtmlAttrs spread
+        buf ++= s"""${ indent }$expr.apply($v)\n"""
+      case Attr.Directive(_, _, _) | Attr.Shorthand(_) =>
+      // Shorthand handled at component level; remaining directives deferred
 
   // ── Component props building ───────────────────────────────────────────────
 

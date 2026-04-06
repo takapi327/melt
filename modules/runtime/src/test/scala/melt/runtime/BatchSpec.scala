@@ -32,34 +32,51 @@ class BatchSpec extends munit.FunSuite:
   }
 
   test("nested batch flushes at outermost level") {
-    val v     = Var(0)
-    var count = 0
-    v.subscribe(_ => count += 1)
+    val a      = Var(0)
+    val b      = Var(0)
+    var countA = 0
+    var countB = 0
+    a.subscribe(_ => countA += 1)
+    b.subscribe(_ => countB += 1)
 
     batch {
       batch {
-        v.set(1)
+        a.set(1)
       }
       // Inner batch should NOT have flushed yet
-      assertEquals(count, 0)
-      v.set(2)
+      assertEquals(countA, 0)
+      b.set(2)
     }
-    // Outer batch flushes — both notifications fire
-    assertEquals(count, 2)
+    // Outer batch flushes — each Var notifies once
+    assertEquals(countA, 1)
+    assertEquals(countB, 1)
   }
 
-  test("derived signal updates once per batch") {
+  test("same Var set multiple times in batch notifies only once with final value") {
     val a       = Var(1)
-    val doubled = a.map(_ * 2)
     var updates = 0
-    doubled.subscribe(_ => updates += 1)
+    var lastVal = 0
+    a.subscribe { v => updates += 1; lastVal = v }
 
     batch {
       a.set(2)
       a.set(3)
       a.set(4)
     }
-    // The map subscriber fires for each enqueued notification,
-    // but the final value should be correct
+    assertEquals(updates, 1, "should notify only once")
+    assertEquals(lastVal, 4, "should notify with final value")
+    assertEquals(a.now(), 4)
+  }
+
+  test("derived signal sees final value after batch") {
+    val a = Var(1)
+    Cleanup.pushScope()
+    val doubled = a.map(_ * 2)
+    batch {
+      a.set(2)
+      a.set(3)
+      a.set(4)
+    }
     assertEquals(doubled.now(), 8)
+    Cleanup.popScope()
   }

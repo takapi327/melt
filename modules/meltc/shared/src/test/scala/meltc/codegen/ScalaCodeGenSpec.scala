@@ -694,3 +694,148 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     val code = compile("""<input type="number" bind:value-double={price} />""")
     assert(code.contains("Bind.inputDouble("), code)
   }
+
+  // ── Phase 8: use: directive ──────────────────────────────────────────────
+
+  test("use: directive with parameter emits Bind.action") {
+    val code = compile("""<div use:tooltip={"Help text"}></div>""")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("tooltip"), code)
+  }
+
+  test("use: directive without parameter emits Bind.action with unit") {
+    val code = compile("<input use:autoFocus />")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("autoFocus"), code)
+  }
+
+  // ── Phase 8: spread on HTML element ────────────────────────────────────
+
+  test("spread attribute on HTML element emits apply") {
+    val code = compile("<div {...htmlAttrs}></div>")
+    assert(code.contains("htmlAttrs.apply("), code)
+  }
+
+  // ── Phase 8: a11y warnings in CompileResult ────────────────────────────
+
+  test("a11y warning for img without alt") {
+    val result = meltc.MeltCompiler.compile("""<img src="x.png" />""", "A11y.melt", "A11y", "")
+    assert(result.warnings.exists(_.message.contains("alt")), result.warnings.toString)
+  }
+
+  // ── Phase 8: HtmlProps code generation ─────────────────────────────────
+
+  test("component with HtmlProps spread generates withHtml chain") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String) extends ButtonHtmlProps
+        |</script>
+        |<button {...props.html}>{props.label}</button>""".stripMargin
+    val code = compile(src, name = "MyButton")
+    // Props definition at object level extends ButtonHtmlProps
+    assert(code.contains("extends ButtonHtmlProps"), code)
+    // Spread on button element applies html attrs
+    assert(code.contains("props.html.apply("), code)
+  }
+
+  test("component with allHtmlAttrs spread") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(text: String) extends InputHtmlProps
+        |</script>
+        |<input {...props.allHtmlAttrs} />""".stripMargin
+    val code = compile(src, name = "MyInput")
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("component caller passes HtmlProps fields as named args") {
+    val code = compile("""<div><MyButton label="Click" disabled={true} /></div>""")
+    assert(code.contains("MyButton.create(MyButton.Props("), code)
+    assert(code.contains("""label = "Click""""), code)
+    assert(code.contains("disabled = true"), code)
+  }
+
+  test("component caller passes withHtml for html attrs") {
+    // data-* and aria-* attributes should pass through as regular props
+    val code = compile("""<div><MyInput text="hi" id="inp" /></div>""")
+    assert(code.contains("MyInput.create(MyInput.Props("), code)
+    assert(code.contains("""text = "hi""""), code)
+    assert(code.contains("""id = "inp""""), code)
+  }
+
+  test("button component with HtmlProps spread applies to button tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String) extends ButtonHtmlProps
+        |</script>
+        |<button {...props.allHtmlAttrs}>{props.label}</button>""".stripMargin
+    val code = compile(src, name = "MeltButton")
+    assert(code.contains("""createElement("button")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("input component with HtmlProps spread applies to input tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String) extends InputHtmlProps
+        |</script>
+        |<div><label>{props.label}</label><input {...props.allHtmlAttrs} /></div>""".stripMargin
+    val code = compile(src, name = "MeltInput")
+    assert(code.contains("""createElement("input")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("anchor component with HtmlProps spread applies to a tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(text: String) extends AnchorHtmlProps
+        |</script>
+        |<a {...props.allHtmlAttrs}>{props.text}</a>""".stripMargin
+    val code = compile(src, name = "MeltLink")
+    assert(code.contains("""createElement("a")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("img component with HtmlProps spread applies to img tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(caption: String) extends ImgHtmlProps
+        |</script>
+        |<figure><img {...props.allHtmlAttrs} /><figcaption>{props.caption}</figcaption></figure>""".stripMargin
+    val code = compile(src, name = "MeltImage")
+    assert(code.contains("""createElement("img")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("form component with HtmlProps spread applies to form tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(children: () => dom.Element) extends FormHtmlProps
+        |</script>
+        |<form {...props.allHtmlAttrs}></form>""".stripMargin
+    val code = compile(src, name = "MeltForm")
+    assert(code.contains("""createElement("form")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("textarea component with HtmlProps spread applies to textarea tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String) extends TextAreaHtmlProps
+        |</script>
+        |<div><label>{props.label}</label><textarea {...props.allHtmlAttrs}></textarea></div>""".stripMargin
+    val code = compile(src, name = "MeltTextArea")
+    assert(code.contains("""createElement("textarea")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }
+
+  test("select component with HtmlProps spread applies to select tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String) extends SelectHtmlProps
+        |</script>
+        |<div><label>{props.label}</label><select {...props.allHtmlAttrs}></select></div>""".stripMargin
+    val code = compile(src, name = "MeltSelect")
+    assert(code.contains("""createElement("select")"""), code)
+    assert(code.contains("props.allHtmlAttrs.apply("), code)
+  }

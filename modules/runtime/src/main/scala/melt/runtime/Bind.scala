@@ -311,3 +311,44 @@ object Bind:
     rebuildS(source.now())
     val cancel = source.subscribe(items => rebuildS(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
+
+  // ── Raw HTML insertion ────────────────────────────────────────────────
+
+  /** Sets innerHTML reactively. **Warning:** XSS risk — only use with trusted content. */
+  def html(el: dom.Element, content: Var[String]): Unit =
+    el.innerHTML = content.now()
+    val cancel = content.subscribe(s => el.innerHTML = s)
+    Cleanup.register(cancel)
+
+  def html(el: dom.Element, content: Signal[String]): Unit =
+    el.innerHTML = content.now()
+    val cancel = content.subscribe(s => el.innerHTML = s)
+    Cleanup.register(cancel)
+
+  def html(el: dom.Element, content: String): Unit =
+    el.innerHTML = content
+
+  // ── Action binding (use: directive) ───────────────────────────────────
+
+  /** Applies an action to an element with a static parameter. */
+  def action[P](el: dom.Element, act: Action[P], param: P): Unit =
+    val cleanup = act(el, param)
+    Cleanup.register(cleanup)
+
+  /** Applies an action with a reactive Var parameter. Re-applies on change. */
+  def action[P](el: dom.Element, act: Action[P], param: Var[P]): Unit =
+    var prevCleanup: () => Unit = act(el, param.now())
+    val cancel = param.subscribe { p =>
+      prevCleanup()
+      prevCleanup = act(el, p)
+    }
+    Cleanup.register(() => { prevCleanup(); cancel() })
+
+  /** Applies an action with a reactive Signal parameter. */
+  def action[P](el: dom.Element, act: Action[P], param: Signal[P]): Unit =
+    var prevCleanup: () => Unit = act(el, param.now())
+    val cancel = param.subscribe { p =>
+      prevCleanup()
+      prevCleanup = act(el, p)
+    }
+    Cleanup.register(() => { prevCleanup(); cancel() })

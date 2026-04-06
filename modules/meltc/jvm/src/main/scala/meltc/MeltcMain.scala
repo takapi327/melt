@@ -54,7 +54,7 @@ object MeltcMain:
         sys.exit(1)
       case Some(code) =>
         try
-          if outputPath.getParent != null then Files.createDirectories(outputPath.getParent)
+          Option(outputPath.getParent).foreach(Files.createDirectories(_))
           Files.write(outputPath, code.getBytes(StandardCharsets.UTF_8))
         catch
           case e: Exception =>

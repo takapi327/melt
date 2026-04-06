@@ -10,21 +10,32 @@ import scala.collection.mutable
 
 /** Batches reactive updates so that subscribers are notified only once
   * after all mutations in a `batch { }` block complete.
+  *
+  * Uses a set of pending "dirty" sources. Each source is flushed once
+  * at the end of the outermost batch, reading the latest value.
   */
 object Batch:
   private var depth = 0
-  private val pending: mutable.ListBuffer[() => Unit] = mutable.ListBuffer.empty
+
+  /** Set of flush functions keyed by identity to avoid duplicates.
+    * Each entry is a `() => Unit` that reads the current value and notifies subscribers.
+    */
+  private val pending: mutable.LinkedHashSet[() => Unit] = mutable.LinkedHashSet.empty
 
   def isBatching: Boolean = depth > 0
 
+  /** Registers a flush function. If the same function is already pending,
+    * it is not added again (dedup by reference identity).
+    */
   def enqueue(f: () => Unit): Unit = pending += f
 
   private def flush(): Unit =
-    val fns = pending.toList
-    pending.clear()
-    fns.foreach(_())
+    // Iterate and clear — new enqueues during flush are processed in the same pass
+    while pending.nonEmpty do
+      val fns = pending.toList
+      pending.clear()
+      fns.foreach(_())
 
-  /** Defers all reactive subscriber notifications until the block completes. */
   def apply(f: => Unit): Unit =
     depth += 1
     try f
@@ -32,5 +43,4 @@ object Batch:
       depth -= 1
       if depth == 0 then flush()
 
-/** Alias for `Batch.apply`. */
 def batch(f: => Unit): Unit = Batch(f)

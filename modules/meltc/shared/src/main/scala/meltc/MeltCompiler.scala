@@ -6,6 +6,7 @@
 
 package meltc
 
+import meltc.analysis.A11yChecker
 import meltc.codegen.{ CssScoper, ScalaCodeGen }
 import meltc.parser.MeltParser
 
@@ -29,14 +30,29 @@ object MeltCompiler:
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
       case Right(result) =>
-        val ast      = result.ast
-        val scopeId  = ScalaCodeGen.scopeIdFor(objectName)
-        val code     = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
-        val warnings = result.warnings.map {
+        val ast            = result.ast
+        val scopeId        = ScalaCodeGen.scopeIdFor(objectName)
+        val code           = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
+        val parserWarnings = result.warnings.map {
           case (msg, pos) =>
-            CompileWarning(msg, 0, pos, filename)
+            val line = offsetToLine(source, pos)
+            CompileWarning(msg, line, 0, filename)
         }
-        CompileResult(Some(code), ast.style.map(s => CssScoper.scope(s.css, scopeId)), Nil, warnings)
+        val a11yWarnings = A11yChecker.check(ast, source).map {
+          case (msg, line) =>
+            CompileWarning(msg, line, 0, filename)
+        }
+        CompileResult(
+          Some(code),
+          ast.style.map(s => CssScoper.scope(s.css, scopeId)),
+          Nil,
+          parserWarnings ++ a11yWarnings
+        )
+
+  /** Converts a character offset to a 1-based line number. */
+  private def offsetToLine(source: String, offset: Int): Int =
+    if offset <= 0 || source.isEmpty then 1
+    else source.take(offset).count(_ == '\n') + 1
 
   /** Convenience overload — derives `objectName` from `filename` and uses no package.
     *

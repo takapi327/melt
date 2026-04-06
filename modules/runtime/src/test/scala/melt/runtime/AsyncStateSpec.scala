@@ -30,6 +30,26 @@ class AsyncStateSpec extends munit.FunSuite:
     Cleanup.popScope()
   }
 
+  test("AsyncState setSuccess updates value and clears loading") {
+    val state = new AsyncState[String]
+    state.setLoading()
+    assert(state.loading.now(), "should be loading")
+    state.setSuccess("done")
+    assert(!state.loading.now(), "should not be loading after success")
+    assertEquals(state.value.now(), Some("done"))
+    assertEquals(state.error.now(), None)
+  }
+
+  test("AsyncState setFailure updates error and clears loading") {
+    val state = new AsyncState[Int]
+    state.setLoading()
+    val err = new RuntimeException("boom")
+    state.setFailure(err)
+    assert(!state.loading.now(), "should not be loading after failure")
+    assertEquals(state.value.now(), None)
+    assertEquals(state.error.now(), Some(err))
+  }
+
   test("AsyncState.derived creates state from Var dependency") {
     Cleanup.pushScope()
     val userId = Var(1)
