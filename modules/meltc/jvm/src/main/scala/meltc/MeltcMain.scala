@@ -42,6 +42,8 @@ object MeltcMain:
 
     val result = MeltCompiler.compile(source, inputPath.getFileName.toString, objectName, pkg)
 
+    result.warnings.foreach(w => System.err.println(s"meltc warning: ${ w.message }"))
+
     if result.errors.nonEmpty then
       result.errors.foreach(e => System.err.println(s"meltc error: ${ e.message }"))
       sys.exit(1)
