@@ -7,6 +7,7 @@
 package melt.runtime
 
 import org.scalajs.dom
+
 import AttrBuilder.*
 
 /** A container for HTML attributes to be forwarded to a component's root element.
