@@ -57,8 +57,9 @@ object VirtualFileGenerator:
     val styleBounds  = findSection(lines, isStyleOpen, "</style>")
 
     val virtualLines = lines.zipWithIndex.map { (line, idx) =>
-      val inScriptBody = scriptBounds.exists { case (open, close) =>
-        idx > open && idx < close
+      val inScriptBody = scriptBounds.exists {
+        case (open, close) =>
+          idx > open && idx < close
       }
       if inScriptBody then line else ""
     }

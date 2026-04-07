@@ -14,7 +14,7 @@ class PositionMapperSpec extends munit.FunSuite:
   ): PositionMapper =
     PositionMapper(
       script.map { case (s, e) => LineRange(s, e) },
-      style.map { case (s, e)  => LineRange(s, e) }
+      style.map { case (s, e) => LineRange(s, e) }
     )
 
   // ── sectionAt ────────────────────────────────────────────────────────────

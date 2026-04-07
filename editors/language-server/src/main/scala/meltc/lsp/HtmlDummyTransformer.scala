@@ -45,6 +45,6 @@ object HtmlDummyTransformer:
         .map { (expr, i) => s"  private val _expr$i = { $expr }" }
         .mkString("\n")
       s"""
-private object _${objectName}TemplateDummies:
+private object _${ objectName }TemplateDummies:
 $refs
 """

@@ -15,8 +15,8 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
                     |  val count = Var(0)
                     |  def inc() = count.update(_ + 1)
                     |</script>""".stripMargin
-    val vf     = VirtualFileGenerator.generate(source)
-    val lines  = vf.content.split("\n", -1).toVector
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
     assertEquals(lines(1), "  val count = Var(0)")
     assertEquals(lines(2), "  def inc() = count.update(_ + 1)")
   }
@@ -61,9 +61,9 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
                     |  val b = 2
                     |</script>
                     |<div>{a}</div>""".stripMargin
-    val vf         = VirtualFileGenerator.generate(source)
-    val srcLines   = source.split("\n", -1).length
-    val virtLines  = vf.content.split("\n", -1).length
+    val vf        = VirtualFileGenerator.generate(source)
+    val srcLines  = source.split("\n", -1).length
+    val virtLines = vf.content.split("\n", -1).length
     assertEquals(virtLines, srcLines)
   }
 

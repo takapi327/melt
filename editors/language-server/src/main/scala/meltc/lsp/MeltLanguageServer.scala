@@ -6,13 +6,13 @@
 
 package meltc.lsp
 
-import java.util.Collections
 import java.util.concurrent.CompletableFuture
+import java.util.Collections
 
 import scala.jdk.CollectionConverters.*
 
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.jsonrpc.messages.{ Either => JEither }
+import org.eclipse.lsp4j.jsonrpc.messages.Either as JEither
 import org.eclipse.lsp4j.services.*
 
 /** Melt Language Server — routes each section of a .melt file to the
@@ -35,11 +35,7 @@ import org.eclipse.lsp4j.services.*
   *      [[PositionMapper.meltToVirtual]] and responses translated back via
   *      [[PositionMapper.virtualToMelt]].
   */
-class MeltLanguageServer
-    extends LanguageServer,
-    LanguageClientAware,
-    TextDocumentService,
-    WorkspaceService:
+class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocumentService, WorkspaceService:
 
   private var client: LanguageClient = scala.compiletime.uninitialized
 
@@ -68,7 +64,7 @@ class MeltLanguageServer
   override def exit(): Unit = System.exit(0)
 
   override def getTextDocumentService(): TextDocumentService = this
-  override def getWorkspaceService(): WorkspaceService       = this
+  override def getWorkspaceService():    WorkspaceService    = this
 
   // ── TextDocumentService ───────────────────────────────────────────────────
 
@@ -87,8 +83,7 @@ class MeltLanguageServer
   override def didClose(params: DidCloseTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
     documents.remove(uri)
-    if client != null then
-      client.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList()))
+    if client != null then client.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList()))
 
   override def didSave(params: DidSaveTextDocumentParams): Unit = ()
 
@@ -122,8 +117,8 @@ class MeltLanguageServer
 
   // ── WorkspaceService ──────────────────────────────────────────────────────
 
-  override def didChangeConfiguration(params: DidChangeConfigurationParams): Unit  = ()
-  override def didChangeWatchedFiles(params: DidChangeWatchedFilesParams): Unit     = ()
+  override def didChangeConfiguration(params: DidChangeConfigurationParams): Unit = ()
+  override def didChangeWatchedFiles(params:  DidChangeWatchedFilesParams):  Unit = ()
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
@@ -131,7 +126,7 @@ class MeltLanguageServer
     if client == null then return
     val filename = uriToFilename(uri)
     val result   = meltc.MeltCompiler.compile(content, filename)
-    val diags =
+    val diags    =
       result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
         result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
     client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))

@@ -39,11 +39,10 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
     val client: LanguageClient = NoOpLanguageClient()
     val clientLauncher = LSPLauncher.createClientLauncher(client, clientIn, clientToServer)
-    val clientFuture = clientLauncher.startListening()
-    val proxy = clientLauncher.getRemoteProxy
+    val clientFuture   = clientLauncher.startListening()
+    val proxy          = clientLauncher.getRemoteProxy
 
-    try
-      body(proxy)
+    try body(proxy)
     finally
       serverFuture.cancel(true)
       clientFuture.cancel(true)
@@ -66,7 +65,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
       val params = InitializeParams()
       params.setRootUri("file:///tmp/test-project")
       val result = proxy.initialize(params).get(5, TimeUnit.SECONDS)
-      val sync = result.getCapabilities.getTextDocumentSync
+      val sync   = result.getCapabilities.getTextDocumentSync
       // sync is Either<TextDocumentSyncKind, TextDocumentSyncOptions>
       // For Full, it should be TextDocumentSyncKind.Full (value 1) or Options with change=1
       assert(sync != null)
@@ -97,13 +96,13 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
            |  val count = Var(0)
            |</script>""".stripMargin
 
-      val uri = "file:///tmp/Counter.melt"
+      val uri     = "file:///tmp/Counter.melt"
       val docItem = TextDocumentItem(uri, "melt", 1, source)
       proxy.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
 
       // line 1 (0-based) = "  val count = Var(0)" — script body
       val hoverParams = HoverParams(TextDocumentIdentifier(uri), Position(1, 5))
-      val hover = proxy.getTextDocumentService.hover(hoverParams).get(5, TimeUnit.SECONDS)
+      val hover       = proxy.getTextDocumentService.hover(hoverParams).get(5, TimeUnit.SECONDS)
       assert(hover != null)
       val text = hover.getContents.getRight.getValue
       assert(text.contains("Scala"), s"expected Scala mention, got: $text")
@@ -121,13 +120,13 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
            |</script>
            |<div>{n}</div>""".stripMargin
 
-      val uri = "file:///tmp/Comp.melt"
+      val uri     = "file:///tmp/Comp.melt"
       val docItem = TextDocumentItem(uri, "melt", 1, source)
       proxy.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
 
       // line 3 = "<div>{n}</div>" — template
       val hoverParams = HoverParams(TextDocumentIdentifier(uri), Position(3, 1))
-      val hover = proxy.getTextDocumentService.hover(hoverParams).get(5, TimeUnit.SECONDS)
+      val hover       = proxy.getTextDocumentService.hover(hoverParams).get(5, TimeUnit.SECONDS)
       assert(hover != null)
       val text = hover.getContents.getRight.getValue
       assert(text.contains("template") || text.contains("HTML"), s"got: $text")
@@ -136,10 +135,9 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
 /** A no-op language client used in integration tests. */
 private class NoOpLanguageClient extends LanguageClient:
-  override def telemetryEvent(obj: Any): Unit                                          = ()
-  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit                   = ()
-  override def showMessage(p: MessageParams): Unit                                     = ()
-  override def showMessageRequest(p: ShowMessageRequestParams)
-    : CompletableFuture[MessageActionItem] =
+  override def telemetryEvent(obj:   Any):                      Unit                                 = ()
+  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit                                 = ()
+  override def showMessage(p:        MessageParams):            Unit                                 = ()
+  override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
     CompletableFuture.completedFuture(null)
-  override def logMessage(p: MessageParams): Unit                                      = ()
+  override def logMessage(p: MessageParams): Unit = ()
