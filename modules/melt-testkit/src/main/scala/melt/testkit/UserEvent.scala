@@ -61,7 +61,7 @@ final class UserEvent(
     val el = require(selector)
     focus(el)
     text.foreach { char =>
-      fire(el, keyboardEvent("keydown",  char))
+      fire(el, keyboardEvent("keydown", char))
       fire(el, keyboardEvent("keypress", char))
       appendValue(el, char)
       fire(el, new dom.Event("input", new dom.EventInit { bubbles = true }))
@@ -105,18 +105,17 @@ final class UserEvent(
   def tab(): Unit =
     if isUnmounted() then throw new IllegalStateException("Component has been unmounted")
     val active = dom.document.activeElement
-    if active != null then
-      fire(active, keyboardEvent("keydown", '\t'))
+    if active != null then fire(active, keyboardEvent("keydown", '\t'))
     // Move focus to the next focusable element within the container
     val focusable = focusableElements()
     val idx       = focusable.indexOf(active)
-    val next      = if idx >= 0 && idx + 1 < focusable.length then Some(focusable(idx + 1))
-                    else focusable.headOption
+    val next      =
+      if idx >= 0 && idx + 1 < focusable.length then Some(focusable(idx + 1))
+      else focusable.headOption
     next.foreach { el =>
       el.asInstanceOf[js.Dynamic].focus()
     }
-    if active != null then
-      fire(active, keyboardEvent("keyup", '\t'))
+    if active != null then fire(active, keyboardEvent("keyup", '\t'))
 
   // ── keyboard ──────────────────────────────────────────────────────────────
 
@@ -156,36 +155,48 @@ final class UserEvent(
     el.dispatchEvent(event)
 
   private def mouseEvent(eventType: String): dom.MouseEvent =
-    new dom.MouseEvent(eventType, new dom.MouseEventInit {
-      bubbles    = true
-      cancelable = true
-    })
+    new dom.MouseEvent(
+      eventType,
+      new dom.MouseEventInit {
+        bubbles    = true
+        cancelable = true
+      }
+    )
 
   private def pointerEvent(eventType: String): dom.Event =
-    new dom.Event(eventType, new dom.EventInit {
-      bubbles    = true
-      cancelable = true
-    })
+    new dom.Event(
+      eventType,
+      new dom.EventInit {
+        bubbles    = true
+        cancelable = true
+      }
+    )
 
   private def keyboardEvent(eventType: String, char: Char): dom.KeyboardEvent =
-    new dom.KeyboardEvent(eventType, new dom.KeyboardEventInit {
-      bubbles    = true
-      cancelable = true
-      key        = char.toString
-      charCode   = char.toInt
-      keyCode    = char.toInt
-    })
+    new dom.KeyboardEvent(
+      eventType,
+      new dom.KeyboardEventInit {
+        bubbles    = true
+        cancelable = true
+        key        = char.toString
+        charCode   = char.toInt
+        keyCode    = char.toInt
+      }
+    )
 
   private def specialKeyEvent(eventType: String, keyName: String): dom.KeyboardEvent =
-    new dom.KeyboardEvent(eventType, new dom.KeyboardEventInit {
-      bubbles    = true
-      cancelable = true
-      key        = keyName
-    })
+    new dom.KeyboardEvent(
+      eventType,
+      new dom.KeyboardEventInit {
+        bubbles    = true
+        cancelable = true
+        key        = keyName
+      }
+    )
 
   private def appendValue(el: dom.Element, char: Char): Unit =
     el.tagName.toLowerCase match
-      case "input"    =>
+      case "input" =>
         val inp = el.asInstanceOf[dom.html.Input]
         inp.value = inp.value + char.toString
       case "textarea" =>

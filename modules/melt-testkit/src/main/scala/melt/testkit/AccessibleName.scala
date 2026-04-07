@@ -44,7 +44,8 @@ private[testkit] object AccessibleName:
     Option(el.getAttribute("aria-labelledby"))
       .filter(_.nonEmpty)
       .map { ids =>
-        ids.split("\\s+")
+        ids
+          .split("\\s+")
           .filter(_.nonEmpty)
           .flatMap(id => Option(root.querySelector(s"#$id")).map(_.textContent.trim))
           .mkString(" ")
@@ -56,14 +57,13 @@ private[testkit] object AccessibleName:
   private def nativeName(el: dom.Element, root: dom.Element): Option[String] =
     el.tagName.toLowerCase match
       // Elements whose name comes from their text content
-      case "button" | "a" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" |
-          "td" | "th" | "li" | "option" =>
+      case "button" | "a" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "td" | "th" | "li" | "option" =>
         textOf(el)
 
       // input — name source depends on type
       case "input" =>
         Option(el.getAttribute("type")).map(_.toLowerCase).getOrElse("text") match
-          case "image"                    => Option(el.getAttribute("alt")).map(_.trim).filter(_.nonEmpty)
+          case "image"                       => Option(el.getAttribute("alt")).map(_.trim).filter(_.nonEmpty)
           case "button" | "submit" | "reset" =>
             Option(el.getAttribute("value")).map(_.trim).filter(_.nonEmpty)
           case _ => labelFor(el, root)

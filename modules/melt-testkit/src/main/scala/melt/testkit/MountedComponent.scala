@@ -444,7 +444,7 @@ final class MountedComponent(
     */
   def getAllByRole(
     role:  String,
-    level: Option[Int]    = None,
+    level: Option[Int] = None,
     name:  Option[String] = None
   ): List[dom.Element] =
     if _unmounted then return Nil
@@ -453,11 +453,11 @@ final class MountedComponent(
       .map(all(_))
       .filter { el =>
         AriaUtils.resolveRole(el).contains(role) &&
-          level.forall(l => AriaUtils.headingLevel(el).contains(l)) &&
-          name.forall { n =>
-            MountedComponent.normalize(AccessibleName.compute(el, container)) ==
-              MountedComponent.normalize(n)
-          }
+        level.forall(l => AriaUtils.headingLevel(el).contains(l)) &&
+        name.forall { n =>
+          MountedComponent.normalize(AccessibleName.compute(el, container)) ==
+            MountedComponent.normalize(n)
+        }
       }
       .toList
 
@@ -466,7 +466,7 @@ final class MountedComponent(
     */
   def queryByRole(
     role:  String,
-    level: Option[Int]    = None,
+    level: Option[Int] = None,
     name:  Option[String] = None
   ): Option[dom.Element] =
     getAllByRole(role, level, name).headOption
@@ -479,7 +479,7 @@ final class MountedComponent(
     */
   def getByRole(
     role:  String,
-    level: Option[Int]    = None,
+    level: Option[Int] = None,
     name:  Option[String] = None
   ): dom.Element =
     val parts  = Seq(level.map(l => s"level=$l"), name.map(n => s"name=$n")).flatten
