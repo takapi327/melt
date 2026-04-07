@@ -493,10 +493,10 @@ class TemplateParserSpec extends munit.FunSuite:
   }
 
   test("style: directive with |important modifier") {
-    // The modifier is preserved in the directive name as-is
+    // The |important modifier is split from the name into the modifiers set
     assertEquals(
       parse("<div style:color|important={c}></div>"),
-      List(TemplateNode.Element("div", List(Attr.Directive("style", "color|important", Some("c"))), Nil))
+      List(TemplateNode.Element("div", List(Attr.Directive("style", "color", Some("c"), Set("important"))), Nil))
     )
   }
 
