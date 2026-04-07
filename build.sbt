@@ -127,7 +127,9 @@ lazy val `melt-testing` = project
     name := "melt-testing",
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % "1.2.4"
-    )
+    ),
+    // Use jsdom so that DOM APIs are available in unit tests
+    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
@@ -156,10 +158,12 @@ lazy val counter = project
     name                            := "counter",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
-    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files,
+    // Use jsdom so that DOM APIs are available in unit tests
+    jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime, `melt-testing` % Test)
 
 // ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
 lazy val `todo-app` = project
