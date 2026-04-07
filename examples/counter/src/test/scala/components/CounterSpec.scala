@@ -27,12 +27,9 @@ class CounterSpec extends MeltSuite:
   }
 
   test("renders initial doubled value") {
-    val c = mount(Counter.create())
-    // The second <p> shows doubled count
-    val allPs = c.findAll("p")
-    assert(allPs.nonEmpty, "should have at least one <p>")
-    val doubledText = allPs(1).textContent
-    assertEquals(doubledText, "Doubled: 0")
+    val c  = mount(Counter.create())
+    val el = c.getByText("Doubled: 0")
+    assertEquals(el.textContent, "Doubled: 0")
   }
 
   test("exists returns true for present elements") {
@@ -74,9 +71,7 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     // Increment first so we can decrement
     c.click("button")
-    // The second button is -1
-    val buttons = c.findAll("button")
-    buttons(1).dispatchEvent(
+    c.getByText("-1").dispatchEvent(
       new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
     )
     assertEquals(c.text("p"), "Count: 0")
@@ -88,9 +83,7 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     c.click("button")
     c.click("button")
-    // Third button is Reset All
-    val buttons = c.findAll("button")
-    buttons(2).dispatchEvent(
+    c.getByText("Reset All").dispatchEvent(
       new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
     )
     assertEquals(c.text("p"), "Count: 0")
@@ -691,7 +684,7 @@ class CounterSpec extends MeltSuite:
   test("userEvent.click does not fire events on disabled button") {
     val c     = mount(userEventFixture())
     var fired = false
-    c.findAll("button").last.addEventListener("click", (_: org.scalajs.dom.Event) => fired = true)
+    c.getByText("Disabled").addEventListener("click", (_: org.scalajs.dom.Event) => fired = true)
     c.userEvent.click("button[disabled]")
     assert(!fired, "disabled button should not receive click events")
   }
