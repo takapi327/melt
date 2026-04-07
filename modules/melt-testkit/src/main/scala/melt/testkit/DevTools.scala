@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.testing
+package melt.testkit
 
 import scala.scalajs.js
 

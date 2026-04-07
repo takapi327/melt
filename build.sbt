@@ -120,11 +120,11 @@ lazy val `language-server` = project
   .dependsOn(meltc.jvm)
 
 // ── Test utilities (Scala.js) ──
-lazy val `melt-testing` = project
-  .in(file("modules/melt-testing"))
+lazy val `melt-testkit` = project
+  .in(file("modules/melt-testkit"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name := "melt-testing",
+    name := "melt-testkit",
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % "1.2.4"
     ),
@@ -163,7 +163,7 @@ lazy val counter = project
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime, `melt-testing` % Test)
+  .dependsOn(runtime, `melt-testkit` % Test)
 
 // ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
 lazy val `todo-app` = project
@@ -200,7 +200,7 @@ lazy val root = project
     meltc.native,
     `sbt-meltc`,
     runtime,
-    `melt-testing`,
+    `melt-testkit`,
     `language-server`,
     `hello-world`,
     counter,

@@ -39,7 +39,7 @@ button { font-size: 1.5rem; }
 | `meltc` | `.melt` → `.scala` コンパイラ（JVM/JS/Native） | Phase 2-3 で実装 |
 | `sbt-meltc` | sbt プラグイン | Phase 3 で実装 |
 | `melt-runtime` | Scala.js ランタイムライブラリ | Phase 1 で実装 |
-| `melt-testing` | テストユーティリティ | Phase 10 で実装 |
+| `melt-testkit` | テストユーティリティ | Phase 10 で実装 |
 | `melt-language-server` | LSP サーバー | Phase 11 で実装 |
 
 ## 開発
