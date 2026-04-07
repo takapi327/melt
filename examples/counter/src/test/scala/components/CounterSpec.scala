@@ -43,14 +43,14 @@ class CounterSpec extends MeltSuite:
   }
 
   test("findAll returns all matching elements") {
-    val c = mount(Counter.create())
+    val c       = mount(Counter.create())
     val buttons = c.findAll("button")
     // Counter has three buttons: +1, -1, Reset All
     assertEquals(buttons.length, 3)
   }
 
   test("attr returns element attribute") {
-    val c = mount(Counter.create())
+    val c           = mount(Counter.create())
     val placeholder = c.attr("input", "placeholder")
     assertEquals(placeholder, Some("Your name"))
   }
@@ -102,7 +102,7 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     c.input("input", "Melt")
     // The last <p> shows "Hello, {name}!"
-    val allPs = c.findAll("p")
+    val allPs    = c.findAll("p")
     val greeting = allPs.last.textContent
     assertEquals(greeting, "Hello, Melt!")
   }
