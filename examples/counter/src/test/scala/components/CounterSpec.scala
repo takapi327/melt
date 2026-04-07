@@ -216,8 +216,8 @@ class CounterSpec extends MeltSuite:
   }
 
   test("getAllByRole returns textbox for input") {
-    val c       = mount(Counter.create())
-    val inputs  = c.getAllByRole("textbox")
+    val c      = mount(Counter.create())
+    val inputs = c.getAllByRole("textbox")
     assertEquals(inputs.length, 1)
   }
 
@@ -230,7 +230,7 @@ class CounterSpec extends MeltSuite:
 
   test("getAllByRole returns empty for color/file input (no role)") {
     // color and file inputs have no ARIA role — verified via getAllByRole
-    val c       = mount(Counter.create())
+    val c = mount(Counter.create())
     // Counter has no color/file inputs; list role should be empty too
     val dialogs = c.getAllByRole("dialog")
     assertEquals(dialogs.length, 0)
@@ -284,8 +284,7 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     // waitFor should produce a failed Future; .failed converts it to a successful Future[Throwable]
     // so this test passes iff waitFor fails, and fails iff waitFor unexpectedly succeeds.
-    waitFor(() => assertEquals(c.text("h1"), "Wrong text"), timeout = 100)
-      .failed
+    waitFor(() => assertEquals(c.text("h1"), "Wrong text"), timeout = 100).failed
       .map(_ => ())
   }
 
@@ -293,8 +292,8 @@ class CounterSpec extends MeltSuite:
 
   test("debug prints component DOM without throwing") {
     val c = mount(Counter.create())
-    c.debug()         // full DOM
-    c.debug("h1")     // specific element
+    c.debug()               // full DOM
+    c.debug("h1")           // specific element
     c.debug(".nonexistent") // missing element — prints message, does not throw
   }
 

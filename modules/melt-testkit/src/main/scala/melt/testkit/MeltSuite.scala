@@ -8,7 +8,6 @@ package melt.testkit
 
 import scala.collection.mutable
 import scala.concurrent.{ Future, Promise }
-
 import scala.scalajs.concurrent.JSExecutionContext
 import scala.scalajs.js
 import scala.scalajs.js.timers.*
@@ -99,10 +98,9 @@ abstract class MeltSuite extends munit.FunSuite:
         case e: Throwable =>
           if js.Date.now() - startTime >= timeout.toDouble then
             promise.failure(
-              new AssertionError(s"waitFor timed out after ${timeout}ms. Last error: ${e.getMessage}")
+              new AssertionError(s"waitFor timed out after ${ timeout }ms. Last error: ${ e.getMessage }")
             )
-          else
-            setTimeout(interval.toDouble)(attempt())
+          else setTimeout(interval.toDouble)(attempt())
     attempt()
     promise.future
 

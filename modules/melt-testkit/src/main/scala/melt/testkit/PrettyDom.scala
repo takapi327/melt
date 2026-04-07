@@ -39,10 +39,8 @@ private[testkit] object PrettyDom:
         val attrs    = renderAttrs(el)
         val children = childLines(el, depth + 1)
 
-        if children.isEmpty then
-          List(s"${indent(depth)}<$tag$attrs />")
-        else
-          List(s"${indent(depth)}<$tag$attrs>") ++ children ++ List(s"${indent(depth)}</$tag>")
+        if children.isEmpty then List(s"${ indent(depth) }<$tag$attrs />")
+        else List(s"${ indent(depth) }<$tag$attrs>") ++ children ++ List(s"${ indent(depth) }</$tag>")
 
       case _ => Nil
 
@@ -57,7 +55,7 @@ private[testkit] object PrettyDom:
       val parts = (0 until attrs.length).map { i =>
         val a = attrs(i)
         if a.value.isEmpty then a.name
-        else s"""${a.name}="${escapeAttr(a.value)}""""
+        else s"""${ a.name }="${ escapeAttr(a.value) }""""
       }
       " " + parts.mkString(" ")
 

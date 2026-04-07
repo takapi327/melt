@@ -35,8 +35,9 @@ object DevTools:
     if _signals.isEmpty then
       js.Dynamic.global.console.log("No signals registered. Call DevTools.trackSignal(label, signal) to register.")
     else
-      _signals.foreach { case (label, info) =>
-        js.Dynamic.global.console.log(s"  $label: $info")
+      _signals.foreach {
+        case (label, info) =>
+          js.Dynamic.global.console.log(s"  $label: $info")
       }
     js.Dynamic.global.console.groupEnd()
 

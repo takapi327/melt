@@ -10,7 +10,6 @@ import scala.scalajs.js
 
 import org.scalajs.dom
 
-
 /** A handle to a mounted Melt component, providing query and interaction methods.
   *
   * Obtain an instance via [[MeltSuite.mount]]. All selector queries are scoped
@@ -130,9 +129,9 @@ final class MountedComponent(private val container: dom.html.Div):
     findAllByText(text, exact) match
       case List(el) => el
       case Nil      => throw new NoSuchElementException(s"No element with text '$text'")
-      case els =>
+      case els      =>
         throw new IllegalArgumentException(
-          s"Found ${els.length} elements with text '$text'. Use findAllByText instead."
+          s"Found ${ els.length } elements with text '$text'. Use findAllByText instead."
         )
 
   /** Returns all elements whose normalised `textContent` matches `pattern`. */
@@ -158,9 +157,9 @@ final class MountedComponent(private val container: dom.html.Div):
     findAllByText(pattern) match
       case List(el) => el
       case Nil      => throw new NoSuchElementException(s"No element matching pattern '$pattern'")
-      case els =>
+      case els      =>
         throw new IllegalArgumentException(
-          s"Found ${els.length} elements matching pattern '$pattern'. Use findAllByText instead."
+          s"Found ${ els.length } elements matching pattern '$pattern'. Use findAllByText instead."
         )
 
   /** Returns all elements whose `placeholder` attribute matches `text`.
@@ -201,9 +200,9 @@ final class MountedComponent(private val container: dom.html.Div):
     findAllByPlaceholderText(text, exact) match
       case List(el) => el
       case Nil      => throw new NoSuchElementException(s"No element with placeholder '$text'")
-      case els =>
+      case els      =>
         throw new IllegalArgumentException(
-          s"Found ${els.length} elements with placeholder '$text'. Use findAllByPlaceholderText instead."
+          s"Found ${ els.length } elements with placeholder '$text'. Use findAllByPlaceholderText instead."
         )
 
   // ── getByRole ──────────────────────────────────────────────────────────────
@@ -242,9 +241,9 @@ final class MountedComponent(private val container: dom.html.Div):
     getAllByRole(role) match
       case List(el) => el
       case Nil      => throw new NoSuchElementException(s"No element with role '$role'")
-      case els =>
+      case els      =>
         throw new IllegalArgumentException(
-          s"Found ${els.length} elements with role '$role'. Use getAllByRole instead."
+          s"Found ${ els.length } elements with role '$role'. Use getAllByRole instead."
         )
 
   // ── getByLabelText ─────────────────────────────────────────────────────────
@@ -287,7 +286,8 @@ final class MountedComponent(private val container: dom.html.Div):
 
   private def findByLabelFor(text: String, exact: Boolean): Option[dom.Element] =
     val labels = container.querySelectorAll("label[for]")
-    (0 until labels.length).map(labels(_))
+    (0 until labels.length)
+      .map(labels(_))
       .find { label =>
         val t = MountedComponent.normalize(label.textContent)
         if exact then t == text else t.contains(text)
@@ -300,7 +300,8 @@ final class MountedComponent(private val container: dom.html.Div):
 
   private def findByWrappingLabel(text: String, exact: Boolean): Option[dom.Element] =
     val labels = container.querySelectorAll("label")
-    (0 until labels.length).map(labels(_))
+    (0 until labels.length)
+      .map(labels(_))
       .find { label =>
         // Use only direct text nodes to avoid including the child input's value.
         val t = MountedComponent.normalize(directTextContent(label))
@@ -317,7 +318,8 @@ final class MountedComponent(private val container: dom.html.Div):
       if ids.isEmpty then false
       else
         val labelText = MountedComponent.normalize(
-          ids.flatMap(id => Option(container.querySelector(s"#$id")).map(_.textContent))
+          ids
+            .flatMap(id => Option(container.querySelector(s"#$id")).map(_.textContent))
             .mkString(" ")
         )
         if exact then labelText == text else labelText.contains(text)
@@ -325,7 +327,7 @@ final class MountedComponent(private val container: dom.html.Div):
 
   /** Collects only the direct text-node children of `el`, ignoring element children. */
   private def directTextContent(el: dom.Element): String =
-    val nodes = el.childNodes
+    val nodes    = el.childNodes
     val TextNode = 3 // Node.TEXT_NODE
     (0 until nodes.length)
       .map(nodes(_))
@@ -356,10 +358,8 @@ final class MountedComponent(private val container: dom.html.Div):
   def debug(selector: String): Unit =
     if _unmounted then return
     val el = container.querySelector(selector)
-    if el == null then
-      js.Dynamic.global.console.log(s"[melt-testkit] No element matches '$selector'")
-    else
-      js.Dynamic.global.console.log(PrettyDom(el))
+    if el == null then js.Dynamic.global.console.log(s"[melt-testkit] No element matches '$selector'")
+    else js.Dynamic.global.console.log(PrettyDom(el))
 
   /** Removes the component's container element from the DOM.
     *
