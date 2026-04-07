@@ -357,7 +357,7 @@ class CounterSpec extends MeltSuite:
       val li  = org.scalajs.dom.document.createElement("li")
       val btn = org.scalajs.dom.document.createElement("button")
       btn.textContent = s"Delete $name"
-      li.textContent = name
+      li.textContent  = name
       li.appendChild(btn)
       ul.appendChild(li)
     }
@@ -369,7 +369,7 @@ class CounterSpec extends MeltSuite:
     assertEquals(items.length, 3)
     // scope to the first <li> — should find only "Delete Alice" button
     val firstItem = c.within(items.head)
-    val btn = firstItem.getByRole("button")
+    val btn       = firstItem.getByRole("button")
     assert(btn.textContent.contains("Alice"))
   }
 
@@ -403,11 +403,12 @@ class CounterSpec extends MeltSuite:
     wrapper.appendChild(textarea)
 
     val select = org.scalajs.dom.document.createElement("select").asInstanceOf[org.scalajs.dom.html.Select]
-    Seq("opt1" -> "Option 1", "opt2" -> "Option 2").foreach { case (v, t) =>
-      val opt = org.scalajs.dom.document.createElement("option").asInstanceOf[org.scalajs.dom.html.Option]
-      opt.value = v
-      opt.textContent = t
-      select.appendChild(opt)
+    Seq("opt1" -> "Option 1", "opt2" -> "Option 2").foreach {
+      case (v, t) =>
+        val opt = org.scalajs.dom.document.createElement("option").asInstanceOf[org.scalajs.dom.html.Option]
+        opt.value       = v
+        opt.textContent = t
+        select.appendChild(opt)
     }
     select.value = "opt2"
     wrapper.appendChild(select)
@@ -468,14 +469,14 @@ class CounterSpec extends MeltSuite:
     wrapper.appendChild(abbr)
 
     // SVG with <title> child element
-    val svg = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "svg")
+    val svg      = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "svg")
     val svgTitle = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "title")
     svgTitle.textContent = "Sales chart"
     svg.appendChild(svgTitle)
     wrapper.appendChild(svg)
 
     // Nested SVG element with its own <title>
-    val circle = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "circle")
+    val circle      = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "circle")
     val circleTitle = org.scalajs.dom.document.createElementNS("http://www.w3.org/2000/svg", "title")
     circleTitle.textContent = "Data point"
     circle.appendChild(circleTitle)
@@ -622,11 +623,12 @@ class CounterSpec extends MeltSuite:
     wrapper.appendChild(input)
 
     val select = org.scalajs.dom.document.createElement("select").asInstanceOf[org.scalajs.dom.html.Select]
-    Seq("a" -> "Alpha", "b" -> "Beta", "c" -> "Gamma").foreach { case (v, t) =>
-      val opt = org.scalajs.dom.document.createElement("option").asInstanceOf[org.scalajs.dom.html.Option]
-      opt.value = v
-      opt.textContent = t
-      select.appendChild(opt)
+    Seq("a" -> "Alpha", "b" -> "Beta", "c" -> "Gamma").foreach {
+      case (v, t) =>
+        val opt = org.scalajs.dom.document.createElement("option").asInstanceOf[org.scalajs.dom.html.Option]
+        opt.value       = v
+        opt.textContent = t
+        select.appendChild(opt)
     }
     wrapper.appendChild(select)
 
@@ -642,14 +644,14 @@ class CounterSpec extends MeltSuite:
     wrapper
 
   test("userEvent.typeText fills input character by character") {
-    val c  = mount(userEventFixture())
+    val c = mount(userEventFixture())
     c.userEvent.typeText("input", "Hello")
     assertEquals(c.getByPlaceholderText("type here").asInstanceOf[org.scalajs.dom.html.Input].value, "Hello")
   }
 
   test("userEvent.typeText dispatches input event for each character") {
-    val c      = mount(userEventFixture())
-    var count  = 0
+    val c     = mount(userEventFixture())
+    var count = 0
     c.findAll("input").head.addEventListener("input", (_: org.scalajs.dom.Event) => count += 1)
     c.userEvent.typeText("input", "Hi")
     assertEquals(count, 2)
@@ -667,8 +669,8 @@ class CounterSpec extends MeltSuite:
   }
 
   test("userEvent.selectOption sets select value and fires change event") {
-    val c      = mount(userEventFixture())
-    var fired  = false
+    val c     = mount(userEventFixture())
+    var fired = false
     c.findAll("select").head.addEventListener("change", (_: org.scalajs.dom.Event) => fired = true)
     c.userEvent.selectOption("select", "b")
     assertEquals(c.findAll("select").head.asInstanceOf[org.scalajs.dom.html.Select].value, "b")
@@ -695,7 +697,7 @@ class CounterSpec extends MeltSuite:
   }
 
   test("userEvent.keyboard Enter triggers click on focused button") {
-    val c      = mount(userEventFixture())
+    val c       = mount(userEventFixture())
     var clicked = false
     c.getByText("Submit").addEventListener("click", (_: org.scalajs.dom.Event) => clicked = true)
     c.userEvent.click("button") // focus the button first
