@@ -117,6 +117,46 @@ class CounterSpec extends MeltSuite:
     assert(!c.exists("h1"), "h1 should be gone after unmount")
   }
 
+  // ── getByPlaceholderText ─────────────────────────────────────────────────
+
+  test("getByPlaceholderText finds input by exact placeholder") {
+    val c  = mount(Counter.create())
+    val el = c.getByPlaceholderText("Your name")
+    assertEquals(el.tagName.toLowerCase, "input")
+  }
+
+  test("queryByPlaceholderText returns Some for existing placeholder") {
+    val c = mount(Counter.create())
+    assert(c.queryByPlaceholderText("Your name").isDefined, "should find input")
+  }
+
+  test("queryByPlaceholderText returns None for missing placeholder") {
+    val c = mount(Counter.create())
+    assertEquals(c.queryByPlaceholderText("Nonexistent"), None)
+  }
+
+  test("findAllByPlaceholderText with exact = false does substring match") {
+    val c       = mount(Counter.create())
+    val results = c.findAllByPlaceholderText("name", exact = false)
+    assertEquals(results.length, 1)
+  }
+
+  test("getByPlaceholderText throws when element is not found") {
+    val c = mount(Counter.create())
+    intercept[NoSuchElementException] {
+      c.getByPlaceholderText("Does not exist")
+    }
+  }
+
+  // ── debug() ──────────────────────────────────────────────────────────────
+
+  test("debug prints component DOM without throwing") {
+    val c = mount(Counter.create())
+    c.debug()         // full DOM
+    c.debug("h1")     // specific element
+    c.debug(".nonexistent") // missing element — prints message, does not throw
+  }
+
   // ── DevTools ─────────────────────────────────────────────────────────────
 
   test("DevTools.effectCount tracks recorded effects") {

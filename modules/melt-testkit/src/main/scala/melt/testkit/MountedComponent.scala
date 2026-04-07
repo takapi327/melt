@@ -6,7 +6,10 @@
 
 package melt.testkit
 
+import scala.scalajs.js
+
 import org.scalajs.dom
+
 
 /** A handle to a mounted Melt component, providing query and interaction methods.
   *
@@ -22,6 +25,9 @@ import org.scalajs.dom
   *   }
   * }}}
   */
+private[testkit] object MountedComponent:
+  def normalize(text: String): String = text.trim.replaceAll("\\s+", " ")
+
 final class MountedComponent(private val container: dom.html.Div):
 
   /** Tracks whether [[unmount]] has been called. After unmounting all queries return empty results. */
@@ -81,6 +87,76 @@ final class MountedComponent(private val container: dom.html.Div):
     else
       val nl = container.querySelectorAll(selector)
       (0 until nl.length).map(nl(_)).toList
+
+  /** Returns all elements whose `placeholder` attribute matches `text`.
+    *
+    * Only `<input>` and `<textarea>` elements are searched.
+    * When `exact = true` (default) the full normalised placeholder must match;
+    * when `exact = false` a substring match is performed.
+    *
+    * {{{
+    * val inputs = c.findAllByPlaceholderText("email")
+    * }}}
+    */
+  def findAllByPlaceholderText(text: String, exact: Boolean = true): List[dom.Element] =
+    if _unmounted then return Nil
+    val nl         = container.querySelectorAll("input[placeholder], textarea[placeholder]")
+    val normalised = MountedComponent.normalize(text)
+    (0 until nl.length)
+      .map(nl(_))
+      .filter { el =>
+        val ph = MountedComponent.normalize(el.getAttribute("placeholder"))
+        if exact then ph == normalised else ph.contains(normalised)
+      }
+      .toList
+
+  /** Returns the first element whose `placeholder` attribute matches `text`,
+    * or `None` if no element is found or after [[unmount]].
+    */
+  def queryByPlaceholderText(text: String, exact: Boolean = true): Option[dom.Element] =
+    findAllByPlaceholderText(text, exact).headOption
+
+  /** Returns the single element whose `placeholder` attribute matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one element matches —
+    * use [[findAllByPlaceholderText]] in that case.
+    */
+  def getByPlaceholderText(text: String, exact: Boolean = true): dom.Element =
+    findAllByPlaceholderText(text, exact) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with placeholder '$text'")
+      case els =>
+        throw new IllegalArgumentException(
+          s"Found ${els.length} elements with placeholder '$text'. Use findAllByPlaceholderText instead."
+        )
+
+  /** Prints the component's current DOM structure to the console.
+    *
+    * Uses `prettyDOM` from `@testing-library/dom` to produce an indented,
+    * human-readable HTML representation. Useful when a test fails and you
+    * want to inspect what is actually rendered.
+    *
+    * {{{
+    * test("debug failing test") {
+    *   val c = mount(Counter.create())
+    *   c.debug()          // prints the full component DOM
+    *   c.debug("button")  // prints only the first matching element
+    * }
+    * }}}
+    */
+  def debug(): Unit =
+    js.Dynamic.global.console.log(PrettyDom(container))
+
+  /** Prints the first element matching `selector` to the console.
+    * Prints a "not found" message if no element matches.
+    */
+  def debug(selector: String): Unit =
+    val el = container.querySelector(selector)
+    if el == null then
+      js.Dynamic.global.console.log(s"[melt-testkit] No element matches '$selector'")
+    else
+      js.Dynamic.global.console.log(PrettyDom(el))
 
   /** Removes the component's container element from the DOM.
     *
