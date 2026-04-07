@@ -27,10 +27,25 @@ import org.scalajs.dom
 private[testkit] object MountedComponent:
   def normalize(text: String): String = text.trim.replaceAll("\\s+", " ")
 
-final class MountedComponent(private val container: dom.html.Div):
+final class MountedComponent(
+  private val container: dom.Element,
+  private val _isScoped: Boolean = false
+):
 
   /** Tracks whether [[unmount]] has been called. After unmounting all queries return empty results. */
   private var _unmounted: Boolean = false
+
+  /** Provides realistic browser-level user interaction simulation.
+    *
+    * Fires the full event sequence a real browser would produce, making it
+    * more accurate than the low-level [[click]] / [[input]] methods.
+    *
+    * {{{
+    * c.userEvent.typeText("input[name=email]", "alice@example.com")
+    * c.userEvent.click("button[type=submit]")
+    * }}}
+    */
+  val userEvent: UserEvent = new UserEvent(container, () => _unmounted)
 
   /** Returns the text content of the first element matching `selector`,
     * or the empty string if no element is found or after [[unmount]].
@@ -205,6 +220,187 @@ final class MountedComponent(private val container: dom.html.Div):
           s"Found ${ els.length } elements with placeholder '$text'. Use findAllByPlaceholderText instead."
         )
 
+  // ── getByDisplayValue ──────────────────────────────────────────────────────
+
+  /** Returns all form elements whose current display value matches `text`.
+    *
+    * The **current value** (the JavaScript `.value` property, not the HTML `value`
+    * attribute) is compared, so this reflects user edits and programmatic changes.
+    *
+    * Searched elements:
+    *   - `<input>` — text-like types only (`text`, `email`, `password`, `tel`, `url`,
+    *     `number`, `search`); `checkbox`, `radio`, `file`, `color`, `hidden`,
+    *     `button`, `submit`, `reset`, and `image` are excluded.
+    *   - `<textarea>` — full text content
+    *   - `<select>` — the `value` of the currently selected option
+    *
+    * {{{
+    * val nameInput = c.getByDisplayValue("Alice")
+    * }}}
+    */
+  def findAllByDisplayValue(text: String, exact: Boolean = true): List[dom.Element] =
+    if _unmounted then return Nil
+    val selector =
+      "input:not([type=checkbox]):not([type=radio]):not([type=file])" +
+        ":not([type=color]):not([type=hidden]):not([type=image])" +
+        ":not([type=button]):not([type=submit]):not([type=reset])" +
+        ", textarea, select"
+    val nl         = container.querySelectorAll(selector)
+    val normalised = MountedComponent.normalize(text)
+    (0 until nl.length)
+      .map(nl(_))
+      .filter { el =>
+        val v = MountedComponent.normalize(displayValue(el))
+        if exact then v == normalised else v.contains(normalised)
+      }
+      .toList
+
+  /** Returns the first form element whose current display value matches `text`,
+    * or `None` if no element is found or after [[unmount]].
+    */
+  def queryByDisplayValue(text: String, exact: Boolean = true): Option[dom.Element] =
+    findAllByDisplayValue(text, exact).headOption
+
+  /** Returns the single form element whose current display value matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one element matches —
+    * use [[findAllByDisplayValue]] in that case.
+    */
+  def getByDisplayValue(text: String, exact: Boolean = true): dom.Element =
+    findAllByDisplayValue(text, exact) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with display value '$text'")
+      case els      =>
+        throw new IllegalArgumentException(
+          s"Found ${ els.length } elements with display value '$text'. Use findAllByDisplayValue instead."
+        )
+
+  private def displayValue(el: dom.Element): String =
+    el.tagName.toLowerCase match
+      case "input"    => el.asInstanceOf[dom.html.Input].value
+      case "textarea" => el.asInstanceOf[dom.html.TextArea].value
+      case "select"   => el.asInstanceOf[dom.html.Select].value
+      case _          => ""
+
+  // ── getByAltText ───────────────────────────────────────────────────────────
+
+  /** Returns all elements whose `alt` attribute matches `text`.
+    *
+    * Only `<img>`, `<area>`, and `<input type="image">` elements are searched,
+    * as these are the only elements for which `alt` carries accessible meaning.
+    * When `exact = true` (default) the full normalised alt text must match;
+    * when `exact = false` a substring match is performed.
+    *
+    * {{{
+    * val images = c.findAllByAltText("user avatar")
+    * }}}
+    */
+  def findAllByAltText(text: String, exact: Boolean = true): List[dom.Element] =
+    if _unmounted then return Nil
+    val nl         = container.querySelectorAll("img[alt], area[alt], input[type=image][alt]")
+    val normalised = MountedComponent.normalize(text)
+    (0 until nl.length)
+      .map(nl(_))
+      .filter { el =>
+        val alt = MountedComponent.normalize(el.getAttribute("alt"))
+        if exact then alt == normalised else alt.contains(normalised)
+      }
+      .toList
+
+  /** Returns the first element whose `alt` attribute matches `text`,
+    * or `None` if no element is found or after [[unmount]].
+    */
+  def queryByAltText(text: String, exact: Boolean = true): Option[dom.Element] =
+    findAllByAltText(text, exact).headOption
+
+  /** Returns the single element whose `alt` attribute matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one element matches —
+    * use [[findAllByAltText]] in that case.
+    */
+  def getByAltText(text: String, exact: Boolean = true): dom.Element =
+    findAllByAltText(text, exact) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with alt '$text'")
+      case els      =>
+        throw new IllegalArgumentException(
+          s"Found ${ els.length } elements with alt '$text'. Use findAllByAltText instead."
+        )
+
+  // ── getByTitle ─────────────────────────────────────────────────────────────
+
+  /** Returns all elements whose `title` attribute or SVG `<title>` child matches `text`.
+    *
+    * Two sources are searched in order and merged:
+    *   1. Any element with a `title` attribute whose value matches `text`.
+    *   2. SVG `<title>` child elements whose `textContent` matches `text` —
+    *      the **parent** element (e.g. `<svg>`, `<circle>`) is returned, mirroring
+    *      the behaviour of `@testing-library/dom`.
+    *
+    * When `exact = true` (default) the full normalised text must match;
+    * when `exact = false` a substring match is performed.
+    *
+    * {{{
+    * val icon = c.getByTitle("Close")          // <button title="Close">
+    * val chart = c.getByTitle("Sales chart")   // <svg><title>Sales chart</title></svg>
+    * }}}
+    */
+  def findAllByTitle(text: String, exact: Boolean = true): List[dom.Element] =
+    if _unmounted then return Nil
+    val normalised = MountedComponent.normalize(text)
+
+    // 1. title 属性を持つ要素
+    val byAttr =
+      val nl = container.querySelectorAll("[title]")
+      (0 until nl.length)
+        .map(nl(_))
+        .filter { el =>
+          val t = MountedComponent.normalize(el.getAttribute("title"))
+          if exact then t == normalised else t.contains(normalised)
+        }
+        .toList
+
+    // 2. SVG <title> 子要素を持つ要素（親を返す）
+    val bySvgTitle =
+      val nl = container.querySelectorAll("title")
+      (0 until nl.length)
+        .map(nl(_))
+        .filter { titleEl =>
+          val t = MountedComponent.normalize(titleEl.textContent)
+          if exact then t == normalised else t.contains(normalised)
+        }
+        .flatMap { titleEl =>
+          titleEl.parentNode match
+            case parent: dom.Element => Some(parent)
+            case _                   => None
+        }
+        .toList
+
+    (byAttr ++ bySvgTitle).distinct
+
+  /** Returns the first element whose `title` attribute or SVG `<title>` child matches `text`,
+    * or `None` if no element is found or after [[unmount]].
+    */
+  def queryByTitle(text: String, exact: Boolean = true): Option[dom.Element] =
+    findAllByTitle(text, exact).headOption
+
+  /** Returns the single element whose `title` attribute or SVG `<title>` child matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one element matches —
+    * use [[findAllByTitle]] in that case.
+    */
+  def getByTitle(text: String, exact: Boolean = true): dom.Element =
+    findAllByTitle(text, exact) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with title '$text'")
+      case els      =>
+        throw new IllegalArgumentException(
+          s"Found ${ els.length } elements with title '$text'. Use findAllByTitle instead."
+        )
+
   // ── getByRole ──────────────────────────────────────────────────────────────
 
   /** Returns all elements with the given ARIA `role` within the component.
@@ -217,19 +413,63 @@ final class MountedComponent(private val container: dom.html.Div):
     * assertEquals(buttons.length, 3)
     * }}}
     */
-  def getAllByRole(role: String): List[dom.Element] =
+  /** Returns all elements with the given ARIA `role` within the component.
+    *
+    * Both explicit (`role="..."`) and implicit roles (derived from the HTML tag)
+    * are considered. When `level` is given only heading elements at that level are
+    * returned (e.g. `level = Some(1)` matches only `<h1>`). Returns an empty list
+    * after [[unmount]].
+    *
+    * {{{
+    * val buttons  = c.getAllByRole("button")
+    * val h1s      = c.getAllByRole("heading", level = Some(1))
+    * }}}
+    */
+  /** Returns all elements with the given ARIA `role` within the component.
+    *
+    * Both explicit (`role="..."`) and implicit roles (derived from the HTML tag)
+    * are considered.
+    *
+    * Optional filters:
+    *   - `level` — restricts heading elements by level (e.g. `Some(1)` matches only `<h1>`)
+    *   - `name`  — restricts by accessible name (aria-labelledby → aria-label → native → title)
+    *
+    * Returns an empty list after [[unmount]].
+    *
+    * {{{
+    * val buttons    = c.getAllByRole("button")
+    * val h1s        = c.getAllByRole("heading", level = Some(1))
+    * val submitBtn  = c.getAllByRole("button", name = Some("送信"))
+    * }}}
+    */
+  def getAllByRole(
+    role:  String,
+    level: Option[Int]    = None,
+    name:  Option[String] = None
+  ): List[dom.Element] =
     if _unmounted then return Nil
     val all = container.querySelectorAll("*")
     (0 until all.length)
       .map(all(_))
-      .filter(el => AriaUtils.resolveRole(el).contains(role))
+      .filter { el =>
+        AriaUtils.resolveRole(el).contains(role) &&
+          level.forall(l => AriaUtils.headingLevel(el).contains(l)) &&
+          name.forall { n =>
+            MountedComponent.normalize(AccessibleName.compute(el, container)) ==
+              MountedComponent.normalize(n)
+          }
+      }
       .toList
 
   /** Returns the first element with the given ARIA `role`, or `None`.
     * Returns `None` after [[unmount]].
     */
-  def queryByRole(role: String): Option[dom.Element] =
-    getAllByRole(role).headOption
+  def queryByRole(
+    role:  String,
+    level: Option[Int]    = None,
+    name:  Option[String] = None
+  ): Option[dom.Element] =
+    getAllByRole(role, level, name).headOption
 
   /** Returns the single element with the given ARIA `role`.
     *
@@ -237,13 +477,19 @@ final class MountedComponent(private val container: dom.html.Div):
     * Throws [[IllegalArgumentException]] if more than one element matches —
     * use [[getAllByRole]] in that case.
     */
-  def getByRole(role: String): dom.Element =
-    getAllByRole(role) match
+  def getByRole(
+    role:  String,
+    level: Option[Int]    = None,
+    name:  Option[String] = None
+  ): dom.Element =
+    val parts  = Seq(level.map(l => s"level=$l"), name.map(n => s"name=$n")).flatten
+    val suffix = if parts.isEmpty then "" else s" (${ parts.mkString(", ") })"
+    getAllByRole(role, level, name) match
       case List(el) => el
-      case Nil      => throw new NoSuchElementException(s"No element with role '$role'")
+      case Nil      => throw new NoSuchElementException(s"No element with role '$role'$suffix")
       case els      =>
         throw new IllegalArgumentException(
-          s"Found ${ els.length } elements with role '$role'. Use getAllByRole instead."
+          s"Found ${ els.length } elements with role '$role'$suffix. Use getAllByRole instead."
         )
 
   // ── getByLabelText ─────────────────────────────────────────────────────────
@@ -371,6 +617,24 @@ final class MountedComponent(private val container: dom.html.Div):
     * reclaimed when no other reference holds them.
     */
   def unmount(): Unit =
+    if _isScoped then return // within() scope — unmount is a no-op
     if !_unmounted then
       _unmounted = true
       if container.parentNode != null then container.parentNode.removeChild(container)
+
+  /** Returns a new [[MountedComponent]] whose queries are scoped to `element`.
+    *
+    * Useful when the same text or role appears in multiple places and you want
+    * to restrict the search to a specific subtree.
+    *
+    * Calling [[unmount]] on the returned instance is a no-op — only the original
+    * mounted component can be unmounted.
+    *
+    * {{{
+    * val row   = c.getAllByRole("row")(1)
+    * val scope = c.within(row)
+    * assertEquals(scope.getAllByRole("cell").length, 3)
+    * }}}
+    */
+  def within(element: dom.Element): MountedComponent =
+    new MountedComponent(element, _isScoped = true)

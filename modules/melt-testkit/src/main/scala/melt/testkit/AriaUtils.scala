@@ -26,6 +26,17 @@ private[testkit] object AriaUtils:
   def resolveRole(el: dom.Element): Option[String] =
     Option(el.getAttribute("role")).filter(_.nonEmpty).orElse(implicitRole(el))
 
+  /** Returns the heading level (1–6) if `el` is an `<h1>`–`<h6>` element, otherwise `None`. */
+  def headingLevel(el: dom.Element): Option[Int] =
+    el.tagName.toLowerCase match
+      case "h1" => Some(1)
+      case "h2" => Some(2)
+      case "h3" => Some(3)
+      case "h4" => Some(4)
+      case "h5" => Some(5)
+      case "h6" => Some(6)
+      case _    => None
+
   private def implicitRole(el: dom.Element): Option[String] =
     el.tagName.toLowerCase match
       // ── Buttons & links ──────────────────────────────────────────────────
