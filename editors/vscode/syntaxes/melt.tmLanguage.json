@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Melt Component",
+  "scopeName": "source.melt",
+  "fileTypes": ["melt"],
+  "patterns": [
+    { "include": "#script-block" },
+    { "include": "#style-block" },
+    { "include": "#template" }
+  ],
+  "repository": {
+    "script-block": {
+      "comment": "<script lang=\"scala\"> ... </script>",
+      "begin": "(<)(script)((?:\\s+[^>]*\\blang\\s*=\\s*[\"']scala[\"'][^>]*))(>)",
+      "end": "(</)\\s*(script)\\s*(>)",
+      "name": "meta.block.script.melt",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.melt" },
+        "2": { "name": "entity.name.tag.script.melt" },
+        "3": { "name": "entity.other.attribute-name.melt" },
+        "4": { "name": "punctuation.definition.tag.end.melt" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.melt" },
+        "2": { "name": "entity.name.tag.script.melt" },
+        "3": { "name": "punctuation.definition.tag.end.melt" }
+      },
+      "contentName": "source.scala.embedded.melt",
+      "patterns": [
+        { "include": "source.scala" }
+      ]
+    },
+    "style-block": {
+      "comment": "<style> ... </style>",
+      "begin": "(<)(style)((?:\\s+[^>]*)?)(>)",
+      "end": "(</)\\s*(style)\\s*(>)",
+      "name": "meta.block.style.melt",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.melt" },
+        "2": { "name": "entity.name.tag.style.melt" },
+        "3": { "name": "entity.other.attribute-name.melt" },
+        "4": { "name": "punctuation.definition.tag.end.melt" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.melt" },
+        "2": { "name": "entity.name.tag.style.melt" },
+        "3": { "name": "punctuation.definition.tag.end.melt" }
+      },
+      "contentName": "source.css.embedded.melt",
+      "patterns": [
+        { "include": "source.css" }
+      ]
+    },
+    "template": {
+      "comment": "HTML template with embedded Scala expressions",
+      "patterns": [
+        { "include": "#expression" },
+        { "include": "text.html.basic" }
+      ]
+    },
+    "expression": {
+      "comment": "Scala expression: { ... }",
+      "begin": "\\{",
+      "end": "\\}",
+      "name": "meta.expression.melt",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.expression.begin.melt" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.expression.end.melt" }
+      },
+      "contentName": "source.scala.embedded.melt",
+      "patterns": [
+        { "include": "source.scala" }
+      ]
+    }
+  }
+}

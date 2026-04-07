@@ -1,0 +1,86 @@
+{
+  "name": "melt",
+  "displayName": "Melt",
+  "description": "Language support for .melt single-file components — syntax highlighting and LSP diagnostics",
+  "version": "0.1.0",
+  "publisher": "takapi327",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/takapi327/melt"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "melt",
+    "scala",
+    "scala.js",
+    "single-file component"
+  ],
+  "activationEvents": [
+    "onLanguage:melt"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "melt",
+        "aliases": ["Melt", "melt"],
+        "extensions": [".melt"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "melt",
+        "scopeName": "source.melt",
+        "path": "./syntaxes/melt.tmLanguage.json",
+        "embeddedLanguages": {
+          "source.scala.embedded.melt": "scala",
+          "source.css.embedded.melt": "css",
+          "text.html.basic": "html"
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Melt",
+      "properties": {
+        "melt.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to melt-language-server JAR. Leave empty to use the bundled server."
+        },
+        "melt.server.javaArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional JVM arguments passed to the language server process."
+        },
+        "melt.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Traces communication between VS Code and the Melt language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
