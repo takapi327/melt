@@ -88,6 +88,81 @@ final class MountedComponent(private val container: dom.html.Div):
       val nl = container.querySelectorAll(selector)
       (0 until nl.length).map(nl(_)).toList
 
+  /** Returns all elements whose normalised `textContent` matches `text`.
+    *
+    * Only the innermost matching element is kept — when a parent and a child
+    * both satisfy the text condition the child is preferred, matching the
+    * behaviour of `@testing-library/dom`.
+    *
+    * {{{
+    * val items = c.findAllByText("Melt Counter")
+    * }}}
+    */
+  def findAllByText(text: String, exact: Boolean = true): List[dom.Element] =
+    if _unmounted then return Nil
+    val normalised = MountedComponent.normalize(text)
+    val all        = container.querySelectorAll("*")
+    val candidates = (0 until all.length)
+      .map(all(_))
+      .filter { el =>
+        val t = MountedComponent.normalize(el.textContent)
+        if exact then t == normalised else t.contains(normalised)
+      }
+      .toList
+    // Keep only the innermost: discard any element that contains another match as a descendant.
+    candidates.filter(el => !candidates.exists(other => (el ne other) && el.contains(other)))
+
+  /** Returns the first element whose `textContent` matches `text`, or `None`.
+    *
+    * When multiple elements match the innermost element is returned.
+    * Returns `None` if no element matches or after [[unmount]].
+    */
+  def queryByText(text: String, exact: Boolean = true): Option[dom.Element] =
+    findAllByText(text, exact).headOption
+
+  /** Returns the single element whose `textContent` matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one innermost element
+    * matches — use [[findAllByText]] in that case.
+    */
+  def getByText(text: String, exact: Boolean = true): dom.Element =
+    findAllByText(text, exact) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with text '$text'")
+      case els =>
+        throw new IllegalArgumentException(
+          s"Found ${els.length} elements with text '$text'. Use findAllByText instead."
+        )
+
+  /** Returns all elements whose normalised `textContent` matches `pattern`. */
+  def findAllByText(pattern: scala.util.matching.Regex): List[dom.Element] =
+    if _unmounted then return Nil
+    val all        = container.querySelectorAll("*")
+    val candidates = (0 until all.length)
+      .map(all(_))
+      .filter(el => pattern.findFirstIn(MountedComponent.normalize(el.textContent)).isDefined)
+      .toList
+    candidates.filter(el => !candidates.exists(other => (el ne other) && el.contains(other)))
+
+  /** Returns the first element whose `textContent` matches `pattern`, or `None`. */
+  def queryByText(pattern: scala.util.matching.Regex): Option[dom.Element] =
+    findAllByText(pattern).headOption
+
+  /** Returns the single element whose `textContent` matches `pattern`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one innermost element matches.
+    */
+  def getByText(pattern: scala.util.matching.Regex): dom.Element =
+    findAllByText(pattern) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element matching pattern '$pattern'")
+      case els =>
+        throw new IllegalArgumentException(
+          s"Found ${els.length} elements matching pattern '$pattern'. Use findAllByText instead."
+        )
+
   /** Returns all elements whose `placeholder` attribute matches `text`.
     *
     * Only `<input>` and `<textarea>` elements are searched.
@@ -131,6 +206,133 @@ final class MountedComponent(private val container: dom.html.Div):
           s"Found ${els.length} elements with placeholder '$text'. Use findAllByPlaceholderText instead."
         )
 
+  // ── getByRole ──────────────────────────────────────────────────────────────
+
+  /** Returns all elements with the given ARIA `role` within the component.
+    *
+    * Both explicit (`role="..."`) and implicit roles (derived from the HTML tag)
+    * are considered. Returns an empty list after [[unmount]].
+    *
+    * {{{
+    * val buttons = c.getAllByRole("button")
+    * assertEquals(buttons.length, 3)
+    * }}}
+    */
+  def getAllByRole(role: String): List[dom.Element] =
+    if _unmounted then return Nil
+    val all = container.querySelectorAll("*")
+    (0 until all.length)
+      .map(all(_))
+      .filter(el => AriaUtils.resolveRole(el).contains(role))
+      .toList
+
+  /** Returns the first element with the given ARIA `role`, or `None`.
+    * Returns `None` after [[unmount]].
+    */
+  def queryByRole(role: String): Option[dom.Element] =
+    getAllByRole(role).headOption
+
+  /** Returns the single element with the given ARIA `role`.
+    *
+    * Throws [[NoSuchElementException]] if no element matches.
+    * Throws [[IllegalArgumentException]] if more than one element matches —
+    * use [[getAllByRole]] in that case.
+    */
+  def getByRole(role: String): dom.Element =
+    getAllByRole(role) match
+      case List(el) => el
+      case Nil      => throw new NoSuchElementException(s"No element with role '$role'")
+      case els =>
+        throw new IllegalArgumentException(
+          s"Found ${els.length} elements with role '$role'. Use getAllByRole instead."
+        )
+
+  // ── getByLabelText ─────────────────────────────────────────────────────────
+
+  /** Returns the form element associated with a label whose text matches `text`.
+    *
+    * Association is resolved in the following priority order:
+    *   1. `aria-label` attribute on the element itself
+    *   2. `<label for="id">` pointing to the element's `id`
+    *   3. A wrapping `<label>` that contains the element as a descendant
+    *   4. `aria-labelledby` referencing one or more elements by id
+    *
+    * Returns `None` if no associated element is found or after [[unmount]].
+    */
+  def queryByLabelText(text: String, exact: Boolean = true): Option[dom.Element] =
+    if _unmounted then return None
+    val n = MountedComponent.normalize(text)
+    findByAriaLabel(n, exact)
+      .orElse(findByLabelFor(n, exact))
+      .orElse(findByWrappingLabel(n, exact))
+      .orElse(findByAriaLabelledBy(n, exact))
+
+  /** Returns the form element associated with a label whose text matches `text`.
+    *
+    * Throws [[NoSuchElementException]] if no associated element is found.
+    */
+  def getByLabelText(text: String, exact: Boolean = true): dom.Element =
+    queryByLabelText(text, exact).getOrElse(
+      throw new NoSuchElementException(s"No element labeled '$text'")
+    )
+
+  // label helpers
+
+  private def findByAriaLabel(text: String, exact: Boolean): Option[dom.Element] =
+    val all = container.querySelectorAll("[aria-label]")
+    (0 until all.length).map(all(_)).find { el =>
+      val label = MountedComponent.normalize(el.getAttribute("aria-label"))
+      if exact then label == text else label.contains(text)
+    }
+
+  private def findByLabelFor(text: String, exact: Boolean): Option[dom.Element] =
+    val labels = container.querySelectorAll("label[for]")
+    (0 until labels.length).map(labels(_))
+      .find { label =>
+        val t = MountedComponent.normalize(label.textContent)
+        if exact then t == text else t.contains(text)
+      }
+      .flatMap { label =>
+        val forId = label.getAttribute("for")
+        if forId == null || forId.isEmpty then None
+        else Option(container.querySelector(s"#$forId"))
+      }
+
+  private def findByWrappingLabel(text: String, exact: Boolean): Option[dom.Element] =
+    val labels = container.querySelectorAll("label")
+    (0 until labels.length).map(labels(_))
+      .find { label =>
+        // Use only direct text nodes to avoid including the child input's value.
+        val t = MountedComponent.normalize(directTextContent(label))
+        if exact then t == text else t.contains(text)
+      }
+      .flatMap { label =>
+        Option(label.querySelector("input, select, textarea"))
+      }
+
+  private def findByAriaLabelledBy(text: String, exact: Boolean): Option[dom.Element] =
+    val all = container.querySelectorAll("[aria-labelledby]")
+    (0 until all.length).map(all(_)).find { el =>
+      val ids = el.getAttribute("aria-labelledby").split("\\s+").filter(_.nonEmpty)
+      if ids.isEmpty then false
+      else
+        val labelText = MountedComponent.normalize(
+          ids.flatMap(id => Option(container.querySelector(s"#$id")).map(_.textContent))
+            .mkString(" ")
+        )
+        if exact then labelText == text else labelText.contains(text)
+    }
+
+  /** Collects only the direct text-node children of `el`, ignoring element children. */
+  private def directTextContent(el: dom.Element): String =
+    val nodes = el.childNodes
+    val TextNode = 3 // Node.TEXT_NODE
+    (0 until nodes.length)
+      .map(nodes(_))
+      .filter(_.nodeType == TextNode)
+      .map(_.textContent)
+      .mkString
+
   /** Prints the component's current DOM structure to the console.
     *
     * Uses `prettyDOM` from `@testing-library/dom` to produce an indented,
@@ -146,12 +348,13 @@ final class MountedComponent(private val container: dom.html.Div):
     * }}}
     */
   def debug(): Unit =
-    js.Dynamic.global.console.log(PrettyDom(container))
+    if !_unmounted then js.Dynamic.global.console.log(PrettyDom(container))
 
   /** Prints the first element matching `selector` to the console.
     * Prints a "not found" message if no element matches.
     */
   def debug(selector: String): Unit =
+    if _unmounted then return
     val el = container.querySelector(selector)
     if el == null then
       js.Dynamic.global.console.log(s"[melt-testkit] No element matches '$selector'")

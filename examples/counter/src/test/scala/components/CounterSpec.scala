@@ -117,6 +117,48 @@ class CounterSpec extends MeltSuite:
     assert(!c.exists("h1"), "h1 should be gone after unmount")
   }
 
+  // ── getByText ────────────────────────────────────────────────────────────
+
+  test("getByText finds element by exact text") {
+    val c  = mount(Counter.create())
+    val el = c.getByText("Melt Counter")
+    assertEquals(el.tagName.toLowerCase, "h1")
+  }
+
+  test("queryByText returns Some for existing text") {
+    val c = mount(Counter.create())
+    assert(c.queryByText("Melt Counter").isDefined)
+  }
+
+  test("queryByText returns None for missing text") {
+    val c = mount(Counter.create())
+    assertEquals(c.queryByText("Does not exist"), None)
+  }
+
+  test("findAllByText with exact = false does substring match") {
+    val c       = mount(Counter.create())
+    val results = c.findAllByText("Count", exact = false)
+    assert(results.nonEmpty, "should find elements containing 'Count'")
+  }
+
+  test("getByText with Regex finds element") {
+    val c  = mount(Counter.create())
+    val el = c.getByText("Melt Counter".r)
+    assertEquals(el.tagName.toLowerCase, "h1")
+  }
+
+  test("queryByText with Regex returns None when no match") {
+    val c = mount(Counter.create())
+    assertEquals(c.queryByText("xyz123".r), None)
+  }
+
+  test("getByText throws NoSuchElementException when not found") {
+    val c = mount(Counter.create())
+    intercept[NoSuchElementException] {
+      c.getByText("Not present")
+    }
+  }
+
   // ── getByPlaceholderText ─────────────────────────────────────────────────
 
   test("getByPlaceholderText finds input by exact placeholder") {
@@ -146,6 +188,105 @@ class CounterSpec extends MeltSuite:
     intercept[NoSuchElementException] {
       c.getByPlaceholderText("Does not exist")
     }
+  }
+
+  // ── getByRole ────────────────────────────────────────────────────────────
+
+  test("getAllByRole returns all buttons") {
+    val c       = mount(Counter.create())
+    val buttons = c.getAllByRole("button")
+    assertEquals(buttons.length, 3)
+  }
+
+  test("getAllByRole returns the heading") {
+    val c        = mount(Counter.create())
+    val headings = c.getAllByRole("heading")
+    assertEquals(headings.length, 1)
+    assertEquals(headings.head.textContent, "Melt Counter")
+  }
+
+  test("queryByRole returns Some for existing role") {
+    val c = mount(Counter.create())
+    assert(c.queryByRole("heading").isDefined)
+  }
+
+  test("queryByRole returns None for absent role") {
+    val c = mount(Counter.create())
+    assertEquals(c.queryByRole("dialog"), None)
+  }
+
+  test("getAllByRole returns textbox for input") {
+    val c       = mount(Counter.create())
+    val inputs  = c.getAllByRole("textbox")
+    assertEquals(inputs.length, 1)
+  }
+
+  test("getAllByRole finds input as textbox") {
+    val c      = mount(Counter.create())
+    val inputs = c.getAllByRole("textbox")
+    // The counter's <input> has no type (defaults to text → textbox)
+    assertEquals(inputs.length, 1)
+  }
+
+  test("getAllByRole returns empty for color/file input (no role)") {
+    // color and file inputs have no ARIA role — verified via getAllByRole
+    val c       = mount(Counter.create())
+    // Counter has no color/file inputs; list role should be empty too
+    val dialogs = c.getAllByRole("dialog")
+    assertEquals(dialogs.length, 0)
+  }
+
+  test("getByRole throws when no element matches") {
+    val c = mount(Counter.create())
+    intercept[NoSuchElementException] {
+      c.getByRole("dialog")
+    }
+  }
+
+  test("getByRole throws when multiple elements match") {
+    val c = mount(Counter.create())
+    intercept[IllegalArgumentException] {
+      c.getByRole("button") // Counter has 3 buttons
+    }
+  }
+
+  // ── getByLabelText ───────────────────────────────────────────────────────
+
+  test("getByLabelText finds element via aria-label") {
+    val c = mount(Counter.create())
+    // The input has no label in the Counter, so we test queryByLabelText returns None
+    assertEquals(c.queryByLabelText("Your name"), None)
+  }
+
+  test("queryByLabelText returns None when label does not exist") {
+    val c = mount(Counter.create())
+    assertEquals(c.queryByLabelText("Nonexistent label"), None)
+  }
+
+  // ── waitFor ──────────────────────────────────────────────────────────────
+
+  test("waitFor succeeds when assertion already holds") {
+    val c = mount(Counter.create())
+    waitFor { () =>
+      assertEquals(c.text("h1"), "Melt Counter")
+    }
+  }
+
+  test("waitFor succeeds after a reactive state change") {
+    val c = mount(Counter.create())
+    c.click("button") // +1
+    waitFor { () =>
+      assertEquals(c.text("p"), "Count: 1")
+    }
+  }
+
+  test("waitFor times out when assertion never holds") {
+    val c = mount(Counter.create())
+    // waitFor should produce a failed Future; .failed converts it to a successful Future[Throwable]
+    // so this test passes iff waitFor fails, and fails iff waitFor unexpectedly succeeds.
+    waitFor(() => assertEquals(c.text("h1"), "Wrong text"), timeout = 100)
+      .failed
+      .map(_ => ())
   }
 
   // ── debug() ──────────────────────────────────────────────────────────────

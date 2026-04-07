@@ -57,8 +57,15 @@ private[testkit] object PrettyDom:
       val parts = (0 until attrs.length).map { i =>
         val a = attrs(i)
         if a.value.isEmpty then a.name
-        else s"""${a.name}="${a.value}""""
+        else s"""${a.name}="${escapeAttr(a.value)}""""
       }
       " " + parts.mkString(" ")
+
+  private def escapeAttr(value: String): String =
+    value
+      .replace("&", "&amp;")
+      .replace("\"", "&quot;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
 
   private def indent(depth: Int): String = " " * (depth * IndentSize)
