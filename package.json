@@ -1,0 +1,6 @@
+{
+  "name": "melt",
+  "dependencies": {
+    "jsdom": "^16.7.0"
+  }
+}
