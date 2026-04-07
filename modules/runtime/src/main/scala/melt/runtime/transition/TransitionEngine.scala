@@ -107,26 +107,30 @@ object TransitionEngine:
 
   /** Starts a transition animation on `el`.
     *
-    * @param el        the target DOM element
-    * @param config    [[TransitionConfig]] produced by a [[Transition]] function
-    * @param intro     `true` for enter (t goes toward 1), `false` for leave (t goes toward 0)
-    * @param startFrom starting visual `t` value (0.0–1.0).  The default (`-1.0`) resolves to
-    *                  `0.0` for intro and `1.0` for outro, giving a full animation.
-    *                  Pass the value from [[currentT]] to implement smooth mid-animation reversal.
-    * @param onDone    called when the animation finishes; may be called asynchronously
+    * @param el          the target DOM element
+    * @param config      [[TransitionConfig]] produced by a [[Transition]] function
+    * @param intro       `true` for enter (t goes toward 1), `false` for leave (t goes toward 0)
+    * @param startFrom   starting visual `t` value (0.0–1.0).  The default (`-1.0`) resolves to
+    *                    `0.0` for intro and `1.0` for outro, giving a full animation.
+    *                    Pass the value from [[currentT]] to implement smooth mid-animation reversal.
+    * @param onDone      called when the animation finishes; may be called asynchronously
+    * @param emitEvents  when `false`, skips dispatching `introstart`/`introend`/`outrostart`/`outroend`
+    *                    events.  Set to `false` for `animate:` (position-change) animations that are
+    *                    neither enter nor leave and should not appear as transition lifecycle events.
     */
   def run(
-    el:        dom.Element,
-    config:    TransitionConfig,
-    intro:     Boolean,
-    startFrom: Double = -1.0, // -1.0 = auto (0.0 for intro, 1.0 for outro)
-    onDone:    () => Unit = () => ()
+    el:         dom.Element,
+    config:     TransitionConfig,
+    intro:      Boolean,
+    startFrom:  Double = -1.0, // -1.0 = auto (0.0 for intro, 1.0 for outro)
+    onDone:     () => Unit = () => (),
+    emitEvents: Boolean = true
   ): Unit =
     abortCurrent(el)
 
     // When the user has requested reduced motion, skip the animation entirely.
     if _reducedMotion then
-      dispatchTransitionEvent(el, if intro then "introstart" else "outrostart")
+      if emitEvents then dispatchTransitionEvent(el, if intro then "introstart" else "outrostart")
       // Apply final visual state immediately via the css/tick function
       val finalT = if intro then 1.0 else 0.0
       val finalU = 1.0 - finalT
@@ -134,14 +138,13 @@ object TransitionEngine:
         el.asInstanceOf[dom.html.Element].style.cssText += cssFn(finalT, finalU)
       }
       config.tick.foreach(_(finalT, finalU))
-      dispatchTransitionEvent(el, if intro then "introend" else "outroend")
+      if emitEvents then dispatchTransitionEvent(el, if intro then "introend" else "outroend")
       onDone()
       return
 
     val sf = if startFrom < 0.0 then (if intro then 0.0 else 1.0) else startFrom
 
-    // Dispatch start event immediately
-    dispatchTransitionEvent(el, if intro then "introstart" else "outrostart")
+    if emitEvents then dispatchTransitionEvent(el, if intro then "introstart" else "outrostart")
 
     var done = false
 
@@ -149,7 +152,7 @@ object TransitionEngine:
       if !done then
         done = true
         el.asInstanceOf[js.Dynamic].updateDynamic(KeyAbort)(js.undefined)
-        dispatchTransitionEvent(el, if intro then "introend" else "outroend")
+        if emitEvents then dispatchTransitionEvent(el, if intro then "introend" else "outroend")
         onDone()
 
     config.css match

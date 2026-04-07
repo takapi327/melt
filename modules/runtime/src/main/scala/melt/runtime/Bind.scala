@@ -390,13 +390,17 @@ object Bind:
       before.get(el).foreach { fromRect =>
         val toRect = el.getBoundingClientRect()
         val dyn    = el.asInstanceOf[scalajs.js.Dynamic]
-        val fn     = dyn.selectDynamic("_meltAnimateFn").asInstanceOf[AnimateFn]
-        val params =
-          val p = dyn.selectDynamic("_meltAnimateParams")
-          if scalajs.js.isUndefined(p) then AnimateParams() else p.asInstanceOf[AnimateParams]
-        val info   = AnimateInfo(from = fromRect, to = toRect)
-        val config = fn(el, info, params)
-        AnimateEngine.run(el, config)
+        // Guard explicitly even though callers already checked isAnimateMarked,
+        // so that a race or incorrect call cannot produce a ClassCastException.
+        val fnRaw = dyn.selectDynamic("_meltAnimateFn")
+        if !scalajs.js.isUndefined(fnRaw) then
+          val fn     = fnRaw.asInstanceOf[AnimateFn]
+          val params =
+            val p = dyn.selectDynamic("_meltAnimateParams")
+            if scalajs.js.isUndefined(p) then AnimateParams() else p.asInstanceOf[AnimateParams]
+          val info   = AnimateInfo(from = fromRect, to = toRect)
+          val config = fn(el, info, params)
+          AnimateEngine.run(el, config)
       }
     }
 

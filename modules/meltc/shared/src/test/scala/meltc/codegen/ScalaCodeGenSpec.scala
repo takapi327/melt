@@ -839,3 +839,164 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""createElement("select")"""), code)
     assert(code.contains("props.allHtmlAttrs.apply("), code)
   }
+
+  // ── Type-safety of generated code ──────────────────────────────────────────
+  //
+  // The Scala compiler is the final type-checker for generated code.  For each
+  // directive the codegen must emit code that allows the Scala compiler to
+  // reject wrong-typed arguments at compile time rather than failing at runtime.
+  //
+  // Convention:
+  //   - Tests whose name starts with "TYPE-SAFE:" verify that the generated
+  //     code does NOT bypass Scala's type system (e.g. no asInstanceOf wrapping
+  //     where the Scala API already enforces types).
+  //   - Tests whose name starts with "TYPE-ASCRIPTION:" verify that the generated
+  //     code contains an explicit type ascription so that the Scala compiler can
+  //     catch wrong types written by the user.
+
+  // ── animate: fn type ascription ──────────────────────────────────────────
+
+  test("TYPE-ASCRIPTION: animate:flip emits (Flip: AnimateFn) so non-AnimateFn values are rejected") {
+    // Without `(Flip: AnimateFn)`, any value — a String, Int, or arbitrary object —
+    // is accepted by `asInstanceOf[js.Any]` and stored silently.  The error surfaces
+    // only at runtime when Bind.each tries to call the fn.
+    val src  = """<ul>{items.keyed(_.id).map(_ => <li animate:flip></li>)}</ul>"""
+    val code = compile(src)
+    assert(
+      code.contains("(Flip: AnimateFn)"),
+      s"Expected type ascription '(Flip: AnimateFn)' in generated code, but got:\n$code"
+    )
+  }
+
+  test("TYPE-ASCRIPTION: animate:customFn emits (Bounce: AnimateFn) for user-defined functions") {
+    // The capitalized function name must also carry the AnimateFn ascription so
+    // that the Scala compiler rejects any identifier that does not implement AnimateFn.
+    val src  = """<li animate:bounce></li>"""
+    val code = compile(src)
+    assert(
+      code.contains("(Bounce: AnimateFn)"),
+      s"Expected type ascription '(Bounce: AnimateFn)' in generated code, but got:\n$code"
+    )
+  }
+
+  // ── animate: params type ascription ──────────────────────────────────────
+
+  test("TYPE-ASCRIPTION: animate: default params emits (AnimateParams(): AnimateParams)") {
+    // When no expression is provided, the default `AnimateParams()` must still
+    // carry a type ascription so the Scala compiler enforces the correct type.
+    val src  = """<li animate:flip></li>"""
+    val code = compile(src)
+    assert(
+      code.contains(": AnimateParams)"),
+      s"Expected type ascription ': AnimateParams)' in default params, but got:\n$code"
+    )
+  }
+
+  test("TYPE-ASCRIPTION: animate: explicit params emits type ascription preventing wrong param types") {
+    // If a user writes `animate:flip={TransitionParams()}` (wrong type), the Scala
+    // compiler must reject it.  The ascription `($params: AnimateParams)` achieves this.
+    val src  = """<li animate:flip={AnimateParams(duration = 500)}></li>"""
+    val code = compile(src)
+    assert(
+      code.contains(": AnimateParams)"),
+      s"Expected type ascription ': AnimateParams)' in explicit params, but got:\n$code"
+    )
+  }
+
+  // ── transition: / in: / out: — verify no asInstanceOf bypass ────────────
+
+  test("TYPE-SAFE: transition: params passed directly to TransitionBridge without asInstanceOf") {
+    // TransitionBridge.setBoth(el, t: Transition, params: TransitionParams) already
+    // enforces types.  The generated code must NOT wrap params in asInstanceOf[js.Any],
+    // which would defeat the type check.
+    val src  = """<div transition:fly={TransitionParams(y = 100)}></div>"""
+    val code = compile(src)
+    assert(code.contains("TransitionBridge.setBoth("), code)
+    assert(
+      !code.contains("TransitionParams(y = 100)).asInstanceOf"),
+      s"transition: params must NOT be wrapped in asInstanceOf (bypasses type check):\n$code"
+    )
+  }
+
+  test("TYPE-SAFE: in: and out: params passed directly to TransitionBridge without asInstanceOf") {
+    val src  = """<div in:fly={TransitionParams(x = 50)} out:fade={TransitionParams(duration = 200)}></div>"""
+    val code = compile(src)
+    assert(code.contains("TransitionBridge.setIn("), code)
+    assert(code.contains("TransitionBridge.setOut("), code)
+    assert(
+      !code.contains("TransitionParams(x = 50)).asInstanceOf"),
+      s"in: params must NOT be wrapped in asInstanceOf:\n$code"
+    )
+    assert(
+      !code.contains("TransitionParams(duration = 200)).asInstanceOf"),
+      s"out: params must NOT be wrapped in asInstanceOf:\n$code"
+    )
+  }
+
+  // ── bind: directives — verify no asInstanceOf bypass ────────────────────
+
+  test("TYPE-SAFE: bind:value passes Var directly to Bind.inputValue — Var[String] enforced by Scala") {
+    // Bind.inputValue(input: dom.html.Input, v: Var[String]) requires Var[String].
+    // Passing Var[Int] causes a Scala compile error.  The generated code must not cast.
+    val src  = """<input bind:value={myInput} />"""
+    val code = compile(src)
+    assert(code.contains("Bind.inputValue("), code)
+    assert(
+      !code.contains("myInput.asInstanceOf"),
+      s"bind:value must not cast the Var argument:\n$code"
+    )
+  }
+
+  test("TYPE-SAFE: bind:value-int passes Var directly to Bind.inputInt — Var[Int] enforced") {
+    val src  = """<input bind:value-int={count} />"""
+    val code = compile(src)
+    assert(code.contains("Bind.inputInt("), code)
+    assert(!code.contains("count.asInstanceOf"), s"bind:value-int must not cast:\n$code")
+  }
+
+  test("TYPE-SAFE: bind:checked passes Var directly to Bind.inputChecked — Var[Boolean] enforced") {
+    val src  = """<input type="checkbox" bind:checked={isOn} />"""
+    val code = compile(src)
+    assert(code.contains("Bind.inputChecked("), code)
+    assert(!code.contains("isOn.asInstanceOf"), s"bind:checked must not cast:\n$code")
+  }
+
+  // ── use: directive — verify no asInstanceOf bypass ───────────────────────
+
+  test("TYPE-SAFE: use: passes action and param directly to Bind.action — generics enforced by Scala") {
+    // Bind.action[P](el, act: Action[P], param: P) — the Scala compiler enforces
+    // that act is Action[P] and param is P.  The generated code must not cast.
+    val src  = """<div use:tooltip={"Help text"}></div>"""
+    val code = compile(src)
+    assert(code.contains("Bind.action("), code)
+    assert(!code.contains("""tooltip.asInstanceOf"""), s"use: must not cast action:\n$code")
+  }
+
+  test("TYPE-SAFE: use: without params passes action directly — Action[Unit] enforced") {
+    val src  = """<div use:autoFocus></div>"""
+    val code = compile(src)
+    assert(code.contains("Bind.action("), code)
+    assert(!code.contains("autoFocus.asInstanceOf"), s"use: must not cast action:\n$code")
+  }
+
+  // ── class: directive — verify no asInstanceOf bypass ─────────────────────
+
+  test("TYPE-SAFE: class: passes expression directly to Bind.classToggle — Boolean/Var[Boolean] enforced") {
+    // classToggle overloads accept Var[Boolean], Signal[Boolean], or Boolean only.
+    // Passing a String or Int causes a Scala compile error.
+    val src  = """<div class:active={isActive}></div>"""
+    val code = compile(src)
+    assert(code.contains("""Bind.classToggle(_el0, "active", isActive)"""), code)
+    assert(!code.contains("isActive.asInstanceOf"), s"class: must not cast expression:\n$code")
+  }
+
+  // ── event handlers — verify no asInstanceOf bypass ───────────────────────
+
+  test("TYPE-SAFE: event handler passed directly to addEventListener — type enforced by DOM API") {
+    // addEventListener("click", handler) requires handler: js.Function1[dom.Event, _].
+    // Passing a non-function causes a Scala compile error.
+    val src  = """<button onclick={handler}></button>"""
+    val code = compile(src)
+    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(!code.contains("handler.asInstanceOf"), s"onclick must not cast handler:\n$code")
+  }

@@ -332,8 +332,11 @@ object ScalaCodeGen:
       case Attr.Directive("animate", animName, exprOpt, _) =>
         val fn     = animName.capitalize
         val params = exprOpt.getOrElse("AnimateParams()")
-        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")($fn.asInstanceOf[scalajs.js.Any])\n"""
-        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params).asInstanceOf[scalajs.js.Any])\n"""
+        // Type ascriptions ensure the Scala compiler rejects wrong types at compile time:
+        //   ($fn: AnimateFn)      — non-AnimateFn values are rejected before erasure
+        //   ($params: AnimateParams) — wrong param types (e.g. TransitionParams) are caught
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")(($fn: AnimateFn).asInstanceOf[scalajs.js.Any])\n"""
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params: AnimateParams).asInstanceOf[scalajs.js.Any])\n"""
       case Attr.Spread(expr) =>
         // On HTML elements: apply HtmlAttrs spread
         buf ++= s"""${ indent }$expr.apply($v)\n"""

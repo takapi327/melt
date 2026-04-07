@@ -137,6 +137,7 @@ object TransitionBridge:
     intro:  Boolean,
     onDone: () => Unit = () => ()
   ): Unit =
-    kt(key, el, params).`then` { config =>
-      TransitionEngine.run(el, config, intro = intro, onDone = onDone)
-    }: Unit
+    kt(key, el, params).`then`[Unit](
+      { config => TransitionEngine.run(el, config, intro = intro, onDone = onDone) },
+      { (_: Any) => onDone() } // ensure onDone is called even if the Promise rejects
+    ): Unit

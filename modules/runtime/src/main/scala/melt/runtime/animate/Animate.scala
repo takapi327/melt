@@ -88,7 +88,13 @@ object AnimateEngine:
   def snapshot(els: Iterable[dom.Element]): Map[dom.Element, dom.DOMRect] =
     els.map(el => el -> el.getBoundingClientRect()).toMap
 
-  /** Executes the animation described by `config` on `el`. */
+  /** Executes the animation described by `config` on `el`.
+    *
+    * Runs with `intro = true` (t: 0 → 1, where 0 is the inverted old position and
+    * 1 is the natural new position) and `emitEvents = false` because a position-change
+    * animation is neither an enter nor a leave — dispatching transition lifecycle events
+    * would be semantically incorrect and confusing to listeners.
+    */
   def run(el: dom.Element, config: AnimateConfig): Unit =
     val transConfig = TransitionConfig(
       delay    = config.delay,
@@ -97,4 +103,4 @@ object AnimateEngine:
       css      = config.css,
       tick     = config.tick
     )
-    TransitionEngine.run(el, transConfig, intro = true)
+    TransitionEngine.run(el, transConfig, intro = true, emitEvents = false)
