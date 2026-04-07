@@ -329,8 +329,11 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }TransitionBridge.setOut($v, $obj, $params)\n"""
         if mods.contains("global") then
           buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
-      case Attr.Directive("animate", "flip", _, _) =>
-        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltFlip")(true)\n"""
+      case Attr.Directive("animate", animName, exprOpt, _) =>
+        val fn     = animName.capitalize
+        val params = exprOpt.getOrElse("AnimateParams()")
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")($fn.asInstanceOf[scalajs.js.Any])\n"""
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params).asInstanceOf[scalajs.js.Any])\n"""
       case Attr.Spread(expr) =>
         // On HTML elements: apply HtmlAttrs spread
         buf ++= s"""${ indent }$expr.apply($v)\n"""

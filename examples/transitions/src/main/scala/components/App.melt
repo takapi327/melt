@@ -70,6 +70,32 @@ def removeFirst(): Unit =
 def addItem(): Unit =
   val next = items.now().map(_.id).maxOption.getOrElse(0) + 1
   items.update(_ :+ Item(next, s"Item $next"))
+
+// ── Gap 11: Custom animate function ─────────────────────────────────────────
+// Custom AnimateFn: translates from old position AND pulses scale during the move.
+// Demonstrates that any (node, info, params) => AnimateConfig lambda works as animate:.
+val Bounce: AnimateFn = (node, info, params) =>
+  val dx = info.from.left - info.to.left
+  val dy = info.from.top  - info.to.top
+  AnimateConfig(
+    duration = params.duration,
+    easing   = params.easing,
+    css = Some { (t, u) =>
+      val scale = 1.0 - 0.25 * math.sin(u * math.Pi)
+      s"transform: translate(${ u * dx }px, ${ u * dy }px) scale($scale)"
+    }
+  )
+
+val items2 = Var(List(
+  Item(1, "One"),
+  Item(2, "Two"),
+  Item(3, "Three"),
+  Item(4, "Four"),
+  Item(5, "Five")
+))
+
+def shuffle2(): Unit =
+  items2.update(list => scala.util.Random.shuffle(list))
 </script>
 
 <div class="page">
@@ -344,6 +370,39 @@ def addItem(): Unit =
       <div></div>}
   </section>
 
+  <!-- ── Gap 11: Custom animate function ─────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 11: Custom animate: directive</h2>
+    <p class="desc">
+      Any value implementing <code>AnimateFn</code> can be used as <code>animate:*</code>.
+      <b>Left</b>: built-in <code>animate:flip</code> (translate only).
+      <b>Right</b>: custom <code>animate:bounce</code> — translates <em>and</em> pulses scale
+      (<code>scale = 1 − 0.25 × sin(u × π)</code>), producing a squeeze as items move.
+      Both lists share the same data so you can compare animations side by side.
+    </p>
+    <div class="controls">
+      <button onclick={_ => shuffle2()}>Shuffle</button>
+    </div>
+    <div class="animate-compare">
+      <div>
+        <p class="animate-label"><code>animate:flip</code> (built-in)</p>
+        <ul class="flip-list">
+          {items2.keyed(_.id).map(item =>
+            <li animate:flip class="flip-item">{item.label}</li>
+          )}
+        </ul>
+      </div>
+      <div>
+        <p class="animate-label"><code>animate:bounce</code> (custom)</p>
+        <ul class="flip-list">
+          {items2.keyed(_.id).map(item =>
+            <li animate:bounce class="flip-item bounce-item">{item.label}</li>
+          )}
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <!-- ── FLIP List ─────────────────────────────────────────────────────────── -->
   <section class="demo">
     <h2>animate:flip (keyed list)</h2>
@@ -512,5 +571,29 @@ button:hover { background: #cc3200; }
   padding: 0.6em 1em;
   margin-bottom: 0.4em;
   font-weight: bold;
+}
+
+.bounce-item {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+/* Gap 11: side-by-side animate comparison */
+.animate-compare {
+  display: flex;
+  gap: 1.5em;
+  flex-wrap: wrap;
+}
+
+.animate-compare > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.animate-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0 0 0.5em;
 }
 </style>

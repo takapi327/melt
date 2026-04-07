@@ -14,18 +14,31 @@ import melt.runtime.transition.Easing
 
 /** FLIP (First–Last–Invert–Play) animation for keyed list reordering.
   *
-  * Usage pattern in `Bind.each` or similar:
-  * {{{
-  * val before = Flip.snapshot(nodes)   // 1. record positions before DOM update
-  * // … perform DOM reorder …
-  * Flip.play(nodes, before)            // 2. animate from old to new positions
-  * }}}
+  * `Flip` implements [[AnimateFn]] so it can be used via the generic
+  * `animate:flip` directive.  `Bind.each` calls [[AnimateEngine.snapshot]]
+  * before each DOM mutation and [[AnimateEngine.run]] with the result of
+  * `Flip(node, info, params)` after the mutation.
   *
-  * The `animate:flip` directive in templates causes the code generator to
-  * mark list-item elements so that `Bind.each` automatically calls `snapshot`
-  * and `play` around each rebuild.
+  * {{{
+  * // In template:
+  * // <div animate:flip>...</div>
+  * // <div animate:flip={AnimateParams(duration = 500)}>...</div>
+  * }}}
   */
-object Flip:
+object Flip extends AnimateFn:
+
+  /** Implements [[AnimateFn]]: computes translate/scale CSS from old/new positions. */
+  def apply(node: dom.Element, info: AnimateInfo, params: AnimateParams): AnimateConfig =
+    val dx = info.from.left - info.to.left
+    val dy = info.from.top  - info.to.top
+    AnimateConfig(
+      delay    = params.delay,
+      duration = params.duration,
+      easing   = params.easing,
+      css      = Some { (t, u) =>
+        s"transform: translate(${ u * dx }px, ${ u * dy }px)"
+      }
+    )
 
   /** A captured bounding-box snapshot of a DOM element. */
   case class Rect(top: Double, left: Double, width: Double, height: Double)
