@@ -90,7 +90,7 @@ class TypeSafetySpec extends MeltSuite:
     // Cleanup.register is called internally, but there is no active scope to
     // collect into — currently Cleanup silently discards the registration.
     Cleanup.pushScope()
-    val doubled = count.map(_ * 2)
+    val doubled  = count.map(_ * 2)
     val cleanups = Cleanup.popScope()
 
     count.set(5)
@@ -123,7 +123,7 @@ class TypeSafetySpec extends MeltSuite:
   test("SAFE: Var[A].map produces Signal[B] with correct type") {
     Cleanup.pushScope()
     val count   = Var(0)
-    val doubled = count.map(_ * 2)   // Signal[Int]
+    val doubled = count.map(_ * 2) // Signal[Int]
     count.set(3)
     assertEquals(doubled.now(), 6)
     Cleanup.popScope()
@@ -132,7 +132,7 @@ class TypeSafetySpec extends MeltSuite:
 
   test("SAFE: Signal[A].map produces Signal[B] with correct type") {
     Cleanup.pushScope()
-    val count  = Var(0)
+    val count = Var(0)
     val label: Signal[String] = count.signal.map(n => s"Count: $n")
     count.set(7)
     assertEquals(label.now(), "Count: 7")
@@ -171,7 +171,7 @@ class TypeSafetySpec extends MeltSuite:
   }
 
   test("SAFE: Bind.inputChecked requires Var[Boolean]") {
-    val input   = inputEl()
+    val input = inputEl()
     input.setAttribute("type", "checkbox")
     val checked = Var(false)
     Bind.inputChecked(input, checked)
@@ -268,7 +268,7 @@ class TypeSafetySpec extends MeltSuite:
 
     // Correct: pass Var directly for reactive binding
     Cleanup.pushScope()
-    Bind.text(count, parent)   // Var[?] overload → reactive
+    Bind.text(count, parent) // Var[?] overload → reactive
     Cleanup.popScope()
 
     count.set(99)
@@ -282,7 +282,7 @@ class TypeSafetySpec extends MeltSuite:
     val label  = Var("hello")
 
     Cleanup.pushScope()
-    Bind.text(label.now(), parent)   // String overload — bound ONCE, never updates
+    Bind.text(label.now(), parent) // String overload — bound ONCE, never updates
     Cleanup.popScope()
 
     label.set("world")
@@ -296,10 +296,10 @@ class TypeSafetySpec extends MeltSuite:
   // ── SAFE: Bind.list requires Iterable ─────────────────────────────────
 
   test("SAFE: Bind.list requires Var[? <: Iterable[A]]") {
-    val parent  = containerEl()
-    val anchor  = dom.document.createComment("anchor")
+    val parent = containerEl()
+    val anchor = dom.document.createComment("anchor")
     parent.appendChild(anchor)
-    val items   = Var(List("a", "b", "c"))
+    val items = Var(List("a", "b", "c"))
     Cleanup.pushScope()
     Bind.list(items, (s: String) => dom.document.createTextNode(s), anchor)
     Cleanup.popScope()
@@ -368,7 +368,7 @@ class TypeSafetySpec extends MeltSuite:
     var calls = 0
     // No cleanup: the cancel function returned by subscribe is discarded.
     // In a real component, Cleanup.register should hold this reference.
-    count.subscribe(_ => calls += 1)  // cancel function discarded!
+    count.subscribe(_ => calls += 1) // cancel function discarded!
     count.set(1)
     count.set(2)
     assertEquals(calls, 2, "subscription fires as expected")

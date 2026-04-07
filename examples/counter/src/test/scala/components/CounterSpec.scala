@@ -71,9 +71,10 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     // Increment first so we can decrement
     c.click("button")
-    c.getByText("-1").dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
-    )
+    c.getByText("-1")
+      .dispatchEvent(
+        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      )
     assertEquals(c.text("p"), "Count: 0")
   }
 
@@ -83,9 +84,10 @@ class CounterSpec extends MeltSuite:
     val c = mount(Counter.create())
     c.click("button")
     c.click("button")
-    c.getByText("Reset All").dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
-    )
+    c.getByText("Reset All")
+      .dispatchEvent(
+        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      )
     assertEquals(c.text("p"), "Count: 0")
   }
 
