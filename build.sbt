@@ -119,12 +119,12 @@ lazy val `language-server` = project
     assembly / assemblyJarName       := "melt-language-server.jar",
     assembly / mainClass             := Some("meltc.lsp.MeltLanguageServerLauncher"),
     assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", "MANIFEST.MF")        => MergeStrategy.discard
-      case PathList("META-INF", "services", _*)        => MergeStrategy.concat
-      case PathList("META-INF", _*)                    => MergeStrategy.discard
-      case PathList("module-info.class")               => MergeStrategy.discard
-      case x if x.endsWith("/module-info.class")      => MergeStrategy.discard
-      case _                                           => MergeStrategy.first
+      case PathList("META-INF", "MANIFEST.MF")   => MergeStrategy.discard
+      case PathList("META-INF", "services", _*)  => MergeStrategy.concat
+      case PathList("META-INF", _*)              => MergeStrategy.discard
+      case PathList("module-info.class")         => MergeStrategy.discard
+      case x if x.endsWith("/module-info.class") => MergeStrategy.discard
+      case _                                     => MergeStrategy.first
     }
   )
   .enablePlugins(AutomateHeaderPlugin)
