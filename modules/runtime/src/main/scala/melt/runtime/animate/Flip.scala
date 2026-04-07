@@ -30,7 +30,7 @@ object Flip extends AnimateFn:
   /** Implements [[AnimateFn]]: computes translate/scale CSS from old/new positions. */
   def apply(node: dom.Element, info: AnimateInfo, params: AnimateParams): AnimateConfig =
     val dx = info.from.left - info.to.left
-    val dy = info.from.top  - info.to.top
+    val dy = info.from.top - info.to.top
     AnimateConfig(
       delay    = params.delay,
       duration = params.duration,
