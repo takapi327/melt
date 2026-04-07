@@ -160,7 +160,7 @@ lazy val counter = project
     scalaJSUseMainModuleInitializer := true,
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files,
     // Use jsdom so that DOM APIs are available in unit tests
-    jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
+    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime, `melt-testkit` % Test)
