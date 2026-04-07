@@ -36,12 +36,36 @@ object Bind:
     Cleanup.register(cancel)
     node
 
-  def text(value: Any, parent: dom.Node): dom.Text =
-    val node = dom.document.createTextNode(value.toString)
+  def text(value: String, parent: dom.Node): dom.Text =
+    val node = dom.document.createTextNode(value)
     parent.appendChild(node)
     node
 
   // ── Attribute bindings ─────────────────────────────────────────────────
+
+  /** Compile-time guard: Var[Boolean] must use booleanAttr, not attr.
+    *
+    * `Bind.attr` calls `.toString` which produces `"false"` — an HTML boolean
+    * attribute set to any non-empty string means the attribute is **present**,
+    * so `disabled="false"` keeps the element disabled.
+    * Use `Bind.booleanAttr` instead, which removes the attribute when false.
+    */
+  @scala.annotation.targetName("attrBooleanVar")
+  inline def attr(el: dom.Element, name: String, v: Var[Boolean]): Unit =
+    scala.compiletime.error(
+      "Use Bind.booleanAttr instead of Bind.attr for Var[Boolean]. " +
+        "Bind.attr calls .toString() which produces \"false\" — HTML boolean attributes " +
+        "must be removed (not set to \"false\") to mean false."
+    )
+
+  /** Compile-time guard: Signal[Boolean] must use booleanAttr, not attr. */
+  @scala.annotation.targetName("attrBooleanSignal")
+  inline def attr(el: dom.Element, name: String, signal: Signal[Boolean]): Unit =
+    scala.compiletime.error(
+      "Use Bind.booleanAttr instead of Bind.attr for Signal[Boolean]. " +
+        "Bind.attr calls .toString() which produces \"false\" — HTML boolean attributes " +
+        "must be removed (not set to \"false\") to mean false."
+    )
 
   def attr(el: dom.Element, name: String, v: Var[?]): Unit =
     el.setAttribute(name, v.now().toString)
@@ -426,19 +450,37 @@ object Bind:
 
   // ── Raw HTML insertion ────────────────────────────────────────────────
 
-  /** Sets innerHTML reactively. **Warning:** XSS risk — only use with trusted content. */
-  def html(el: dom.Element, content: Var[String]): Unit =
-    el.innerHTML = content.now()
-    val cancel = content.subscribe(s => el.innerHTML = s)
+  /** Sets innerHTML reactively from a [[TrustedHtml]] value.
+    *
+    * Requires [[TrustedHtml]] instead of a plain `String` or `Var[String]` to
+    * make XSS-prone call sites visible. Callers must opt in by wrapping their
+    * string with [[TrustedHtml.unsafe]], signalling that the content is either
+    * static or has already been sanitised.
+    *
+    * {{{
+    * // OK — static, developer-controlled markup
+    * Bind.html(el, TrustedHtml.unsafe("<strong>Hello</strong>"))
+    *
+    * // OK — sanitised reactive content
+    * val safeHtml: Var[TrustedHtml] = content.map(s => TrustedHtml.unsafe(sanitise(s)))
+    * Bind.html(el, safeHtml)
+    *
+    * // Compile error — plain Var[String] no longer accepted
+    * Bind.html(el, Var("<b>user input</b>"))
+    * }}}
+    */
+  def html(el: dom.Element, content: Var[TrustedHtml]): Unit =
+    el.innerHTML = content.now().value
+    val cancel = content.subscribe(s => el.innerHTML = s.value)
     Cleanup.register(cancel)
 
-  def html(el: dom.Element, content: Signal[String]): Unit =
-    el.innerHTML = content.now()
-    val cancel = content.subscribe(s => el.innerHTML = s)
+  def html(el: dom.Element, content: Signal[TrustedHtml]): Unit =
+    el.innerHTML = content.now().value
+    val cancel = content.subscribe(s => el.innerHTML = s.value)
     Cleanup.register(cancel)
 
-  def html(el: dom.Element, content: String): Unit =
-    el.innerHTML = content
+  def html(el: dom.Element, content: TrustedHtml): Unit =
+    el.innerHTML = content.value
 
   // ── Action binding (use: directive) ───────────────────────────────────
 
