@@ -33,23 +33,44 @@ object Slide extends Transition:
       if isY then htmlEl.offsetHeight.toDouble
       else htmlEl.offsetWidth.toDouble
 
-    val paddingStart = parseFloat(if isY then style.paddingTop    else style.paddingLeft)
+    val paddingStart = parseFloat(if isY then style.paddingTop else style.paddingLeft)
     val paddingEnd   = parseFloat(if isY then style.paddingBottom else style.paddingRight)
-    val marginStart  = parseFloat(if isY then style.marginTop     else style.marginLeft)
-    val marginEnd    = parseFloat(if isY then style.marginBottom  else style.marginRight)
-    val borderStart  = parseFloat(if isY then style.borderTopWidth    else style.borderLeftWidth)
+    val marginStart  = parseFloat(if isY then style.marginTop else style.marginLeft)
+    val marginEnd    = parseFloat(if isY then style.marginBottom else style.marginRight)
+    val borderStart  = parseFloat(if isY then style.borderTopWidth else style.borderLeftWidth)
     val borderEnd    = parseFloat(if isY then style.borderBottomWidth else style.borderRightWidth)
 
     val targetOpacity = style.opacity.toDoubleOption.getOrElse(1.0)
 
-    val (primaryProp, paddingStartProp, paddingEndProp,
-         marginStartProp, marginEndProp, borderStartProp, borderEndProp) =
+    val (
+      primaryProp,
+      paddingStartProp,
+      paddingEndProp,
+      marginStartProp,
+      marginEndProp,
+      borderStartProp,
+      borderEndProp
+    ) =
       if isY then
-        ("height", "padding-top", "padding-bottom",
-         "margin-top", "margin-bottom", "border-top-width", "border-bottom-width")
+        (
+          "height",
+          "padding-top",
+          "padding-bottom",
+          "margin-top",
+          "margin-bottom",
+          "border-top-width",
+          "border-bottom-width"
+        )
       else
-        ("width", "padding-left", "padding-right",
-         "margin-left", "margin-right", "border-left-width", "border-right-width")
+        (
+          "width",
+          "padding-left",
+          "padding-right",
+          "margin-left",
+          "margin-right",
+          "border-left-width",
+          "border-right-width"
+        )
 
     TransitionConfig(
       delay    = params.delay,
@@ -58,14 +79,14 @@ object Slide extends Transition:
       css      = Some { (t, _) =>
         val opacity = math.min(t * 20, 1.0) * targetOpacity
         s"overflow: hidden; " +
-        s"opacity: $opacity; " +
-        s"$primaryProp: ${primarySize * t}px; " +
-        s"$paddingStartProp: ${paddingStart * t}px; " +
-        s"$paddingEndProp: ${paddingEnd * t}px; " +
-        s"$marginStartProp: ${marginStart * t}px; " +
-        s"$marginEndProp: ${marginEnd * t}px; " +
-        s"$borderStartProp: ${borderStart * t}px; " +
-        s"$borderEndProp: ${borderEnd * t}px"
+          s"opacity: $opacity; " +
+          s"$primaryProp: ${ primarySize * t }px; " +
+          s"$paddingStartProp: ${ paddingStart * t }px; " +
+          s"$paddingEndProp: ${ paddingEnd * t }px; " +
+          s"$marginStartProp: ${ marginStart * t }px; " +
+          s"$marginEndProp: ${ marginEnd * t }px; " +
+          s"$borderStartProp: ${ borderStart * t }px; " +
+          s"$borderEndProp: ${ borderEnd * t }px"
       }
     )
 

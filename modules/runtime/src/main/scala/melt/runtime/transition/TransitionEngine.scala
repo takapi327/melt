@@ -47,7 +47,7 @@ object TransitionEngine:
   private val KeyIsIntro   = "_meltIsIntro"
   private val KeyEasing    = "_meltEasing"
   private val KeyStartFrom = "_meltStartFrom"
-  private val KeyCurrentT  = "_meltCurrentT"  // written per-frame in tick path
+  private val KeyCurrentT  = "_meltCurrentT" // written per-frame in tick path
 
   private def dispatchTransitionEvent(el: dom.Element, name: String): Unit =
     val event = new dom.Event(name, new dom.EventInit { bubbles = true })
@@ -57,7 +57,7 @@ object TransitionEngine:
 
   private def nextId(): String =
     _counter += 1
-    s"melt-t${_counter}"
+    s"melt-t${ _counter }"
 
   /** Lazily created `<style>` element that holds generated `@keyframes` rules. */
   private var _styleEl: Option[dom.html.Style] = None
@@ -65,7 +65,7 @@ object TransitionEngine:
   private def styleEl(): dom.html.Style =
     _styleEl match
       case Some(el) if dom.document.head.contains(el) => el
-      case _ =>
+      case _                                          =>
         val el = dom.document.createElement("style").asInstanceOf[dom.html.Style]
         el.setAttribute("data-melt-transitions", "")
         dom.document.head.appendChild(el)
@@ -85,8 +85,7 @@ object TransitionEngine:
 
     // Tick path stores t directly per-frame
     val storedT = dyn.selectDynamic(KeyCurrentT)
-    if !js.isUndefined(storedT) then
-      return Some(storedT.asInstanceOf[Double])
+    if !js.isUndefined(storedT) then return Some(storedT.asInstanceOf[Double])
 
     // CSS path: compute from stored timing metadata
     val startTimeV = dyn.selectDynamic(KeyStartTime)
@@ -100,7 +99,7 @@ object TransitionEngine:
     val finalT    = if isIntro then 1.0 else 0.0
     val easing    = dyn.selectDynamic(KeyEasing).asInstanceOf[Double => Double]
 
-    val now   = js.Date.now()
+    val now     = js.Date.now()
     val elapsed = math.max(now - startTime - delay, 0.0)
     val local   = math.min(elapsed / duration, 1.0)
     val t       = startFrom + (finalT - startFrom) * easing(local)
@@ -120,7 +119,7 @@ object TransitionEngine:
     el:        dom.Element,
     config:    TransitionConfig,
     intro:     Boolean,
-    startFrom: Double = -1.0,   // -1.0 = auto (0.0 for intro, 1.0 for outro)
+    startFrom: Double = -1.0, // -1.0 = auto (0.0 for intro, 1.0 for outro)
     onDone:    () => Unit = () => ()
   ): Unit =
     abortCurrent(el)
@@ -164,8 +163,7 @@ object TransitionEngine:
             el.asInstanceOf[js.Dynamic].updateDynamic(KeyAbort)(abort)
           case None =>
             val delay = config.delay
-            if delay > 0 then
-              dom.window.setTimeout(() => finish(), delay.toDouble)
+            if delay > 0 then dom.window.setTimeout(() => finish(), delay.toDouble)
             else finish()
 
   /** Cancels any in-progress transition on `el`. */
@@ -204,21 +202,23 @@ object TransitionEngine:
     val distance    = math.abs(finalT - startFrom)
     val adjDuration = math.max((distance * duration).toInt, 1)
 
-    val steps = 60
-    val frames = (0 to steps).map { i =>
-      val local = i.toDouble / steps
-      val t     = startFrom + (finalT - startFrom) * easing(local)
-      val u     = 1.0 - t
-      val pct   = (local * 100).toInt
-      s"$pct% { ${cssFn(t, u)} }"
-    }.mkString("\n")
+    val steps  = 60
+    val frames = (0 to steps)
+      .map { i =>
+        val local = i.toDouble / steps
+        val t     = startFrom + (finalT - startFrom) * easing(local)
+        val u     = 1.0 - t
+        val pct   = (local * 100).toInt
+        s"$pct% { ${ cssFn(t, u) } }"
+      }
+      .mkString("\n")
 
     val rule    = s"@keyframes $animName {\n$frames\n}"
     val sheet   = styleEl().sheet.asInstanceOf[js.Dynamic]
     val ruleIdx = sheet.insertRule(rule, sheet.cssRules.length).asInstanceOf[Int]
 
-    val htmlEl   = el.asInstanceOf[dom.html.Element]
-    val dyn      = el.asInstanceOf[js.Dynamic]
+    val htmlEl    = el.asInstanceOf[dom.html.Element]
+    val dyn       = el.asInstanceOf[js.Dynamic]
     val wallStart = js.Date.now()
     dyn.updateDynamic(KeyStartTime)(wallStart)
     dyn.updateDynamic(KeyDuration)(adjDuration.toDouble)
@@ -226,9 +226,9 @@ object TransitionEngine:
     dyn.updateDynamic(KeyIsIntro)(intro)
     dyn.updateDynamic(KeyStartFrom)(startFrom)
     dyn.updateDynamic(KeyEasing)(easing.asInstanceOf[js.Any])
-    dyn.updateDynamic(KeyCurrentT)(js.undefined)  // CSS path uses metadata-computed value
+    dyn.updateDynamic(KeyCurrentT)(js.undefined) // CSS path uses metadata-computed value
 
-    htmlEl.style.setProperty("animation", s"$animName ${adjDuration}ms ${delay}ms linear both")
+    htmlEl.style.setProperty("animation", s"$animName ${ adjDuration }ms ${ delay }ms linear both")
     htmlEl.style.setProperty("animation-fill-mode", "both")
 
     var cleanedUp = false
@@ -238,7 +238,8 @@ object TransitionEngine:
         cleanedUp = true
         htmlEl.style.removeProperty("animation")
         htmlEl.style.removeProperty("animation-fill-mode")
-        try sheet.deleteRule(ruleIdx) catch { case _: Throwable => }
+        try sheet.deleteRule(ruleIdx)
+        catch { case _: Throwable => }
         finish()
 
     val onEnd: js.Function1[dom.Event, Unit] = (_: dom.Event) => cleanup()
@@ -287,14 +288,13 @@ object TransitionEngine:
         val local   = math.min(elapsed / adjDuration, 1.0)
         val t       = startFrom + (finalT - startFrom) * easing(local)
         val u       = 1.0 - t
-        dyn.updateDynamic(KeyCurrentT)(t)  // store for mid-reversal
+        dyn.updateDynamic(KeyCurrentT)(t) // store for mid-reversal
         tickFn(t, u)
         if local < 1.0 then rafId = dom.window.requestAnimationFrame(loop(startTime)).toInt
         else finish()
 
     def start(): Unit =
-      if !aborted then
-        rafId = dom.window.requestAnimationFrame((now: Double) => loop(now)(now)).toInt
+      if !aborted then rafId = dom.window.requestAnimationFrame((now: Double) => loop(now)(now)).toInt
 
     if delay > 0 then dom.window.setTimeout(() => start(), delay.toDouble)
     else start()

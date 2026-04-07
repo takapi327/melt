@@ -175,8 +175,8 @@ private[parser] final class TemplateParser(src: String):
       val colon = name.indexOf(':')
       return Some(
         if colon >= 0 then
-          val kind = name.substring(0, colon)
-          val rest = name.substring(colon + 1)
+          val kind            = name.substring(0, colon)
+          val rest            = name.substring(colon + 1)
           val (dirName, mods) = splitModifiers(rest)
           Attr.Directive(kind, dirName, None, mods)
         else Attr.BooleanAttr(name)
@@ -217,8 +217,8 @@ private[parser] final class TemplateParser(src: String):
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
     if colon >= 0 then
-      val kind = name.substring(0, colon)
-      val rest = name.substring(colon + 1)
+      val kind            = name.substring(0, colon)
+      val rest            = name.substring(colon + 1)
       val (dirName, mods) = splitModifiers(rest)
       Attr.Directive(kind, dirName, Some(value), mods)
     else Attr.Static(name, value)
@@ -226,8 +226,8 @@ private[parser] final class TemplateParser(src: String):
   private def makeAttrExpr(name: String, expr: String): Attr =
     val colon = name.indexOf(':')
     if colon >= 0 then
-      val kind = name.substring(0, colon)
-      val rest = name.substring(colon + 1)
+      val kind            = name.substring(0, colon)
+      val rest            = name.substring(colon + 1)
       val (dirName, mods) = splitModifiers(rest)
       Attr.Directive(kind, dirName, Some(expr), mods)
     else if name.startsWith("on") && name.length > 2 then Attr.EventHandler(name.substring(2), expr)

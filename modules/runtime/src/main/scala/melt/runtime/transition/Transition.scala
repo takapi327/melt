@@ -70,8 +70,10 @@ case class TransitionConfig(
 enum Direction:
   /** Element is entering the DOM. */
   case In
+
   /** Element is leaving the DOM. */
   case Out
+
   /** Both enter and leave (used for `transition:` directive). */
   case Both
 

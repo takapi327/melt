@@ -190,7 +190,7 @@ object Bind:
     parent.insertBefore(current, anchor)
     current match
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
-      case _                                              =>
+      case _                                             =>
 
   /** Reactive conditional rendering for [[Var]]. Re-renders when `v` changes.
     * Plays intro on the entering element and outro on the leaving element.
@@ -201,11 +201,11 @@ object Bind:
     parent.insertBefore(current, anchor)
     current match
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
-      case _                                              => playGlobalTransitions(current, intro = true)
+      case _                                             => playGlobalTransitions(current, intro = true)
     val cancel = v.subscribe { a =>
       val next = render(a)
       val old  = current
-      current  = next
+      current = next
       parent.insertBefore(next, anchor)
       next match
         case el: dom.Element if TransitionBridge.hasIn(el) =>
@@ -232,11 +232,11 @@ object Bind:
     parent.insertBefore(current, anchor)
     current match
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
-      case _                                              => playGlobalTransitions(current, intro = true)
+      case _                                             => playGlobalTransitions(current, intro = true)
     val cancel = signal.subscribe { a =>
       val next = render(a)
       val old  = current
-      current  = next
+      current = next
       parent.insertBefore(next, anchor)
       next match
         case el: dom.Element if TransitionBridge.hasIn(el) =>
@@ -312,7 +312,7 @@ object Bind:
       val flipEls = nodeMap.values.collect {
         case el: dom.Element if isFlipMarked(el) => el
       }
-      val before = if flipEls.nonEmpty then melt.runtime.animate.Flip.snapshot(flipEls) else Map.empty
+      val before  = if flipEls.nonEmpty then melt.runtime.animate.Flip.snapshot(flipEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
       val oldKeys = nodeMap.keySet.toSet
       // Remove nodes whose keys no longer exist
@@ -351,7 +351,7 @@ object Bind:
       val flipEls = nodeMap.values.collect {
         case el: dom.Element if isFlipMarked(el) => el
       }
-      val before = if flipEls.nonEmpty then melt.runtime.animate.Flip.snapshot(flipEls) else Map.empty
+      val before  = if flipEls.nonEmpty then melt.runtime.animate.Flip.snapshot(flipEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
       val oldKeys = nodeMap.keySet.toSet
       (oldKeys -- newKeys).foreach { k =>
@@ -390,9 +390,8 @@ object Bind:
     node match
       case el: dom.Element =>
         if isGlobalMarked(el) then
-          if intro && TransitionBridge.hasIn(el)  then TransitionBridge.playIn(el)
-          if !intro && TransitionBridge.hasOut(el) then
-            TransitionBridge.playOut(el, () => ())
+          if intro && TransitionBridge.hasIn(el) then TransitionBridge.playIn(el)
+          if !intro && TransitionBridge.hasOut(el) then TransitionBridge.playOut(el, () => ())
         // Recurse into children
         (0 until el.children.length).foreach { i =>
           playGlobalTransitions(el.children(i), intro)

@@ -7,10 +7,9 @@
 package melt.runtime
 
 import scala.scalajs.js
+import scala.scalajs.js.Thenable.Implicits.*
 
 import org.scalajs.dom
-
-import scala.scalajs.js.Thenable.Implicits.*
 
 import melt.runtime.transition.*
 
@@ -34,8 +33,8 @@ import melt.runtime.transition.*
   */
 object TransitionBridge:
 
-  private val KeyInFn      = "_meltInFn"
-  private val KeyOutFn     = "_meltOutFn"
+  private val KeyInFn       = "_meltInFn"
+  private val KeyOutFn      = "_meltOutFn"
   private val KeyReversible = "_meltReversible"
 
   /** The type of config factory stored on elements.
@@ -59,7 +58,7 @@ object TransitionBridge:
     * smooth mid-animation reversal (Svelte `transition:` behaviour).
     */
   def setBoth(el: dom.Element, t: Transition, params: TransitionParams): Unit =
-    val fnIn: ConfigFn  = e => t(e, params, Direction.In)
+    val fnIn:  ConfigFn = e => t(e, params, Direction.In)
     val fnOut: ConfigFn = e => t(e, params, Direction.Out)
     val dyn = el.asInstanceOf[js.Dynamic]
     dyn.updateDynamic(KeyInFn)(fnIn.asInstanceOf[js.Any])

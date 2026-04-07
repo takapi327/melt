@@ -36,6 +36,6 @@ object Fly extends Transition:
         val tx       = params.x * u
         val ty       = params.y * u
         val opacityV = targetOpacity - deltaOpacity * u
-        s"transform: translate(${tx}px, ${ty}px); opacity: $opacityV"
+        s"transform: translate(${ tx }px, ${ ty }px); opacity: $opacityV"
       }
     )

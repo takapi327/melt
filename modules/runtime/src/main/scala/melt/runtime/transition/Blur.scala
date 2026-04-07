@@ -29,6 +29,6 @@ object Blur extends Transition:
       css      = Some { (t, u) =>
         val blurPx   = params.amount * u
         val opacityV = targetOpacity - deltaOpacity * u
-        s"opacity: $opacityV; filter: blur(${blurPx}px)"
+        s"opacity: $opacityV; filter: blur(${ blurPx }px)"
       }
     )

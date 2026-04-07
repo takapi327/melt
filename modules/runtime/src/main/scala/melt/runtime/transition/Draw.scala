@@ -36,7 +36,8 @@ object Draw extends Transition:
     // Add stroke-width when linecap is not "butt" (rounded/square caps extend beyond path end)
     val style = dom.window.getComputedStyle(node)
     if style.getPropertyValue("stroke-linecap") != "butt" then
-      val strokeWidth = style.getPropertyValue("stroke-width")
+      val strokeWidth = style
+        .getPropertyValue("stroke-width")
         .filter(c => c.isDigit || c == '.')
         .toDoubleOption
         .getOrElse(0.0)

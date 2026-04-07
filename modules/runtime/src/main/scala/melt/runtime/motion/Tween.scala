@@ -25,7 +25,7 @@ import melt.runtime.transition.Easing
   */
 class Tween(
   initial:  Double,
-  duration: Int = 400,
+  duration: Int              = 400,
   easing:   Double => Double = Easing.cubicOut
 ):
   private var _current: Double = initial
@@ -48,10 +48,9 @@ class Tween(
     def loop(startTime: Double)(now: Double): Unit =
       val elapsed  = now - startTime
       val progress = math.min(elapsed / dur, 1.0)
-      _current     = from + (target - from) * easing(progress)
+      _current = from + (target - from) * easing(progress)
       _notify(_current)
-      if progress < 1.0 then
-        _rafId = dom.window.requestAnimationFrame(loop(startTime) _).toInt
+      if progress < 1.0 then _rafId = dom.window.requestAnimationFrame(loop(startTime) _).toInt
       else
         _current = target
         _notify(_current)

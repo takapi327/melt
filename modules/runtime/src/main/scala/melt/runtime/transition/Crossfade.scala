@@ -69,7 +69,9 @@ object Crossfade:
             counterparts.remove(key) match
               case Some(fromRect) =>
                 // Counterpart found → compute FLIP-style crossfade config
-                js.Promise.resolve[TransitionConfig](computeConfig(fromRect, node, params, intro, duration, delay, easing))
+                js.Promise.resolve[TransitionConfig](
+                  computeConfig(fromRect, node, params, intro, duration, delay, easing)
+                )
               case None =>
                 // No counterpart → use fallback or no-op
                 items.remove(key)
@@ -80,8 +82,8 @@ object Crossfade:
                 js.Promise.resolve[TransitionConfig](config)
           }
 
-    val send    = makeSide(toSend,    toReceive, intro = false)
-    val receive = makeSide(toReceive, toSend,    intro = true)
+    val send    = makeSide(toSend, toReceive, intro = false)
+    val receive = makeSide(toReceive, toSend, intro = true)
     (send, receive)
 
   private def computeConfig(
@@ -93,13 +95,13 @@ object Crossfade:
     delay:    Int,
     easing:   Double => Double
   ): TransitionConfig =
-    val to     = node.getBoundingClientRect()
-    val dx     = from.left - to.left
-    val dy     = from.top  - to.top
-    val dw     = if to.width  != 0 then from.width  / to.width  else 1.0
-    val dh     = if to.height != 0 then from.height / to.height else 1.0
-    val d      = math.sqrt(dx * dx + dy * dy)
-    val dur    = duration(d)
+    val to  = node.getBoundingClientRect()
+    val dx  = from.left - to.left
+    val dy  = from.top - to.top
+    val dw  = if to.width != 0 then from.width / to.width else 1.0
+    val dh  = if to.height != 0 then from.height / to.height else 1.0
+    val d   = math.sqrt(dx * dx + dy * dy)
+    val dur = duration(d)
 
     val style   = dom.window.getComputedStyle(node)
     val tfm     = if style.transform == "none" then "" else style.transform + " "
@@ -112,8 +114,8 @@ object Crossfade:
       css      = Some { (t, u) =>
         val scaleX = t + (1.0 - t) * dw
         val scaleY = t + (1.0 - t) * dh
-        s"opacity: ${t * opacity}; " +
-        s"transform-origin: top left; " +
-        s"transform: ${tfm}translate(${u * dx}px, ${u * dy}px) scale($scaleX, $scaleY)"
+        s"opacity: ${ t * opacity }; " +
+          s"transform-origin: top left; " +
+          s"transform: ${ tfm }translate(${ u * dx }px, ${ u * dy }px) scale($scaleX, $scaleY)"
       }
     )

@@ -52,19 +52,18 @@ class Spring(
     // DOMHighResTimeStamp origin as subsequent frames (NOT js.Date.now()).
     def loop(now: Double): Unit =
       // Cap dt to 64ms to prevent large jumps after tab switches
-      val dt    = math.min((now - _lastTime) / 1000.0, 0.064)
+      val dt = math.min((now - _lastTime) / 1000.0, 0.064)
       _lastTime = now
 
       // Euler integration of spring differential equation
-      val force  = (_target - _current) * stiffness
-      _velocity  = (_velocity + force) * (1.0 - damping)
-      _current  += _velocity
+      val force = (_target - _current) * stiffness
+      _velocity = (_velocity + force) * (1.0 - damping)
+      _current += _velocity
 
       _notify(_current)
 
       val settled = math.abs(_velocity) < precision && math.abs(_target - _current) < precision
-      if !settled then
-        _rafId = dom.window.requestAnimationFrame(loop _).toInt
+      if !settled then _rafId = dom.window.requestAnimationFrame(loop _).toInt
       else
         _current  = _target
         _velocity = 0.0
@@ -72,7 +71,7 @@ class Spring(
         _rafId = 0
 
     _rafId = dom.window.requestAnimationFrame { (now: Double) =>
-      _lastTime = now   // initialise with the first RAF timestamp
+      _lastTime = now // initialise with the first RAF timestamp
       loop(now)
     }.toInt
 

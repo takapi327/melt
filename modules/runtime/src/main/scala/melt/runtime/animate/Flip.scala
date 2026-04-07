@@ -65,19 +65,19 @@ object Flip:
       before.get(el).foreach { oldRect =>
         val newRect = el.getBoundingClientRect()
         val dx      = oldRect.left - newRect.left
-        val dy      = oldRect.top  - newRect.top
+        val dy      = oldRect.top - newRect.top
         if dx != 0.0 || dy != 0.0 then
           val htmlEl = el.asInstanceOf[dom.html.Element]
           // Invert: apply inverse transform so the element appears at the old position
-          htmlEl.style.setProperty("transform", s"translate(${dx}px, ${dy}px)")
+          htmlEl.style.setProperty("transform", s"translate(${ dx }px, ${ dy }px)")
           htmlEl.style.setProperty("transition", "none")
           // Force a reflow so the browser registers the start state
           val _ = htmlEl.offsetHeight
           // Play: animate to the natural (new) position
-          htmlEl.style.setProperty("transition", s"transform ${duration}ms $timingFn")
+          htmlEl.style.setProperty("transition", s"transform ${ duration }ms $timingFn")
           htmlEl.style.setProperty("transform", "")
           // Clean up transition property after animation
-          var done     = false
+          var done = false
           var listener: js.Function1[dom.Event, Unit] = null
           listener = (_: dom.Event) =>
             if !done then
@@ -95,8 +95,8 @@ object Flip:
 
   /** Maps a Scala easing function reference to an equivalent CSS timing string. */
   private def cssTiming(easing: Double => Double): String =
-    if easing eq Easing.cubicOut        then "cubic-bezier(0.33,1,0.68,1)"
+    if easing eq Easing.cubicOut then "cubic-bezier(0.33,1,0.68,1)"
     else if easing eq Easing.cubicInOut then "cubic-bezier(0.65,0,0.35,1)"
-    else if easing eq Easing.cubicIn    then "cubic-bezier(0.32,0,0.67,0)"
-    else if easing eq Easing.linear     then "linear"
+    else if easing eq Easing.cubicIn then "cubic-bezier(0.32,0,0.67,0)"
+    else if easing eq Easing.linear then "linear"
     else "linear"
