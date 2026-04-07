@@ -174,6 +174,19 @@ lazy val `todo-app` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Transitions (Phase 9 — transitions & animations) ─────────────────
+lazy val transitions = project
+  .in(file("examples/transitions"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "transitions",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -187,7 +200,8 @@ lazy val root = project
     `language-server`,
     `hello-world`,
     counter,
-    `todo-app`
+    `todo-app`,
+    transitions
   )
   .settings(BuildSettings.commonSettings)
   .settings(

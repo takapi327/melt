@@ -1,0 +1,599 @@
+<script lang="scala">
+import melt.runtime.transition.TransitionParams
+import melt.runtime.transition.Easing
+import melt.runtime.motion.Tween
+import melt.runtime.motion.Spring
+
+// ── Gap 01: Transition events ──────────────────────────────────────────────
+val showEvents  = Var(true)
+val eventStatus = Var("(waiting)")
+
+// ── Gap 02: |global modifier ───────────────────────────────────────────────
+val outerVisible = Var(true)
+val innerVisible = Var(true)
+
+// ── Basic visibility toggles ───────────────────────────────────────────────
+val showFade   = Var(true)
+val showFly    = Var(true)
+val showFlyOp  = Var(true)
+val showSlideY = Var(true)
+val showSlideX = Var(true)
+val showScale  = Var(true)
+val showBlur   = Var(true)
+val showMixed  = Var(true)
+
+// ── Gap 05: Slide axis ─────────────────────────────────────────────────────
+
+// ── Gap 06: SVG draw ───────────────────────────────────────────────────────
+val showDraw      = Var(false)
+val showDrawSpeed = Var(false)
+
+// ── Gap 07: mid-animation reversal ────────────────────────────────────────
+val showReversal = Var(true)
+
+// ── Gap 09: Tween ─────────────────────────────────────────────────────────
+val tweenVar = Var(0.0)
+val tween    = Tween(0.0, duration = 800, easing = Easing.cubicOut)
+tween.subscribe(v => tweenVar.set(v))
+
+val tweenTarget = Var(0)
+
+def setTweenTarget(v: Int): Unit =
+  tweenTarget.set(v)
+  tween.set(v.toDouble)
+
+// ── Gap 09: Spring ─────────────────────────────────────────────────────────
+val springVar = Var(0.0)
+val spring    = Spring(0.0, stiffness = 0.08, damping = 0.4)
+spring.subscribe(v => springVar.set(v))
+
+def setSpringTarget(v: Int): Unit =
+  spring.set(v.toDouble)
+
+// ── FLIP list demo ──────────────────────────────────────────────────────────
+case class Item(id: Int, label: String)
+
+val items = Var(List(
+  Item(1, "Alpha"),
+  Item(2, "Beta"),
+  Item(3, "Gamma"),
+  Item(4, "Delta"),
+  Item(5, "Epsilon")
+))
+
+def shuffle(): Unit =
+  items.update(list => scala.util.Random.shuffle(list))
+
+def removeFirst(): Unit =
+  items.update(_.drop(1))
+
+def addItem(): Unit =
+  val next = items.now().map(_.id).maxOption.getOrElse(0) + 1
+  items.update(_ :+ Item(next, s"Item $next"))
+
+// ── Gap 11: Custom animate function ─────────────────────────────────────────
+// Custom AnimateFn: translates from old position AND pulses scale during the move.
+// Demonstrates that any (node, info, params) => AnimateConfig lambda works as animate:.
+val Bounce: AnimateFn = (node, info, params) =>
+  val dx = info.from.left - info.to.left
+  val dy = info.from.top  - info.to.top
+  AnimateConfig(
+    duration = params.duration,
+    easing   = params.easing,
+    css = Some { (t, u) =>
+      val scale = 1.0 - 0.25 * math.sin(u * math.Pi)
+      s"transform: translate(${ u * dx }px, ${ u * dy }px) scale($scale)"
+    }
+  )
+
+val items2 = Var(List(
+  Item(1, "One"),
+  Item(2, "Two"),
+  Item(3, "Three"),
+  Item(4, "Four"),
+  Item(5, "Five")
+))
+
+def shuffle2(): Unit =
+  items2.update(list => scala.util.Random.shuffle(list))
+</script>
+
+<div class="page">
+  <h1>Melt Transitions Demo</h1>
+
+  <!-- ── Gap 01: Transition events ────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 01: Transition events</h2>
+    <p class="desc">
+      Elements dispatch <code>introstart</code>, <code>introend</code>,
+      <code>outrostart</code>, <code>outroend</code> events.
+    </p>
+    <div class="controls">
+      <button onclick={_ => showEvents.update(!_)}>Toggle</button>
+      <span class="status">Event: {eventStatus}</span>
+    </div>
+    {if showEvents.now() then
+      <div
+        transition:fade={TransitionParams(duration = 500)}
+        onintrostart={_ => eventStatus.set("introstart")}
+        onintroend={_ => eventStatus.set("introend")}
+        onoutrostart={_ => eventStatus.set("outrostart")}
+        onoutroend={_ => eventStatus.set("outroend")}
+        class="box event-box">
+        I dispatch transition events!
+      </div>
+    else
+      <div></div>}
+  </section>
+
+  <!-- ── Gap 02: |global modifier ─────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 02: |global modifier</h2>
+    <p class="desc">
+      <code>transition:fade|global</code> — fires when any ancestor block toggles.
+      Toggle <b>Outer</b> to see the inner element animate even though
+      <code>innerVisible</code> did not change.
+    </p>
+    <div class="controls">
+      <button onclick={_ => outerVisible.update(!_)}>Toggle Outer</button>
+      <button onclick={_ => innerVisible.update(!_)}>Toggle Inner</button>
+    </div>
+    {if outerVisible.now() then
+      <div class="nested-outer">
+        <b>Outer is visible</b>
+        {if innerVisible.now() then
+          <div transition:fade|global class="box global-box">
+            I have <code>transition:fade|global</code> — I animate when Outer toggles too!
+          </div>
+        else
+          <div></div>}
+      </div>
+    else
+      <div></div>}
+  </section>
+
+  <!-- ── Gap 03: Easing functions ─────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 03: New easing functions</h2>
+    <p class="desc">
+      New easings added: <code>circInOut</code>, <code>backInOut</code>,
+      <code>expoIn/Out/InOut</code>, <code>quintIn/Out/InOut</code>,
+      <code>elasticInOut</code>, <code>bounceIn/InOut</code>.
+    </p>
+    <div class="controls">
+      <button onclick={_ => showFade.update(!_)}>Toggle all</button>
+    </div>
+    <div class="easing-row">
+      {if showFade.now() then
+        <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.backInOut)} class="ebox">backInOut</div>
+      else <div></div>}
+      {if showFade.now() then
+        <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.expoOut)} class="ebox">expoOut</div>
+      else <div></div>}
+      {if showFade.now() then
+        <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.elasticOut)} class="ebox">elasticOut</div>
+      else <div></div>}
+      {if showFade.now() then
+        <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.bounceOut)} class="ebox">bounceOut</div>
+      else <div></div>}
+    </div>
+  </section>
+
+  <!-- ── Gap 04: fly opacity param ────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 04: fly / blur / scale with opacity param</h2>
+    <p class="desc">
+      <code>opacity = 0.5</code>: starts at 50% opacity instead of 0%.
+    </p>
+    <div class="controls">
+      <button onclick={_ => showFlyOp.update(!_)}>Toggle</button>
+    </div>
+    <div class="row">
+      {if showFlyOp.now() then
+        <div transition:fly={TransitionParams(y = 60, opacity = 0.5, duration = 500)} class="box fly-box">
+          fly: opacity=0.5
+        </div>
+      else <div></div>}
+      {if showFlyOp.now() then
+        <div transition:blur={TransitionParams(amount = 8, opacity = 0.3, duration = 500)} class="box blur-box">
+          blur: opacity=0.3
+        </div>
+      else <div></div>}
+      {if showFlyOp.now() then
+        <div transition:scale={TransitionParams(start = 0.5, opacity = 0.4, duration = 500)} class="box scale-box">
+          scale: opacity=0.4
+        </div>
+      else <div></div>}
+    </div>
+  </section>
+
+  <!-- ── Gap 05: slide axis ────────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 05: slide axis (x / y)</h2>
+    <div class="controls">
+      <button onclick={_ => showSlideY.update(!_)}>Toggle Y (default)</button>
+      <button onclick={_ => showSlideX.update(!_)}>Toggle X</button>
+    </div>
+    <div class="row">
+      {if showSlideY.now() then
+        <div transition:slide class="box slide-box">slide (axis=y, default)</div>
+      else <div></div>}
+      {if showSlideX.now() then
+        <div transition:slide={TransitionParams(axis = "x", duration = 400)} class="box slide-box-x">slide (axis=x)</div>
+      else <div></div>}
+    </div>
+  </section>
+
+  <!-- ── Gap 06: SVG draw with speed ──────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 06: draw transition (speed param)</h2>
+    <p class="desc">
+      <b>Fixed duration</b>: both paths finish in exactly 800ms — the longer path draws faster (inconsistent visual speed).<br/>
+      <b>Speed-based</b>: <code>speed = Some(0.5)</code> auto-computes duration as <code>pathLength / speed</code>.
+      The short path finishes sooner, the long path takes longer — drawing speed stays consistent.
+    </p>
+    <div class="draw-compare">
+      <div>
+        <p class="draw-label">duration = 800ms (fixed) — both finish at the same time</p>
+        <button onclick={_ => showDraw.update(!_)}>Toggle</button>
+        {if showDraw.now() then
+          <svg class="draw-svg" viewBox="0 0 300 110">
+            <text x="10" y="25" font-size="11" fill="#888">short path</text>
+            <path transition:draw={TransitionParams(duration = 800, easing = Easing.linear)}
+                  d="M10 40 L90 40"
+                  stroke="#e65100" stroke-width="3" fill="none" />
+            <text x="10" y="75" font-size="11" fill="#888">long path</text>
+            <path transition:draw={TransitionParams(duration = 800, easing = Easing.linear)}
+                  d="M10 90 L270 90"
+                  stroke="#e65100" stroke-width="3" fill="none" />
+          </svg>
+        else <div class="draw-placeholder"></div>}
+      </div>
+      <div>
+        <p class="draw-label">speed = Some(0.5) (auto) — drawing speed stays consistent</p>
+        <button onclick={_ => showDrawSpeed.update(!_)}>Toggle</button>
+        {if showDrawSpeed.now() then
+          <svg class="draw-svg" viewBox="0 0 300 110">
+            <text x="10" y="25" font-size="11" fill="#888">short path (~160ms)</text>
+            <path transition:draw={TransitionParams(speed = Some(0.5), easing = Easing.linear)}
+                  d="M10 40 L90 40"
+                  stroke="#6a1b9a" stroke-width="3" fill="none" />
+            <text x="10" y="75" font-size="11" fill="#888">long path (~520ms)</text>
+            <path transition:draw={TransitionParams(speed = Some(0.5), easing = Easing.linear)}
+                  d="M10 90 L270 90"
+                  stroke="#6a1b9a" stroke-width="3" fill="none" />
+          </svg>
+        else <div class="draw-placeholder"></div>}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Gap 07: mid-animation reversal ───────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 07: mid-animation reversal (transition:)</h2>
+    <p class="desc">
+      Toggle rapidly — <code>transition:</code> reverses from the current
+      visual position instead of jumping back to the start.
+    </p>
+    <div class="controls">
+      <button onclick={_ => showReversal.update(!_)}>Toggle rapidly!</button>
+    </div>
+    {if showReversal.now() then
+      <div transition:fly={TransitionParams(y = 80, duration = 800)} class="box reversal-box">
+        Toggle me fast to see smooth reversal
+      </div>
+    else <div></div>}
+  </section>
+
+  <!-- ── Gap 09: Tween ─────────────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 09: Tween (animated number)</h2>
+    <p class="desc">
+      <code>Tween</code> interpolates a value smoothly over time.
+      Click the buttons to animate toward the target.
+    </p>
+    <div class="controls">
+      <button onclick={_ => setTweenTarget(0)}>0</button>
+      <button onclick={_ => setTweenTarget(25)}>25</button>
+      <button onclick={_ => setTweenTarget(50)}>50</button>
+      <button onclick={_ => setTweenTarget(75)}>75</button>
+      <button onclick={_ => setTweenTarget(100)}>100</button>
+    </div>
+    <div class="tween-bar-bg">
+      <div class="tween-bar" style:width={tweenVar.signal.map(v => s"${v}%")}></div>
+    </div>
+    <p class="tween-label">{tweenVar.signal.map(v => f"${v}%.1f")} / {tweenTarget}</p>
+  </section>
+
+  <!-- ── Gap 09: Spring ────────────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 09: Spring (physics-based animation)</h2>
+    <p class="desc">
+      <code>Spring</code> uses spring physics — notice the natural overshoot.
+    </p>
+    <div class="controls">
+      <button onclick={_ => setSpringTarget(0)}>0</button>
+      <button onclick={_ => setSpringTarget(25)}>25</button>
+      <button onclick={_ => setSpringTarget(50)}>50</button>
+      <button onclick={_ => setSpringTarget(75)}>75</button>
+      <button onclick={_ => setSpringTarget(100)}>100</button>
+    </div>
+    <div class="tween-bar-bg">
+      <div class="spring-bar" style:width={springVar.signal.map(v => s"${v.max(0.0).min(110.0)}%")}></div>
+    </div>
+    <p class="tween-label">{springVar.signal.map(v => f"${v}%.2f")} (may overshoot!)</p>
+  </section>
+
+  <!-- ── Gap 10: prefers-reduced-motion ───────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 10: prefers-reduced-motion</h2>
+    <p class="desc">
+      When your OS has "Reduce motion" enabled, all transitions are skipped.
+      Check your OS accessibility settings to test.
+    </p>
+    <div class="controls">
+      <button onclick={_ => showFly.update(!_)}>Toggle</button>
+    </div>
+    {if showFly.now() then
+      <div transition:fly={TransitionParams(y = 60, duration = 600)} class="box fly-box">
+        This animates — unless you have reduced motion enabled!
+      </div>
+    else <div></div>}
+  </section>
+
+  <!-- ── Gap 04/03: Original demos ─────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>transition:fade</h2>
+    <button onclick={_ => showFade.update(!_)}>Toggle</button>
+    {if showFade.now() then
+      <div transition:fade class="box fade-box">Fade in / out</div>
+    else <div></div>}
+  </section>
+
+  <section class="demo">
+    <h2>transition:scale (start=0.3)</h2>
+    <button onclick={_ => showScale.update(!_)}>Toggle</button>
+    {if showScale.now() then
+      <div transition:scale={TransitionParams(start = 0.3, duration = 400)} class="box scale-box">Scale in / out</div>
+    else <div></div>}
+  </section>
+
+  <!-- ── Asymmetric in/out ─────────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>in:fly out:fade</h2>
+    <button onclick={_ => showMixed.update(!_)}>Toggle</button>
+    {if showMixed.now() then
+      <div in:fly={TransitionParams(x = -120, duration = 400)} out:fade={TransitionParams(duration = 300)} class="box mixed-box">
+        Flies in from left, fades out
+      </div>
+    else
+      <div></div>}
+  </section>
+
+  <!-- ── Gap 11: Custom animate function ─────────────────────────────────────── -->
+  <section class="demo">
+    <h2>Gap 11: Custom animate: directive</h2>
+    <p class="desc">
+      Any value implementing <code>AnimateFn</code> can be used as <code>animate:*</code>.
+      <b>Left</b>: built-in <code>animate:flip</code> (translate only).
+      <b>Right</b>: custom <code>animate:bounce</code> — translates <em>and</em> pulses scale
+      (<code>scale = 1 − 0.25 × sin(u × π)</code>), producing a squeeze as items move.
+      Both lists share the same data so you can compare animations side by side.
+    </p>
+    <div class="controls">
+      <button onclick={_ => shuffle2()}>Shuffle</button>
+    </div>
+    <div class="animate-compare">
+      <div>
+        <p class="animate-label"><code>animate:flip</code> (built-in)</p>
+        <ul class="flip-list">
+          {items2.keyed(_.id).map(item =>
+            <li animate:flip class="flip-item">{item.label}</li>
+          )}
+        </ul>
+      </div>
+      <div>
+        <p class="animate-label"><code>animate:bounce</code> (custom)</p>
+        <ul class="flip-list">
+          {items2.keyed(_.id).map(item =>
+            <li animate:bounce class="flip-item bounce-item">{item.label}</li>
+          )}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FLIP List ─────────────────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>animate:flip (keyed list)</h2>
+    <div class="controls">
+      <button onclick={_ => shuffle()}>Shuffle</button>
+      <button onclick={_ => addItem()}>Add item</button>
+      <button onclick={_ => removeFirst()}>Remove first</button>
+    </div>
+    <ul class="flip-list">
+      {items.keyed(_.id).map(item =>
+        <li animate:flip class="flip-item">{item.label}</li>
+      )}
+    </ul>
+  </section>
+</div>
+
+<style>
+* { box-sizing: border-box; }
+
+.page {
+  font-family: system-ui, sans-serif;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2em 1em;
+}
+
+h1 { color: #ff3e00; margin-bottom: 1.5em; }
+
+.demo {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.2em;
+  margin-bottom: 1.5em;
+}
+
+.demo h2 {
+  margin: 0 0 0.5em;
+  font-size: 1rem;
+  font-family: monospace;
+  color: #333;
+}
+
+.desc {
+  margin: 0 0 0.8em;
+  font-size: 0.85rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+button {
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4em 1em;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-right: 0.5em;
+  margin-bottom: 0.8em;
+}
+
+button:hover { background: #cc3200; }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; margin-bottom: 0.6em; }
+
+.status {
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.3em 0.7em;
+  color: #333;
+}
+
+.row { display: flex; flex-wrap: wrap; gap: 0.6em; }
+
+.box {
+  padding: 1em;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+  flex: 1;
+  min-width: 140px;
+}
+
+.event-box   { background: #fff8e1; color: #f57f17; }
+.global-box  { background: #e8eaf6; color: #283593; }
+.fade-box    { background: #e8f5e9; color: #2e7d32; }
+.fly-box     { background: #e3f2fd; color: #1565c0; }
+.slide-box   { background: #fce4ec; color: #880e4f; }
+.slide-box-x { background: #fbe9e7; color: #bf360c; }
+.scale-box   { background: #fff3e0; color: #e65100; }
+.blur-box    { background: #f3e5f5; color: #6a1b9a; }
+.mixed-box   { background: #e0f7fa; color: #006064; }
+.reversal-box { background: #f1f8e9; color: #33691e; }
+
+.ebox {
+  padding: 0.7em 1em;
+  border-radius: 6px;
+  background: #e8eaf6;
+  color: #283593;
+  font-family: monospace;
+  font-size: 0.85rem;
+  text-align: center;
+  flex: 1;
+  min-width: 110px;
+}
+
+.easing-row { display: flex; flex-wrap: wrap; gap: 0.6em; min-height: 3em; }
+
+.nested-outer {
+  border: 2px dashed #aaa;
+  border-radius: 6px;
+  padding: 1em;
+}
+
+/* Tween / Spring bars */
+.tween-bar-bg {
+  background: #e0e0e0;
+  border-radius: 4px;
+  height: 24px;
+  overflow: hidden;
+  margin-bottom: 0.4em;
+}
+
+.tween-bar {
+  background: #ff3e00;
+  height: 100%;
+  border-radius: 4px;
+  transition: none;
+}
+
+.spring-bar {
+  background: #6a1b9a;
+  height: 100%;
+  border-radius: 4px;
+  transition: none;
+}
+
+.tween-label {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #333;
+  margin: 0;
+}
+
+/* Draw demo */
+.draw-compare { display: flex; gap: 1.5em; flex-wrap: wrap; }
+.draw-compare > div { flex: 1; min-width: 280px; }
+.draw-label { font-size: 0.8rem; color: #555; margin: 0 0 0.4em; line-height: 1.4; }
+.draw-svg { width: 100%; height: auto; border: 1px solid #eee; border-radius: 4px; background: #fafafa; display: block; }
+.draw-placeholder { height: 110px; border: 1px dashed #ddd; border-radius: 4px; background: #fafafa; }
+
+/* FLIP list */
+.flip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.flip-item {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.6em 1em;
+  margin-bottom: 0.4em;
+  font-weight: bold;
+}
+
+.bounce-item {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #2e7d32;
+}
+
+/* Gap 11: side-by-side animate comparison */
+.animate-compare {
+  display: flex;
+  gap: 1.5em;
+  flex-wrap: wrap;
+}
+
+.animate-compare > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.animate-label {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0 0 0.5em;
+}
+</style>

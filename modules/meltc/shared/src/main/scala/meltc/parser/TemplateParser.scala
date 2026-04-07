@@ -171,10 +171,14 @@ private[parser] final class TemplateParser(src: String):
 
     skipSpaces()
     if pos >= src.length || src(pos) != '=' then
-      // Directive with no value (e.g. `transition:fade`) or plain boolean attribute
+      // Directive with no value (e.g. `transition:fade`, `transition:fade|global`) or boolean attribute
       val colon = name.indexOf(':')
       return Some(
-        if colon >= 0 then Attr.Directive(name.substring(0, colon), name.substring(colon + 1), None)
+        if colon >= 0 then
+          val kind            = name.substring(0, colon)
+          val rest            = name.substring(colon + 1)
+          val (dirName, mods) = splitModifiers(rest)
+          Attr.Directive(kind, dirName, None, mods)
         else Attr.BooleanAttr(name)
       )
 
@@ -212,14 +216,27 @@ private[parser] final class TemplateParser(src: String):
 
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
-    if colon >= 0 then Attr.Directive(name.substring(0, colon), name.substring(colon + 1), Some(value))
+    if colon >= 0 then
+      val kind            = name.substring(0, colon)
+      val rest            = name.substring(colon + 1)
+      val (dirName, mods) = splitModifiers(rest)
+      Attr.Directive(kind, dirName, Some(value), mods)
     else Attr.Static(name, value)
 
   private def makeAttrExpr(name: String, expr: String): Attr =
     val colon = name.indexOf(':')
-    if colon >= 0 then Attr.Directive(name.substring(0, colon), name.substring(colon + 1), Some(expr))
+    if colon >= 0 then
+      val kind            = name.substring(0, colon)
+      val rest            = name.substring(colon + 1)
+      val (dirName, mods) = splitModifiers(rest)
+      Attr.Directive(kind, dirName, Some(expr), mods)
     else if name.startsWith("on") && name.length > 2 then Attr.EventHandler(name.substring(2), expr)
     else Attr.Dynamic(name, expr)
+
+  /** Splits `"fade|global|local"` into `("fade", Set("global", "local"))`. */
+  private def splitModifiers(s: String): (String, Set[String]) =
+    val parts = s.split('|')
+    (parts.head, parts.tail.toSet)
 
   // ── Node factory ──────────────────────────────────────────────────────────
 

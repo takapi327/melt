@@ -33,7 +33,9 @@ object ScalaCodeGen:
 
     buf ++= "import org.scalajs.dom\n"
     buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
-    buf ++= "import melt.runtime.*\n\n"
+    buf ++= "import melt.runtime.*\n"
+    buf ++= "import melt.runtime.transition.*\n"
+    buf ++= "import melt.runtime.animate.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
@@ -176,11 +178,17 @@ object ScalaCodeGen:
             ""
 
           case ExprKind.DomExpr =>
-            // if/else or match returning DOM nodes — use Bind.show with anchor
+            // if/else or match returning DOM nodes — use Bind.show with anchor.
+            // If the expression begins with `if <var>.now()`, emit the reactive overload so
+            // that Bind.show re-renders whenever the referenced Var/Signal changes.
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
-            buf ++= s"${ indent }Bind.show(() => { $code }, $anchor)\n"
+            extractReactiveSource(code) match
+              case Some(source) =>
+                buf ++= s"${ indent }Bind.show($source, _ => { $code }, $anchor)\n"
+              case None =>
+                buf ++= s"${ indent }Bind.show(() => { $code }, $anchor)\n"
             ""
 
           case ExprKind.PlainText =>
@@ -274,15 +282,15 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""
       case Attr.EventHandler(event, expr) =>
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
-      case Attr.Directive("bind", "value", Some(expr)) =>
+      case Attr.Directive("bind", "value", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
-      case Attr.Directive("bind", "value-int", Some(expr)) =>
+      case Attr.Directive("bind", "value-int", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputInt($v.asInstanceOf[dom.html.Input], $expr)\n"""
-      case Attr.Directive("bind", "value-double", Some(expr)) =>
+      case Attr.Directive("bind", "value-double", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputDouble($v.asInstanceOf[dom.html.Input], $expr)\n"""
-      case Attr.Directive("bind", "checked", Some(expr)) =>
+      case Attr.Directive("bind", "checked", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputChecked($v.asInstanceOf[dom.html.Input], $expr)\n"""
-      case Attr.Directive("bind", "group", Some(expr)) =>
+      case Attr.Directive("bind", "group", Some(expr), _) =>
         val isCheckbox = allAttrs.exists {
           case Attr.Static("type", "checkbox") => true
           case _                               => false
@@ -291,22 +299,48 @@ object ScalaCodeGen:
           buf ++= s"""${ indent }Bind.checkboxGroup($v.asInstanceOf[dom.html.Input], $expr, $v.asInstanceOf[dom.html.Input].value)\n"""
         else
           buf ++= s"""${ indent }Bind.radioGroup($v.asInstanceOf[dom.html.Input], $expr, $v.asInstanceOf[dom.html.Input].value)\n"""
-      case Attr.Directive("bind", "this", Some(expr)) =>
+      case Attr.Directive("bind", "this", Some(expr), _) =>
         buf ++= s"""${ indent }$expr.set($v.asInstanceOf[dom.Element])\n"""
-      case Attr.Directive("class", name, Some(expr)) =>
+      case Attr.Directive("class", name, Some(expr), _) =>
         buf ++= s"""${ indent }Bind.classToggle($v, "$name", $expr)\n"""
-      case Attr.Directive("class", name, None) =>
+      case Attr.Directive("class", name, None, _) =>
         buf ++= s"""${ indent }Bind.classToggle($v, "$name", $name)\n"""
-      case Attr.Directive("style", property, Some(expr)) =>
+      case Attr.Directive("style", property, Some(expr), _) =>
         buf ++= s"""${ indent }Bind.style($v, "$property", $expr)\n"""
-      case Attr.Directive("use", actionName, Some(expr)) =>
+      case Attr.Directive("use", actionName, Some(expr), _) =>
         buf ++= s"""${ indent }Bind.action($v, $actionName, $expr)\n"""
-      case Attr.Directive("use", actionName, None) =>
+      case Attr.Directive("use", actionName, None, _) =>
         buf ++= s"""${ indent }Bind.action($v, $actionName, ())\n"""
+      case Attr.Directive("transition", transName, exprOpt, mods) =>
+        val params = exprOpt.getOrElse("TransitionParams.default")
+        val obj    = transName.capitalize
+        buf ++= s"""${ indent }TransitionBridge.setBoth($v, $obj, $params)\n"""
+        if mods.contains("global") then
+          buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
+      case Attr.Directive("in", transName, exprOpt, mods) =>
+        val params = exprOpt.getOrElse("TransitionParams.default")
+        val obj    = transName.capitalize
+        buf ++= s"""${ indent }TransitionBridge.setIn($v, $obj, $params)\n"""
+        if mods.contains("global") then
+          buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
+      case Attr.Directive("out", transName, exprOpt, mods) =>
+        val params = exprOpt.getOrElse("TransitionParams.default")
+        val obj    = transName.capitalize
+        buf ++= s"""${ indent }TransitionBridge.setOut($v, $obj, $params)\n"""
+        if mods.contains("global") then
+          buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
+      case Attr.Directive("animate", animName, exprOpt, _) =>
+        val fn     = animName.capitalize
+        val params = exprOpt.getOrElse("AnimateParams()")
+        // Type ascriptions ensure the Scala compiler rejects wrong types at compile time:
+        //   ($fn: AnimateFn)      — non-AnimateFn values are rejected before erasure
+        //   ($params: AnimateParams) — wrong param types (e.g. TransitionParams) are caught
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")(($fn: AnimateFn).asInstanceOf[scalajs.js.Any])\n"""
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params: AnimateParams).asInstanceOf[scalajs.js.Any])\n"""
       case Attr.Spread(expr) =>
         // On HTML elements: apply HtmlAttrs spread
         buf ++= s"""${ indent }$expr.apply($v)\n"""
-      case Attr.Directive(_, _, _) | Attr.Shorthand(_) =>
+      case Attr.Directive(_, _, _, _) | Attr.Shorthand(_) =>
       // Shorthand handled at component level; remaining directives deferred
 
   // ── Component props building ───────────────────────────────────────────────
@@ -450,6 +484,22 @@ object ScalaCodeGen:
       ExprKind.DomExpr
     else if trimmed.contains(" match") && containsDomConstruction(trimmed) then ExprKind.DomExpr
     else ExprKind.PlainText
+
+  /** Attempts to extract a reactive source (Var or Signal identifier) from a conditional
+    * DOM expression so the reactive `Bind.show(source, render, anchor)` overload can be used.
+    *
+    * Recognized patterns:
+    *   - `if <ident>.now() then ...`       → `Some("<ident>")`
+    *   - `if !<ident>.now() then ...`      → `Some("<ident>")`
+    *   - `<ident> match { ... }` (match on a Var/Signal via .now()) → extracted identifier
+    *
+    * Returns `None` if the expression cannot be mapped to a single reactive source.
+    */
+  private def extractReactiveSource(code: String): Option[String] =
+    val trimmed = code.trim
+    // Pattern: if [!]<ident>.now() then ...
+    val ifNowRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.now\(\)""".r
+    ifNowRe.findFirstMatchIn(trimmed).map(_.group(1))
 
   /** Finds the position of the closing `)` matching the first `(` in `s` starting at `start`. */
   private def findBalancedParen(s: String, start: Int): Int =

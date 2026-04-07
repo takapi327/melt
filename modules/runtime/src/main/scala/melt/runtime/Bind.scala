@@ -10,6 +10,8 @@ import scala.collection.mutable
 
 import org.scalajs.dom
 
+import melt.runtime.animate.{ AnimateEngine, AnimateFn, AnimateInfo, AnimateParams }
+
 /** DOM binding helpers for reactive values.
   *
   * Each method creates or updates a DOM node/attribute and subscribes to
@@ -180,35 +182,77 @@ object Bind:
 
   // ── Conditional rendering (if/else, match) ─────────────────────────────
 
-  /** Renders the result of `render()` before `anchor`, replacing the previous result on each call.
+  /** Renders the result of `render()` before `anchor`.
+    * Plays an intro transition if the rendered node is an element with one registered.
     * Used for reactive if/else and match expressions.
     */
   def show(render: () => dom.Node, anchor: dom.Node): Unit =
-    val parent = anchor.parentNode
-    var current: dom.Node = render()
+    val parent  = anchor.parentNode
+    val current = render()
     parent.insertBefore(current, anchor)
+    current match
+      case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
+      case _                                             =>
 
-  /** Reactive conditional rendering for [[Var]]. Re-renders when `v` changes. */
+  /** Reactive conditional rendering for [[Var]]. Re-renders when `v` changes.
+    * Plays intro on the entering element and outro on the leaving element.
+    */
   def show(v: Var[?], render: Any => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
     var current: dom.Node = render(v.now())
     parent.insertBefore(current, anchor)
+    current match
+      case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
+      case _                                             => playGlobalTransitions(current, intro = true)
     val cancel = v.subscribe { a =>
       val next = render(a)
-      parent.replaceChild(next, current)
+      val old  = current
       current = next
+      parent.insertBefore(next, anchor)
+      next match
+        case el: dom.Element if TransitionBridge.hasIn(el) =>
+          TransitionBridge.playIn(el)
+          playGlobalTransitions(next, intro = true)
+        case _ =>
+          playGlobalTransitions(next, intro = true)
+      old match
+        case el: dom.Element if TransitionBridge.hasOut(el) =>
+          playGlobalTransitions(old, intro = false)
+          TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
+        case _ =>
+          playGlobalTransitions(old, intro = false)
+          parent.removeChild(old)
     }
     Cleanup.register(cancel)
 
-  /** Reactive conditional rendering for [[Signal]]. Re-renders when signal changes. */
+  /** Reactive conditional rendering for [[Signal]]. Re-renders when signal changes.
+    * Plays intro on the entering element and outro on the leaving element.
+    */
   def show(signal: Signal[?], render: Any => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
     var current: dom.Node = render(signal.now())
     parent.insertBefore(current, anchor)
+    current match
+      case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
+      case _                                             => playGlobalTransitions(current, intro = true)
     val cancel = signal.subscribe { a =>
       val next = render(a)
-      parent.replaceChild(next, current)
+      val old  = current
       current = next
+      parent.insertBefore(next, anchor)
+      next match
+        case el: dom.Element if TransitionBridge.hasIn(el) =>
+          TransitionBridge.playIn(el)
+          playGlobalTransitions(next, intro = true)
+        case _ =>
+          playGlobalTransitions(next, intro = true)
+      old match
+        case el: dom.Element if TransitionBridge.hasOut(el) =>
+          playGlobalTransitions(old, intro = false)
+          TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
+        case _ =>
+          playGlobalTransitions(old, intro = false)
+          parent.removeChild(old)
     }
     Cleanup.register(cancel)
 
@@ -251,7 +295,12 @@ object Bind:
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
-  /** Keyed list rendering with node reuse. Reorders and adds/removes nodes efficiently. */
+  /** Keyed list rendering with node reuse. Reorders and adds/removes nodes efficiently.
+    *
+    * When list-item elements have `_meltAnimateFn` set (via `animate:` directive),
+    * a position snapshot is taken before the DOM mutation and the animate function
+    * is called afterwards to produce the animation.
+    */
   def each[A, K](
     source:   Var[? <: Iterable[A]],
     keyFn:    A => K,
@@ -262,8 +311,13 @@ object Bind:
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
+      // Snapshot positions of animate-marked elements before mutation
+      val animEls = nodeMap.values.collect {
+        case el: dom.Element if isAnimateMarked(el) => el
+      }
+      val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
-      val oldKeys = nodeMap.keySet
+      val oldKeys = nodeMap.keySet.toSet
       // Remove nodes whose keys no longer exist
       (oldKeys -- newKeys).foreach { k =>
         nodeMap.get(k).foreach(n => parent.removeChild(n))
@@ -278,6 +332,10 @@ object Bind:
         newMap(k) = node
       }
       nodeMap = newMap
+      // Play animations on surviving animate-marked elements
+      if before.nonEmpty then
+        val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
+        playAnimations(survivors, before)
 
     rebuild(source.now())
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
@@ -292,9 +350,13 @@ object Bind:
     val parent  = anchor.parentNode
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
-    def rebuildS(items: Iterable[A]): Unit =
+    def rebuild(items: Iterable[A]): Unit =
+      val animEls = nodeMap.values.collect {
+        case el: dom.Element if isAnimateMarked(el) => el
+      }
+      val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
-      val oldKeys = nodeMap.keySet
+      val oldKeys = nodeMap.keySet.toSet
       (oldKeys -- newKeys).foreach { k =>
         nodeMap.get(k).foreach(n => parent.removeChild(n))
         nodeMap -= k
@@ -307,10 +369,60 @@ object Bind:
         newMap(k) = node
       }
       nodeMap = newMap
+      if before.nonEmpty then
+        val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
+        playAnimations(survivors, before)
 
-    rebuildS(source.now())
-    val cancel = source.subscribe(items => rebuildS(items.asInstanceOf[Iterable[A]]))
+    rebuild(source.now())
+    val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
+
+  /** Returns `true` if the element has an animate function stored (`_meltAnimateFn`). */
+  private def isAnimateMarked(el: dom.Element): Boolean =
+    !scalajs.js.isUndefined(el.asInstanceOf[scalajs.js.Dynamic].selectDynamic("_meltAnimateFn"))
+
+  /** Calls each element's stored [[AnimateFn]] with its old/new position and runs the result. */
+  private def playAnimations(
+    els:    Iterable[dom.Element],
+    before: Map[dom.Element, dom.DOMRect]
+  ): Unit =
+    els.foreach { el =>
+      before.get(el).foreach { fromRect =>
+        val toRect = el.getBoundingClientRect()
+        val dyn    = el.asInstanceOf[scalajs.js.Dynamic]
+        // Guard explicitly even though callers already checked isAnimateMarked,
+        // so that a race or incorrect call cannot produce a ClassCastException.
+        val fnRaw = dyn.selectDynamic("_meltAnimateFn")
+        if !scalajs.js.isUndefined(fnRaw) then
+          val fn     = fnRaw.asInstanceOf[AnimateFn]
+          val params =
+            val p = dyn.selectDynamic("_meltAnimateParams")
+            if scalajs.js.isUndefined(p) then AnimateParams() else p.asInstanceOf[AnimateParams]
+          val info   = AnimateInfo(from = fromRect, to = toRect)
+          val config = fn(el, info, params)
+          AnimateEngine.run(el, config)
+      }
+    }
+
+  /** Returns `true` if the element has the `|global` modifier (`_meltGlobal`). */
+  private def isGlobalMarked(el: dom.Element): Boolean =
+    !scalajs.js.isUndefined(el.asInstanceOf[scalajs.js.Dynamic].selectDynamic("_meltGlobal"))
+
+  /** Recursively plays intro/outro transitions on elements marked with `|global`
+    * within the given node subtree.  Called by [[show]] when a parent block
+    * enters or leaves the DOM so that globally-marked child elements animate too.
+    */
+  private def playGlobalTransitions(node: dom.Node, intro: Boolean): Unit =
+    node match
+      case el: dom.Element =>
+        if isGlobalMarked(el) then
+          if intro && TransitionBridge.hasIn(el) then TransitionBridge.playIn(el)
+          if !intro && TransitionBridge.hasOut(el) then TransitionBridge.playOut(el, () => ())
+        // Recurse into children
+        (0 until el.children.length).foreach { i =>
+          playGlobalTransitions(el.children(i), intro)
+        }
+      case _ =>
 
   // ── Raw HTML insertion ────────────────────────────────────────────────
 
