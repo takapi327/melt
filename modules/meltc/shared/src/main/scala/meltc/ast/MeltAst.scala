@@ -67,11 +67,12 @@ enum Attr:
 
   /** A directive attribute: `bind:value={v}`, `class:active={flag}`.
     *
-    * @param kind the directive kind (`bind`, `class`, `style`, `use`, ...)
-    * @param name the directive target name
-    * @param expr the optional expression value
+    * @param kind      the directive kind (`bind`, `class`, `style`, `use`, ...)
+    * @param name      the directive target name (without modifiers)
+    * @param expr      the optional expression value
+    * @param modifiers pipe-separated modifiers e.g. `|global`, `|local`
     */
-  case Directive(kind: String, name: String, expr: Option[String])
+  case Directive(kind: String, name: String, expr: Option[String], modifiers: Set[String] = Set.empty)
 
   /** An event handler attribute: `onclick={handler}` → EventHandler("click", "handler"). */
   case EventHandler(event: String, expr: String)
