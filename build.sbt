@@ -114,7 +114,18 @@ lazy val `language-server` = project
     libraryDependencies ++= Seq(
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "1.0.0",
       "org.scalameta"    %% "munit"             % "1.2.4" % Test
-    )
+    ),
+    // Fat JAR: java -jar melt-language-server.jar
+    assembly / assemblyJarName       := "melt-language-server.jar",
+    assembly / mainClass             := Some("meltc.lsp.MeltLanguageServerLauncher"),
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "MANIFEST.MF")   => MergeStrategy.discard
+      case PathList("META-INF", "services", _*)  => MergeStrategy.concat
+      case PathList("META-INF", _*)              => MergeStrategy.discard
+      case PathList("module-info.class")         => MergeStrategy.discard
+      case x if x.endsWith("/module-info.class") => MergeStrategy.discard
+      case _                                     => MergeStrategy.first
+    }
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(meltc.jvm)
