@@ -506,3 +506,124 @@ object Bind:
       prevCleanup = act(el, p)
     }
     Cleanup.register(() => { prevCleanup(); cancel() })
+
+  // ── Dynamic element (<melt:element this={tag}>) ───────────────────────
+
+  /** Renders a single element whose tag name is determined at call time.
+    * `null` / `None` renders nothing (anchor comment remains in the DOM).
+    */
+  def dynamicElement(
+    tag:     HtmlTag | Null,
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag, anchor, scopeId, setup)
+
+  def dynamicElement(
+    tag:     Option[HtmlTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag.orNull, anchor, scopeId, setup)
+
+  /** Reactive dynamic element — re-renders whenever `tag` changes.
+    * The old element is removed and a new one is created on each change.
+    * `null` / `None` in the signal or var removes the element without replacement.
+    */
+  @scala.annotation.targetName("dynamicElementSignal")
+  def dynamicElement(
+    tag:     Signal[HtmlTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup)
+
+  @scala.annotation.targetName("dynamicElementSignalNullable")
+  def dynamicElement(
+    tag:     Signal[HtmlTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup)
+
+  @scala.annotation.targetName("dynamicElementSignalOption")
+  def dynamicElement(
+    tag:     Signal[Option[HtmlTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup)
+
+  @scala.annotation.targetName("dynamicElementVar")
+  def dynamicElement(
+    tag:     Var[HtmlTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup)
+
+  @scala.annotation.targetName("dynamicElementVarNullable")
+  def dynamicElement(
+    tag:     Var[HtmlTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup)
+
+  @scala.annotation.targetName("dynamicElementVarOption")
+  def dynamicElement(
+    tag:     Var[Option[HtmlTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup)
+
+  private def mountDynamicOnce(
+    tagName: HtmlTag | Null,
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit =
+    if tagName != null then
+      val el = dom.document.createElement(tagName)
+      el.classList.add(scopeId)
+      setup(el)
+      anchor.parentNode.insertBefore(el, anchor)
+      Cleanup.register(() => Option(anchor.parentNode).foreach(_.removeChild(el)))
+
+  private def mountDynamicCore(
+    initial:     HtmlTag | Null,
+    subscribeFn: ((HtmlTag | Null) => Unit) => (() => Unit),
+    anchor:      dom.Comment,
+    scopeId:     String,
+    setup:       dom.Element => Unit
+  ): Unit =
+    var current:        dom.Element | Null = null
+    // Holds subscriptions created by setup() for the *current* element.
+    // Cancelled before each swap so reactive bindings don't fire on detached nodes.
+    var elementCleanup: List[() => Unit]   = Nil
+
+    def swap(tagName: HtmlTag | Null): Unit =
+      // Cancel all subscriptions registered by the previous setup call
+      Cleanup.runAll(elementCleanup)
+      elementCleanup = Nil
+      if current != null then
+        Option(anchor.parentNode).foreach(_.removeChild(current))
+        current = null
+      if tagName != null then
+        val el = dom.document.createElement(tagName)
+        el.classList.add(scopeId)
+        // Scope setup's Cleanup.register calls so we can cancel them on the next swap
+        Cleanup.pushScope()
+        setup(el)
+        elementCleanup = Cleanup.popScope()
+        anchor.parentNode.insertBefore(el, anchor)
+        current = el
+
+    swap(initial)
+    val cancel = subscribeFn(swap)
+    Cleanup.register(cancel)
+    Cleanup.register(() => {
+      Cleanup.runAll(elementCleanup)
+      if current != null then Option(anchor.parentNode).foreach(_.removeChild(current))
+    })
