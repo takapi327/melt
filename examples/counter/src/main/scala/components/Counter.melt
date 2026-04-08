@@ -25,14 +25,35 @@ val windowWidth = Window.innerWidth
 
 // Phase 8: Document title — reactive document title
 Document.title(name.map(n => if n.isEmpty then "Melt Counter" else s"Hello, $n!"))
+
+// Phase 12: onMount — measure container width after DOM insertion
+// bind:this stores the root div reference; width is read after appendChild
+val containerRef   = Ref.empty[dom.Element]
+val containerWidth = Var(0)
+onMount { () =>
+  containerRef.foreach(el => containerWidth.set(el.getBoundingClientRect().width.toInt))
+}
+
+// Phase 12: onMount — elapsed seconds since component was mounted
+// The setInterval is registered AFTER mount and cancelled when the component
+// is destroyed via Lifecycle.destroyTree (called by MeltSuite.afterEach or
+// MountedComponent.unmount).
+val elapsed = Var(0)
+onMount { () =>
+  import scala.scalajs.js.timers.*
+  val id = setInterval(1000.0) { elapsed += 1 }
+  () => clearInterval(id)
+}
 </script>
 
-<div class="counter">
+<div class="counter" bind:this={containerRef}>
   <h1>Melt Counter</h1>
   <p>Count: {count}</p>
   <p>Doubled: {doubled}</p>
   <p>Even: {isEven}</p>
   <p class="meta">Window width: {windowWidth}</p>
+  <p class="meta">Container width: {containerWidth}px</p>
+  <p class="meta">Elapsed: {elapsed}s</p>
   <button onclick={_ => count += 1}>+1</button>
   <button onclick={_ => count -= 1}>-1</button>
   <button onclick={_ => resetAll()}>Reset All</button>
