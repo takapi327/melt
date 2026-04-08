@@ -19,25 +19,27 @@ import org.eclipse.lsp4j.services.*
   * appropriate language tooling.
   *
   * Responsibilities per section:
-  *   - `<script lang="scala">` body — meltc diagnostics; future: delegated to Metals
-  *   - HTML template `{expr}` blocks — extracted for virtual file type checking
-  *   - `<style>` section           — future: delegated to the CSS Language Server
+  *   - `<script lang="scala">` body — meltc diagnostics + Metals completions/definition
+  *   - HTML template `{expr}` blocks — Melt template completions + script-definition jump
+  *   - `<style>` section           — CSS property completions
   *
   * The server communicates over stdio using the Language Server Protocol (JSON-RPC).
   * Start it with [[MeltLanguageServerLauncher]] and connect an editor LSP client.
   *
-  * ==Metals delegation (future)==
-  * When Metals delegation is enabled the server will:
-  *   1. Write the virtual .scala file (from [[VirtualFileGenerator]]) to a temp dir.
-  *   2. Spawn a Metals process pointing at that directory.
-  *   3. Forward `textDocument/completion`, `textDocument/hover`, and
-  *      `textDocument/definition` requests with positions translated via
-  *      [[PositionMapper.meltToVirtual]] and responses translated back via
-  *      [[PositionMapper.virtualToMelt]].
+  * ==Completion strategy==
+  *   1. [[MeltCompletionProvider]] — Melt-specific completions (always available)
+  *   2. [[MetalsBridge]] — Scala completions for the script section (requires `metals` on PATH)
+  *
+  * ==Definition strategy==
+  *   - Script section: delegated to Metals via [[MetalsBridge.definitionForScript]]
+  *   - Template section: identifier under cursor is looked up in the script section
+  *     using [[ScriptDefinitionFinder]]
+  *   - Style section: no-op (returns empty)
   */
 class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocumentService, WorkspaceService:
 
   private var client: LanguageClient = scala.compiletime.uninitialized
+  private val metals: MetalsBridge   = MetalsBridge()
 
   /** Open documents: URI → current .melt source text. */
   private val documents = scala.collection.concurrent.TrieMap.empty[String, String]
@@ -50,15 +52,18 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── LanguageServer lifecycle ──────────────────────────────────────────────
 
   override def initialize(params: InitializeParams): CompletableFuture[InitializeResult] =
+    val _ = scala.concurrent.Future(metals.startIfAvailable())(scala.concurrent.ExecutionContext.global)
     val caps = ServerCapabilities()
     caps.setTextDocumentSync(TextDocumentSyncKind.Full)
     caps.setHoverProvider(true)
-    caps.setCompletionProvider(CompletionOptions(false, List(".").asJava))
+    caps.setDefinitionProvider(true)
+    caps.setCompletionProvider(CompletionOptions(false, List(".", " ", "<", "{").asJava))
     CompletableFuture.completedFuture(InitializeResult(caps))
 
   override def initialized(params: InitializedParams): Unit = ()
 
   override def shutdown(): CompletableFuture[Object] =
+    metals.shutdown()
     CompletableFuture.completedFuture(null.asInstanceOf[Object])
 
   override def exit(): Unit = System.exit(0)
@@ -87,10 +92,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   override def didSave(params: DidSaveTextDocumentParams): Unit = ()
 
-  /** Returns a hover tooltip showing which section the cursor is in.
-    *
-    * Future: delegate to Metals for script section hovers.
-    */
+  /** Returns a hover tooltip describing the section the cursor is in. */
   override def hover(params: HoverParams): CompletableFuture[Hover] =
     val uri     = params.getTextDocument.getUri
     val content = documents.getOrElse(uri, "")
@@ -106,13 +108,56 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   /** Returns completions for the cursor position.
     *
-    * Future: delegate to Metals for script section completions.
+    * The result set is the union of:
+    *   - [[MeltCompletionProvider]] items for the current section (always present)
+    *   - [[MetalsBridge]] items for the script section (present when `metals` is on PATH)
+    *
+    * Metals items are prepended so they appear first in the editor list.
     */
   override def completion(
     params: CompletionParams
   ): CompletableFuture[JEither[java.util.List[CompletionItem], CompletionList]] =
+    val uri     = params.getTextDocument.getUri
+    val content = documents.getOrElse(uri, "")
+    val vf      = VirtualFileGenerator.generate(content)
+    val line    = params.getPosition.getLine
+    val char    = params.getPosition.getCharacter
+    val section = vf.mapper.sectionAt(line)
+
+    val meltItems   = MeltCompletionProvider.completionsFor(section)
+    val metalsItems =
+      if section == MeltSection.Script then metals.completionsForScript(uri, vf, line, char)
+      else Nil
+
+    CompletableFuture.completedFuture(JEither.forLeft((metalsItems ++ meltItems).asJava))
+
+  /** Returns the definition location for the symbol under the cursor.
+    *
+    * Routing:
+    *   - Script section  → [[MetalsBridge.definitionForScript]] (Metals, identity position mapping)
+    *   - Template section → [[ScriptDefinitionFinder.find]] (identifier lookup in script body)
+    *   - Style / Unknown → empty
+    */
+  override def definition(
+    params: DefinitionParams
+  ): CompletableFuture[JEither[java.util.List[? <: Location], java.util.List[? <: LocationLink]]] =
+    val uri     = params.getTextDocument.getUri
+    val content = documents.getOrElse(uri, "")
+    val vf      = VirtualFileGenerator.generate(content)
+    val line    = params.getPosition.getLine
+    val char    = params.getPosition.getCharacter
+    val section = vf.mapper.sectionAt(line)
+
+    val locations: List[Location] = section match
+      case MeltSection.Script =>
+        metals.definitionForScript(uri, vf, line, char)
+      case MeltSection.Template =>
+        ScriptDefinitionFinder.find(content, uri, line, char, vf)
+      case _ =>
+        Nil
+
     CompletableFuture.completedFuture(
-      JEither.forLeft(Collections.emptyList[CompletionItem]())
+      JEither.forLeft(locations.asJava)
     )
 
   // ── WorkspaceService ──────────────────────────────────────────────────────
@@ -132,7 +177,6 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
 
   private def makeDiagnostic(message: String, line: Int, severity: DiagnosticSeverity): Diagnostic =
-    // meltc uses 1-based line numbers; LSP uses 0-based
     val zeroLine = math.max(0, line - 1)
     val range    = Range(Position(zeroLine, 0), Position(zeroLine, Int.MaxValue))
     val d        = Diagnostic(range, message)

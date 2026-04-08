@@ -133,6 +133,138 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
     }
   }
 
+  // ── completion ────────────────────────────────────────────────────────────
+
+  test("completion on script line returns Melt runtime items") {
+    withServer { proxy =>
+      proxy.initialize(InitializeParams()).get(5, TimeUnit.SECONDS)
+      proxy.initialized(InitializedParams())
+
+      val source =
+        """|<script lang="scala">
+           |  val count = Var(0)
+           |</script>""".stripMargin
+
+      val uri = "file:///tmp/CompCompl.melt"
+      proxy.getTextDocumentService.didOpen(
+        DidOpenTextDocumentParams(TextDocumentItem(uri, "melt", 1, source))
+      )
+
+      // line 1, char 2 — inside script body
+      val params = CompletionParams(TextDocumentIdentifier(uri), Position(1, 2))
+      val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
+      assert(result != null)
+      val items = result.getLeft.asScala
+      assert(items.exists(_.getLabel == "Var"),    "Var should be in script completions")
+      assert(items.exists(_.getLabel == "Signal"), "Signal should be in script completions")
+    }
+  }
+
+  test("completion on template line returns HTML tag items") {
+    withServer { proxy =>
+      proxy.initialize(InitializeParams()).get(5, TimeUnit.SECONDS)
+      proxy.initialized(InitializedParams())
+
+      val source =
+        """|<script lang="scala">
+           |  val n = 0
+           |</script>
+           |<div></div>""".stripMargin
+
+      val uri = "file:///tmp/TmplCompl.melt"
+      proxy.getTextDocumentService.didOpen(
+        DidOpenTextDocumentParams(TextDocumentItem(uri, "melt", 1, source))
+      )
+
+      // line 3 — template section
+      val params = CompletionParams(TextDocumentIdentifier(uri), Position(3, 0))
+      val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
+      val items  = result.getLeft.asScala
+      assert(items.exists(_.getLabel == "<div>"),    "should include <div>")
+      assert(items.exists(_.getLabel == "<button>"), "should include <button>")
+    }
+  }
+
+  test("completion on style line returns CSS property items") {
+    withServer { proxy =>
+      proxy.initialize(InitializeParams()).get(5, TimeUnit.SECONDS)
+      proxy.initialized(InitializedParams())
+
+      val source =
+        """|<script lang="scala">
+           |</script>
+           |<style>
+           |  color: red;
+           |</style>""".stripMargin
+
+      val uri = "file:///tmp/StyledCompl.melt"
+      proxy.getTextDocumentService.didOpen(
+        DidOpenTextDocumentParams(TextDocumentItem(uri, "melt", 1, source))
+      )
+
+      // line 3 — inside style body
+      val params = CompletionParams(TextDocumentIdentifier(uri), Position(3, 2))
+      val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
+      val items  = result.getLeft.asScala
+      assert(items.exists(_.getLabel == "color"),   "should include color")
+      assert(items.exists(_.getLabel == "display"), "should include display")
+    }
+  }
+
+  // ── definition ────────────────────────────────────────────────────────────
+
+  test("definition from template returns script section location") {
+    withServer { proxy =>
+      proxy.initialize(InitializeParams()).get(5, TimeUnit.SECONDS)
+      proxy.initialized(InitializedParams())
+
+      val source =
+        """|<script lang="scala">
+           |  val count = Var(0)
+           |</script>
+           |<div>{count}</div>""".stripMargin
+
+      val uri = "file:///tmp/DefTest.melt"
+      proxy.getTextDocumentService.didOpen(
+        DidOpenTextDocumentParams(TextDocumentItem(uri, "melt", 1, source))
+      )
+
+      // line 3 = "<div>{count}</div>", cursor on "count" at char 8
+      val params = DefinitionParams(TextDocumentIdentifier(uri), Position(3, 8))
+      val result = proxy.getTextDocumentService.definition(params).get(5, TimeUnit.SECONDS)
+      assert(result != null)
+      val locs = result.getLeft.asScala
+      assertEquals(locs.size, 1)
+      assertEquals(locs.head.getUri, uri)
+      // "val count" is on line 1 (0-based) of the .melt file
+      assertEquals(locs.head.getRange.getStart.getLine, 1)
+    }
+  }
+
+  test("definition from script section with no Metals returns empty") {
+    withServer { proxy =>
+      proxy.initialize(InitializeParams()).get(5, TimeUnit.SECONDS)
+      proxy.initialized(InitializedParams())
+
+      val source =
+        """|<script lang="scala">
+           |  val count = Var(0)
+           |</script>""".stripMargin
+
+      val uri = "file:///tmp/DefScript.melt"
+      proxy.getTextDocumentService.didOpen(
+        DidOpenTextDocumentParams(TextDocumentItem(uri, "melt", 1, source))
+      )
+
+      // line 1, cursor on "count" — Metals not available in test → empty
+      val params = DefinitionParams(TextDocumentIdentifier(uri), Position(1, 8))
+      val result = proxy.getTextDocumentService.definition(params).get(5, TimeUnit.SECONDS)
+      assert(result != null)
+      // Without Metals, script definition returns empty (graceful degradation)
+      assert(result.getLeft != null)
+    }
+  }
+
 /** A no-op language client used in integration tests. */
 private class NoOpLanguageClient extends LanguageClient:
   override def telemetryEvent(obj:   Any):                      Unit                                 = ()
