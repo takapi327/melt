@@ -58,6 +58,14 @@ enum TemplateNode:
   /** A `<melt:body>` element — attaches event listeners and actions to `document.body`. */
   case Body(attrs: List[Attr])
 
+  /** A `<melt:element this={tagExpr}>` — an HTML element whose tag name is determined at runtime.
+    *
+    * @param tagExpr the raw Scala expression for the tag name (e.g. `"headingTag"`, `"\"div\""`)
+    * @param attrs   attributes, event handlers, and directives (same as [[Element]])
+    * @param children child nodes (same as [[Element]])
+    */
+  case DynamicElement(tagExpr: String, attrs: List[Attr], children: List[TemplateNode])
+
 /** A part of an [[TemplateNode.InlineTemplate]] expression. */
 enum InlineTemplatePart:
   /** A raw Scala code fragment. */

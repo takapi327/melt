@@ -27,6 +27,36 @@ private[parser] final class TemplateParser(src: String):
 
   private val _warnings = List.newBuilder[(String, Int)]
 
+  /** All valid HTML5 element names — mirrors `HtmlTag.knownTags` in the runtime.
+    * Kept in sync manually; used to validate `<melt:element this={"..."}>` string literals.
+    */
+  private val KnownHtmlTags: Set[String] = Set(
+    "a", "abbr", "address", "area", "article", "aside", "audio",
+    "b", "base", "bdi", "bdo", "blockquote", "br", "button",
+    "canvas", "caption", "cite", "code", "col", "colgroup",
+    "data", "datalist", "dd", "del", "details", "dfn", "dialog",
+    "div", "dl", "dt",
+    "em", "embed",
+    "fieldset", "figcaption", "figure", "footer", "form",
+    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr",
+    "i", "iframe", "img", "input", "ins",
+    "kbd",
+    "label", "legend", "li", "link",
+    "main", "map", "mark", "menu", "meta", "meter",
+    "nav", "noscript",
+    "object", "ol", "optgroup", "option", "output",
+    "p", "picture", "pre", "progress",
+    "q",
+    "rp", "rt", "ruby",
+    "s", "samp", "script", "search", "section", "select", "slot",
+    "small", "source", "span", "strong", "style", "sub", "summary", "sup",
+    "table", "tbody", "td", "template", "textarea", "tfoot", "th", "thead",
+    "time", "tr", "track",
+    "u", "ul",
+    "var", "video",
+    "wbr"
+  )
+
   /** HTML void elements that never have a closing tag. */
   private val VoidElements: Set[String] = Set(
     "area",
@@ -245,7 +275,34 @@ private[parser] final class TemplateParser(src: String):
       case "melt:head"   => TemplateNode.Head(children)
       case "melt:window" => TemplateNode.Window(attrs)
       case "melt:body"   => TemplateNode.Body(attrs)
-      case _             =>
+      case "melt:element" =>
+        val tagExpr = attrs.collectFirst {
+          case Attr.Dynamic("this", expr) => expr
+        }.getOrElse {
+          _warnings += (("<melt:element> requires a `this={expr}` attribute", pos))
+          "\"div\""
+        }
+        // Validate string literals at meltc phase
+        val StringLiteral = """^"([^"]*)"$""".r
+        tagExpr match
+          case StringLiteral(name) if KnownHtmlTags.contains(name) =>
+            _warnings += ((
+              s"""<melt:element this={"$name"}> uses a static tag — use <$name> directly""",
+              pos
+            ))
+          case StringLiteral(name) =>
+            _warnings += ((
+              s""""$name" is not a valid HTML tag name. """ +
+                s"""Use a known HTML5 tag or HtmlTag.trusted("$name") for custom elements.""",
+              pos
+            ))
+          case _ => // dynamic expression — type-checked by scalac via HtmlTag
+        val restAttrs = attrs.filter {
+          case Attr.Dynamic("this", _) => false
+          case _                       => true
+        }
+        TemplateNode.DynamicElement(tagExpr, restAttrs, children)
+      case _ =>
         if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
         else TemplateNode.Element(tag, attrs, children)
 

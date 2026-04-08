@@ -268,6 +268,28 @@ object ScalaCodeGen:
         }
         ""
 
+      case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
+        attrs.foreach {
+          case Attr.Directive("animate", _, _, _) =>
+            sys.error("`<melt:element>` does not support `animate:`")
+          case _ =>
+        }
+        val anchor  = ctr.nextTxt()
+        val elVar   = "_dynEl"
+        val setupBuf = new StringBuilder
+        attrs.foreach(emitAttr(setupBuf, elVar, _, s"$indent  ", attrs))
+        children.foreach { child =>
+          val cv = emitNode(setupBuf, child, s"$indent  ", ctr, isRoot = false, parentVar = Some(elVar))
+          if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
+        }
+        buf ++= s"""${ indent }val $anchor = dom.document.createComment("")\n"""
+        parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+        buf ++= s"${ indent }Bind.dynamicElement($tagExpr, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
+        buf ++= setupBuf.toString
+        buf ++= s"${ indent }  ()\n" // ensure the setup lambda returns Unit
+        buf ++= s"${ indent }})\n"
+        ""
+
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
 
