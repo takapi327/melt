@@ -14,6 +14,8 @@ import scala.scalajs.js.timers.*
 
 import org.scalajs.dom
 
+import melt.runtime.{ Lifecycle, Mount }
+
 /** Base class for testing Melt components.
   *
   * Extend this class and call [[mount]] inside each test to attach a component
@@ -51,6 +53,7 @@ abstract class MeltSuite extends munit.FunSuite:
   /** Removes all mounted containers after each test. */
   override def afterEach(context: AfterEach): Unit =
     _containers.foreach { c =>
+      Lifecycle.destroyTree(c)
       if c.parentNode != null then c.parentNode.removeChild(c)
     }
     _containers.clear()
@@ -107,6 +110,6 @@ abstract class MeltSuite extends munit.FunSuite:
   def mount(element: dom.Element): MountedComponent =
     val container = dom.document.createElement("div").asInstanceOf[dom.html.Div]
     dom.document.body.appendChild(container)
-    container.appendChild(element)
+    Mount(container, element)
     _containers += container
     MountedComponent(container)

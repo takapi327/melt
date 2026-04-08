@@ -18,7 +18,11 @@ import org.scalajs.dom
   */
 object Mount:
 
-  /** Appends `component` as a child of `target`. */
+  /** Appends `component` as a child of `target`, then flushes [[OnMount]] callbacks.
+    *
+    * The flush runs synchronously after `appendChild` and before the browser
+    * paints, so [[onMount]] callbacks can safely read DOM geometry.
+    */
   def apply(target: dom.Element, component: dom.Element): Unit =
     target.appendChild(component)
-    ()
+    OnMount.flush(component)

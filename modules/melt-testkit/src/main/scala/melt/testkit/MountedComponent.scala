@@ -10,6 +10,8 @@ import scala.scalajs.js
 
 import org.scalajs.dom
 
+import melt.runtime.Lifecycle
+
 /** A handle to a mounted Melt component, providing query and interaction methods.
   *
   * Obtain an instance via [[MeltSuite.mount]]. All selector queries are scoped
@@ -620,6 +622,7 @@ final class MountedComponent(
     if _isScoped then return // within() scope — unmount is a no-op
     if !_unmounted then
       _unmounted = true
+      Lifecycle.destroyTree(container)
       if container.parentNode != null then container.parentNode.removeChild(container)
 
   /** Returns a new [[MountedComponent]] whose queries are scoped to `element`.

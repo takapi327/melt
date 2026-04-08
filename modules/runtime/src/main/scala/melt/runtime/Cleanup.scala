@@ -6,6 +6,7 @@
 
 package melt.runtime
 
+import scala.annotation.targetName
 import scala.collection.mutable
 
 /** Scoped cleanup mechanism for component subscription management.
@@ -60,3 +61,44 @@ object Cleanup:
   * }}}
   */
 def onCleanup(f: () => Unit): Unit = Cleanup.register(f)
+
+/** Registers [fn] to run after this component is first inserted into the DOM.
+  *
+  * The callback executes synchronously after `appendChild`, before the browser
+  * paints — identical to Svelte's `onMount` semantics.  This makes it safe to
+  * read DOM geometry (e.g. `getBoundingClientRect`) inside [fn].
+  *
+  * Nested components follow child-before-parent execution order.
+  *
+  * {{{
+  * <script lang="scala">
+  *   val ref   = Ref[dom.Element]()
+  *   val width = Var(0)
+  *
+  *   onMount { () =>
+  *     width.set(ref.value.getBoundingClientRect().width.toInt)
+  *   }
+  * </script>
+  * }}}
+  */
+def onMount(fn: () => Unit): Unit =
+  OnMount.register(() => { fn(); None })
+
+/** Registers [fn] to run after this component is first inserted into the DOM.
+  *
+  * If [fn] returns a cleanup function, that function is registered as a
+  * component destructor — equivalent to calling [[onCleanup]] inside [fn].
+  *
+  * {{{
+  * <script lang="scala">
+  *   onMount { () =>
+  *     val observer = new dom.IntersectionObserver(...)
+  *     observer.observe(myEl)
+  *     () => observer.disconnect()  // runs on component destroy
+  *   }
+  * </script>
+  * }}}
+  */
+@targetName("onMountWithCleanup")
+def onMount(fn: () => (() => Unit)): Unit =
+  OnMount.register(() => Some(fn()))
