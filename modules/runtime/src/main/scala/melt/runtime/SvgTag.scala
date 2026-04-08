@@ -20,15 +20,13 @@ package melt.runtime
   * For tag names from external sources use [[SvgTag.fromString]] or [[SvgTag.trusted]].
   */
 type SvgTag =
-  "animate" | "animateMotion" | "animateTransform" | "circle" | "clipPath" |
-    "defs" | "desc" | "ellipse" | "feBlend" | "feColorMatrix" | "feComponentTransfer" |
-    "feComposite" | "feConvolveMatrix" | "feDiffuseLighting" | "feDisplacementMap" |
-    "feFlood" | "feGaussianBlur" | "feImage" | "feMerge" | "feMorphology" |
-    "feOffset" | "feSpecularLighting" | "feTile" | "feTurbulence" | "filter" |
-    "foreignObject" | "g" | "image" | "line" | "linearGradient" | "marker" |
-    "mask" | "metadata" | "mpath" | "path" | "pattern" | "polygon" | "polyline" |
-    "radialGradient" | "rect" | "set" | "stop" | "svg" | "switch" | "symbol" |
-    "text" | "textPath" | "title" | "tspan" | "use" | "view"
+  "animate" | "animateMotion" | "animateTransform" | "circle" | "clipPath" | "defs" | "desc" | "ellipse" | "feBlend" |
+    "feColorMatrix" | "feComponentTransfer" | "feComposite" | "feConvolveMatrix" | "feDiffuseLighting" |
+    "feDisplacementMap" | "feFlood" | "feGaussianBlur" | "feImage" | "feMerge" | "feMorphology" | "feOffset" |
+    "feSpecularLighting" | "feTile" | "feTurbulence" | "filter" | "foreignObject" | "g" | "image" | "line" |
+    "linearGradient" | "marker" | "mask" | "metadata" | "mpath" | "path" | "pattern" | "polygon" | "polyline" |
+    "radialGradient" | "rect" | "set" | "stop" | "svg" | "switch" | "symbol" | "text" | "textPath" | "title" | "tspan" |
+    "use" | "view"
 
 object SvgTag:
 

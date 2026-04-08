@@ -128,7 +128,7 @@ object ScalaCodeGen:
     ctr:       Counter,
     isRoot:    Boolean,
     parentVar: Option[String],
-    ns:        String = ""       // current namespace context: "" | "svg" | "math"
+    ns:        String = "" // current namespace context: "" | "svg" | "math"
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
@@ -138,12 +138,10 @@ object ScalaCodeGen:
           if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
           else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
           else ns
-        if childNs == "svg" then
-          buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "$tag")\n"""
+        if childNs == "svg" then buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "$tag")\n"""
         else if childNs == "math" then
           buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "$tag")\n"""
-        else
-          buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
+        else buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         attrs.foreach(emitAttr(buf, v, _, indent, attrs))
         children.foreach { child =>
@@ -593,23 +591,88 @@ object ScalaCodeGen:
 
   /** SVG element names that must be created with `createElementNS`. */
   private val KnownSvgTags: Set[String] = Set(
-    "animate", "animateMotion", "animateTransform", "circle", "clipPath",
-    "defs", "desc", "ellipse", "feBlend", "feColorMatrix", "feComponentTransfer",
-    "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap",
-    "feFlood", "feGaussianBlur", "feImage", "feMerge", "feMorphology",
-    "feOffset", "feSpecularLighting", "feTile", "feTurbulence", "filter",
-    "foreignObject", "g", "image", "line", "linearGradient", "marker",
-    "mask", "metadata", "mpath", "path", "pattern", "polygon", "polyline",
-    "radialGradient", "rect", "set", "stop", "svg", "switch", "symbol",
-    "text", "textPath", "title", "tspan", "use", "view"
+    "animate",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "defs",
+    "desc",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feFlood",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMorphology",
+    "feOffset",
+    "feSpecularLighting",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "foreignObject",
+    "g",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "metadata",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "stop",
+    "svg",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "title",
+    "tspan",
+    "use",
+    "view"
   )
 
   /** MathML element names that must be created with `createElementNS`. */
   private val KnownMathTags: Set[String] = Set(
-    "annotation", "annotation-xml", "math", "merror", "mfrac", "mi",
-    "mn", "mo", "mover", "mpadded", "mphantom", "mroot", "mrow",
-    "ms", "msqrt", "mspace", "mstyle", "msub", "msubsup", "msup",
-    "mtable", "mtd", "mtext", "mtr", "munder", "munderover", "semantics"
+    "annotation",
+    "annotation-xml",
+    "math",
+    "merror",
+    "mfrac",
+    "mi",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mroot",
+    "mrow",
+    "ms",
+    "msqrt",
+    "mspace",
+    "mstyle",
+    "msub",
+    "msubsup",
+    "msup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "semantics"
   )
 
   // ── Helpers ───────────────────────────────────────────────────────────────

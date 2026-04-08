@@ -509,9 +509,9 @@ object Bind:
 
   // ── Dynamic element (<melt:element this={tag}>) ───────────────────────
 
-  private val htmlCreateElement:  String => dom.Element = dom.document.createElement
-  private val svgCreateElement:   String => dom.Element = dom.document.createElementNS(SvgTag.namespace, _)
-  private val mathCreateElement:  String => dom.Element = dom.document.createElementNS(MathTag.namespace, _)
+  private val htmlCreateElement: String => dom.Element = dom.document.createElement
+  private val svgCreateElement:  String => dom.Element = dom.document.createElementNS(SvgTag.namespace, _)
+  private val mathCreateElement: String => dom.Element = dom.document.createElementNS(MathTag.namespace, _)
 
   /** Renders a single HTML element whose tag name is determined at call time.
     * `null` / `None` renders nothing (anchor comment remains in the DOM).
@@ -559,7 +559,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    htmlCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementVar")
   def dynamicElement(
@@ -583,7 +590,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    htmlCreateElement
+  )
 
   // ── SVG overloads ────────────────────────────────────────────────────────
 
@@ -628,7 +642,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, svgCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    svgCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementSvgVar")
   def dynamicElement(
@@ -652,7 +673,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, svgCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    svgCreateElement
+  )
 
   // ── MathML overloads ────────────────────────────────────────────────────
 
@@ -697,7 +725,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    mathCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementMathVar")
   def dynamicElement(
@@ -721,7 +756,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(
+    tag.now().orNull,
+    f => tag.subscribe(opt => f(opt.orNull)),
+    anchor,
+    scopeId,
+    setup,
+    mathCreateElement
+  )
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
@@ -792,8 +834,7 @@ object Bind:
         if TransitionBridge.hasIn(el) then
           TransitionBridge.playIn(el)
           playGlobalTransitions(el, intro = true)
-        else
-          playGlobalTransitions(el, intro = true)
+        else playGlobalTransitions(el, intro = true)
         current = el
 
     swap(initial)

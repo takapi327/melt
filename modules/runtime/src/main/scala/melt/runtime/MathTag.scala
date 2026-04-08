@@ -20,10 +20,9 @@ package melt.runtime
   * For tag names from external sources use [[MathTag.fromString]] or [[MathTag.trusted]].
   */
 type MathTag =
-  "annotation" | "annotation-xml" | "math" | "merror" | "mfrac" | "mi" |
-    "mn" | "mo" | "mover" | "mpadded" | "mphantom" | "mroot" | "mrow" |
-    "ms" | "msqrt" | "mspace" | "mstyle" | "msub" | "msubsup" | "msup" |
-    "mtable" | "mtd" | "mtext" | "mtr" | "munder" | "munderover" | "semantics"
+  "annotation" | "annotation-xml" | "math" | "merror" | "mfrac" | "mi" | "mn" | "mo" | "mover" | "mpadded" |
+    "mphantom" | "mroot" | "mrow" | "ms" | "msqrt" | "mspace" | "mstyle" | "msub" | "msubsup" | "msup" | "mtable" |
+    "mtd" | "mtext" | "mtr" | "munder" | "munderover" | "semantics"
 
 object MathTag:
 
