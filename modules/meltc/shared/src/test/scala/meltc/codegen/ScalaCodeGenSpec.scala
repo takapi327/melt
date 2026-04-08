@@ -1000,3 +1000,121 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""addEventListener("click", handler)"""), code)
     assert(!code.contains("handler.asInstanceOf"), s"onclick must not cast handler:\n$code")
   }
+
+  // ── Phase 14: Special elements (<melt:*>) ────────────────────────────────
+
+  test("<melt:head> with static title emits Head.appendChild") {
+    val code = compile("<melt:head><title>My App</title></melt:head>")
+    assert(code.contains("Head.appendChild("), code)
+    assert(code.contains("""createElement("title")"""), code)
+    assert(code.contains("""createTextNode("My App")"""), code)
+  }
+
+  test("<melt:head> with reactive title emits Bind.text inside Head.appendChild") {
+    val src  = "<melt:head><title>{pageTitle}</title></melt:head>"
+    val code = compile(src)
+    assert(code.contains("Head.appendChild("), code)
+    assert(code.contains("Bind.text(pageTitle,"), code)
+  }
+
+  test("<melt:head> does not produce a root element itself") {
+    // Head children go to document.head — the component result should not include them
+    val src  = "<melt:head><title>T</title></melt:head><div>content</div>"
+    val code = compile(src)
+    assert(code.contains("Head.appendChild("), code)
+    // The <div> should be the _result
+    assert(code.contains("""createElement("div")"""), code)
+  }
+
+  test("<melt:window> with event handler emits Window.on") {
+    val code = compile("<melt:window onresize={handleResize} />")
+    assert(code.contains("""Window.on("resize")(handleResize)"""), code)
+  }
+
+  test("<melt:window> with keydown handler emits Window.on") {
+    val code = compile("<melt:window onkeydown={handleKey} />")
+    assert(code.contains("""Window.on("keydown")(handleKey)"""), code)
+  }
+
+  test("<melt:window> with bind:scrollY emits Window.bindScrollY") {
+    val code = compile("<melt:window bind:scrollY={y} />")
+    assert(code.contains("Window.bindScrollY(y)"), code)
+  }
+
+  test("<melt:window> with bind:scrollX emits Window.bindScrollX") {
+    val code = compile("<melt:window bind:scrollX={x} />")
+    assert(code.contains("Window.bindScrollX(x)"), code)
+  }
+
+  test("<melt:window> with bind:innerWidth emits Window.bindInnerWidth") {
+    val code = compile("<melt:window bind:innerWidth={w} />")
+    assert(code.contains("Window.bindInnerWidth(w)"), code)
+  }
+
+  test("<melt:window> with bind:innerHeight emits Window.bindInnerHeight") {
+    val code = compile("<melt:window bind:innerHeight={h} />")
+    assert(code.contains("Window.bindInnerHeight(h)"), code)
+  }
+
+  test("<melt:window> with bind:outerWidth emits Window.bindOuterWidth") {
+    val code = compile("<melt:window bind:outerWidth={w} />")
+    assert(code.contains("Window.bindOuterWidth(w)"), code)
+  }
+
+  test("<melt:window> with bind:outerHeight emits Window.bindOuterHeight") {
+    val code = compile("<melt:window bind:outerHeight={h} />")
+    assert(code.contains("Window.bindOuterHeight(h)"), code)
+  }
+
+  test("<melt:window> with bind:devicePixelRatio emits Window.bindDevicePixelRatio") {
+    val code = compile("<melt:window bind:devicePixelRatio={dpr} />")
+    assert(code.contains("Window.bindDevicePixelRatio(dpr)"), code)
+  }
+
+  test("<melt:window> with bind:online emits Window.bindOnline") {
+    val code = compile("<melt:window bind:online={isOnline} />")
+    assert(code.contains("Window.bindOnline(isOnline)"), code)
+  }
+
+  test("<melt:window> with multiple attrs emits all calls") {
+    val code = compile("<melt:window onresize={fn} bind:innerWidth={w} bind:scrollY={y} />")
+    assert(code.contains("""Window.on("resize")(fn)"""), code)
+    assert(code.contains("Window.bindInnerWidth(w)"), code)
+    assert(code.contains("Window.bindScrollY(y)"), code)
+  }
+
+  test("<melt:window> does not emit createElement") {
+    val code = compile("<melt:window onresize={fn} />")
+    assert(!code.contains("""createElement("melt:window")"""), code)
+  }
+
+  test("<melt:body> with event handler emits Body.on") {
+    val code = compile("<melt:body onmouseenter={handleEnter} />")
+    assert(code.contains("""Body.on("mouseenter")(handleEnter)"""), code)
+  }
+
+  test("<melt:body> with mouseleave emits Body.on") {
+    val code = compile("<melt:body onmouseleave={handleLeave} />")
+    assert(code.contains("""Body.on("mouseleave")(handleLeave)"""), code)
+  }
+
+  test("<melt:body> with use: directive emits Bind.action on document.body") {
+    val code = compile("<melt:body use:trapScroll />")
+    assert(code.contains("Bind.action(dom.document.body, trapScroll, ())"), code)
+  }
+
+  test("<melt:body> with use: directive with param emits Bind.action with param") {
+    val code = compile("<melt:body use:someAction={param} />")
+    assert(code.contains("Bind.action(dom.document.body, someAction, param)"), code)
+  }
+
+  test("<melt:body> does not emit createElement") {
+    val code = compile("<melt:body onmouseenter={fn} />")
+    assert(!code.contains("""createElement("melt:body")"""), code)
+  }
+
+  test("<melt:body> with multiple event handlers emits all Body.on calls") {
+    val code = compile("<melt:body onmouseenter={enter} onmouseleave={leave} />")
+    assert(code.contains("""Body.on("mouseenter")(enter)"""), code)
+    assert(code.contains("""Body.on("mouseleave")(leave)"""), code)
+  }

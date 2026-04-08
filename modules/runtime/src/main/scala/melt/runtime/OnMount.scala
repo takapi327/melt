@@ -45,5 +45,4 @@ private[runtime] object OnMount:
     * Called by [[Mount.apply]] immediately after `target.appendChild(component)`.
     */
   def flush(mountedRoot: dom.Element): Unit =
-    while pending.nonEmpty do
-      pending.dequeue()().foreach(Lifecycle.addCleanup(mountedRoot, _))
+    while pending.nonEmpty do pending.dequeue()().foreach(Lifecycle.addCleanup(mountedRoot, _))

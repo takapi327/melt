@@ -6,19 +6,19 @@
 
 package melt.runtime
 
-/** Runs a side-effect whenever the dependency changes.
+// ── effect ─────────────────────────────────────────────────────────────────
+
+/** Runs a side-effect **after** DOM updates whenever the dependency changes.
   *
-  * The effect body runs immediately with the current value, then re-runs
-  * on each subsequent change. Any `onCleanup` registered inside the effect
-  * body is executed before re-execution (and on component destruction).
+  * The effect body runs immediately with the current value (before the first
+  * DOM paint), then re-runs in the **Post** phase — after [[Bind]] DOM mutations
+  * — on each subsequent change.  Any `onCleanup` registered inside the effect
+  * body is executed before re-execution and on component destruction.
   *
   * {{{
   * val count = Var(0)
   * effect(count) { n =>
-  *   val timer = managed(
-  *     dom.window.setInterval(() => println(n), 1000),
-  *     id => dom.window.clearInterval(id)
-  *   )
+  *   dom.console.log(s"count is now: $$n")  // DOM is already updated at this point
   * }
   * }}}
   */
@@ -32,7 +32,7 @@ def effect[A](dep: Var[A])(f: A => Unit): Unit =
     innerCleanups = Cleanup.popScope()
 
   run(dep.now())
-  val cancel = dep.subscribe(run)
+  val cancel = dep.subscribePost(run)
   Cleanup.register(() => { cancel(); Cleanup.runAll(innerCleanups) })
 
 def effect[A](dep: Signal[A])(f: A => Unit): Unit =
@@ -45,10 +45,11 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
     innerCleanups = Cleanup.popScope()
 
   run(dep.now())
-  val cancel = dep.subscribe(run)
+  val cancel = dep.subscribePost(run)
   Cleanup.register(() => { cancel(); Cleanup.runAll(innerCleanups) })
 
-/** Two-dependency effect — re-runs when either dependency changes.
+/** Two-dependency effect — re-runs in the **Post** phase when either dependency changes.
+  *
   * Uses a scheduled run pattern so that if both change inside a `batch`,
   * the effect body runs only once.
   */
@@ -61,14 +62,65 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
     f(depA.now(), depB.now())
     innerCleanups = Cleanup.popScope()
 
-  // Shared schedule function for batch dedup
   lazy val scheduleRun: () => Unit = () => run()
 
   def trigger(): Unit =
-    if Batch.isBatching then Batch.enqueue(scheduleRun)
+    if Batch.isBatching || Batch.isFlushing then Batch.enqueue(scheduleRun)
     else run()
 
   run()
-  val cancelA = depA.subscribe(_ => trigger())
-  val cancelB = depB.subscribe(_ => trigger())
+  val cancelA = depA.subscribePost(_ => trigger())
+  val cancelB = depB.subscribePost(_ => trigger())
   Cleanup.register(() => { cancelA(); cancelB(); Cleanup.runAll(innerCleanups) })
+
+// ── layoutEffect ────────────────────────────────────────────────────────────
+
+/** Runs a side-effect **before** DOM updates whenever the dependency changes.
+  *
+  * Executes in the **Pre** phase — before [[Bind]] DOM mutations — allowing
+  * you to read the current DOM state (e.g. scroll position, element size)
+  * before the update is applied.
+  *
+  * Unlike [[effect]], `layoutEffect` does **not** run on initial creation;
+  * it only fires on subsequent changes to `dep`.
+  *
+  * {{{
+  * val messages = Var(List.empty[String])
+  * val listRef  = Ref.empty[dom.Element]
+  * var atBottom = false
+  *
+  * layoutEffect(messages) { _ =>
+  *   // DOM has NOT been updated yet — read pre-update state here
+  *   listRef.foreach { el =>
+  *     atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight
+  *   }
+  * }
+  *
+  * effect(messages) { _ =>
+  *   // DOM IS updated — act on post-update state here
+  *   if atBottom then listRef.foreach(el => el.scrollTop = el.scrollHeight)
+  * }
+  * }}}
+  */
+def layoutEffect[A](dep: Var[A])(f: A => Unit): Unit =
+  val cancel = dep.subscribePre(f)
+  Cleanup.register(cancel)
+
+def layoutEffect[A](dep: Signal[A])(f: A => Unit): Unit =
+  val cancel = dep.subscribePre(f)
+  Cleanup.register(cancel)
+
+/** Two-dependency `layoutEffect` — fires in the **Pre** phase when either dependency changes.
+  *
+  * Uses a scheduled run pattern to run at most once per `batch`.
+  */
+def layoutEffect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
+  lazy val scheduleRun: () => Unit = () => f(depA.now(), depB.now())
+
+  def trigger(): Unit =
+    if Batch.isBatching || Batch.isFlushing then Batch.enqueue(scheduleRun)
+    else f(depA.now(), depB.now())
+
+  val cancelA = depA.subscribePre(_ => trigger())
+  val cancelB = depB.subscribePre(_ => trigger())
+  Cleanup.register(() => { cancelA(); cancelB(); () })

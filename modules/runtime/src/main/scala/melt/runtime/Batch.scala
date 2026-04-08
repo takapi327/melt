@@ -15,7 +15,8 @@ import scala.collection.mutable
   * at the end of the outermost batch, reading the latest value.
   */
 object Batch:
-  private var depth = 0
+  private var depth    = 0
+  private var flushing = false
 
   /** Set of flush functions keyed by identity to avoid duplicates.
     * Each entry is a `() => Unit` that reads the current value and notifies subscribers.
@@ -24,17 +25,25 @@ object Batch:
 
   def isBatching: Boolean = depth > 0
 
+  /** True while the pending queue is being drained.
+    * Two-dep triggers check this to avoid re-scheduling dedup during flush.
+    */
+  private[runtime] def isFlushing: Boolean = flushing
+
   /** Registers a flush function. If the same function is already pending,
     * it is not added again (dedup by reference identity).
     */
   def enqueue(f: () => Unit): Unit = pending += f
 
   private def flush(): Unit =
-    // Iterate and clear — new enqueues during flush are processed in the same pass
-    while pending.nonEmpty do
-      val fns = pending.toList
-      pending.clear()
-      fns.foreach(_())
+    flushing = true
+    try
+      // Iterate and clear — new enqueues during flush are processed in the same pass
+      while pending.nonEmpty do
+        val fns = pending.toList
+        pending.clear()
+        fns.foreach(_())
+    finally flushing = false
 
   def apply(f: => Unit): Unit =
     depth += 1

@@ -241,8 +241,13 @@ private[parser] final class TemplateParser(src: String):
   // ── Node factory ──────────────────────────────────────────────────────────
 
   private def makeNode(tag: String, attrs: List[Attr], children: List[TemplateNode]): TemplateNode =
-    if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
-    else TemplateNode.Element(tag, attrs, children)
+    tag match
+      case "melt:head"   => TemplateNode.Head(children)
+      case "melt:window" => TemplateNode.Window(attrs)
+      case "melt:body"   => TemplateNode.Body(attrs)
+      case _             =>
+        if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
+        else TemplateNode.Element(tag, attrs, children)
 
   // ── Whitespace collapsing ────────────────────────────────────────────────
 
@@ -295,11 +300,14 @@ private[parser] final class TemplateParser(src: String):
       next.isLetter || next == '_'
     }
 
-  /** Reads a tag or attribute name (letters, digits, `-`, `_`, `.`, `:`). */
+  /** Reads a tag or attribute name (letters, digits, `-`, `_`, `.`, `:`).
+    * The `:` character is included to support `melt:head`, `melt:window`, and `melt:body`
+    * special element tags.
+    */
   private def collectName(): String =
     val start = pos
     while pos < src.length &&
-      (src(pos).isLetterOrDigit || src(pos) == '-' || src(pos) == '_' || src(pos) == '.')
+      (src(pos).isLetterOrDigit || src(pos) == '-' || src(pos) == '_' || src(pos) == '.' || src(pos) == ':')
     do pos += 1
     src.substring(start, pos)
 

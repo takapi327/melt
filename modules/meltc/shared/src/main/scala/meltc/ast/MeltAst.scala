@@ -49,6 +49,15 @@ enum TemplateNode:
     */
   case InlineTemplate(parts: List[InlineTemplatePart])
 
+  /** A `<melt:head>` block — children are inserted into `document.head` for the lifetime of the component. */
+  case Head(children: List[TemplateNode])
+
+  /** A `<melt:window>` element — attaches event listeners and reactive bindings to `window`. */
+  case Window(attrs: List[Attr])
+
+  /** A `<melt:body>` element — attaches event listeners and actions to `document.body`. */
+  case Body(attrs: List[Attr])
+
 /** A part of an [[TemplateNode.InlineTemplate]] expression. */
 enum InlineTemplatePart:
   /** A raw Scala code fragment. */

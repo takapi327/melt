@@ -10,7 +10,9 @@ import scala.collection.mutable
 
 /** A read-only reactive value derived from one or more [[Var]] instances.
   *
-  * Subscribers are notified whenever the upstream source changes.
+  * Subscribers are notified whenever the upstream source changes, in the same
+  * three-phase order as [[Var]]: Pre → Bind → Post.
+  *
   * Use [[Var.map]] or a `for`-comprehension to create a Signal.
   *
   * {{{
@@ -22,18 +24,35 @@ import scala.collection.mutable
   */
 final class Signal[A] private[runtime] (private var _current: A):
 
-  private val subscribers = mutable.ListBuffer.empty[A => Unit]
+  // ── Three-phase subscriber lanes (mirrors Var) ───────────────────────────
+  private val _pre  = mutable.ListBuffer.empty[A => Unit]
+  private val _bind = mutable.ListBuffer.empty[A => Unit]
+  private val _post = mutable.ListBuffer.empty[A => Unit]
 
   /** Returns the current value without registering any reactive dependency. */
   def now(): A = _current
 
-  /** Subscribes to future value changes.
+  /** Subscribes to future value changes in the **Bind** phase (DOM updates).
     *
     * @return an unsubscribe function; call it to stop receiving notifications.
     */
   def subscribe(f: A => Unit): () => Unit =
-    subscribers += f
-    () => { subscribers -= f; () }
+    _bind += f
+    () => { _bind -= f; () }
+
+  /** Subscribes in the **Pre** phase — fires before [[Bind]] DOM updates.
+    * Used by [[layoutEffect]].
+    */
+  private[runtime] def subscribePre(f: A => Unit): () => Unit =
+    _pre += f
+    () => { _pre -= f; () }
+
+  /** Subscribes in the **Post** phase — fires after [[Bind]] DOM updates.
+    * Used by [[effect]].
+    */
+  private[runtime] def subscribePost(f: A => Unit): () => Unit =
+    _post += f
+    () => { _post -= f; () }
 
   /** Derives a new [[Signal]] by transforming each emitted value with `f`.
     *
@@ -66,12 +85,19 @@ final class Signal[A] private[runtime] (private var _current: A):
     derived
 
   /** Per-instance flush function for batch dedup. */
-  private lazy val _batchFlush: () => Unit = () => subscribers.foreach(_(_current))
+  private lazy val _batchFlush: () => Unit = () =>
+    _pre.foreach(_(_current))
+    _bind.foreach(_(_current))
+    _post.foreach(_(_current))
 
-  /** Pushes a new value to all subscribers. Package-private; called by [[Var]] and derived Signals.
+  /** Pushes a new value to all subscribers in phase order.
+    * Package-private; called by [[Var]] and derived Signals.
     * If inside a `batch { }` block, notifications are deferred and coalesced.
     */
   private[runtime] def emit(value: A): Unit =
     _current = value
     if Batch.isBatching then Batch.enqueue(_batchFlush)
-    else subscribers.foreach(_(value))
+    else
+      _pre.foreach(_(value))
+      _bind.foreach(_(value))
+      _post.foreach(_(value))

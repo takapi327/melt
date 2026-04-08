@@ -1281,3 +1281,97 @@ class TemplateParserSpec extends munit.FunSuite:
       )
     )
   }
+
+  // ── Special elements (<melt:*>) ───────────────────────────────────────────
+
+  test("<melt:head> with static children parses as Head node") {
+    val result = parse("<melt:head><title>My App</title></melt:head>")
+    assertEquals(
+      result,
+      List(
+        TemplateNode.Head(
+          List(
+            TemplateNode.Element("title", Nil, List(TemplateNode.Text("My App")))
+          )
+        )
+      )
+    )
+  }
+
+  test("<melt:head> with multiple children") {
+    val result = parse(
+      """<melt:head>
+        |  <title>Page</title>
+        |  <meta name="description" content="desc" />
+        |</melt:head>""".stripMargin
+    )
+    assertEquals(result.size, 1)
+    val head = result.head.asInstanceOf[TemplateNode.Head]
+    assertEquals(head.children.size, 2)
+    assertEquals(head.children(0).asInstanceOf[TemplateNode.Element].tag, "title")
+    assertEquals(head.children(1).asInstanceOf[TemplateNode.Element].tag, "meta")
+  }
+
+  test("<melt:head> with expression child") {
+    val result = parse("<melt:head><title>{pageTitle}</title></melt:head>")
+    val head   = result.head.asInstanceOf[TemplateNode.Head]
+    val title  = head.children.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(title.children, List(TemplateNode.Expression("pageTitle")))
+  }
+
+  test("<melt:window> self-closing with event handler parses as Window node") {
+    val result = parse("<melt:window onresize={handleResize} />")
+    assertEquals(
+      result,
+      List(TemplateNode.Window(List(Attr.EventHandler("resize", "handleResize"))))
+    )
+  }
+
+  test("<melt:window> with bind directive") {
+    val result = parse("<melt:window bind:scrollY={y} />")
+    assertEquals(
+      result,
+      List(TemplateNode.Window(List(Attr.Directive("bind", "scrollY", Some("y")))))
+    )
+  }
+
+  test("<melt:window> with multiple attrs") {
+    val result = parse("<melt:window onresize={fn} bind:innerWidth={w} bind:scrollY={y} />")
+    val window = result.head.asInstanceOf[TemplateNode.Window]
+    assertEquals(window.attrs.size, 3)
+    assertEquals(window.attrs(0), Attr.EventHandler("resize", "fn"))
+    assertEquals(window.attrs(1), Attr.Directive("bind", "innerWidth", Some("w")))
+    assertEquals(window.attrs(2), Attr.Directive("bind", "scrollY", Some("y")))
+  }
+
+  test("<melt:body> self-closing with event handler parses as Body node") {
+    val result = parse("<melt:body onmouseenter={handleEnter} />")
+    assertEquals(
+      result,
+      List(TemplateNode.Body(List(Attr.EventHandler("mouseenter", "handleEnter"))))
+    )
+  }
+
+  test("<melt:body> with use directive") {
+    val result = parse("<melt:body use:trapScroll />")
+    assertEquals(
+      result,
+      List(TemplateNode.Body(List(Attr.Directive("use", "trapScroll", None))))
+    )
+  }
+
+  test("<melt:body> with multiple event handlers") {
+    val result = parse("<melt:body onmouseenter={enter} onmouseleave={leave} />")
+    val body   = result.head.asInstanceOf[TemplateNode.Body]
+    assertEquals(body.attrs.size, 2)
+    assertEquals(body.attrs(0), Attr.EventHandler("mouseenter", "enter"))
+    assertEquals(body.attrs(1), Attr.EventHandler("mouseleave", "leave"))
+  }
+
+  test("<melt:head> coexists with regular sibling element") {
+    val result = parse("<melt:head><title>T</title></melt:head><div>content</div>")
+    assertEquals(result.size, 2)
+    assert(result(0).isInstanceOf[TemplateNode.Head])
+    val div = result(1).asInstanceOf[TemplateNode.Element]
+    assertEquals(div.tag, "div")
+  }

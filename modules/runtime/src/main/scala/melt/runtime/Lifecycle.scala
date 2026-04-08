@@ -33,8 +33,7 @@ object Lifecycle:
     * Called by generated `create()` code via [[Cleanup.popScope]].
     */
   def register(el: dom.Element, cleanups: List[() => Unit]): Unit =
-    if cleanups.nonEmpty then
-      registry.getOrElseUpdate(el, mutable.ListBuffer.empty) ++= cleanups
+    if cleanups.nonEmpty then registry.getOrElseUpdate(el, mutable.ListBuffer.empty) ++= cleanups
 
   /** Adds a single [cleanup] function to the registry entry for [el].
     * Called by [[OnMount.flush]] to register cleanup functions returned by

@@ -1,0 +1,254 @@
+<script lang="scala">
+// ── State ───────────────────────────────────────────────────────────────────
+val pageTitle   = Var("Special Elements Demo")
+val description = Var("Melt special elements: melt:head, melt:window, melt:body")
+
+val windowWidth  = Var(0.0)
+val windowHeight = Var(0.0)
+val scrollY      = Var(0.0)
+val isOnline     = Var(true)
+
+val bodyHovered  = Var(false)
+val shortcutLog  = Var(List.empty[String])
+
+// ── Keyboard handler ────────────────────────────────────────────────────────
+// Window.on expects dom.Event => Unit; cast to KeyboardEvent inside
+def handleKeydown(e: dom.Event): Unit =
+  val ke = e.asInstanceOf[dom.KeyboardEvent]
+  if ke.key == "Escape" then
+    shortcutLog.update(log => s"[Escape] scroll to top" :: log.take(9))
+    dom.window.scrollTo(0, 0)
+  else if ke.key == "ArrowUp" && ke.altKey then
+    ke.preventDefault()
+    shortcutLog.update(log => s"[Alt+↑] scrolled up" :: log.take(9))
+  else if ke.key == "ArrowDown" && ke.altKey then
+    ke.preventDefault()
+    shortcutLog.update(log => s"[Alt+↓] scrolled down" :: log.take(9))
+
+// ── Title updates with scroll depth ─────────────────────────────────────────
+effect(scrollY) { y =>
+  val depth = if y < 100 then "Top" else if y < 400 then "Middle" else "Bottom"
+  pageTitle.set(s"[$depth] Special Elements Demo")
+}
+</script>
+
+<!-- ── melt:head — reactive document head ────────────────────────────────── -->
+<melt:head>
+  <title>{pageTitle}</title>
+  <meta name="description" content={description} />
+</melt:head>
+
+<!-- ── melt:window — window events & property bindings ───────────────────── -->
+<melt:window
+  onkeydown={(e: dom.Event) => handleKeydown(e)}
+  bind:innerWidth={windowWidth}
+  bind:innerHeight={windowHeight}
+  bind:scrollY={scrollY}
+  bind:online={isOnline}
+/>
+
+<!-- ── melt:body — body-level mouse detection ────────────────────────────── -->
+<melt:body
+  onmouseenter={_ => bodyHovered.set(true)}
+  onmouseleave={_ => bodyHovered.set(false)}
+/>
+
+<!-- ── UI ────────────────────────────────────────────────────────────────── -->
+<div class="demo">
+  <header class="hero">
+    <h1>Melt Special Elements</h1>
+    <p class="subtitle">
+      Demonstrating <code>&lt;melt:head&gt;</code>,
+      <code>&lt;melt:window&gt;</code>, and
+      <code>&lt;melt:body&gt;</code>
+    </p>
+  </header>
+
+  <div class="panels">
+
+    <!-- ── melt:head panel ──────────────────────────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title"><span class="tag">&lt;melt:head&gt;</span></h2>
+      <p class="hint">
+        The browser tab title and meta description update reactively.
+        Scroll down to watch the title change.
+      </p>
+      <div class="info-row">
+        <span class="label">Tab title</span>
+        <code class="value">{pageTitle}</code>
+      </div>
+      <div class="info-row">
+        <span class="label">Description</span>
+        <code class="value">{description}</code>
+      </div>
+      <div class="btn-row">
+        <button onclick={_ => pageTitle.set("Special Elements Demo")}>Reset title</button>
+        <button onclick={_ => pageTitle.set("Custom Title!")}>Set custom</button>
+      </div>
+    </section>
+
+    <!-- ── melt:window panel ────────────────────────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title"><span class="tag">&lt;melt:window&gt;</span></h2>
+      <p class="hint">
+        Window dimensions, scroll position and network status update automatically.
+        Resize the window or scroll to see live values.
+      </p>
+      <div class="info-row">
+        <span class="label">Width × Height</span>
+        <code class="value">{windowWidth.map(_.toInt)} × {windowHeight.map(_.toInt)} px</code>
+      </div>
+      <div class="info-row">
+        <span class="label">Scroll Y</span>
+        <code class="value">{scrollY.map(y => s"${y.toInt} px")}</code>
+      </div>
+      <div class="info-row">
+        <span class="label">Network</span>
+        <code class="value">{isOnline.map(on => if on then "Online" else "Offline")}</code>
+      </div>
+      <p class="hint">Keyboard: <strong>Esc</strong> → scroll to top</p>
+      <div class="shortcut-log">
+        {if shortcutLog.now().isEmpty then
+          <p class="empty">No shortcuts pressed yet…</p>
+        else
+          <span></span>}
+        <ul>
+          {shortcutLog.map((entry: String) => <li>{entry}</li>)}
+        </ul>
+      </div>
+      <div class="btn-row">
+        <button onclick={_ => dom.window.scrollTo(0, 0)}>Scroll to top</button>
+        <button onclick={_ => shortcutLog.set(List.empty)}>Clear log</button>
+      </div>
+    </section>
+
+    <!-- ── melt:body panel ──────────────────────────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title"><span class="tag">&lt;melt:body&gt;</span></h2>
+      <p class="hint">
+        Detects <code>mouseenter</code> / <code>mouseleave</code> on
+        <code>document.body</code> — events that don't reliably fire on
+        <code>window</code> in Firefox.
+      </p>
+      <div class="body-status">
+        {if bodyHovered.now() then
+          <div class="status-badge on">Cursor is inside the page</div>
+        else
+          <div class="status-badge off">Cursor has left the page</div>}
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Spacer to make the page scrollable so bind:scrollY can be tested -->
+  <div class="scroll-spacer">
+    <p>↓ Scroll down to see the tab title change ↓</p>
+    <div class="ruler">
+      <div class="ruler-mark" style="top: 100px">100 px</div>
+      <div class="ruler-mark" style="top: 200px">200 px</div>
+      <div class="ruler-mark" style="top: 300px">300 px</div>
+      <div class="ruler-mark" style="top: 400px">400 px — title → [Middle]</div>
+      <div class="ruler-mark" style="top: 500px">500 px — title → [Bottom]</div>
+    </div>
+  </div>
+</div>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; color: #222; background: #f5f5f5; }
+
+.demo { max-width: 960px; margin: 0 auto; padding: 1.5em 1em 4em; }
+
+.hero { text-align: center; padding: 2em 1em; }
+.hero h1 { font-size: 2em; color: #ff3e00; }
+.subtitle { margin-top: 0.5em; color: #555; font-size: 0.95em; line-height: 1.6; }
+
+.panels { display: flex; flex-wrap: wrap; gap: 1em; margin-top: 1.5em; }
+
+.panel {
+  flex: 1 1 260px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.panel-title { font-size: 1em; font-weight: 600; }
+.tag {
+  background: #fff0ec;
+  color: #ff3e00;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.hint { color: #777; font-size: 0.82em; line-height: 1.5; }
+
+.info-row { display: flex; align-items: baseline; gap: 0.5em; flex-wrap: wrap; font-size: 0.9em; }
+.label { color: #555; min-width: 110px; flex-shrink: 0; }
+.value { font-family: monospace; background: #f4f4f4; padding: 0.1em 0.4em; border-radius: 3px; word-break: break-all; }
+
+.shortcut-log {
+  min-height: 72px;
+  max-height: 130px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0.4em 0.6em;
+  background: #fafafa;
+  font-family: monospace;
+  font-size: 0.8em;
+}
+.shortcut-log ul { padding-left: 1.2em; list-style: disc; }
+.shortcut-log li { margin: 0.1em 0; color: #333; }
+.empty { color: #aaa; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.5em; }
+button {
+  padding: 0.4em 0.9em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+button:hover { background: #f0f0f0; }
+
+.body-status { display: flex; justify-content: center; padding: 1.2em 0; }
+.status-badge {
+  padding: 0.6em 1.6em;
+  border-radius: 999px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+.status-badge.on  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.status-badge.off { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+.scroll-spacer {
+  margin-top: 3em;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.88em;
+  position: relative;
+  height: 640px;
+}
+.ruler { position: relative; height: 100%; }
+.ruler-mark {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #eee;
+  padding: 0.15em 0.7em;
+  border-radius: 3px;
+  font-size: 0.78em;
+  color: #888;
+  white-space: nowrap;
+}
+
+code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.88em; }
+strong { font-weight: 600; }
+</style>
