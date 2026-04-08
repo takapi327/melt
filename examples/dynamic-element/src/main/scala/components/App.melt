@@ -1,0 +1,258 @@
+<script lang="scala">
+// ── 1. Heading level switcher ─────────────────────────────────────────────────
+//    HtmlTag.trusted is safe here because we only ever produce h1..h6
+val level      = Var(2)
+val headingTag: Signal[HtmlTag] = level.map(n => HtmlTag.trusted(s"h$n"))
+
+// ── 2. Optional element (show / hide) ─────────────────────────────────────────
+val wrapperTag: Var[Option[HtmlTag]] = Var(Some[HtmlTag]("section"))
+
+// ── 3. CMS / external string ──────────────────────────────────────────────────
+//    HtmlTag.fromString converts an arbitrary String to Option[HtmlTag]:
+//      Some(tag) → valid HTML5 element name → element is rendered
+//      None      → unknown name             → nothing rendered
+val cmsInput = Var("article")
+val cmsTag:    Signal[Option[HtmlTag]] = cmsInput.map(HtmlTag.fromString)
+val cmsStatus: Signal[String] = cmsInput.map { s =>
+  if HtmlTag.fromString(s).isDefined then s"""✓ "$s" is a valid HTML5 tag"""
+  else s"""✗ "$s" is not a valid HTML5 tag — nothing rendered"""
+}
+</script>
+
+<div class="demo">
+
+  <header class="hero">
+    <h1>melt:element Demo</h1>
+    <p class="subtitle">
+      Demonstrating <code>&lt;melt:element this=&#123;tag&#125;&gt;</code>
+      — dynamic HTML tag names with Scala type safety
+    </p>
+  </header>
+
+  <div class="panels">
+
+    <!-- ── Panel 1: Reactive tag via Var[HtmlTag] ─────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title">
+        <span class="tag">Signal[HtmlTag]</span> Reactive Tag
+      </h2>
+      <p class="hint">
+        The heading level changes reactively.
+        <code>HtmlTag.trusted</code> converts the level number to a
+        compile-time-safe <code>HtmlTag</code>.
+      </p>
+
+      <div class="preview heading-preview">
+        <melt:element this={headingTag} class="heading-el">
+          Heading at level {level}
+        </melt:element>
+      </div>
+
+      <div class="btn-row">
+        <button onclick={_ => if level.now() > 1 then level.update(_ - 1)}>↑ Shallower</button>
+        <code class="level-badge">h{level}</code>
+        <button onclick={_ => if level.now() < 6 then level.update(_ + 1)}>↓ Deeper</button>
+      </div>
+
+      <p class="code-note hint">
+        <code>val tag: Signal[HtmlTag] = level.map(n => HtmlTag.trusted(s"h$n"))</code>
+      </p>
+    </section>
+
+    <!-- ── Panel 2: Optional element — show / hide ────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title">
+        <span class="tag">Option[HtmlTag]</span> Show / Hide
+      </h2>
+      <p class="hint">
+        When the value is <code>None</code>, nothing is rendered (not even a
+        placeholder). When <code>Some(tag)</code>, the element appears in the
+        DOM.
+      </p>
+
+      <div class="preview">
+        <melt:element this={wrapperTag} class="optional-box">
+          This content is inside a <code>&lt;section&gt;</code> element.
+        </melt:element>
+      </div>
+
+      <div class="btn-row">
+        <button onclick={_ =>
+          if wrapperTag.now().isDefined then wrapperTag.set(None)
+          else wrapperTag.set(Some[HtmlTag]("section"))
+        }>
+          {wrapperTag.map(opt => if opt.isDefined then "Hide (→ None)" else "Show (→ Some(\"section\"))")}
+        </button>
+      </div>
+
+      <p class="status">
+        Current: <code>{wrapperTag.map(opt => opt.fold("None")(t => s"""Some("$t")"""))}</code>
+      </p>
+    </section>
+
+    <!-- ── Panel 3: External string via HtmlTag.fromString ────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title">
+        <span class="tag">HtmlTag.fromString</span> External Source
+      </h2>
+      <p class="hint">
+        Simulates a CMS-supplied tag name.
+        <code>HtmlTag.fromString</code> returns <code>Some(tag)</code> for
+        valid HTML5 names and <code>None</code> for unknown names — rendering
+        nothing in that case.
+      </p>
+
+      <div class="input-row">
+        <label>Tag name:</label>
+        <input type="text" bind:value={cmsInput} placeholder="e.g. div, article, hoge…" />
+      </div>
+
+      <div class="preview">
+        <melt:element this={cmsTag} class="cms-block">
+          Content rendered inside <code>&lt;{cmsInput}&gt;</code>
+        </melt:element>
+      </div>
+
+      <p class="status">
+        <span class:valid={cmsTag.map(_.isDefined)} class:invalid={cmsTag.map(_.isEmpty)}>
+          {cmsStatus}
+        </span>
+      </p>
+
+      <p class="code-note hint">
+        <code>val tag: Signal[Option[HtmlTag]] = cmsInput.map(HtmlTag.fromString)</code>
+      </p>
+    </section>
+
+  </div>
+</div>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; color: #222; background: #f5f5f5; }
+
+.demo { max-width: 960px; margin: 0 auto; padding: 1.5em 1em 4em; }
+
+.hero { text-align: center; padding: 2em 1em 1.5em; }
+.hero h1 { font-size: 2em; color: #ff3e00; }
+.subtitle { margin-top: 0.5em; color: #555; font-size: 0.95em; line-height: 1.6; }
+
+.panels { display: flex; flex-wrap: wrap; gap: 1em; margin-top: 1.5em; }
+
+.panel {
+  flex: 1 1 260px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+}
+
+.panel-title { font-size: 1em; font-weight: 600; line-height: 1.4; }
+.tag {
+  display: inline-block;
+  background: #fff0ec;
+  color: #ff3e00;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.88em;
+}
+
+.hint { color: #666; font-size: 0.82em; line-height: 1.55; }
+
+/* ── Panel 1: heading preview ── */
+.heading-preview {
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  padding: 0.8em 1em;
+  min-height: 3em;
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+}
+.heading-el { color: #ff3e00; margin: 0; }
+
+.btn-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5em; }
+
+.level-badge {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+  min-width: 2.4em;
+  text-align: center;
+}
+
+/* ── Panel 2: optional box ── */
+.preview {
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  padding: 0.8em 1em;
+  min-height: 3em;
+  background: #fafafa;
+}
+.optional-box {
+  background: #eaf4fb;
+  border: 1px solid #b8d8eb;
+  border-radius: 4px;
+  padding: 0.6em 0.9em;
+  font-size: 0.9em;
+  color: #1a5276;
+}
+
+/* ── Panel 3: CMS panel ── */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.88em;
+}
+.input-row label { color: #555; white-space: nowrap; }
+.input-row input {
+  flex: 1;
+  padding: 0.3em 0.5em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95em;
+  font-family: monospace;
+}
+
+.cms-block {
+  background: #f0fff4;
+  border: 1px solid #b2dfdb;
+  border-radius: 4px;
+  padding: 0.6em 0.9em;
+  font-size: 0.9em;
+  color: #1b5e20;
+}
+
+.status { font-size: 0.83em; }
+.status .valid   { color: #155724; font-weight: 600; }
+.status .invalid { color: #721c24; font-weight: 600; }
+
+.code-note { margin-top: 0.2em; overflow-x: auto; white-space: nowrap; }
+
+/* ── Shared ── */
+button {
+  padding: 0.4em 0.9em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+button:hover { background: #f0f0f0; }
+
+code {
+  background: #f4f4f4;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.88em;
+  font-family: monospace;
+}
+</style>

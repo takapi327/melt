@@ -218,6 +218,19 @@ lazy val `special-elements` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Dynamic Element (Phase 0 — melt:element) ────────────────────────
+lazy val `dynamic-element` = project
+  .in(file("examples/dynamic-element"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "dynamic-element",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Example: layoutEffect (Phase 13 — pre/post subscriber lanes) ─────────────
 lazy val `layout-effect` = project
   .in(file("examples/layout-effect"))
@@ -247,6 +260,7 @@ lazy val root = project
     `todo-app`,
     transitions,
     `special-elements`,
+    `dynamic-element`,
     `layout-effect`
   )
   .settings(BuildSettings.commonSettings)
