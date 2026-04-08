@@ -205,6 +205,19 @@ lazy val transitions = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: Special Elements (Phase 14 — melt:head / melt:window / melt:body) ──
+lazy val `special-elements` = project
+  .in(file("examples/special-elements"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "special-elements",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Example: layoutEffect (Phase 13 — pre/post subscriber lanes) ─────────────
 lazy val `layout-effect` = project
   .in(file("examples/layout-effect"))
@@ -233,6 +246,7 @@ lazy val root = project
     counter,
     `todo-app`,
     transitions,
+    `special-elements`,
     `layout-effect`
   )
   .settings(BuildSettings.commonSettings)
