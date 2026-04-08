@@ -509,26 +509,33 @@ object Bind:
 
   // ── Dynamic element (<melt:element this={tag}>) ───────────────────────
 
-  /** Renders a single element whose tag name is determined at call time.
+  private val htmlCreateElement:  String => dom.Element = dom.document.createElement
+  private val svgCreateElement:   String => dom.Element = dom.document.createElementNS(SvgTag.namespace, _)
+  private val mathCreateElement:  String => dom.Element = dom.document.createElementNS(MathTag.namespace, _)
+
+  /** Renders a single HTML element whose tag name is determined at call time.
     * `null` / `None` renders nothing (anchor comment remains in the DOM).
+    * Supports `transition:`, `in:`, and `out:` directives on the element.
     */
+  @scala.annotation.targetName("dynamicElementHtml")
   def dynamicElement(
     tag:     HtmlTag | Null,
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicOnce(tag, anchor, scopeId, setup)
+  ): Unit = mountDynamicOnce(tag, anchor, scopeId, setup, htmlCreateElement)
 
+  @scala.annotation.targetName("dynamicElementHtmlOption")
   def dynamicElement(
     tag:     Option[HtmlTag],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicOnce(tag.orNull, anchor, scopeId, setup)
+  ): Unit = mountDynamicOnce(tag.orNull, anchor, scopeId, setup, htmlCreateElement)
 
-  /** Reactive dynamic element — re-renders whenever `tag` changes.
-    * The old element is removed and a new one is created on each change.
-    * `null` / `None` in the signal or var removes the element without replacement.
+  /** Reactive HTML dynamic element — re-renders whenever `tag` changes.
+    * The old element plays its outro (if any) then is removed; the new element is inserted
+    * and its intro (if any) is played.  `null` / `None` renders nothing.
     */
   @scala.annotation.targetName("dynamicElementSignal")
   def dynamicElement(
@@ -536,7 +543,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementSignalNullable")
   def dynamicElement(
@@ -544,7 +551,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementSignalOption")
   def dynamicElement(
@@ -552,7 +559,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVar")
   def dynamicElement(
@@ -560,7 +567,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVarNullable")
   def dynamicElement(
@@ -568,7 +575,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVarOption")
   def dynamicElement(
@@ -576,48 +583,217 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup)
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, htmlCreateElement)
 
-  private def mountDynamicOnce(
-    tagName: HtmlTag | Null,
+  // ── SVG overloads ────────────────────────────────────────────────────────
+
+  /** Renders a single SVG element (via `createElementNS`) whose tag name is
+    * determined at call time. Use inside an `<svg>` context.
+    */
+  @scala.annotation.targetName("dynamicElementSvg")
+  def dynamicElement(
+    tag:     SvgTag | Null,
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag, anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgOption")
+  def dynamicElement(
+    tag:     Option[SvgTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag.orNull, anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgSignal")
+  def dynamicElement(
+    tag:     Signal[SvgTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgSignalNullable")
+  def dynamicElement(
+    tag:     Signal[SvgTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgSignalOption")
+  def dynamicElement(
+    tag:     Signal[Option[SvgTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgVar")
+  def dynamicElement(
+    tag:     Var[SvgTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgVarNullable")
+  def dynamicElement(
+    tag:     Var[SvgTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, svgCreateElement)
+
+  @scala.annotation.targetName("dynamicElementSvgVarOption")
+  def dynamicElement(
+    tag:     Var[Option[SvgTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, svgCreateElement)
+
+  // ── MathML overloads ────────────────────────────────────────────────────
+
+  /** Renders a single MathML element (via `createElementNS`) whose tag name is
+    * determined at call time. Use inside a `<math>` context.
+    */
+  @scala.annotation.targetName("dynamicElementMath")
+  def dynamicElement(
+    tag:     MathTag | Null,
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag, anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathOption")
+  def dynamicElement(
+    tag:     Option[MathTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicOnce(tag.orNull, anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathSignal")
+  def dynamicElement(
+    tag:     Signal[MathTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathSignalNullable")
+  def dynamicElement(
+    tag:     Signal[MathTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathSignalOption")
+  def dynamicElement(
+    tag:     Signal[Option[MathTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathVar")
+  def dynamicElement(
+    tag:     Var[MathTag],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), f => tag.subscribe(v => f(v)), anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathVarNullable")
+  def dynamicElement(
+    tag:     Var[MathTag | Null],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, mathCreateElement)
+
+  @scala.annotation.targetName("dynamicElementMathVarOption")
+  def dynamicElement(
+    tag:     Var[Option[MathTag]],
+    anchor:  dom.Comment,
+    scopeId: String,
+    setup:   dom.Element => Unit
+  ): Unit = mountDynamicCore(tag.now().orNull, f => tag.subscribe(opt => f(opt.orNull)), anchor, scopeId, setup, mathCreateElement)
+
+  // ── Private helpers ──────────────────────────────────────────────────────
+
+  /** Creates a single element, runs setup, plays intro transition if present, then
+    * registers cleanup that plays the outro (if present) before removing the element.
+    */
+  private def mountDynamicOnce(
+    tagName:       String | Null,
+    anchor:        dom.Comment,
+    scopeId:       String,
+    setup:         dom.Element => Unit,
+    createElement: String => dom.Element
   ): Unit =
     if tagName != null then
-      val el = dom.document.createElement(tagName)
+      val el = createElement(tagName)
       el.classList.add(scopeId)
       setup(el)
       anchor.parentNode.insertBefore(el, anchor)
-      Cleanup.register(() => Option(anchor.parentNode).foreach(_.removeChild(el)))
+      if TransitionBridge.hasIn(el) then TransitionBridge.playIn(el)
+      else playGlobalTransitions(el, intro = true)
+      Cleanup.register(() =>
+        if TransitionBridge.hasOut(el) then
+          playGlobalTransitions(el, intro = false)
+          TransitionBridge.playOut(el, () => Option(anchor.parentNode).foreach(_.removeChild(el)))
+        else
+          playGlobalTransitions(el, intro = false)
+          Option(anchor.parentNode).foreach(_.removeChild(el))
+      )
 
+  /** Reactive helper: re-creates the element whenever `subscribeFn` fires.
+    * Plays intro/outro transitions on enter/leave.
+    * Scopes setup subscriptions per element so they are cancelled before each swap.
+    */
   private def mountDynamicCore(
-    initial:     HtmlTag | Null,
-    subscribeFn: ((HtmlTag | Null) => Unit) => (() => Unit),
-    anchor:      dom.Comment,
-    scopeId:     String,
-    setup:       dom.Element => Unit
+    initial:       String | Null,
+    subscribeFn:   ((String | Null) => Unit) => (() => Unit),
+    anchor:        dom.Comment,
+    scopeId:       String,
+    setup:         dom.Element => Unit,
+    createElement: String => dom.Element
   ): Unit =
     var current: dom.Element | Null = null
     // Holds subscriptions created by setup() for the *current* element.
     // Cancelled before each swap so reactive bindings don't fire on detached nodes.
     var elementCleanup: List[() => Unit] = Nil
 
-    def swap(tagName: HtmlTag | Null): Unit =
+    def swap(tagName: String | Null): Unit =
       // Cancel all subscriptions registered by the previous setup call
       Cleanup.runAll(elementCleanup)
       elementCleanup = Nil
       if current != null then
-        Option(anchor.parentNode).foreach(_.removeChild(current))
+        val old = current
         current = null
+        if TransitionBridge.hasOut(old) then
+          playGlobalTransitions(old, intro = false)
+          TransitionBridge.playOut(old, () => Option(old.parentNode).foreach(_.removeChild(old)))
+        else
+          playGlobalTransitions(old, intro = false)
+          Option(anchor.parentNode).foreach(_.removeChild(old))
       if tagName != null then
-        val el = dom.document.createElement(tagName)
+        val el = createElement(tagName)
         el.classList.add(scopeId)
         // Scope setup's Cleanup.register calls so we can cancel them on the next swap
         Cleanup.pushScope()
         setup(el)
         elementCleanup = Cleanup.popScope()
         anchor.parentNode.insertBefore(el, anchor)
+        if TransitionBridge.hasIn(el) then
+          TransitionBridge.playIn(el)
+          playGlobalTransitions(el, intro = true)
+        else
+          playGlobalTransitions(el, intro = true)
         current = el
 
     swap(initial)
@@ -625,5 +801,13 @@ object Bind:
     Cleanup.register(cancel)
     Cleanup.register(() => {
       Cleanup.runAll(elementCleanup)
-      if current != null then Option(anchor.parentNode).foreach(_.removeChild(current))
+      if current != null then
+        val old = current
+        current = null
+        if TransitionBridge.hasOut(old) then
+          playGlobalTransitions(old, intro = false)
+          TransitionBridge.playOut(old, () => Option(old.parentNode).foreach(_.removeChild(old)))
+        else
+          playGlobalTransitions(old, intro = false)
+          Option(anchor.parentNode).foreach(_.removeChild(old))
     })
