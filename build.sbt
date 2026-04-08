@@ -101,7 +101,10 @@ lazy val runtime = project
     libraryDependencies ++= Seq(
       "org.scala-js"  %%% "scalajs-dom" % "2.8.1",
       "org.scalameta" %%% "munit"       % "1.2.4" % Test
-    )
+    ),
+    // Use jsdom so that DOM APIs (matchMedia, dispatchEvent, etc.) are available
+    // in unit tests. Required by TransitionEventSpec which tests TransitionEngine directly.
+    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
 
