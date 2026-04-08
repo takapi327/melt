@@ -127,21 +127,27 @@ object ScalaCodeGen:
     indent:    String,
     ctr:       Counter,
     isRoot:    Boolean,
-    parentVar: Option[String]
+    parentVar: Option[String],
+    ns:        String = ""       // current namespace context: "" | "svg" | "math"
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         val v = ctr.nextEl()
-        if KnownSvgTags.contains(tag) then
-          buf ++= s"""${ indent }val $v = dom.document.createElementNS("${ SvgNs }", "$tag")\n"""
-        else if KnownMathTags.contains(tag) then
-          buf ++= s"""${ indent }val $v = dom.document.createElementNS("${ MathNs }", "$tag")\n"""
+        // Determine namespace for this element and propagate to children.
+        val childNs =
+          if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
+          else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
+          else ns
+        if childNs == "svg" then
+          buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "$tag")\n"""
+        else if childNs == "math" then
+          buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "$tag")\n"""
         else
           buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         attrs.foreach(emitAttr(buf, v, _, indent, attrs))
         children.foreach { child =>
-          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v))
+          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
         }
         v
