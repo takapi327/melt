@@ -229,6 +229,45 @@ object ScalaCodeGen:
         // Re-emit as a regular Expression with the expanded code
         emitNode(buf, TemplateNode.Expression(exprBuf.toString), indent, ctr, isRoot, parentVar)
 
+      case TemplateNode.Head(children) =>
+        children.foreach { child =>
+          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = None)
+          if cv.nonEmpty then buf ++= s"${ indent }Head.appendChild($cv)\n"
+        }
+        ""
+
+      case TemplateNode.Window(attrs) =>
+        attrs.foreach {
+          case Attr.EventHandler(event, expr) =>
+            buf ++= s"""${ indent }Window.on("$event")($expr)\n"""
+          case Attr.Directive("bind", prop, Some(expr), _) =>
+            val method = prop match
+              case "scrollY"          => "bindScrollY"
+              case "scrollX"          => "bindScrollX"
+              case "innerWidth"       => "bindInnerWidth"
+              case "innerHeight"      => "bindInnerHeight"
+              case "outerWidth"       => "bindOuterWidth"
+              case "outerHeight"      => "bindOuterHeight"
+              case "devicePixelRatio" => "bindDevicePixelRatio"
+              case "online"           => "bindOnline"
+              case other              => s"bind${ other.capitalize }"
+            buf ++= s"${ indent }Window.$method($expr)\n"
+          case _ =>
+        }
+        ""
+
+      case TemplateNode.Body(attrs) =>
+        attrs.foreach {
+          case Attr.EventHandler(event, expr) =>
+            buf ++= s"""${ indent }Body.on("$event")($expr)\n"""
+          case Attr.Directive("use", actionName, Some(expr), _) =>
+            buf ++= s"${ indent }Bind.action(dom.document.body, $actionName, $expr)\n"
+          case Attr.Directive("use", actionName, None, _) =>
+            buf ++= s"${ indent }Bind.action(dom.document.body, $actionName, ())\n"
+          case _ =>
+        }
+        ""
+
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
 
