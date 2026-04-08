@@ -245,7 +245,7 @@ private[parser] final class TemplateParser(src: String):
       case "melt:head"   => TemplateNode.Head(children)
       case "melt:window" => TemplateNode.Window(attrs)
       case "melt:body"   => TemplateNode.Body(attrs)
-      case _ =>
+      case _             =>
         if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
         else TemplateNode.Element(tag, attrs, children)
 

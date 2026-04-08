@@ -59,7 +59,7 @@ object Window:
     dom.window.addEventListener("scroll", scrollListener)
     Cleanup.register(() => dom.window.removeEventListener("scroll", scrollListener))
     var initialized = false
-    val cancel = v.signal.subscribe { newY =>
+    val cancel      = v.signal.subscribe { newY =>
       if initialized then dom.window.scrollTo(dom.window.scrollX.toInt, newY.toInt)
       else initialized = true
     }
@@ -75,7 +75,7 @@ object Window:
     dom.window.addEventListener("scroll", scrollListener)
     Cleanup.register(() => dom.window.removeEventListener("scroll", scrollListener))
     var initialized = false
-    val cancel = v.signal.subscribe { newX =>
+    val cancel      = v.signal.subscribe { newX =>
       if initialized then dom.window.scrollTo(newX.toInt, dom.window.scrollY.toInt)
       else initialized = true
     }
@@ -125,10 +125,10 @@ object Window:
     v.set(dom.window.navigator.onLine)
     val onListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val offListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
-    dom.window.addEventListener("online",  onListener)
+    dom.window.addEventListener("online", onListener)
     dom.window.addEventListener("offline", offListener)
     Cleanup.register(() => {
-      dom.window.removeEventListener("online",  onListener)
+      dom.window.removeEventListener("online", onListener)
       dom.window.removeEventListener("offline", offListener)
     })
 

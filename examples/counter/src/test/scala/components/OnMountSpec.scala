@@ -29,7 +29,7 @@ class OnMountSpec extends munit.FunSuite:
   // ── Basic callback invocation ─────────────────────────────────────────────
 
   test("onMount callback is NOT called before Mount.apply") {
-    var ran = false
+    var ran       = false
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
@@ -43,7 +43,7 @@ class OnMountSpec extends munit.FunSuite:
   }
 
   test("onMount callback is called synchronously after Mount.apply") {
-    var ran = false
+    var ran       = false
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
@@ -55,7 +55,7 @@ class OnMountSpec extends munit.FunSuite:
   }
 
   test("multiple onMount callbacks all run") {
-    var count = 0
+    var count     = 0
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
@@ -97,7 +97,7 @@ class OnMountSpec extends munit.FunSuite:
     val container = makeContainer()
 
     onMount { () =>
-      mounted = true
+      mounted         = true
       () => destroyed = true
     }
     Mount(container, el)
@@ -111,7 +111,7 @@ class OnMountSpec extends munit.FunSuite:
   }
 
   test("void onMount does not register a cleanup") {
-    var ran = false
+    var ran       = false
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
@@ -127,7 +127,7 @@ class OnMountSpec extends munit.FunSuite:
   // ── Lifecycle.destroy / destroyTree ───────────────────────────────────────
 
   test("Lifecycle.register + destroy runs cleanups exactly once") {
-    var calls = 0
+    var calls     = 0
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 

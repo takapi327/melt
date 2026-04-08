@@ -115,7 +115,7 @@ final class Var[A] private (private var _current: A):
     var inner = f(_current)
     val s     = new Signal[B](inner.now())
     var cancelInner: () => Unit = inner.subscribe(b => s.emit(b))
-    val cancel: () => Unit = subscribe { a =>
+    val cancel:      () => Unit = subscribe { a =>
       cancelInner()
       inner = f(a)
       s.emit(inner.now())

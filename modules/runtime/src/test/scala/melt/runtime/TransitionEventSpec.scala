@@ -108,7 +108,7 @@ class TransitionEventSpec extends munit.FunSuite:
 
     val bubbled = scala.collection.mutable.ListBuffer.empty[String]
     parent.addEventListener("introstart", (_: dom.Event) => { bubbled += "introstart"; () })
-    parent.addEventListener("introend",   (_: dom.Event) => { bubbled += "introend";   () })
+    parent.addEventListener("introend", (_: dom.Event) => { bubbled += "introend"; () })
 
     TransitionEngine.run(child, syncConfig, intro = true)
     assertEquals(bubbled.toList, List("introstart", "introend"))
@@ -121,7 +121,7 @@ class TransitionEventSpec extends munit.FunSuite:
 
     val bubbled = scala.collection.mutable.ListBuffer.empty[String]
     parent.addEventListener("outrostart", (_: dom.Event) => { bubbled += "outrostart"; () })
-    parent.addEventListener("outroend",   (_: dom.Event) => { bubbled += "outroend";   () })
+    parent.addEventListener("outroend", (_: dom.Event) => { bubbled += "outroend"; () })
 
     TransitionEngine.run(child, syncConfig, intro = false)
     assertEquals(bubbled.toList, List("outrostart", "outroend"))
@@ -160,8 +160,8 @@ class TransitionEventSpec extends munit.FunSuite:
   }
 
   test("onDone fires even when emitEvents=false") {
-    val el      = dom.document.createElement("div")
-    var called  = false
+    val el     = dom.document.createElement("div")
+    var called = false
     TransitionEngine.run(el, syncConfig, intro = true, emitEvents = false, onDone = () => called = true)
     assert(called)
   }
