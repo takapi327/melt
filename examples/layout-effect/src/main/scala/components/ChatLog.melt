@@ -1,0 +1,128 @@
+<script lang="scala">
+// ── State ──────────────────────────────────────────────────────────────────
+val messages = Var(List("👋 Welcome to the Melt layoutEffect demo!"))
+val input    = Var("")
+val phaseLog = Var(List.empty[String])
+
+// ── Auto-scroll via layoutEffect + effect ──────────────────────────────────
+//
+// The canonical layoutEffect use case:
+//   - layoutEffect fires BEFORE the DOM is mutated → read pre-update state
+//   - effect fires AFTER the DOM is mutated       → act on post-update state
+//
+// This pattern lets us scroll to the bottom only when the user was already
+// there, so reading history is not interrupted.
+
+val logRef = Ref.empty[dom.Element]
+var atBottom = true
+
+// PRE phase: capture scroll position before new <p> elements are injected
+layoutEffect(messages) { _ =>
+  logRef.foreach { el =>
+    atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+  }
+  phaseLog.append(s"[PRE ] messages changed — atBottom=$atBottom")
+}
+
+// POST phase: if we were at the bottom, scroll to the new bottom
+effect(messages) { msgs =>
+  if atBottom then logRef.foreach(el => el.scrollTop = el.scrollHeight)
+  phaseLog.append(s"[POST] DOM updated — ${msgs.size} messages")
+}
+
+// ── Input helpers ───────────────────────────────────────────────────────────
+def send(): Unit =
+  val text = input.now().trim
+  if text.nonEmpty then
+    messages.append(text)
+    input.set("")
+
+def onKey(e: dom.KeyboardEvent): Unit =
+  if e.key == "Enter" then send()
+</script>
+
+<div class="chat-demo">
+  <h1>layoutEffect Demo — Auto-scroll Chat</h1>
+
+  <section class="panels">
+    <!-- ── Chat panel ────────────────────────────────────────────────────── -->
+    <div class="panel">
+      <h2>Chat log</h2>
+      <p class="hint">
+        Scroll up in the log, then send a message — it will <em>not</em> jump to
+        the bottom.  Stay at the bottom and send — it <em>will</em> follow.
+      </p>
+
+      <div class="log" bind:this={logRef}>
+        {messages.map((msg: String) =>
+          <p class="msg">{msg}</p>
+        )}
+      </div>
+
+      <div class="input-row">
+        <input
+          bind:value={input}
+          onkeydown={(e: dom.KeyboardEvent) => onKey(e)}
+          placeholder="Type a message and press Enter…"
+        />
+        <button onclick={(_: dom.Event) => send()}>Send</button>
+      </div>
+
+      <div class="btn-row">
+        <button onclick={(_: dom.Event) => {
+          messages.clear()
+          phaseLog.clear()
+        }}>Clear all</button>
+        <button onclick={(_: dom.Event) =>
+          batch {
+            messages.append("Batch msg A")
+            messages.append("Batch msg B")
+          }
+        }>Batch send 2</button>
+      </div>
+    </div>
+
+    <!-- ── Phase-order panel ─────────────────────────────────────────────── -->
+    <div class="panel">
+      <h2>Phase log</h2>
+      <p class="hint">
+        Each message send produces one <code>[PRE]</code> entry (before DOM
+        update) followed by one <code>[POST]</code> entry (after DOM update).
+      </p>
+      <div class="phase-log">
+        {phaseLog.map((entry: String) =>
+          <p class:pre={entry.contains("[PRE")} class:post={entry.contains("[POST")}>{entry}</p>
+        )}
+      </div>
+      <div class="btn-row">
+        <button onclick={(_: dom.Event) => phaseLog.clear()}>Clear log</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+* { box-sizing: border-box; }
+.chat-demo { font-family: sans-serif; max-width: 900px; margin: 1.5em auto; padding: 0 1em; }
+h1 { color: #ff3e00; margin-bottom: 0.5em; font-size: 1.4em; }
+h2 { margin: 0 0 0.5em; font-size: 1em; color: #333; }
+.hint { color: #888; font-size: 0.8em; margin: 0 0 0.5em; line-height: 1.4; }
+code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
+
+.panels { display: flex; gap: 1em; }
+.panel { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 1em; display: flex; flex-direction: column; gap: 0.5em; }
+
+.log { height: 240px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 0.5em; background: #fafafa; }
+.msg { margin: 0.2em 0; padding: 0.3em 0.5em; background: #fff; border-radius: 4px; border: 1px solid #eee; font-size: 0.9em; word-break: break-word; }
+
+.phase-log { height: 240px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 0.5em; background: #fafafa; font-family: monospace; font-size: 0.8em; }
+.phase-log p { margin: 0.15em 0; }
+.phase-log p.pre  { color: #0070c0; }
+.phase-log p.post { color: #c07000; }
+
+.input-row { display: flex; gap: 0.5em; }
+.input-row input { flex: 1; padding: 0.5em; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+.btn-row { display: flex; gap: 0.5em; }
+button { padding: 0.4em 0.9em; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 0.85em; }
+button:hover { background: #f0f0f0; }
+</style>

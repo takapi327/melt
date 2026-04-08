@@ -202,6 +202,19 @@ lazy val transitions = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: layoutEffect (Phase 13 — pre/post subscriber lanes) ─────────────
+lazy val `layout-effect` = project
+  .in(file("examples/layout-effect"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "layout-effect",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -216,7 +229,8 @@ lazy val root = project
     `hello-world`,
     counter,
     `todo-app`,
-    transitions
+    transitions,
+    `layout-effect`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
