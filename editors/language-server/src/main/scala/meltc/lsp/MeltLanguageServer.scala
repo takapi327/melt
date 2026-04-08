@@ -52,7 +52,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── LanguageServer lifecycle ──────────────────────────────────────────────
 
   override def initialize(params: InitializeParams): CompletableFuture[InitializeResult] =
-    val _ = scala.concurrent.Future(metals.startIfAvailable())(scala.concurrent.ExecutionContext.global)
+    val _    = scala.concurrent.Future(metals.startIfAvailable())(scala.concurrent.ExecutionContext.global)
     val caps = ServerCapabilities()
     caps.setTextDocumentSync(TextDocumentSyncKind.Full)
     caps.setHoverProvider(true)

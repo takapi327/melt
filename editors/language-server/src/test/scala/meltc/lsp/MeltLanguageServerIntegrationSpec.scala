@@ -155,7 +155,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
       val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
       assert(result != null)
       val items = result.getLeft.asScala
-      assert(items.exists(_.getLabel == "Var"),    "Var should be in script completions")
+      assert(items.exists(_.getLabel == "Var"), "Var should be in script completions")
       assert(items.exists(_.getLabel == "Signal"), "Signal should be in script completions")
     }
   }
@@ -180,7 +180,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
       val params = CompletionParams(TextDocumentIdentifier(uri), Position(3, 0))
       val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
       val items  = result.getLeft.asScala
-      assert(items.exists(_.getLabel == "<div>"),    "should include <div>")
+      assert(items.exists(_.getLabel == "<div>"), "should include <div>")
       assert(items.exists(_.getLabel == "<button>"), "should include <button>")
     }
   }
@@ -206,7 +206,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
       val params = CompletionParams(TextDocumentIdentifier(uri), Position(3, 2))
       val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
       val items  = result.getLeft.asScala
-      assert(items.exists(_.getLabel == "color"),   "should include color")
+      assert(items.exists(_.getLabel == "color"), "should include color")
       assert(items.exists(_.getLabel == "display"), "should include display")
     }
   }

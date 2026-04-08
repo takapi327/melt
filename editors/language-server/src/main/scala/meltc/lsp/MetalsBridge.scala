@@ -43,9 +43,9 @@ import org.eclipse.lsp4j.services.*
   */
 class MetalsBridge:
 
-  private val workspaceDir: Path     = Files.createTempDirectory("melt-lsp-workspace-")
-  private val srcDir:       Path     = workspaceDir.resolve("src")
-  private val bloopDir:     Path     = workspaceDir.resolve(".bloop")
+  private val workspaceDir: Path = Files.createTempDirectory("melt-lsp-workspace-")
+  private val srcDir:       Path = workspaceDir.resolve("src")
+  private val bloopDir:     Path = workspaceDir.resolve(".bloop")
 
   private var metalsProcess:  Option[Process]        = None
   private var metalsServer:   Option[LanguageServer] = None
@@ -91,7 +91,7 @@ class MetalsBridge:
   ): List[CompletionItem] =
     withVirtualDoc(meltUri, vf) { (server, virtualUri) =>
       val (vLine, vChar) = vf.mapper.meltToVirtual(line, character)
-      val params = CompletionParams(
+      val params         = CompletionParams(
         TextDocumentIdentifier(virtualUri),
         Position(vLine, vChar)
       )
@@ -122,11 +122,11 @@ class MetalsBridge:
   ): List[Location] =
     withVirtualDoc(meltUri, vf) { (server, virtualUri) =>
       val (vLine, vChar) = vf.mapper.meltToVirtual(line, character)
-      val params = DefinitionParams(
+      val params         = DefinitionParams(
         TextDocumentIdentifier(virtualUri),
         Position(vLine, vChar)
       )
-      val result = server.getTextDocumentService.definition(params).get(10, TimeUnit.SECONDS)
+      val result    = server.getTextDocumentService.definition(params).get(10, TimeUnit.SECONDS)
       val locations =
         if result.isLeft then result.getLeft.asScala.toList
         else result.getRight.asScala.map(ll => Location(ll.getTargetUri, ll.getTargetSelectionRange)).toList
@@ -198,7 +198,7 @@ class MetalsBridge:
       s"$home/.coursier/bin/metals",
       s"$home/.metals/metals",
       "/usr/local/bin/metals",
-      "/opt/homebrew/bin/metals",
+      "/opt/homebrew/bin/metals"
     )
     candidates.find { cmd =>
       Try {
@@ -227,20 +227,20 @@ class MetalsBridge:
           |  "version": "1.4.0",
           |  "project": {
           |    "name": "melt-virtual",
-          |    "directory": "${esc(workspaceDir.toString)}",
-          |    "workspaceDir": "${esc(workspaceDir.toString)}",
-          |    "sources": ["${esc(srcDir.toString)}"],
+          |    "directory": "${ esc(workspaceDir.toString) }",
+          |    "workspaceDir": "${ esc(workspaceDir.toString) }",
+          |    "sources": ["${ esc(srcDir.toString) }"],
           |    "dependencies": [],
           |    "classpath": [],
-          |    "out": "${esc(workspaceDir.resolve("out").toString)}",
-          |    "classesDir": "${esc(workspaceDir.resolve("out/classes").toString)}",
+          |    "out": "${ esc(workspaceDir.resolve("out").toString) }",
+          |    "classesDir": "${ esc(workspaceDir.resolve("out/classes").toString) }",
           |    "scala": {
           |      "organization": "org.scala-lang",
           |      "name": "scala3-compiler_3",
           |      "version": "3.6.4",
           |      "options": [],
           |      "jars": [],
-          |      "analysis": "${esc(workspaceDir.resolve("out/analysis.bin").toString)}",
+          |      "analysis": "${ esc(workspaceDir.resolve("out/analysis.bin").toString) }",
           |      "setup": {
           |        "order": "mixed",
           |        "addLibraryToBootClasspath": true,
@@ -252,7 +252,7 @@ class MetalsBridge:
           |    },
           |    "java": {
           |      "options": [],
-          |      "home": "${esc(javaHome)}"
+          |      "home": "${ esc(javaHome) }"
           |    },
           |    "test": {
           |      "frameworks": [],
@@ -261,7 +261,7 @@ class MetalsBridge:
           |    "platform": {
           |      "name": "jvm",
           |      "config": {
-          |        "home": "${esc(javaHome)}",
+          |        "home": "${ esc(javaHome) }",
           |        "options": []
           |      },
           |      "mainClass": []
@@ -291,9 +291,9 @@ class MetalsBridge:
   * the bridge discards since they are internal to the virtual workspace.
   */
 private class NoOpMetalsClient extends LanguageClient:
-  override def telemetryEvent(obj: Any): Unit                          = ()
-  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit   = ()
-  override def showMessage(p: MessageParams): Unit                     = ()
+  override def telemetryEvent(obj:   Any):                      Unit                                 = ()
+  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit                                 = ()
+  override def showMessage(p:        MessageParams):            Unit                                 = ()
   override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
     CompletableFuture.completedFuture(null)
-  override def logMessage(p: MessageParams): Unit                      = ()
+  override def logMessage(p: MessageParams): Unit = ()

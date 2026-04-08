@@ -28,7 +28,7 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   test("script completions include var-decl snippet with insert text") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Script)
     val item  = items.find(_.getLabel == "var-decl").get
-    assert(item.getInsertText.contains("Var("), s"insert text: ${item.getInsertText}")
+    assert(item.getInsertText.contains("Var("), s"insert text: ${ item.getInsertText }")
   }
 
   test("script completions include TrustedHtml") {
@@ -39,11 +39,11 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   // ── Template section ───────────────────────────────────────────────────────
 
   test("template completions include common HTML tags") {
-    val items = MeltCompletionProvider.completionsFor(MeltSection.Template)
+    val items  = MeltCompletionProvider.completionsFor(MeltSection.Template)
     val labels = items.map(_.getLabel).toSet
-    assert(labels.contains("<div>"),    "should include <div>")
+    assert(labels.contains("<div>"), "should include <div>")
     assert(labels.contains("<button>"), "should include <button>")
-    assert(labels.contains("<p>"),      "should include <p>")
+    assert(labels.contains("<p>"), "should include <p>")
   }
 
   test("template completions include reactive expression snippet") {
@@ -54,14 +54,14 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   test("void tags use self-closing snippet") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Template)
     val input = items.find(_.getLabel == "<input>").get
-    assert(input.getInsertText.contains("/>"), s"input insert text: ${input.getInsertText}")
+    assert(input.getInsertText.contains("/>"), s"input insert text: ${ input.getInsertText }")
     assert(!input.getInsertText.contains("</input>"), "void tag must not have closing tag")
   }
 
   test("non-void tags wrap content in closing tag") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Template)
-    val div = items.find(_.getLabel == "<div>").get
-    assert(div.getInsertText.contains("</div>"), s"div insert text: ${div.getInsertText}")
+    val div   = items.find(_.getLabel == "<div>").get
+    assert(div.getInsertText.contains("</div>"), s"div insert text: ${ div.getInsertText }")
   }
 
   // ── Style section ──────────────────────────────────────────────────────────
@@ -69,9 +69,9 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   test("style completions include CSS properties") {
     val items  = MeltCompletionProvider.completionsFor(MeltSection.Style)
     val labels = items.map(_.getLabel).toSet
-    assert(labels.contains("color"),            "should include color")
+    assert(labels.contains("color"), "should include color")
     assert(labels.contains("background-color"), "should include background-color")
-    assert(labels.contains("display"),          "should include display")
+    assert(labels.contains("display"), "should include display")
   }
 
   test("style completions include @media snippet") {
@@ -87,7 +87,7 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   test("CSS property snippets end with semicolon in insert text") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Style)
     val color = items.find(_.getLabel == "color").get
-    assert(color.getInsertText.endsWith(";"), s"color insert text: ${color.getInsertText}")
+    assert(color.getInsertText.endsWith(";"), s"color insert text: ${ color.getInsertText }")
   }
 
   // ── Unknown / top-level ────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
     val comp  = items.find(_.getLabel == "melt-component").get
     val text  = comp.getInsertText
     assert(text.contains("<script lang=\"scala\">"), "should contain script tag")
-    assert(text.contains("<style>"),                 "should contain style tag")
+    assert(text.contains("<style>"), "should contain style tag")
   }
 
   // ── Snippet format ─────────────────────────────────────────────────────────
@@ -120,6 +120,6 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
         assertEquals(
           item.getInsertTextFormat,
           InsertTextFormat.Snippet,
-          s"${item.getLabel} in $section should use Snippet format"
+          s"${ item.getLabel } in $section should use Snippet format"
         )
   }

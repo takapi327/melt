@@ -70,7 +70,7 @@ object MeltCompletionProvider:
       "def ${1:handler}(): Unit =\n  ${2:state}.update(${3:_ + 1})",
       "Event handler that updates reactive state",
       CompletionItemKind.Snippet
-    ),
+    )
   )
 
   // ── Template section ───────────────────────────────────────────────────────
@@ -79,18 +79,49 @@ object MeltCompletionProvider:
     val voidTags = Set("input", "img", "br", "hr", "meta", "link", "source", "track", "wbr")
 
     val htmlTags = List(
-      "div", "p", "span", "button", "input", "ul", "li", "ol",
-      "h1", "h2", "h3", "h4", "h5", "h6",
-      "a", "form", "label", "select", "option", "textarea",
-      "section", "article", "header", "footer", "nav", "main",
-      "table", "tr", "td", "th", "thead", "tbody", "tfoot",
-      "img", "video", "audio", "source",
-      "br", "hr",
+      "div",
+      "p",
+      "span",
+      "button",
+      "input",
+      "ul",
+      "li",
+      "ol",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "a",
+      "form",
+      "label",
+      "select",
+      "option",
+      "textarea",
+      "section",
+      "article",
+      "header",
+      "footer",
+      "nav",
+      "main",
+      "table",
+      "tr",
+      "td",
+      "th",
+      "thead",
+      "tbody",
+      "tfoot",
+      "img",
+      "video",
+      "audio",
+      "source",
+      "br",
+      "hr"
     ).map { tag =>
       if voidTags.contains(tag) then
         snippet(s"<$tag>", s"<$tag $$0/>", s"<$tag> (void element)", CompletionItemKind.Property)
-      else
-        snippet(s"<$tag>", s"<$tag>$$0</$tag>", s"<$tag> element", CompletionItemKind.Property)
+      else snippet(s"<$tag>", s"<$tag>$$0</$tag>", s"<$tag> element", CompletionItemKind.Property)
     }
 
     val meltSnippets = List(
@@ -111,7 +142,7 @@ object MeltCompletionProvider:
         "oninput={${1:e => handler(e.target.value)}}",
         "Input event binding",
         CompletionItemKind.Snippet
-      ),
+      )
     )
 
     htmlTags ++ meltSnippets
@@ -120,23 +151,76 @@ object MeltCompletionProvider:
 
   private val styleCompletions: List[CompletionItem] =
     val properties = List(
-      "color", "background-color", "background", "font-size", "font-weight", "font-family",
-      "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
-      "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
-      "display", "flex-direction", "justify-content", "align-items", "align-self",
-      "flex-wrap", "flex-grow", "flex-shrink", "flex-basis",
-      "grid-template-columns", "grid-template-rows", "grid-column", "grid-row", "gap",
-      "width", "height", "min-width", "min-height", "max-width", "max-height",
-      "border", "border-radius", "border-color", "border-width", "border-style",
-      "position", "top", "right", "bottom", "left", "z-index",
-      "opacity", "visibility",
-      "transform", "transition", "animation",
-      "cursor", "pointer-events", "user-select",
-      "overflow", "overflow-x", "overflow-y",
-      "text-align", "text-decoration", "text-transform", "line-height", "letter-spacing",
-      "box-shadow", "text-shadow",
-      "list-style", "list-style-type",
-      "white-space", "word-break", "word-wrap",
+      "color",
+      "background-color",
+      "background",
+      "font-size",
+      "font-weight",
+      "font-family",
+      "margin",
+      "margin-top",
+      "margin-right",
+      "margin-bottom",
+      "margin-left",
+      "padding",
+      "padding-top",
+      "padding-right",
+      "padding-bottom",
+      "padding-left",
+      "display",
+      "flex-direction",
+      "justify-content",
+      "align-items",
+      "align-self",
+      "flex-wrap",
+      "flex-grow",
+      "flex-shrink",
+      "flex-basis",
+      "grid-template-columns",
+      "grid-template-rows",
+      "grid-column",
+      "grid-row",
+      "gap",
+      "width",
+      "height",
+      "min-width",
+      "min-height",
+      "max-width",
+      "max-height",
+      "border",
+      "border-radius",
+      "border-color",
+      "border-width",
+      "border-style",
+      "position",
+      "top",
+      "right",
+      "bottom",
+      "left",
+      "z-index",
+      "opacity",
+      "visibility",
+      "transform",
+      "transition",
+      "animation",
+      "cursor",
+      "pointer-events",
+      "user-select",
+      "overflow",
+      "overflow-x",
+      "overflow-y",
+      "text-align",
+      "text-decoration",
+      "text-transform",
+      "line-height",
+      "letter-spacing",
+      "box-shadow",
+      "text-shadow",
+      "list-style",
+      "list-style-type",
+      "white-space",
+      "word-break",
+      "word-wrap"
     ).map(prop => snippet(prop, s"$prop: $$0;", s"CSS $prop", CompletionItemKind.Property))
 
     val atRules = List(
@@ -151,7 +235,7 @@ object MeltCompletionProvider:
         "@keyframes ${1:name} {\n  from { $2 }\n  to { $0 }\n}",
         "CSS keyframes animation",
         CompletionItemKind.Keyword
-      ),
+      )
     )
 
     val pseudoClasses = List(
@@ -159,7 +243,7 @@ object MeltCompletionProvider:
       snippet(":focus", "&:focus {\n  $0\n}", "Focus pseudo-class", CompletionItemKind.Snippet),
       snippet(":active", "&:active {\n  $0\n}", "Active pseudo-class", CompletionItemKind.Snippet),
       snippet(":disabled", "&:disabled {\n  $0\n}", "Disabled pseudo-class", CompletionItemKind.Snippet),
-      snippet(":nth-child", "&:nth-child(${1:n}) {\n  $0\n}", "nth-child selector", CompletionItemKind.Snippet),
+      snippet(":nth-child", "&:nth-child(${1:n}) {\n  $0\n}", "nth-child selector", CompletionItemKind.Snippet)
     )
 
     properties ++ atRules ++ pseudoClasses
@@ -184,7 +268,7 @@ object MeltCompletionProvider:
       "<style>\n$0\n</style>",
       "CSS style block",
       CompletionItemKind.Snippet
-    ),
+    )
   )
 
   // ── Helpers ───────────────────────────────────────────────────────────────
