@@ -1165,7 +1165,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   }
 
   test("<melt:element> scopeId is passed to Bind.dynamicElement") {
-    val code = compile("<melt:element this={tag}>text</melt:element>", name = "MyApp")
+    val code    = compile("<melt:element this={tag}>text</melt:element>", name = "MyApp")
     val scopeId = ScalaCodeGen.scopeIdFor("MyApp")
     assert(code.contains(s"Bind.dynamicElement(tag,"), code)
     assert(code.contains(s""""$scopeId""""), code)

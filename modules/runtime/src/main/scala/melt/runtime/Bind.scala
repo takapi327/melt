@@ -598,10 +598,10 @@ object Bind:
     scopeId:     String,
     setup:       dom.Element => Unit
   ): Unit =
-    var current:        dom.Element | Null = null
+    var current: dom.Element | Null = null
     // Holds subscriptions created by setup() for the *current* element.
     // Cancelled before each swap so reactive bindings don't fire on detached nodes.
-    var elementCleanup: List[() => Unit]   = Nil
+    var elementCleanup: List[() => Unit] = Nil
 
     def swap(tagName: HtmlTag | Null): Unit =
       // Cancel all subscriptions registered by the previous setup call

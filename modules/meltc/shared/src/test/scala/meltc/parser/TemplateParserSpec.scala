@@ -1390,7 +1390,7 @@ class TemplateParserSpec extends munit.FunSuite:
 
   test("<melt:element this={\"h2\"}> with known string literal emits warning") {
     val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"h2\"}>heading</melt:element>")
-    val el = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
+    val el                = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
     assertEquals(el.tagExpr, "\"h2\"")
     assert(warnings.exists(_._1.contains("use <h2> directly")), s"no warning: $warnings")
   }

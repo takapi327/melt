@@ -31,29 +31,113 @@ private[parser] final class TemplateParser(src: String):
     * Kept in sync manually; used to validate `<melt:element this={"..."}>` string literals.
     */
   private val KnownHtmlTags: Set[String] = Set(
-    "a", "abbr", "address", "area", "article", "aside", "audio",
-    "b", "base", "bdi", "bdo", "blockquote", "br", "button",
-    "canvas", "caption", "cite", "code", "col", "colgroup",
-    "data", "datalist", "dd", "del", "details", "dfn", "dialog",
-    "div", "dl", "dt",
-    "em", "embed",
-    "fieldset", "figcaption", "figure", "footer", "form",
-    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr",
-    "i", "iframe", "img", "input", "ins",
+    "a",
+    "abbr",
+    "address",
+    "area",
+    "article",
+    "aside",
+    "audio",
+    "b",
+    "base",
+    "bdi",
+    "bdo",
+    "blockquote",
+    "br",
+    "button",
+    "canvas",
+    "caption",
+    "cite",
+    "code",
+    "col",
+    "colgroup",
+    "data",
+    "datalist",
+    "dd",
+    "del",
+    "details",
+    "dfn",
+    "dialog",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "embed",
+    "fieldset",
+    "figcaption",
+    "figure",
+    "footer",
+    "form",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "header",
+    "hgroup",
+    "hr",
+    "i",
+    "iframe",
+    "img",
+    "input",
+    "ins",
     "kbd",
-    "label", "legend", "li", "link",
-    "main", "map", "mark", "menu", "meta", "meter",
-    "nav", "noscript",
-    "object", "ol", "optgroup", "option", "output",
-    "p", "picture", "pre", "progress",
+    "label",
+    "legend",
+    "li",
+    "link",
+    "main",
+    "map",
+    "mark",
+    "menu",
+    "meta",
+    "meter",
+    "nav",
+    "noscript",
+    "object",
+    "ol",
+    "optgroup",
+    "option",
+    "output",
+    "p",
+    "picture",
+    "pre",
+    "progress",
     "q",
-    "rp", "rt", "ruby",
-    "s", "samp", "script", "search", "section", "select", "slot",
-    "small", "source", "span", "strong", "style", "sub", "summary", "sup",
-    "table", "tbody", "td", "template", "textarea", "tfoot", "th", "thead",
-    "time", "tr", "track",
-    "u", "ul",
-    "var", "video",
+    "rp",
+    "rt",
+    "ruby",
+    "s",
+    "samp",
+    "script",
+    "search",
+    "section",
+    "select",
+    "slot",
+    "small",
+    "source",
+    "span",
+    "strong",
+    "style",
+    "sub",
+    "summary",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "template",
+    "textarea",
+    "tfoot",
+    "th",
+    "thead",
+    "time",
+    "tr",
+    "track",
+    "u",
+    "ul",
+    "var",
+    "video",
     "wbr"
   )
 
@@ -272,16 +356,18 @@ private[parser] final class TemplateParser(src: String):
 
   private def makeNode(tag: String, attrs: List[Attr], children: List[TemplateNode]): TemplateNode =
     tag match
-      case "melt:head"   => TemplateNode.Head(children)
-      case "melt:window" => TemplateNode.Window(attrs)
-      case "melt:body"   => TemplateNode.Body(attrs)
+      case "melt:head"    => TemplateNode.Head(children)
+      case "melt:window"  => TemplateNode.Window(attrs)
+      case "melt:body"    => TemplateNode.Body(attrs)
       case "melt:element" =>
-        val tagExpr = attrs.collectFirst {
-          case Attr.Dynamic("this", expr) => expr
-        }.getOrElse {
-          _warnings += (("<melt:element> requires a `this={expr}` attribute", pos))
-          "\"div\""
-        }
+        val tagExpr = attrs
+          .collectFirst {
+            case Attr.Dynamic("this", expr) => expr
+          }
+          .getOrElse {
+            _warnings += (("<melt:element> requires a `this={expr}` attribute", pos))
+            "\"div\""
+          }
         // Validate string literals at meltc phase
         val StringLiteral = """^"([^"]*)"$""".r
         tagExpr match

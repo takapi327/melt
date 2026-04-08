@@ -274,8 +274,8 @@ object ScalaCodeGen:
             sys.error("`<melt:element>` does not support `animate:`")
           case _ =>
         }
-        val anchor  = ctr.nextTxt()
-        val elVar   = "_dynEl"
+        val anchor   = ctr.nextTxt()
+        val elVar    = "_dynEl"
         val setupBuf = new StringBuilder
         attrs.foreach(emitAttr(setupBuf, elVar, _, s"$indent  ", attrs))
         children.foreach { child =>
