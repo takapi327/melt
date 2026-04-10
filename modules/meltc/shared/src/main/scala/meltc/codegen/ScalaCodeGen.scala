@@ -127,16 +127,25 @@ object ScalaCodeGen:
     indent:    String,
     ctr:       Counter,
     isRoot:    Boolean,
-    parentVar: Option[String]
+    parentVar: Option[String],
+    ns:        String = "" // current namespace context: "" | "svg" | "math"
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         val v = ctr.nextEl()
-        buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
+        // Determine namespace for this element and propagate to children.
+        val childNs =
+          if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
+          else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
+          else ns
+        if childNs == "svg" then buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "$tag")\n"""
+        else if childNs == "math" then
+          buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "$tag")\n"""
+        else buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         attrs.foreach(emitAttr(buf, v, _, indent, attrs))
         children.foreach { child =>
-          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v))
+          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
         }
         v
@@ -266,6 +275,28 @@ object ScalaCodeGen:
             buf ++= s"${ indent }Bind.action(dom.document.body, $actionName, ())\n"
           case _ =>
         }
+        ""
+
+      case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
+        attrs.foreach {
+          case Attr.Directive("animate", _, _, _) =>
+            sys.error("`<melt:element>` does not support `animate:`")
+          case _ =>
+        }
+        val anchor   = ctr.nextTxt()
+        val elVar    = "_dynEl"
+        val setupBuf = new StringBuilder
+        attrs.foreach(emitAttr(setupBuf, elVar, _, s"$indent  ", attrs))
+        children.foreach { child =>
+          val cv = emitNode(setupBuf, child, s"$indent  ", ctr, isRoot = false, parentVar = Some(elVar))
+          if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
+        }
+        buf ++= s"""${ indent }val $anchor = dom.document.createComment("")\n"""
+        parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+        buf ++= s"${ indent }Bind.dynamicElement($tagExpr, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
+        buf ++= setupBuf.toString
+        buf ++= s"${ indent }  ()\n" // ensure the setup lambda returns Unit
+        buf ++= s"${ indent }})\n"
         ""
 
       case TemplateNode.Component(name, attrs, children) =>
@@ -552,6 +583,97 @@ object ScalaCodeGen:
         if depth < 0 then return i
       i += 1
     i
+
+  // ── Namespace constants ───────────────────────────────────────────────────
+
+  private val SvgNs  = "http://www.w3.org/2000/svg"
+  private val MathNs = "http://www.w3.org/1998/Math/MathML"
+
+  /** SVG element names that must be created with `createElementNS`. */
+  private val KnownSvgTags: Set[String] = Set(
+    "animate",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "defs",
+    "desc",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feFlood",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMorphology",
+    "feOffset",
+    "feSpecularLighting",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "foreignObject",
+    "g",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "metadata",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "stop",
+    "svg",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "title",
+    "tspan",
+    "use",
+    "view"
+  )
+
+  /** MathML element names that must be created with `createElementNS`. */
+  private val KnownMathTags: Set[String] = Set(
+    "annotation",
+    "annotation-xml",
+    "math",
+    "merror",
+    "mfrac",
+    "mi",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mroot",
+    "mrow",
+    "ms",
+    "msqrt",
+    "mspace",
+    "mstyle",
+    "msub",
+    "msubsup",
+    "msup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "semantics"
+  )
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

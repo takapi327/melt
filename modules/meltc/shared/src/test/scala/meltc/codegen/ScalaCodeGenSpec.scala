@@ -1118,3 +1118,55 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""Body.on("mouseenter")(enter)"""), code)
     assert(code.contains("""Body.on("mouseleave")(leave)"""), code)
   }
+
+  // ── <melt:element> ────────────────────────────────────────────────────────
+
+  test("<melt:element this={tag}> emits Bind.dynamicElement with anchor comment") {
+    val code = compile("<melt:element this={tag}>content</melt:element>")
+    assert(code.contains("createComment(\"\")"), code)
+    assert(code.contains("Bind.dynamicElement(tag,"), code)
+    assert(code.contains("_dynEl: dom.Element"), code)
+    assert(!code.contains("""createElement("melt:element")"""), code)
+  }
+
+  test("<melt:element this={\"h2\"}> emits Bind.dynamicElement with literal tag") {
+    val code = compile("""<melt:element this={"h2"}>heading</melt:element>""")
+    assert(code.contains("""Bind.dynamicElement("h2","""), code)
+  }
+
+  test("<melt:element> children are emitted inside setup lambda") {
+    val code = compile("<melt:element this={tag}><span>child</span></melt:element>")
+    assert(code.contains("Bind.dynamicElement(tag,"), code)
+    assert(code.contains("createElement(\"span\")"), code)
+  }
+
+  test("<melt:element> with static class attribute emits setAttribute in setup lambda") {
+    val code = compile("""<melt:element this={tag} class="wrapper">text</melt:element>""")
+    assert(code.contains("Bind.dynamicElement(tag,"), code)
+    assert(code.contains("classList.add(\"wrapper\")"), code)
+  }
+
+  test("<melt:element> with event handler emits addEventListener in setup lambda") {
+    val code = compile("<melt:element this={tag} onclick={handler}>click</melt:element>")
+    assert(code.contains("Bind.dynamicElement(tag,"), code)
+    assert(code.contains("""addEventListener("click", handler)"""), code)
+  }
+
+  test("<melt:element> does not emit createElement for the dynamic element itself") {
+    val code = compile("<melt:element this={tag} />")
+    assert(!code.contains("""createElement("melt:element")"""), code)
+  }
+
+  test("<melt:element> anchor is appended to parent before Bind.dynamicElement call") {
+    val code = compile("<div><melt:element this={tag}>x</melt:element></div>")
+    // The anchor comment should be appended to the parent div
+    assert(code.contains("createComment(\"\")"), code)
+    assert(code.contains("Bind.dynamicElement(tag,"), code)
+  }
+
+  test("<melt:element> scopeId is passed to Bind.dynamicElement") {
+    val code    = compile("<melt:element this={tag}>text</melt:element>", name = "MyApp")
+    val scopeId = ScalaCodeGen.scopeIdFor("MyApp")
+    assert(code.contains(s"Bind.dynamicElement(tag,"), code)
+    assert(code.contains(s""""$scopeId""""), code)
+  }

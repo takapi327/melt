@@ -1375,3 +1375,63 @@ class TemplateParserSpec extends munit.FunSuite:
     val div = result(1).asInstanceOf[TemplateNode.Element]
     assertEquals(div.tag, "div")
   }
+
+  // ── <melt:element> ────────────────────────────────────────────────────────
+
+  test("<melt:element this={tag}> parses as DynamicElement") {
+    val result = parse("<melt:element this={tag}>content</melt:element>")
+    assertEquals(
+      result,
+      List(
+        TemplateNode.DynamicElement("tag", Nil, List(TemplateNode.Text("content")))
+      )
+    )
+  }
+
+  test("<melt:element this={\"h2\"}> with known string literal emits warning") {
+    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"h2\"}>heading</melt:element>")
+    val el                = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.tagExpr, "\"h2\"")
+    assert(warnings.exists(_._1.contains("use <h2> directly")), s"no warning: $warnings")
+  }
+
+  test("<melt:element this={\"hoge\"}> with unknown string literal emits error warning") {
+    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"hoge\"}>content</melt:element>")
+    assert(warnings.exists(_._1.contains("not a valid HTML tag name")), s"no warning: $warnings")
+  }
+
+  test("<melt:element> without this attribute emits warning and falls back to div") {
+    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element>content</melt:element>")
+    assert(warnings.exists(_._1.contains("requires a `this={expr}` attribute")), s"no warning: $warnings")
+    val el = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.tagExpr, "\"div\"")
+  }
+
+  test("<melt:element> this attr is excluded from attrs list") {
+    val result = parse("""<melt:element this={tag} class="box">text</melt:element>""")
+    val el     = result.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.attrs, List(Attr.Static("class", "box")))
+    assertEquals(el.tagExpr, "tag")
+  }
+
+  test("<melt:element> with event handler") {
+    val result = parse("<melt:element this={tag} onclick={handler}>click</melt:element>")
+    val el     = result.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.tagExpr, "tag")
+    assertEquals(el.attrs, List(Attr.EventHandler("click", "handler")))
+    assertEquals(el.children, List(TemplateNode.Text("click")))
+  }
+
+  test("<melt:element> self-closing with this={tag}") {
+    val result = parse("<melt:element this={tag} />")
+    val el     = result.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.tagExpr, "tag")
+    assertEquals(el.attrs, Nil)
+    assertEquals(el.children, Nil)
+  }
+
+  test("<melt:element> with null tagExpr") {
+    val result = parse("<melt:element this={null}>hidden</melt:element>")
+    val el     = result.head.asInstanceOf[TemplateNode.DynamicElement]
+    assertEquals(el.tagExpr, "null")
+  }

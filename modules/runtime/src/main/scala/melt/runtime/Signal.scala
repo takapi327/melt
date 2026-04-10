@@ -86,9 +86,9 @@ final class Signal[A] private[runtime] (private var _current: A):
 
   /** Per-instance flush function for batch dedup. */
   private lazy val _batchFlush: () => Unit = () =>
-    _pre.foreach(_(_current))
-    _bind.foreach(_(_current))
-    _post.foreach(_(_current))
+    _pre.toList.foreach(_(_current))
+    _bind.toList.foreach(_(_current))
+    _post.toList.foreach(_(_current))
 
   /** Pushes a new value to all subscribers in phase order.
     * Package-private; called by [[Var]] and derived Signals.
@@ -98,6 +98,6 @@ final class Signal[A] private[runtime] (private var _current: A):
     _current = value
     if Batch.isBatching then Batch.enqueue(_batchFlush)
     else
-      _pre.foreach(_(value))
-      _bind.foreach(_(value))
-      _post.foreach(_(value))
+      _pre.toList.foreach(_(value))
+      _bind.toList.foreach(_(value))
+      _post.toList.foreach(_(value))

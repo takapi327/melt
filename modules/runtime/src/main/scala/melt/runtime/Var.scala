@@ -42,9 +42,9 @@ final class Var[A] private (private var _current: A):
 
   /** Per-instance flush function for batch dedup. */
   private lazy val _batchFlush: () => Unit = () =>
-    _pre.foreach(_(_current))
-    _bind.foreach(_(_current))
-    _post.foreach(_(_current))
+    _pre.toList.foreach(_(_current))
+    _bind.toList.foreach(_(_current))
+    _post.toList.foreach(_(_current))
 
   /** Replaces the current value and notifies all subscribers in phase order.
     * If inside a `batch { }` block, notifications are deferred and coalesced.
@@ -53,9 +53,9 @@ final class Var[A] private (private var _current: A):
     _current = value
     if Batch.isBatching then Batch.enqueue(_batchFlush)
     else
-      _pre.foreach(_(value))
-      _bind.foreach(_(value))
-      _post.foreach(_(value))
+      _pre.toList.foreach(_(value))
+      _bind.toList.foreach(_(value))
+      _post.toList.foreach(_(value))
 
   /** Updates the current value using `f` and notifies all subscribers. */
   def update(f: A => A): Unit = set(f(_current))

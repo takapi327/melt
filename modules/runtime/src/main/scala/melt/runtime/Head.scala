@@ -56,12 +56,12 @@ object Head:
   private def existingSelector(child: dom.Element): String | Null =
     child.tagName.toLowerCase match
       case "title" => "title"
-      case "meta" =>
+      case "meta"  =>
         val name      = child.getAttribute("name")
         val property  = child.getAttribute("property")
         val httpEquiv = child.getAttribute("http-equiv")
-        if name != null      then s"""meta[name="$name"]"""
-        else if property != null  then s"""meta[property="$property"]"""
+        if name != null then s"""meta[name="$name"]"""
+        else if property != null then s"""meta[property="$property"]"""
         else if httpEquiv != null then s"""meta[http-equiv="$httpEquiv"]"""
         else null
       case "link" =>
