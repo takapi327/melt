@@ -42,11 +42,11 @@ final class OwnerNode(val parent: Option[OwnerNode]):
     val last = _lastChild
     if last == null then
       _firstChild = child
-      _lastChild = child
+      _lastChild  = child
     else
-      last._nextSibling = child
+      last._nextSibling  = child
       child._prevSibling = last
-      _lastChild = child
+      _lastChild         = child
 
   /** Removes this node from its parent's child list.
     *
@@ -61,11 +61,11 @@ final class OwnerNode(val parent: Option[OwnerNode]):
         val prev = _prevSibling
         val next = _nextSibling
         if prev != null then prev._nextSibling = next
-        else p._firstChild = next
+        else p._firstChild                     = next
         if next != null then next._prevSibling = prev
-        else p._lastChild = prev
-        _prevSibling = null
-        _nextSibling = null
+        else p._lastChild                      = prev
+        _prevSibling                           = null
+        _nextSibling                           = null
     }
 
   /** Registers a cleanup function to run when this node is destroyed.
@@ -98,7 +98,7 @@ final class OwnerNode(val parent: Option[OwnerNode]):
     // Snapshot children and cleanups before clearing (Svelte 5 pattern)
     var child = _firstChild
     _firstChild = null
-    _lastChild = null
+    _lastChild  = null
 
     val cleanupsSnap = js.Array.from(_cleanups)
     _cleanups.clear()
@@ -135,7 +135,7 @@ object Owner:
 
   /** Depth counter for reactive update loop detection. */
   private[runtime] var _reactiveDepth: Int = 0
-  private val MaxReactiveDepth             = 1000
+  private val MaxReactiveDepth = 1000
 
   /** Returns the current owner node, if any. */
   def current: Option[OwnerNode] = _current

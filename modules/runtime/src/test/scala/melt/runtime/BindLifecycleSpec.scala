@@ -60,10 +60,10 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.show(Signal) destroys old element subscriptions when swapping") {
     var cancelCalls = 0
-    val v         = Var(true)
-    val condition = v.signal
-    val container = dom.document.createElement("div")
-    val anchor    = dom.document.createComment("")
+    val v           = Var(true)
+    val condition   = v.signal
+    val container   = dom.document.createElement("div")
+    val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
 
     val (_, compOwner) = Owner.withNew {
@@ -131,10 +131,10 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.list(Signal) destroys all old nodes' subscriptions on full rebuild") {
     var cancelCalls = 0
-    val v         = Var(List(1, 2))
-    val source    = v.signal
-    val container = dom.document.createElement("div")
-    val anchor    = dom.document.createComment("")
+    val v           = Var(List(1, 2))
+    val source      = v.signal
+    val container   = dom.document.createElement("div")
+    val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
 
     val renderFn: Int => dom.Node = _ => makeTrackedEl { cancelCalls += 1 }
@@ -185,10 +185,10 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.each(Signal) destroys removed keyed items' subscriptions") {
     var cancelCalls = 0
-    val v         = Var(List("x", "y", "z"))
-    val source    = v.signal
-    val container = dom.document.createElement("div")
-    val anchor    = dom.document.createComment("")
+    val v           = Var(List("x", "y", "z"))
+    val source      = v.signal
+    val container   = dom.document.createElement("div")
+    val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
 
     val renderFn: String => dom.Node = _ => makeTrackedEl { cancelCalls += 1 }
