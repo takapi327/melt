@@ -27,7 +27,8 @@ import java.nio.file.{ Files, Paths }
 object MeltcMain:
 
   private val Usage =
-    "Usage: MeltcMain <input.melt> <output.scala> <ObjectName> <package> [--mode spa|ssr]"
+    "Usage: MeltcMain <input.melt> <output.scala> <ObjectName> <package> " +
+      "[--mode spa|ssr] [--hydration]"
 
   def main(args: Array[String]): Unit =
     if args.length < 4 then
@@ -39,8 +40,8 @@ object MeltcMain:
     val objectName = args(2)
     val pkg        = args(3)
 
-    val mode = parseMode(args.drop(4)) match
-      case Right(m)  => m
+    val (mode, hydration) = parseExtras(args.drop(4)) match
+      case Right(v)  => v
       case Left(err) =>
         System.err.println(s"meltc: $err")
         System.err.println(Usage)
@@ -58,7 +59,8 @@ object MeltcMain:
       inputPath.getFileName.toString,
       objectName,
       pkg,
-      mode
+      mode,
+      hydration
     )
 
     result.warnings.foreach(w => System.err.println(s"meltc warning: ${ w.message }"))
@@ -80,17 +82,27 @@ object MeltcMain:
             System.err.println(s"meltc: cannot write ${ outputPath }: ${ e.getMessage }")
             sys.exit(1)
 
-  /** Parses optional trailing flags. Phase A only supports `--mode`. */
-  private def parseMode(extras: Array[String]): Either[String, CompileMode] =
-    val args = extras.toList
-    args match
-      case Nil => Right(CompileMode.SPA)
-      case "--mode" :: value :: Nil =>
-        value.toLowerCase match
-          case "spa" => Right(CompileMode.SPA)
-          case "ssr" => Right(CompileMode.SSR)
-          case other => Left(s"unknown --mode value '$other' (expected 'spa' or 'ssr')")
-      case "--mode" :: Nil =>
-        Left("--mode requires a value ('spa' or 'ssr')")
-      case other =>
-        Left(s"unrecognised arguments: ${ other.mkString(" ") }")
+  /** Parses optional trailing flags: `--mode spa|ssr` and the boolean
+    * `--hydration` switch. Returns the resolved `(CompileMode, hydration)`
+    * pair or an error message.
+    */
+  private def parseExtras(extras: Array[String]): Either[String, (CompileMode, Boolean)] =
+    var mode      = CompileMode.SPA
+    var hydration = false
+    var i         = 0
+    val args      = extras
+    while i < args.length do
+      args(i) match
+        case "--mode" =>
+          if i + 1 >= args.length then return Left("--mode requires a value ('spa' or 'ssr')")
+          args(i + 1).toLowerCase match
+            case "spa" => mode = CompileMode.SPA
+            case "ssr" => mode = CompileMode.SSR
+            case other => return Left(s"unknown --mode value '$other' (expected 'spa' or 'ssr')")
+          i += 2
+        case "--hydration" =>
+          hydration = true
+          i += 1
+        case other =>
+          return Left(s"unrecognised argument: '$other'")
+    Right((mode, hydration))

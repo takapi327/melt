@@ -51,6 +51,23 @@ object MeltcPlugin extends AutoPlugin {
 
   object autoImport {
 
+    /** Enable emission of `@JSExportTopLevel("hydrate", moduleID = ...)`
+      * hydration entries in SPA-mode generated code.
+      *
+      * Default: `false`. Existing Scala.js-only examples keep the
+      * single-module CommonJSModule link config (the current default)
+      * and do not need the per-component public modules.
+      *
+      * Set to `true` on projects that actually do SSR + client-side
+      * hydration. Those projects typically also configure
+      * `scalaJSLinkerConfig` with `ModuleKind.ESModule` and a
+      * small-modules split style so each component ends up in its own
+      * public chunk. See `examples/http4s-ssr-hydration` for a complete
+      * Phase C setup.
+      */
+    val meltcHydration =
+      settingKey[Boolean]("Emit @JSExportTopLevel hydration entries in SPA codegen")
+
     /** Compilation mode for `.melt` files.
       *
       * Values:
@@ -152,6 +169,7 @@ object MeltcPlugin extends AutoPlugin {
       // Users can override this setting explicitly if needed.
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
+    meltcHydration := false,
     meltcSourceDirectory := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories := {
       // In a crossProject the unmanagedSourceDirectories list already
@@ -184,6 +202,7 @@ object MeltcPlugin extends AutoPlugin {
       outDir     = meltcOutputDirectory.value,
       pkg        = meltcPackage.value,
       mode       = meltcMode.value,
+      hydration  = meltcHydration.value,
       compilerCp = meltcCompilerClasspath.value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue
@@ -197,6 +216,7 @@ object MeltcPlugin extends AutoPlugin {
     outDir:     File,
     pkg:        String,
     mode:       String,
+    hydration:  Boolean,
     compilerCp: Seq[File]
   ): Seq[File] = {
     val log = streams.log
@@ -270,7 +290,7 @@ object MeltcPlugin extends AutoPlugin {
         fullPkg,
         "--mode",
         normalisedMode
-      )
+      ) ++ (if (hydration) Seq("--hydration") else Seq.empty)
 
       val exitCode = Fork.java(ForkOptions(), javaArgs)
 

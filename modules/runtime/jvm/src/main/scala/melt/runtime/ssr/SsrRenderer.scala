@@ -146,6 +146,60 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   /** Decrements the component nesting counter. */
   def exitComponent(): Unit = componentDepth -= 1
 
+  /** Runs `body` inside an error boundary — if it throws, `fallback` is
+    * invoked with the exception and its return value is pushed into the
+    * body buffer at the point where the failing region would have gone
+    * (§12.3.7).
+    *
+    * Svelte 5 exposes `<svelte:boundary>` for the same purpose. Melt's
+    * Phase C implementation is intentionally simple: the body lambda
+    * runs immediately against this renderer, and any exception thrown
+    * — including `MeltRenderException` from the Phase A depth / size
+    * guards — is caught and replaced by the fallback HTML.
+    *
+    * Implementation notes:
+    *
+    *   - The boundary does NOT roll back already-emitted body content
+    *     from a partially-rendered fragment. Callers should treat the
+    *     fallback as an addition following whatever was emitted before
+    *     the failure point.
+    *   - The fallback string is pushed verbatim via [[push]], which
+    *     means it is subject to the same size guard. It is the caller's
+    *     responsibility to keep the fallback small (typically a one-
+    *     paragraph error message).
+    *   - The fallback result bypasses HTML escaping — pass either a
+    *     static string or something you have already escaped.
+    *
+    * Example:
+    * {{{
+    *   renderer.boundary(e => s"<p>Failed: \${ Escape.html(e.getMessage) }</p>") { r =>
+    *     r.push("<section>")
+    *     // ... rendering that might throw ...
+    *     r.push("</section>")
+    *   }
+    * }}}
+    */
+  def boundary(
+    fallback: Throwable => String
+  )(
+    body: SsrRenderer => Unit
+  ): Unit =
+    try body(this)
+    catch
+      case t: Throwable =>
+        val html =
+          try fallback(t)
+          catch case _: Throwable => "" // never let the fallback itself blow up
+        // If the output is already over the size limit (which is likely
+        // if body failed with MeltRenderException), the fallback would
+        // itself blow up on trackSize. Write directly to the buffer to
+        // keep the fallback visible without re-arming the guard. We
+        // still nudge outputBytes so subsequent push() calls remain
+        // consistent.
+        if html.nonEmpty then
+          bodyBuf ++= html
+          outputBytes += html.length.toLong * 2L
+
   /** Emits a spread attribute `Map` to the body buffer, applying all
     * Phase A + Phase B security rules (§12.1.2 + §12.1.4):
     *

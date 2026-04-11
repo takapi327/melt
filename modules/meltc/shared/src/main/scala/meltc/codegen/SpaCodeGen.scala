@@ -29,12 +29,19 @@ object SpaCodeGen extends CodeGen:
     f"melt-${ (hash & 0x7fffffff) % 0xffffff }%06x"
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string. */
-  def generate(ast: meltc.ast.MeltFile, objectName: String, pkg: String, scopeId: String): String =
+  def generate(
+    ast:        meltc.ast.MeltFile,
+    objectName: String,
+    pkg:        String,
+    scopeId:    String,
+    hydration:  Boolean = false
+  ): String =
     val buf = new StringBuilder
     val ctr = new Counter
 
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
+    buf ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
     buf ++= "import org.scalajs.dom\n"
     buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     buf ++= "import melt.runtime.*\n"
@@ -125,8 +132,109 @@ object SpaCodeGen extends CodeGen:
       case None =>
         buf ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
+    if hydration then emitHydrationEntry(buf, objectName, propsType, ast)
+
     buf ++= "}\n"
     buf.toString
+
+  private def emitHydrationEntry(
+    buf:        StringBuilder,
+    objectName: String,
+    propsType:  Option[String],
+    ast:        meltc.ast.MeltFile
+  ): Unit =
+    // ── Hydration entry (§C5) ────────────────────────────────────────────────
+    // Each generated component exports a top-level `hydrate` function
+    // through Scala.js's `@JSExportTopLevel` with a `moduleID` set to
+    // the component's kebab-case name. When a Vite-bundled chunk for
+    // this component is loaded into the browser, the application can
+    // call `hydrate()` to attach reactive bindings to the SSR output.
+    //
+    // The implementation locates the paired hydration markers emitted
+    // by `SsrCodeGen` (`<!--[melt:NAME-->` / `<!--]melt:NAME-->`) and
+    // uses "replace-on-mount" semantics: the SSR HTML inside each
+    // marker pair is removed and replaced with a freshly-built DOM
+    // sub-tree via `Mount`. True hydration (attaching to existing
+    // nodes without reconstructing them) is a Phase D / follow-up
+    // effort; replace-on-mount is the minimum viable hydration that
+    // still gives users working interactivity for Phase C.
+    //
+    // Because the hydrated component is (re)constructed via `apply()`
+    // with no arguments, components with Props must provide defaults
+    // for every field. Props-serialization (so the server can hand
+    // props to the client) is a Phase D feature.
+    val moduleId      = kebabCase(objectName)
+    val propsDefaults =
+      propsType match
+        case None => true // no Props → apply() is callable
+        case Some(typeName) =>
+          ast.script
+            .map { sc =>
+              val (def1, _) = splitPropsDefinition(sc.code, typeName)
+              allPropsHaveDefaults(def1)
+            }
+            .getOrElse(true)
+
+    if propsDefaults then
+      buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via Vite +
+                  |    * `@scala-js/vite-plugin-scalajs`. Locates the
+                  |    * `<!--[melt:$moduleId-->` / `<!--]melt:$moduleId-->`
+                  |    * comment markers in the document and mounts a fresh
+                  |    * component at each pair (replace-on-mount).
+                  |    */
+                  |  @JSExportTopLevel("hydrate", moduleID = "$moduleId")
+                  |  def _meltHydrateEntry(): Unit =
+                  |    val startMarker = "[melt:$moduleId"
+                  |    val endMarker   = "]melt:$moduleId"
+                  |    val walker      = dom.document.createTreeWalker(
+                  |      dom.document.body,
+                  |      dom.NodeFilter.SHOW_COMMENT,
+                  |      null,
+                  |      false
+                  |    )
+                  |    val starts = scala.collection.mutable.ListBuffer.empty[dom.Node]
+                  |    val ends   = scala.collection.mutable.ListBuffer.empty[dom.Node]
+                  |    var cur: dom.Node = walker.nextNode()
+                  |    while cur != null do
+                  |      val text = cur.asInstanceOf[dom.Comment].data
+                  |      if text.startsWith(startMarker) then starts += cur
+                  |      else if text.startsWith(endMarker) then ends += cur
+                  |      cur = walker.nextNode()
+                  |    starts.zip(ends).foreach { case (startNode, endNode) =>
+                  |      val parent = startNode.parentNode
+                  |      // Remove SSR-emitted nodes between the markers, then
+                  |      // mount a fresh component into the now-empty gap.
+                  |      var n = startNode.nextSibling
+                  |      while n != null && !(n eq endNode) do
+                  |        val next = n.nextSibling
+                  |        parent.removeChild(n)
+                  |        n = next
+                  |      val host = dom.document.createElement("div")
+                  |      parent.insertBefore(host, endNode)
+                  |      ${ hydrationApplyCall(propsType) }
+                  |    }
+                  |
+                  |""".stripMargin
+    else
+      // Props has fields without default values — we cannot construct
+      // `Props()` at hydration time without a serialisation layer. Emit
+      // a stub entry that warns once and does nothing, so the Vite
+      // bundle still builds and the developer gets a clear diagnostic
+      // in the browser console. Props serialisation is a Phase D task.
+      buf ++= s"""  /** Hydration entry stub — `$objectName.Props` has required
+                  |    * fields that cannot be constructed without explicit
+                  |    * arguments. Real hydration will be enabled when props
+                  |    * serialisation lands in Phase D.
+                  |    */
+                  |  @JSExportTopLevel("hydrate", moduleID = "$moduleId")
+                  |  def _meltHydrateEntry(): Unit =
+                  |    dom.console.warn(
+                  |      "[melt] hydrate($moduleId) skipped: $objectName.Props " +
+                  |      "has required fields. Props serialisation (Phase D) is " +
+                  |      "required before this component can hydrate automatically."
+                  |    )
+                  |
+                  |""".stripMargin
 
   // ── Node emission ──────────────────────────────────────────────────────────
 
@@ -499,6 +607,82 @@ object SpaCodeGen extends CodeGen:
     * The props definition (e.g. `case class Props(...)`) goes at object level;
     * everything else goes inside `create()`.
     */
+  /** Converts `objectName` to kebab-case for Vite `moduleID`.
+    * `Counter` → `counter`, `TodoList` → `todo-list`.
+    */
+  private def kebabCase(s: String): String =
+    val buf = new StringBuilder(s.length + 4)
+    s.zipWithIndex.foreach { case (c, i) =>
+      if c.isUpper then
+        if i > 0 then buf += '-'
+        buf += c.toLower
+      else buf += c
+    }
+    buf.toString
+
+  /** Returns the Scala code snippet that mounts a fresh component at
+    * the `host` element created by `_meltHydrateEntry`.
+    *
+    * Components with `Props` call `apply(<TypeName>())` — requiring the
+    * user's case class to have default values for every field. Components
+    * without Props simply call `apply()`.
+    */
+  private def hydrationApplyCall(propsType: Option[String]): String =
+    propsType match
+      case Some(tpe) => s"Mount(host, apply($tpe()))"
+      case None      => "Mount(host, apply())"
+
+  /** Heuristic check: does every field of the (single) Props case class
+    * have a default value? Used by `_meltHydrateEntry` to decide whether
+    * it can emit a working hydration body (all defaults) or merely a
+    * stub that warns at runtime.
+    *
+    * Accepts both `case class Props()` (trivially true — no params) and
+    * full signatures like
+    * `case class Props(a: Int = 0, b: String = "x")`. Nested
+    * generics / function types / default expressions containing commas
+    * are handled via a simple bracket-depth tracker in
+    * [[splitTopLevelCommas]].
+    *
+    * The check is intentionally lenient: it errs towards "defaultable"
+    * whenever it cannot parse the declaration (e.g. multi-line Props
+    * definitions), because a false positive only causes a compile
+    * error at the `Props()` call site — which the developer can then
+    * fix by adding defaults or switching to the stub path manually.
+    */
+  private def allPropsHaveDefaults(propsDef: String): Boolean =
+    val open  = propsDef.indexOf('(')
+    val close = propsDef.lastIndexOf(')')
+    if open < 0 || close <= open then true
+    else
+      val params = propsDef.substring(open + 1, close).trim
+      if params.isEmpty then true
+      else splitTopLevelCommas(params).forall(_.contains(" = "))
+
+  /** Splits `s` by commas that are not nested inside `(`, `[`, or `{`. */
+  private def splitTopLevelCommas(s: String): List[String] =
+    val buf    = scala.collection.mutable.ListBuffer.empty[String]
+    val curBuf = new StringBuilder
+    var depth  = 0
+    var i      = 0
+    while i < s.length do
+      val c = s.charAt(i)
+      c match
+        case '(' | '[' | '{' =>
+          depth += 1
+          curBuf += c
+        case ')' | ']' | '}' =>
+          depth -= 1
+          curBuf += c
+        case ',' if depth == 0 =>
+          buf += curBuf.toString.trim
+          curBuf.clear()
+        case _ =>
+          curBuf += c
+      i += 1
+    if curBuf.nonEmpty then buf += curBuf.toString.trim
+    buf.toList
+
   private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
     val lines      = code.linesWithSeparators.toArray
     val propsDef   = new StringBuilder

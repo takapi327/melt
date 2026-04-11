@@ -278,3 +278,25 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("renderer.push(html.value)"), code)
     assert(!code.contains("Escape.html(txt)"), code)
   }
+
+  // ── Phase C §C3: hydration markers ─────────────────────────────────────
+
+  test("SsrCodeGen wraps the body in hydration markers using kebab moduleID") {
+    val code = compile("<div></div>", name = "TodoList")
+    assert(code.contains("""HydrationMarkers.open("todo-list")"""), code)
+    assert(code.contains("""HydrationMarkers.close("todo-list")"""), code)
+  }
+
+  test("hydration open marker precedes the template body") {
+    val code    = compile("<div>body</div>", name = "Counter")
+    val openIdx = code.indexOf("""HydrationMarkers.open("counter")""")
+    val bodyIdx = code.indexOf("""renderer.push("<div")""")
+    assert(openIdx >= 0 && bodyIdx > openIdx, s"open at $openIdx, body at $bodyIdx")
+  }
+
+  test("hydration close marker follows the template body") {
+    val code     = compile("<div>body</div>", name = "Counter")
+    val bodyEnd  = code.indexOf("""renderer.push("</div>")""")
+    val closeIdx = code.indexOf("""HydrationMarkers.close("counter")""")
+    assert(bodyEnd >= 0 && closeIdx > bodyEnd, s"body-end at $bodyEnd, close at $closeIdx")
+  }

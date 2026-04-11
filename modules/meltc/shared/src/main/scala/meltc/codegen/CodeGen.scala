@@ -33,10 +33,16 @@ trait CodeGen:
     * @param objectName the generated Scala object name (e.g. `"Counter"`)
     * @param pkg        Scala package for the generated file (may be empty)
     * @param scopeId    CSS scope id, typically `scopeIdFor(objectName)`
+    * @param hydration  Phase C only — when `true`, [[SpaCodeGen]] additionally
+    *                   emits a `@JSExportTopLevel("hydrate", moduleID = ...)`
+    *                   hydration entry. [[SsrCodeGen]] ignores this flag.
+    *                   Defaults to `false` so that existing single-module
+    *                   SPA examples keep working without any build changes.
     */
   def generate(
     ast:        MeltFile,
     objectName: String,
     pkg:        String,
-    scopeId:    String
+    scopeId:    String,
+    hydration:  Boolean = false
   ): String

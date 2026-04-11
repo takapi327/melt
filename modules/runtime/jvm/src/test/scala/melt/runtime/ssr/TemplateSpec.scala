@@ -199,3 +199,88 @@ class TemplateSpec extends FunSuite:
     val html = t.render(sampleResult, title = "<script>")
     assert(html.contains("&lt;script&gt;"), html)
   }
+
+  // ── Phase C §C4: Hydration overload ────────────────────────────────────
+
+  private def templateWithAll =
+    mk("""<!doctype html>
+         |<html lang="%melt.lang%">
+         |<head>
+         |%melt.head%
+         |</head>
+         |<body>
+         |%melt.body%
+         |</body>
+         |</html>""".stripMargin)
+
+  test("hydration overload injects modulepreload and stylesheet for tracked components") {
+    val result = RenderResult(
+      body       = "<main/>",
+      head       = "<style>x{}</style>",
+      css        = Set.empty,
+      components = Set("counter")
+    )
+    val manifest = ViteManifest.fromString(
+      """{
+        |  "scalajs:counter.js": {
+        |    "file":    "assets/counter.js",
+        |    "css":     ["assets/counter.css"]
+        |  }
+        |}""".stripMargin
+    )
+    val html = templateWithAll.render(result, manifest)
+    assert(html.contains("""<link rel="modulepreload" href="/assets/assets/counter.js">"""), html)
+    assert(html.contains("""<link rel="stylesheet" href="/assets/assets/counter.css">"""), html)
+    assert(html.contains("""<script type="module" src="/assets/assets/counter.js"></script>"""), html)
+  }
+
+  test("hydration overload uses shared chunks in dependency order") {
+    val result = RenderResult(
+      body       = "",
+      head       = "",
+      css        = Set.empty,
+      components = Set("counter")
+    )
+    val manifest = ViteManifest.fromString(
+      """{
+        |  "scalajs:counter.js": {
+        |    "file":    "assets/counter.js",
+        |    "imports": ["_shared.js"]
+        |  },
+        |  "_shared.js": { "file": "assets/shared.js" }
+        |}""".stripMargin
+    )
+    val html = templateWithAll.render(result, manifest)
+    val sharedIdx = html.indexOf("assets/shared.js")
+    val ownIdx    = html.indexOf("assets/counter.js")
+    // In the body's <script> block, shared appears before owner.
+    assert(sharedIdx >= 0 && ownIdx > sharedIdx, s"shared=$sharedIdx own=$ownIdx\n$html")
+  }
+
+  test("hydration overload strips trailing slash from basePath") {
+    val result = RenderResult(
+      body       = "",
+      head       = "",
+      css        = Set.empty,
+      components = Set("counter")
+    )
+    val manifest = ViteManifest.fromString(
+      """{ "scalajs:counter.js": { "file": "assets/counter.js" } }"""
+    )
+    val html = templateWithAll.render(result, manifest, title = "", lang = "en", basePath = "/public/", vars = Map.empty)
+    assert(html.contains("href=\"/public/assets/counter.js\""), html)
+    assert(!html.contains("//assets"), html)
+  }
+
+  test("hydration overload with no tracked components leaves template alone") {
+    val html = templateWithAll.render(sampleResult, ViteManifest.empty)
+    assert(!html.contains("modulepreload"), html)
+    assert(!html.contains("<script type=\"module\""), html)
+  }
+
+  test("hydration overload honours the title fallback from result.title") {
+    val t = mk("<title>%melt.title%</title>")
+    val result = sampleResult.copy(title = Some("FromComponent"))
+    val html = t.render(result, ViteManifest.empty)
+    assertEquals(html, "<title>FromComponent</title>")
+  }

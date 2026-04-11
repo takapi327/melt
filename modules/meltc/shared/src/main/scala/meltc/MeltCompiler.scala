@@ -21,13 +21,18 @@ object MeltCompiler:
     * @param pkg        Scala package (may be empty)
     * @param mode       Target code-generation mode. Defaults to [[CompileMode.SPA]]
     *                   for backwards compatibility with existing callers.
+    * @param hydration  When `true` and `mode == SPA`, emit
+    *                   `@JSExportTopLevel("hydrate", moduleID = ...)`
+    *                   hydration entries. Defaults to `false` so existing
+    *                   single-module Scala.js examples keep working.
     */
   def compile(
     source:     String,
     filename:   String,
     objectName: String,
     pkg:        String,
-    mode:       CompileMode = CompileMode.SPA
+    mode:       CompileMode = CompileMode.SPA,
+    hydration:  Boolean     = false
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
@@ -48,7 +53,7 @@ object MeltCompiler:
         if semanticErrors.nonEmpty then
           CompileResult(None, None, semanticErrors, Nil)
         else
-          val code           = codegen.generate(ast, objectName, pkg, scopeId)
+          val code           = codegen.generate(ast, objectName, pkg, scopeId, hydration)
           val parserWarnings = result.warnings.map {
             case (msg, pos) =>
               val line = offsetToLine(source, pos)

@@ -52,8 +52,12 @@ object SsrCodeGen extends CodeGen:
     ast:        MeltFile,
     objectName: String,
     pkg:        String,
-    scopeId:    String
+    scopeId:    String,
+    hydration:  Boolean = false
   ): String =
+    // `hydration` is ignored here — SSR never emits @JSExportTopLevel.
+    // The flag only affects SpaCodeGen.
+    val _ = hydration
     val buf = new StringBuilder
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
@@ -112,9 +116,18 @@ object SsrCodeGen extends CodeGen:
       }
       buf ++= "\n"
 
+    // ── Hydration marker (open) ──
+    // §12.1.7 — wraps the component's HTML in `<!--[melt:MODULE-->` /
+    // `<!--]melt:MODULE-->` so that client-side hydration can find the
+    // exact DOM range that belongs to this component.
+    buf ++= s"""    renderer.push(HydrationMarkers.open("$moduleId"))\n"""
+
     // ── Template nodes ────────────────────────────────────────────────────
     buf ++= "    // ── Template ──\n"
     ast.template.foreach(node => emitNode(node, buf, indent = 4, scopeId))
+
+    // ── Hydration marker (close) ──
+    buf ++= s"""    renderer.push(HydrationMarkers.close("$moduleId"))\n"""
 
     buf ++= "\n    renderer.result()\n"
     buf ++= "  }\n"

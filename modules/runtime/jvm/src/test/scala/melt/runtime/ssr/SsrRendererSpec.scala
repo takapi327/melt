@@ -285,6 +285,54 @@ class SsrRendererSpec extends FunSuite:
     assertEquals(parent.result().title, Some("Parent"))
   }
 
+  // ── §12.3.7 error boundary ─────────────────────────────────────────────
+
+  test("boundary catches exceptions and pushes the fallback HTML") {
+    val r = SsrRenderer()
+    r.push("<div>")
+    r.boundary(e => s"<p class=\"err\">${ e.getMessage }</p>") { inner =>
+      inner.push("<span>hi</span>")
+      sys.error("boom")
+    }
+    r.push("</div>")
+    val body = r.result().body
+    // Rendering up to the failure point is kept verbatim, then fallback
+    // is appended in its place.
+    assert(body.contains("<span>hi</span>"), body)
+    assert(body.contains("<p class=\"err\">boom</p>"), body)
+    assert(body.endsWith("</div>"), body)
+  }
+
+  test("boundary passes cleanly when body succeeds") {
+    val r = SsrRenderer()
+    r.boundary(_ => "<err/>") { inner =>
+      inner.push("<ok/>")
+    }
+    assert(r.result().body.contains("<ok/>"))
+    assert(!r.result().body.contains("<err/>"))
+  }
+
+  test("boundary swallows exceptions raised by the fallback itself") {
+    val r = SsrRenderer()
+    r.boundary(_ => throw new RuntimeException("double")) { inner =>
+      inner.push("before")
+      sys.error("boom")
+    }
+    val body = r.result().body
+    assert(body.contains("before"), body)
+    // Second failure: fallback threw — nothing else was appended.
+    assert(!body.contains("double"), body)
+  }
+
+  test("boundary catches MeltRenderException from the output-size guard") {
+    val r = SsrRenderer(SsrRenderer.Config(maxOutputBytes = 200))
+    r.boundary(_ => "<trimmed/>") { inner =>
+      inner.push("x" * 500) // would exceed the 200-byte limit
+    }
+    val body = r.result().body
+    assert(body.contains("<trimmed/>"), body)
+  }
+
   test("merge — meta tags from child override parent's on name collision") {
     val parent = SsrRenderer()
     parent.head.meta("description", "Parent desc")

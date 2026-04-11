@@ -102,11 +102,113 @@ final class Template private (private val raw: String):
       if title.nonEmpty then Escape.html(title)
       else result.title.getOrElse("")
 
+    renderInternal(result, effectiveTitle, lang, vars, extraHead = "", extraBody = "")
+
+  /** Hydration-aware overload. Resolves the JS / CSS chunks for each
+    * tracked component via the given [[ViteManifest]] and injects them
+    * into the document:
+    *
+    *   - `<link rel="stylesheet" href="...">` is appended to
+    *     `%melt.head%` so that scoped CSS already on the page plus
+    *     Vite-built stylesheets coexist correctly.
+    *   - `<link rel="modulepreload" href="...">` for each JS chunk is
+    *     also appended to `%melt.head%`.
+    *   - `<script type="module" src="...">` for each chunk is appended
+    *     to `%melt.body%` so that the browser parses the HTML fully
+    *     before fetching the scripts.
+    *
+    * Chunk ordering follows `ViteManifest.chunksFor` — shared chunks
+    * first, owning chunk last — so that the entry module's imports are
+    * satisfied by the time it executes.
+    *
+    * @param result   the component render result
+    * @param manifest the parsed Vite manifest, loaded once at startup
+    * @param title    page title (same fallback as the SSR-only overload)
+    * @param lang     `%melt.lang%` value
+    * @param basePath URL prefix prepended to every chunk file in the
+    *                 injected `<link>` / `<script>` tags (defaults to
+    *                 `"/assets"`, which matches Vite's `build.assetsDir`)
+    * @param vars     extra placeholder values (same semantics as the
+    *                 SSR-only overload)
+    */
+  /** Hydration overload using the default `basePath = "/assets"`,
+    * `lang = "en"`, empty `vars`, and the title from `result.title`.
+    */
+  def render(result: RenderResult, manifest: ViteManifest): String =
+    render(result, manifest, title = "", lang = "en", basePath = "/assets", vars = Map.empty)
+
+  /** Hydration overload with an explicit title. */
+  def render(result: RenderResult, manifest: ViteManifest, title: String): String =
+    render(result, manifest, title, lang = "en", basePath = "/assets", vars = Map.empty)
+
+  /** Full hydration overload. Explicit arguments for all substitution
+    * slots — required because Scala forbids default arguments on
+    * multiple overloads of the same method.
+    */
+  def render(
+    result:   RenderResult,
+    manifest: ViteManifest,
+    title:    String,
+    lang:     String,
+    basePath: String,
+    vars:     Map[String, String]
+  ): String =
+    val effectiveTitle: String =
+      if title.nonEmpty then Escape.html(title)
+      else result.title.getOrElse("")
+
+    val jsChunks = result.components
+      .flatMap(manifest.chunksFor)
+      .toList
+      .distinct
+
+    val cssChunks = result.components
+      .flatMap(manifest.cssFor)
+      .toList
+      .distinct
+
+    val strippedBase = basePath.stripSuffix("/")
+
+    val stylesheets = cssChunks
+      .map(f => s"""<link rel="stylesheet" href="$strippedBase/$f">""")
+      .mkString("\n")
+
+    val preloads = jsChunks
+      .map(f => s"""<link rel="modulepreload" href="$strippedBase/$f">""")
+      .mkString("\n")
+
+    val scripts = jsChunks
+      .map(f => s"""<script type="module" src="$strippedBase/$f"></script>""")
+      .mkString("\n")
+
+    val extraHead = List(stylesheets, preloads).filter(_.nonEmpty).mkString("\n")
+    val extraBody = scripts
+
+    renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody)
+
+  /** Shared substitution pipeline used by both `render` overloads. */
+  private def renderInternal(
+    result:         RenderResult,
+    effectiveTitle: String,
+    lang:           String,
+    vars:           Map[String, String],
+    extraHead:      String,
+    extraBody:      String
+  ): String =
+    val headContent =
+      if extraHead.isEmpty then result.head
+      else if result.head.isEmpty then extraHead
+      else s"${ result.head }\n$extraHead"
+
+    val bodyContent =
+      if extraBody.isEmpty then result.body
+      else s"${ result.body }\n$extraBody"
+
     var out = raw
     out = out.replace("%melt.lang%",  Escape.attr(lang))
     out = out.replace("%melt.title%", effectiveTitle)
-    out = out.replace("%melt.head%",  result.head)
-    out = out.replace("%melt.body%",  result.body)
+    out = out.replace("%melt.head%",  headContent)
+    out = out.replace("%melt.body%",  bodyContent)
     vars.foreach { case (k, v) =>
       // Reserved keys are ignored so user-provided maps cannot override
       // structural placeholders.
