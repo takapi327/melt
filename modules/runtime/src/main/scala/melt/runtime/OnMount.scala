@@ -8,8 +8,6 @@ package melt.runtime
 
 import scala.collection.mutable
 
-import org.scalajs.dom
-
 /** Post-mount callback queue for [[onMount]] lifecycle hooks.
   *
   * Callbacks are registered during a component's `create()` call and flushed
@@ -26,23 +24,38 @@ import org.scalajs.dom
   *
   * ==Cleanup==
   * If a callback returns a `() => Unit` cleanup function, that function is
-  * forwarded to [[Lifecycle]] keyed by the mounted root element, so it runs when
-  * the component is destroyed via [[Lifecycle.destroy]].
+  * registered on the [[OwnerNode]] captured at registration time, so it runs
+  * when the component is destroyed.  If the owner is already destroyed when
+  * [[flush]] runs, the cleanup is invoked immediately by [[OwnerNode.addCleanup]].
   */
 private[runtime] object OnMount:
 
-  private val pending = mutable.Queue[() => Option[() => Unit]]()
+  /** Pairs a pending callback with the [[OwnerNode]] that was current when it was registered. */
+  private final case class PendingMount(owner: Option[OwnerNode], fn: () => Option[() => Unit])
 
-  /** Enqueues [fn] to run after the next [[Mount.apply]] call (or [[flush]]). */
+  private val pending = mutable.Queue[PendingMount]()
+
+  /** Enqueues [fn] to run after the next [[Mount.apply]] call (or [[flush]]).
+    * Captures the current [[Owner]] node so cleanup can be attributed correctly.
+    */
   def register(fn: () => Option[() => Unit]): Unit =
-    pending.enqueue(fn)
+    pending.enqueue(PendingMount(Owner.current, fn))
 
   /** Runs all pending callbacks in FIFO order.
     *
-    * Any cleanup functions returned by callbacks are registered with [[Lifecycle]]
-    * under [mountedRoot] so they execute on component destruction.
+    * Any cleanup functions returned by callbacks are registered with their
+    * captured [[OwnerNode]] so they execute on component destruction.
+    *
+    * Each callback is wrapped in a try-catch so one failing mount hook does
+    * not prevent the remaining hooks from running.
     *
     * Called by [[Mount.apply]] immediately after `target.appendChild(component)`.
     */
-  def flush(mountedRoot: dom.Element): Unit =
-    while pending.nonEmpty do pending.dequeue()().foreach(Lifecycle.addCleanup(mountedRoot, _))
+  def flush(): Unit =
+    while pending.nonEmpty do
+      val PendingMount(owner, fn) = pending.dequeue()
+      try
+        fn().foreach { cleanup =>
+          owner.foreach(_.addCleanup(cleanup))
+        }
+      catch case _: Throwable => ()

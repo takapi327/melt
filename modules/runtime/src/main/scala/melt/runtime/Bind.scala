@@ -120,6 +120,10 @@ object Bind:
     val cancel = signal.subscribe(apply)
     Cleanup.register(cancel)
 
+  def booleanAttr(el: dom.Element, name: String, value: Boolean): Unit =
+    if value then el.setAttribute(name, "") else el.removeAttribute(name)
+    el.asInstanceOf[scalajs.js.Dynamic].updateDynamic(name)(value)
+
   // ── Two-way bindings ───────────────────────────────────────────────────
 
   /** Two-way string binding for `<input>`. */
@@ -247,7 +251,12 @@ object Bind:
       old match
         case el: dom.Element if TransitionBridge.hasOut(el) =>
           playGlobalTransitions(old, intro = false)
+          Lifecycle.destroyTree(el)
           TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
+        case el: dom.Element =>
+          playGlobalTransitions(old, intro = false)
+          parent.removeChild(old)
+          Lifecycle.destroyTree(el)
         case _ =>
           playGlobalTransitions(old, intro = false)
           parent.removeChild(old)
@@ -278,7 +287,12 @@ object Bind:
       old match
         case el: dom.Element if TransitionBridge.hasOut(el) =>
           playGlobalTransitions(old, intro = false)
+          Lifecycle.destroyTree(el)
           TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
+        case el: dom.Element =>
+          playGlobalTransitions(old, intro = false)
+          parent.removeChild(old)
+          Lifecycle.destroyTree(el)
         case _ =>
           playGlobalTransitions(old, intro = false)
           parent.removeChild(old)
@@ -295,7 +309,12 @@ object Bind:
     var nodes  = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
-      nodes.foreach(n => parent.removeChild(n))
+      nodes.foreach { n =>
+        parent.removeChild(n)
+        n match
+          case el: dom.Element => Lifecycle.destroyTree(el)
+          case _               =>
+      }
       nodes.clear()
       items.foreach { item =>
         val node = renderFn(item)
@@ -312,7 +331,12 @@ object Bind:
     var nodes  = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
-      nodes.foreach(n => parent.removeChild(n))
+      nodes.foreach { n =>
+        parent.removeChild(n)
+        n match
+          case el: dom.Element => Lifecycle.destroyTree(el)
+          case _               =>
+      }
       nodes.clear()
       items.foreach { item =>
         val node = renderFn(item)
@@ -347,9 +371,14 @@ object Bind:
       val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
       val oldKeys = nodeMap.keySet.toSet
-      // Remove nodes whose keys no longer exist
+      // Remove nodes whose keys no longer exist; destroy their subscriptions too
       (oldKeys -- newKeys).foreach { k =>
-        nodeMap.get(k).foreach(n => parent.removeChild(n))
+        nodeMap.get(k).foreach { n =>
+          parent.removeChild(n)
+          n match
+            case el: dom.Element => Lifecycle.destroyTree(el)
+            case _               =>
+        }
         nodeMap -= k
       }
       // Add/reorder
@@ -386,8 +415,14 @@ object Bind:
       val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
       val newKeys = items.map(keyFn).toSet
       val oldKeys = nodeMap.keySet.toSet
+      // Remove nodes whose keys no longer exist; destroy their subscriptions too
       (oldKeys -- newKeys).foreach { k =>
-        nodeMap.get(k).foreach(n => parent.removeChild(n))
+        nodeMap.get(k).foreach { n =>
+          parent.removeChild(n)
+          n match
+            case el: dom.Element => Lifecycle.destroyTree(el)
+            case _               =>
+        }
         nodeMap -= k
       }
       val newMap = mutable.LinkedHashMap.empty[K, dom.Node]
@@ -800,7 +835,8 @@ object Bind:
 
   /** Reactive helper: re-creates the element whenever `subscribeFn` fires.
     * Plays intro/outro transitions on enter/leave.
-    * Scopes setup subscriptions per element so they are cancelled before each swap.
+    * Each element is scoped by its own [[OwnerNode]] so that reactive subscriptions
+    * created during `setup(el)` are destroyed automatically when the element is swapped.
     */
   private def mountDynamicCore(
     initial:       String | Null,
@@ -811,14 +847,14 @@ object Bind:
     createElement: String => dom.Element
   ): Unit =
     var current: dom.Element | Null = null
-    // Holds subscriptions created by setup() for the *current* element.
-    // Cancelled before each swap so reactive bindings don't fire on detached nodes.
-    var elementCleanup: List[() => Unit] = Nil
+    // Holds the OwnerNode for subscriptions created by setup() for the *current* element.
+    // Destroyed before each swap so reactive bindings don't fire on detached nodes.
+    var elementNode: Option[OwnerNode] = None
 
     def swap(tagName: String | Null): Unit =
-      // Cancel all subscriptions registered by the previous setup call
-      Cleanup.runAll(elementCleanup)
-      elementCleanup = Nil
+      // Destroy all subscriptions registered by the previous setup call
+      elementNode.foreach(_.destroy())
+      elementNode = None
       if current != null then
         val old = current
         current = null
@@ -831,10 +867,9 @@ object Bind:
       if tagName != null then
         val el = createElement(tagName)
         el.classList.add(scopeId)
-        // Scope setup's Cleanup.register calls so we can cancel them on the next swap
-        Cleanup.pushScope()
-        setup(el)
-        elementCleanup = Cleanup.popScope()
+        // Scope setup's Cleanup.register calls to a per-element OwnerNode
+        val (_, node) = Owner.withNew { setup(el) }
+        elementNode = Some(node)
         anchor.parentNode.insertBefore(el, anchor)
         if TransitionBridge.hasIn(el) then
           TransitionBridge.playIn(el)
@@ -846,7 +881,7 @@ object Bind:
     val cancel = subscribeFn(swap)
     Cleanup.register(cancel)
     Cleanup.register(() => {
-      Cleanup.runAll(elementCleanup)
+      elementNode.foreach(_.destroy())
       if current != null then
         val old = current
         current = null

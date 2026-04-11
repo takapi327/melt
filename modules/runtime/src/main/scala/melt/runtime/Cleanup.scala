@@ -41,10 +41,13 @@ object Cleanup:
     else Nil
 
   /** Register a cleanup function in the current scope.
-    * No-op if no scope is active (e.g. during testing without pushScope).
+    * Delegates to [[Owner.register]] so that cleanup functions are attributed
+    * to the current [[OwnerNode]] rather than the legacy stack-based scope.
+    * Falls back to the legacy stack scope when no Owner is active (backward compat).
     */
   def register(f: () => Unit): Unit =
-    if scopes.nonEmpty then scopes.top += f
+    if Owner.current.isDefined then Owner.register(f)
+    else if scopes.nonEmpty then scopes.top += f
 
   /** Execute all cleanup functions from a scope. */
   def runAll(cleanups: List[() => Unit]): Unit =

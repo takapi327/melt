@@ -48,14 +48,18 @@ final class Var[A] private (private var _current: A):
 
   /** Replaces the current value and notifies all subscribers in phase order.
     * If inside a `batch { }` block, notifications are deferred and coalesced.
+    * Tracks reactive update depth to detect infinite loops.
     */
   def set(value: A): Unit =
-    _current = value
-    if Batch.isBatching then Batch.enqueue(_batchFlush)
-    else
-      _pre.toList.foreach(_(value))
-      _bind.toList.foreach(_(value))
-      _post.toList.foreach(_(value))
+    Owner.enterReactive()
+    try
+      _current = value
+      if Batch.isBatching then Batch.enqueue(_batchFlush)
+      else
+        _pre.toList.foreach(_(value))
+        _bind.toList.foreach(_(value))
+        _post.toList.foreach(_(value))
+    finally Owner.exitReactive()
 
   /** Updates the current value using `f` and notifies all subscribers. */
   def update(f: A => A): Unit = set(f(_current))
@@ -109,7 +113,7 @@ final class Var[A] private (private var _current: A):
     *
     * When this Var emits a new value, the previous inner Signal is
     * unsubscribed and a fresh one is obtained by calling `f`.
-    * The internal subscription is registered with [[Cleanup]].
+    * The internal subscription is registered with [[Owner]] (via [[Cleanup.register]]).
     */
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner = f(_current)
