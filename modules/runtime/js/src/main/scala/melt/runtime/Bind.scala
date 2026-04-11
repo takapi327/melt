@@ -301,6 +301,22 @@ object Bind:
 
   // ── List rendering ────────────────────────────────────────────────────
 
+  /** Renders a plain (non-reactive) collection before `anchor`. Used
+    * when a `.melt` template references `{items.map(renderFn)}` where
+    * `items` is a plain `List` / `Seq` / `Iterable`, not a `Var` /
+    * `Signal`.
+    *
+    * This is a one-shot render: subsequent changes to `items` (if any)
+    * are not reflected. For reactive list rendering use `Var[List[A]]`
+    * and the overload below.
+    */
+  def list[A](source: Iterable[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+    val parent = anchor.parentNode
+    source.foreach { item =>
+      val node = renderFn(item)
+      parent.insertBefore(node, anchor)
+    }
+
   /** Renders a list of items before `anchor`. Rebuilds on each change.
     * Used for `{items.map(renderFn)}` in templates.
     */

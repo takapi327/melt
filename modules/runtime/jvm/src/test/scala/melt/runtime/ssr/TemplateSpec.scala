@@ -231,10 +231,14 @@ class TemplateSpec extends FunSuite:
     val html = templateWithAll.render(result, manifest)
     assert(html.contains("""<link rel="modulepreload" href="/assets/assets/counter.js">"""), html)
     assert(html.contains("""<link rel="stylesheet" href="/assets/assets/counter.css">"""), html)
-    assert(html.contains("""<script type="module" src="/assets/assets/counter.js"></script>"""), html)
+    // Bootstrap script dynamically imports the chunk and calls hydrate().
+    assert(
+      html.contains("""import("/assets/assets/counter.js").then(m => m.hydrate())"""),
+      html
+    )
   }
 
-  test("hydration overload uses shared chunks in dependency order") {
+  test("hydration overload uses shared chunks in dependency order (preload)") {
     val result = RenderResult(
       body       = "",
       head       = "",
@@ -251,10 +255,19 @@ class TemplateSpec extends FunSuite:
         |}""".stripMargin
     )
     val html = templateWithAll.render(result, manifest)
-    val sharedIdx = html.indexOf("assets/shared.js")
-    val ownIdx    = html.indexOf("assets/counter.js")
-    // In the body's <script> block, shared appears before owner.
-    assert(sharedIdx >= 0 && ownIdx > sharedIdx, s"shared=$sharedIdx own=$ownIdx\n$html")
+    // `modulepreload` entries are emitted in dependency order: shared first.
+    val preloadSharedIdx = html.indexOf("modulepreload\" href=\"/assets/assets/shared.js")
+    val preloadOwnIdx    = html.indexOf("modulepreload\" href=\"/assets/assets/counter.js")
+    assert(
+      preloadSharedIdx >= 0 && preloadOwnIdx > preloadSharedIdx,
+      s"preload order wrong\n$html"
+    )
+    // The bootstrap script must call the component's OWN entry chunk
+    // (not the shared chunk) via dynamic import.
+    assert(
+      html.contains("""import("/assets/assets/counter.js").then(m => m.hydrate())"""),
+      html
+    )
   }
 
   test("hydration overload strips trailing slash from basePath") {
@@ -275,7 +288,7 @@ class TemplateSpec extends FunSuite:
   test("hydration overload with no tracked components leaves template alone") {
     val html = templateWithAll.render(sampleResult, ViteManifest.empty)
     assert(!html.contains("modulepreload"), html)
-    assert(!html.contains("<script type=\"module\""), html)
+    assert(!html.contains("import("), html)
   }
 
   test("hydration overload honours the title fallback from result.title") {

@@ -177,12 +177,33 @@ final class Template private (private val raw: String):
       .map(f => s"""<link rel="modulepreload" href="$strippedBase/$f">""")
       .mkString("\n")
 
-    val scripts = jsChunks
-      .map(f => s"""<script type="module" src="$strippedBase/$f"></script>""")
+    // Build one <script type="module"> per tracked component that
+    // dynamically imports its chunk and calls the chunk's `hydrate`
+    // export. Scala.js's `@JSExportTopLevel("hydrate", moduleID = ...)`
+    // produces a named export, so simply loading the chunk via
+    // `<script type="module" src="...">` is NOT enough — the export
+    // would never execute. We therefore emit an inline script that
+    // imports the chunk and invokes `hydrate()` explicitly.
+    //
+    // Dynamic import + `.then(...)` runs chunks in parallel, and the
+    // browser's module cache deduplicates shared dependencies so each
+    // shared chunk is fetched only once.
+    //
+    // Map each component's moduleID directly to its own entry chunk
+    // (the last element of `chunksFor(moduleId)`), so that the call to
+    // `hydrate()` targets the correct module.
+    val bootstrap = result.components
+      .toList
+      .distinct
+      .flatMap { moduleId =>
+        manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
+          s"""<script type="module">import("$strippedBase/$entryChunk").then(m => m.hydrate())</script>"""
+        }
+      }
       .mkString("\n")
 
     val extraHead = List(stylesheets, preloads).filter(_.nonEmpty).mkString("\n")
-    val extraBody = scripts
+    val extraBody = bootstrap
 
     renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody)
 
