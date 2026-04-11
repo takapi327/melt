@@ -253,7 +253,7 @@ lazy val `reactive-scope` = project
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files,
-    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
+    jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime, `melt-testkit` % Test)
