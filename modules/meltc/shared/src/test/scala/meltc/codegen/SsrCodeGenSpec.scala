@@ -143,3 +143,138 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("renderer.css.add(_scopeId, _css)"), code)
     assert(code.contains("private val _css"), code)
   }
+
+  // ── Phase B: list rendering / InlineTemplate ──────────────────────────
+
+  test("list rendering with inline HTML uses foreach(renderer.push)") {
+    val src =
+      """<ul>{items.map((item: String) =>
+        |  <li>{item}</li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    assert(code.contains(".foreach(renderer.push)"), code)
+    // The <li> fragment should be serialised via StringBuilder blocks.
+    assert(code.contains("_sb"), code)
+    assert(code.contains("Escape.html(item)"), code)
+    assert(!code.contains("createElement"), code)
+  }
+
+  test("list rendering inside .map produces open/close tags for children") {
+    val src =
+      """<ul>{items.map((item: String) =>
+        |  <li>{item}</li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    // The inlined fragment should include string literals for <li and </li>.
+    assert(code.contains("\"<li\""), code)
+    assert(code.contains("\"</li>\""), code)
+  }
+
+  test("keyed list rendering reduces to plain foreach in SSR") {
+    val src =
+      """<ul>{items.keyed(_.id).map(item =>
+        |  <li>{item.name}</li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    // KeyedMap in SSR is indistinguishable from ListMap — both foreach.
+    assert(code.contains(".foreach(renderer.push)"), code)
+  }
+
+  test("static list child attribute is HTML-escaped into fragment") {
+    val src =
+      """<ul>{items.map((item: String) =>
+        |  <li class="entry">{item}</li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    // The static class "entry" should be combined with the scope id and
+    // embedded as a literal attribute value.
+    assert(code.contains("entry"), code)
+  }
+
+  // ── Phase B: conditional rendering (if / match) ───────────────────────
+
+  test("if / else with inline HTML emits native if + renderer.push") {
+    val src = """<div>{if visible then <p>Yes</p> else <p>No</p>}</div>"""
+    val code = compile(src)
+    assert(code.contains("renderer.push(if visible then"), code)
+    assert(code.contains("else"), code)
+    assert(code.contains("\"<p\""), code)
+    assert(code.contains("\"</p>\""), code)
+    assert(!code.contains("Bind.show"), code)
+  }
+
+  test("match with inline HTML emits native match + renderer.push") {
+    val src =
+      """<div>{n match
+        |  case 0 => <span>zero</span>
+        |  case _ => <span>other</span>
+        |}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("renderer.push(n match"), code)
+    assert(code.contains("case 0 =>"), code)
+    assert(code.contains("case _ =>"), code)
+    assert(code.contains("\"zero\""), code)
+    assert(code.contains("\"other\""), code)
+  }
+
+  test("conditional with dynamic expression inside runs Escape.html") {
+    val src =
+      """<div>{if active then <p>hi {name}</p> else <p>bye</p>}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("Escape.html(name)"), code)
+  }
+
+  // ── Phase B §12.3.6: special element bindings ─────────────────────────
+
+  test("textarea bind:value emits the value as body content (escaped)") {
+    val code = compile("""<textarea bind:value={userText}/>""")
+    assert(code.contains("""renderer.push("<textarea")"""), code)
+    assert(code.contains("""renderer.push("</textarea>")"""), code)
+    assert(code.contains("renderer.push(Escape.html(userText))"), code)
+    // No `value="..."` attribute should be emitted.
+    assert(!code.contains("""Escape.attr(userText)"""), code)
+  }
+
+  test("select bind:value marks the matching option as selected (static value)") {
+    val src =
+      """<select bind:value={choice}>
+        |  <option value="a">A</option>
+        |  <option value="b">B</option>
+        |</select>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""if (choice == "a") renderer.push(" selected")"""), code)
+    assert(code.contains("""if (choice == "b") renderer.push(" selected")"""), code)
+  }
+
+  test("select bind:value strips the directive from the <select> tag") {
+    val code = compile("""<select bind:value={c}><option value="x">x</option></select>""")
+    assert(!code.contains("bind:value"), code)
+  }
+
+  test("input radio bind:group emits checked when value matches") {
+    val code = compile("""<input type="radio" bind:group={choice} value="a"/>""")
+    assert(code.contains("""if (choice == "a") renderer.push(" checked")"""), code)
+  }
+
+  test("input checkbox bind:group emits checked when collection contains value") {
+    val code = compile("""<input type="checkbox" bind:group={choices} value="a"/>""")
+    assert(code.contains("""if (choices.contains("a")) renderer.push(" checked")"""), code)
+  }
+
+  test("bind:innerHTML emits TrustedHtml body without escaping") {
+    val code = compile("""<div bind:innerHTML={richContent}/>""")
+    assert(code.contains("renderer.push(richContent.value)"), code)
+    assert(code.contains("""renderer.push("</div>")"""), code)
+  }
+
+  test("bind:textContent HTML-escapes the expression") {
+    val code = compile("""<p bind:textContent={raw}/>""")
+    assert(code.contains("renderer.push(Escape.html(raw))"), code)
+    assert(code.contains("""renderer.push("</p>")"""), code)
+  }
+
+  test("innerHTML wins over textContent if both present") {
+    val code = compile("""<div bind:innerHTML={html} bind:textContent={txt}/>""")
+    assert(code.contains("renderer.push(html.value)"), code)
+    assert(!code.contains("Escape.html(txt)"), code)
+  }

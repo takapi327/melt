@@ -6,7 +6,7 @@
 
 package meltc
 
-import meltc.analysis.{ A11yChecker, AttrNameChecker, RawTextInterpolationChecker, TagNameChecker }
+import meltc.analysis.{ A11yChecker, AttrNameChecker, RawTextInterpolationChecker, SecurityChecker, TagNameChecker }
 import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
 import meltc.parser.MeltParser
 
@@ -58,11 +58,15 @@ object MeltCompiler:
             case (msg, line) =>
               CompileWarning(msg, line, 0, filename)
           }
+          val securityWarnings = SecurityChecker.check(ast, source).map {
+            case (msg, line) =>
+              CompileWarning(msg, line, 0, filename)
+          }
           CompileResult(
             Some(code),
             ast.style.map(s => CssScoper.scope(s.css, scopeId)),
             Nil,
-            parserWarnings ++ a11yWarnings
+            parserWarnings ++ a11yWarnings ++ securityWarnings
           )
 
   /** Converts a character offset to a 1-based line number. */

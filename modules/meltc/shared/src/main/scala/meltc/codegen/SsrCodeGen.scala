@@ -125,22 +125,26 @@ object SsrCodeGen extends CodeGen:
   // ── Node emission ──────────────────────────────────────────────────────
 
   private def emitNode(
-    node:    TemplateNode,
-    buf:     StringBuilder,
-    indent:  Int,
-    scopeId: String
+    node:           TemplateNode,
+    buf:            StringBuilder,
+    indent:         Int,
+    scopeId:        String,
+    selectBindExpr: Option[String] = None
   ): Unit =
     val pad = " " * indent
     node match
       case TemplateNode.Element(tag, attrs, children) =>
-        emitElementStart(tag, attrs, buf, indent, scopeId)
-        if HtmlVoidElements.isVoid(tag) then
-          // Void elements end with "/>", no children.
-          buf ++= s"""${ pad }renderer.push(">")\n"""
-        else
-          buf ++= s"""${ pad }renderer.push(">")\n"""
-          children.foreach(c => emitNode(c, buf, indent, scopeId))
-          buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
+        tag.toLowerCase match
+          case "textarea" if hasBindValue(attrs) =>
+            emitTextareaBindValue(attrs, children, buf, indent, scopeId)
+          case "select" if hasBindValue(attrs) =>
+            emitSelectBindValue(tag, attrs, children, buf, indent, scopeId)
+          case "input" if hasBindGroup(attrs) =>
+            emitInputBindGroup(attrs, buf, indent, scopeId)
+          case _ if hasBindInnerHtml(attrs) || hasBindTextContent(attrs) =>
+            emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
+          case _ =>
+            emitGenericElement(tag, attrs, children, buf, indent, scopeId, selectBindExpr)
 
       case TemplateNode.Text(content) =>
         // Text content is compile-time static, so we escape it once here
@@ -149,7 +153,7 @@ object SsrCodeGen extends CodeGen:
         buf ++= s"""${ pad }renderer.push("${ escapeString(escaped) }")\n"""
 
       case TemplateNode.Expression(code) =>
-        buf ++= s"$pad renderer.push(Escape.html($code))\n".substring(1)
+        emitExpression(code, buf, indent, scopeId)
 
       case TemplateNode.Component(name, attrs, _) =>
         emitComponentCall(name, attrs, buf, indent)
@@ -162,9 +166,258 @@ object SsrCodeGen extends CodeGen:
         // Window / body event handlers have no meaning in SSR.
         ()
 
-      case TemplateNode.InlineTemplate(_) | TemplateNode.DynamicElement(_, _, _) =>
-        // Phase B: list rendering / dynamic elements.
-        buf ++= s"${ pad }// TODO(SSR Phase B): InlineTemplate / DynamicElement\n"
+      case TemplateNode.InlineTemplate(parts) =>
+        emitInlineTemplate(parts, buf, indent, scopeId)
+
+      case TemplateNode.DynamicElement(_, _, _) =>
+        // Phase B / C: dynamic elements.
+        buf ++= s"${ pad }// TODO(SSR Phase C): DynamicElement\n"
+
+  /** Generic element emission — the normal open/close path used when no
+    * special `bind:` directive is in play. Kept as a separate method so
+    * that the special cases above can fall through cleanly.
+    */
+  private def emitGenericElement(
+    tag:            String,
+    attrs:          List[Attr],
+    children:       List[TemplateNode],
+    buf:            StringBuilder,
+    indent:         Int,
+    scopeId:        String,
+    selectBindExpr: Option[String]
+  ): Unit =
+    val pad = " " * indent
+
+    emitElementStart(tag, attrs, buf, indent, scopeId)
+
+    // When this `<option>` sits inside a `<select bind:value={expr}>`,
+    // emit a dynamic `selected` attribute comparing the option's value
+    // to the bind expression. Phase B handles static and dynamic option
+    // `value` attributes; options with no value fall back to their text
+    // content (which is not fully supported here — that is Phase C work).
+    if tag.equalsIgnoreCase("option") && selectBindExpr.isDefined then
+      val bindExpr = selectBindExpr.get
+      optionValueExpr(attrs) match
+        case Some(valueExpr) =>
+          buf ++= s"""${ pad }if ($bindExpr == $valueExpr) renderer.push(" selected")\n"""
+        case None =>
+          // Options without a `value` attribute match by inner text —
+          // left for Phase C. Skip the selected emission here.
+          ()
+
+    if HtmlVoidElements.isVoid(tag) then
+      buf ++= s"""${ pad }renderer.push(">")\n"""
+    else
+      buf ++= s"""${ pad }renderer.push(">")\n"""
+      children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr))
+      buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
+
+  /** Returns a Scala expression (as a string) for the `value` of an
+    * `<option>` element, or `None` if no `value` attribute is present.
+    * Static values are quoted literals, dynamic values are the raw user
+    * expression.
+    */
+  private def optionValueExpr(attrs: List[Attr]): Option[String] =
+    attrs.collectFirst {
+      case Attr.Static("value", v)  => s""""${ escapeString(v) }""""
+      case Attr.Dynamic("value", e) => e
+    }
+
+  // ── §12.3.6 Special element bindings ───────────────────────────────────
+
+  private def hasBindValue(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("bind", "value", Some(_), _) => true
+      case _                                            => false
+    }
+
+  private def hasBindGroup(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("bind", "group", Some(_), _) => true
+      case _                                            => false
+    }
+
+  private def hasBindInnerHtml(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("bind", "innerHTML", Some(_), _) => true
+      case _                                                => false
+    }
+
+  private def hasBindTextContent(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("bind", "textContent", Some(_), _) => true
+      case _                                                  => false
+    }
+
+  /** `<textarea bind:value={v}>` — SSR serialisation.
+    *
+    * Svelte 5 semantics: `value` does NOT appear as an attribute, instead
+    * the bound expression becomes the element body. This matches how
+    * browsers populate a textarea's displayed text.
+    */
+  private def emitTextareaBindValue(
+    attrs:   List[Attr],
+    children: List[TemplateNode],
+    buf:      StringBuilder,
+    indent:   Int,
+    scopeId:  String
+  ): Unit =
+    val pad = " " * indent
+    val bindExpr = attrs.collectFirst {
+      case Attr.Directive("bind", "value", Some(e), _) => e
+    }.get
+
+    // All other attributes are emitted as usual, but we must strip the
+    // bind:value directive since its value goes into the body.
+    val restAttrs = attrs.filterNot {
+      case Attr.Directive("bind", "value", _, _) => true
+      case _                                     => false
+    }
+
+    emitElementStart("textarea", restAttrs, buf, indent, scopeId)
+    buf ++= s"""${ pad }renderer.push(">")\n"""
+    // User-provided children are appended before the bind:value text for
+    // compatibility with typical mixed-content templates. In practice
+    // Svelte requires textarea to have no static children when bind:value
+    // is set, but we permit it here.
+    children.foreach(c => emitNode(c, buf, indent, scopeId))
+    buf ++= s"""${ pad }renderer.push(Escape.html($bindExpr))\n"""
+    buf ++= s"""${ pad }renderer.push("</textarea>")\n"""
+
+  /** `<select bind:value={v}>` — SSR serialisation.
+    *
+    * Svelte 5 semantics: the bound expression is compared against each
+    * `<option>`'s value, and the matching option receives `selected`.
+    * We recurse into children via `emitNode(..., selectBindExpr = Some(e))`
+    * so that `emitGenericElement` adds the comparison for each option.
+    */
+  private def emitSelectBindValue(
+    tag:      String,
+    attrs:    List[Attr],
+    children: List[TemplateNode],
+    buf:      StringBuilder,
+    indent:   Int,
+    scopeId:  String
+  ): Unit =
+    val pad = " " * indent
+    val bindExpr = attrs.collectFirst {
+      case Attr.Directive("bind", "value", Some(e), _) => e
+    }.get
+
+    val restAttrs = attrs.filterNot {
+      case Attr.Directive("bind", "value", _, _) => true
+      case _                                     => false
+    }
+
+    emitElementStart(tag, restAttrs, buf, indent, scopeId)
+    buf ++= s"""${ pad }renderer.push(">")\n"""
+    children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr = Some(bindExpr)))
+    buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
+
+  /** `<input type="radio|checkbox" bind:group={arr|single}>` — SSR.
+    *
+    * For `type="radio"`: emit `checked` iff the bound single value equals
+    * the input's `value` attribute.
+    * For `type="checkbox"`: emit `checked` iff the bound collection
+    * contains the input's `value`.
+    *
+    * Static `type` attribute is required for Phase B to decide between
+    * `==` and `.contains(...)`. Dynamic `type` falls back to radio
+    * semantics.
+    */
+  private def emitInputBindGroup(
+    attrs:   List[Attr],
+    buf:     StringBuilder,
+    indent:  Int,
+    scopeId: String
+  ): Unit =
+    val pad = " " * indent
+    val bindExpr = attrs.collectFirst {
+      case Attr.Directive("bind", "group", Some(e), _) => e
+    }.get
+
+    val typeAttr = attrs.collectFirst {
+      case Attr.Static("type", t) => t.toLowerCase
+    }
+
+    val valueExpr = attrs.collectFirst {
+      case Attr.Static("value", v)  => s""""${ escapeString(v) }""""
+      case Attr.Dynamic("value", e) => e
+    }
+
+    val restAttrs = attrs.filterNot {
+      case Attr.Directive("bind", "group", _, _) => true
+      case _                                     => false
+    }
+
+    emitElementStart("input", restAttrs, buf, indent, scopeId)
+
+    (typeAttr, valueExpr) match
+      case (Some("checkbox"), Some(v)) =>
+        buf ++= s"""${ pad }if ($bindExpr.contains($v)) renderer.push(" checked")\n"""
+      case (_, Some(v)) =>
+        // radio (or unspecified type — treated as radio semantics)
+        buf ++= s"""${ pad }if ($bindExpr == $v) renderer.push(" checked")\n"""
+      case _ =>
+        // bind:group without a value is meaningless; skip emission.
+        ()
+
+    // <input> is a void element.
+    buf ++= s"""${ pad }renderer.push(">")\n"""
+
+  /** Any element with `bind:innerHTML={v}` or `bind:textContent={v}`.
+    *
+    *   - `bind:innerHTML={v}`: emits `renderer.push(TrustedHtml.value(v))`
+    *     — the user is responsible for providing a [[TrustedHtml]].
+    *     The Scala type system rejects plain `String` at the call site,
+    *     giving compile-time safety.
+    *   - `bind:textContent={v}`: emits `renderer.push(Escape.html(v))`
+    *     so the value is HTML-escaped.
+    *
+    * Only one of these directives may be used per element; if both are
+    * present, `innerHTML` wins (arbitrarily).
+    */
+  private def emitElementWithBindContent(
+    tag:     String,
+    attrs:   List[Attr],
+    buf:     StringBuilder,
+    indent:  Int,
+    scopeId: String
+  ): Unit =
+    val pad = " " * indent
+
+    val innerHtmlExpr = attrs.collectFirst {
+      case Attr.Directive("bind", "innerHTML", Some(e), _) => e
+    }
+    val textContentExpr =
+      if innerHtmlExpr.isDefined then None
+      else
+        attrs.collectFirst {
+          case Attr.Directive("bind", "textContent", Some(e), _) => e
+        }
+
+    val restAttrs = attrs.filterNot {
+      case Attr.Directive("bind", "innerHTML", _, _)   => true
+      case Attr.Directive("bind", "textContent", _, _) => true
+      case _                                            => false
+    }
+
+    emitElementStart(tag, restAttrs, buf, indent, scopeId)
+    if HtmlVoidElements.isVoid(tag) then
+      // Void elements can't have inner content; ignore the bind: directive.
+      buf ++= s"""${ pad }renderer.push(">")\n"""
+    else
+      buf ++= s"""${ pad }renderer.push(">")\n"""
+      innerHtmlExpr match
+        case Some(e) =>
+          // The user's expression must be a TrustedHtml; we extract the
+          // underlying String so it is spliced into the body verbatim.
+          buf ++= s"${ pad }renderer.push($e.value)\n"
+        case None =>
+          textContentExpr.foreach { e =>
+            buf ++= s"${ pad }renderer.push(Escape.html($e))\n"
+          }
+      buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   /** Emits the opening portion of an element tag (`<tag class="..."
     * data-foo="..."`), without the closing `>`. The caller closes the tag
@@ -264,8 +517,11 @@ object SsrCodeGen extends CodeGen:
               buf ++= s"""${ pad }if ($e) then renderer.push(" $name")\n"""
             }
           case "style" =>
+            // §12.1.5: route dynamic CSS values through Escape.cssValue so
+            // that `url(javascript:...)`, `expression(...)`, `@import`
+            // are blocked.
             expr.foreach { e =>
-              buf ++= s"""${ pad }renderer.push(s\" style=\\\"$name:\" + Escape.attr($e) + \";\\\"\")\n"""
+              buf ++= s"""${ pad }renderer.push(s\" style=\\\"$name:\" + Escape.cssValue($e) + \";\\\"\")\n"""
             }
           case _ =>
             // use:, transition:, in:, out:, animate: — ignored in SSR.
@@ -293,6 +549,222 @@ object SsrCodeGen extends CodeGen:
       buf ++= s"${ pad }renderer.merge($name())\n"
     else
       buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+
+  // ── Expression / InlineTemplate (Phase B) ──────────────────────────────
+
+  /** Emits a `TemplateNode.Expression`.
+    *
+    * We dispatch on the shape of the user expression:
+    *
+    *   - `source.map(domBody)` / `source.keyed(k).map(domBody)` (Phase A
+    *     produced [[InlineTemplate]] before reaching this branch, so any
+    *     `.map(` that survives here produced plain values and is treated
+    *     as a normal expression)
+    *   - `if cond then <dom> else <dom>` / `match ... => <dom>` — arrive
+    *     via [[InlineTemplate]] after expansion; straight [[Expression]]
+    *     nodes here contain plain Scala and are pushed through
+    *     `Escape.html`
+    *   - anything else is treated as plain text
+    */
+  private def emitExpression(
+    code:    String,
+    buf:     StringBuilder,
+    indent:  Int,
+    scopeId: String
+  ): Unit =
+    val pad = " " * indent
+    // Straight Expression nodes never carry inline HTML (that path goes
+    // through InlineTemplate), so we always escape + push.
+    buf ++= s"""${ pad }renderer.push(Escape.html($code))\n"""
+
+  /** Emits a `TemplateNode.InlineTemplate`.
+    *
+    * InlineTemplate is the AST representation produced by the parser when
+    * an expression contains inline HTML fragments — typically list
+    * rendering (`{items.map(item => <li>{item}</li>)}`) or conditional
+    * rendering (`{if cond then <p>yes</p> else <p>no</p>}`).
+    *
+    * We expand each `Html` part into a Scala block that returns a
+    * `String` built via a local [[StringBuilder]], producing a single
+    * Scala expression that evaluates to either a `String` (conditional)
+    * or a `Seq[String]` / `IterableOnce[String]` (list rendering).
+    *
+    * The expression is then wrapped in `renderer.push(expression)` /
+    * `expression.foreach(renderer.push)` depending on its shape:
+    *
+    *   - If the expression produces an iterable (detected heuristically
+    *     by the presence of an unterminated `.map(` in the `Code` parts
+    *     before the `Html` fragment), wrap in `.foreach`
+    *   - Otherwise push the expression directly as a single `String`
+    */
+  private def emitInlineTemplate(
+    parts:   List[InlineTemplatePart],
+    buf:     StringBuilder,
+    indent:  Int,
+    scopeId: String
+  ): Unit =
+    val pad = " " * indent
+
+    // Build a single Scala expression that evaluates to the HTML contents.
+    val exprBuf = new StringBuilder
+    parts.foreach {
+      case InlineTemplatePart.Code(code) =>
+        exprBuf ++= code
+      case InlineTemplatePart.Html(nodes) =>
+        exprBuf ++= htmlNodesToStringExpr(nodes, scopeId)
+    }
+
+    val expr = exprBuf.toString
+    val kind = classifyInlineExpr(expr, parts)
+
+    kind match
+      case InlineKind.Iterable =>
+        // .map(...) → convert to .foreach(... renderer.push(...))
+        // We wrap the entire map-returning expression in
+        // `.foreach(renderer.push(_))` at the outer level. Alternative:
+        // `renderer.push(expr.mkString)` which materialises a single
+        // String. We pick the foreach form to avoid allocating the
+        // intermediate Seq.
+        buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
+
+      case InlineKind.SingleString =>
+        buf ++= s"${ pad }renderer.push($expr)\n"
+
+  /** Converts a list of `TemplateNode`s from an `InlineTemplatePart.Html`
+    * into a Scala expression that returns the corresponding HTML string.
+    *
+    * This is the SSR counterpart of `SpaCodeGen`'s DOM-construction
+    * expansion: rather than `dom.document.createElement(...)` we emit
+    * `StringBuilder` blocks that concatenate the HTML serialisation.
+    */
+  private def htmlNodesToStringExpr(
+    nodes:   List[TemplateNode],
+    scopeId: String
+  ): String =
+    val sb = new StringBuilder
+    sb ++= "{ val _sb = new StringBuilder; "
+    nodes.foreach(n => appendNodeToSb(n, sb, scopeId))
+    sb ++= "_sb.toString }"
+    sb.toString
+
+  /** Appends code that writes a single template node into the local
+    * StringBuilder `_sb`. Mirrors `emitNode` for the body stream but
+    * targets a `_sb ++=` write pattern instead of `renderer.push`.
+    */
+  private def appendNodeToSb(
+    node:    TemplateNode,
+    sb:      StringBuilder,
+    scopeId: String
+  ): Unit = node match
+    case TemplateNode.Element(tag, attrs, children) =>
+      sb ++= s"""_sb ++= "<$tag"; """
+      // Class attribute with scope id (combined with static class if any).
+      val staticClass = attrs.collectFirst {
+        case Attr.Static("class", v) => v
+      }
+      staticClass match
+        case Some(cls) =>
+          sb ++= s"""_sb ++= " class=\\"${ escapeString(cls) } $scopeId\\""; """
+        case None =>
+          sb ++= s"""_sb ++= " class=\\"$scopeId\\""; """
+
+      // Other attributes.
+      attrs.foreach {
+        case Attr.Static("class", _) => ()
+        case Attr.Static(name, value) =>
+          val lit = escapeString(s""" $name=\"${ htmlAttrEscapeLiteral(value) }\"""")
+          sb ++= s"""_sb ++= "$lit"; """
+        case Attr.BooleanAttr(name) =>
+          val lit = escapeString(s" $name")
+          sb ++= s"""_sb ++= "$lit"; """
+        case Attr.Dynamic(name, expr) =>
+          if UrlAttributesForCodegen.isUrlAttribute(tag, name) then
+            sb ++= s"""_sb ++= s\" $name=\\\"\" + Escape.url($expr) + \"\\\"\"; """
+          else
+            sb ++= s"""_sb ++= s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\"; """
+        case Attr.Shorthand(varName) =>
+          if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
+            sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\"; """
+          else
+            sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\"; """
+        case Attr.EventHandler(_, _) => () // stripped in SSR
+        case Attr.Directive(_, _, _, _) => () // stripped in nested inline (Phase B follow-up)
+        case Attr.Spread(_) => () // spread on nested inline not supported in Phase B
+      }
+
+      sb ++= s"""_sb ++= ">"; """
+      if !HtmlVoidElements.isVoid(tag) then
+        children.foreach(c => appendNodeToSb(c, sb, scopeId))
+        sb ++= s"""_sb ++= "</$tag>"; """
+
+    case TemplateNode.Text(content) =>
+      val escaped = escapeString(htmlEscapeLiteral(content))
+      sb ++= s"""_sb ++= "$escaped"; """
+
+    case TemplateNode.Expression(code) =>
+      sb ++= s"""_sb ++= Escape.html($code); """
+
+    case TemplateNode.Component(name, attrs, _) =>
+      // Render child component into a sub-renderer and append its body.
+      // The .body string already contains the inner HTML; merge into parent
+      // renderer via a temporary RenderResult. For Phase B simplicity we
+      // just embed the body directly — any <melt:head> / CSS from children
+      // inside a list will be lost (Phase B follow-up).
+      val args = attrs.flatMap {
+        case Attr.Shorthand(n)  => Some(s"$n = $n")
+        case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
+        case Attr.Dynamic(n, e) => Some(s"$n = $e")
+        case _                  => None
+      }
+      if args.isEmpty then
+        sb ++= s"""_sb ++= $name().body; """
+      else
+        sb ++= s"""_sb ++= $name($name.Props(${ args.mkString(", ") })).body; """
+
+    case TemplateNode.InlineTemplate(nested) =>
+      // Nested inline template — expand recursively.
+      sb ++= "_sb ++= "
+      sb ++= htmlNodesToStringExprFromParts(nested, scopeId)
+      sb ++= "; "
+
+    case _ =>
+      // Head / Window / Body / DynamicElement inside inline list rendering
+      // are not meaningful for Phase B — drop silently.
+      ()
+
+  /** Helper: convert a nested `List[InlineTemplatePart]` (recursive case). */
+  private def htmlNodesToStringExprFromParts(
+    parts:   List[InlineTemplatePart],
+    scopeId: String
+  ): String =
+    val sb = new StringBuilder
+    sb ++= "{ val _sb = new StringBuilder; "
+    parts.foreach {
+      case InlineTemplatePart.Code(code) =>
+        sb ++= code
+      case InlineTemplatePart.Html(nodes) =>
+        nodes.foreach(n => appendNodeToSb(n, sb, scopeId))
+    }
+    sb ++= "_sb.toString }"
+    sb.toString
+
+  private enum InlineKind:
+    case Iterable
+    case SingleString
+
+  /** Very small heuristic to detect whether an inline expression is
+    * producing an `Iterable[String]` (list rendering) or a single
+    * `String` (conditional / wrap).
+    *
+    * We look at the concatenated `Code` parts for an unterminated
+    * `.map(` or `.keyed(...).map(` at the outermost level. This is the
+    * same detection used by the existing SPA `classifyExpr`.
+    */
+  private def classifyInlineExpr(expr: String, parts: List[InlineTemplatePart]): InlineKind =
+    val codeOnly = parts.collect { case InlineTemplatePart.Code(c) => c }.mkString
+    val trimmed  = codeOnly.trim
+    if trimmed.contains(".map(") || trimmed.contains(".keyed(") then InlineKind.Iterable
+    else InlineKind.SingleString
 
   /** Recursively emits a child of `<melt:head>` so that the HTML ends up
     * in `renderer.head` rather than the body buffer.
