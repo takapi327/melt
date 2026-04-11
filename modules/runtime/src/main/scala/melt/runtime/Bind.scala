@@ -41,6 +41,11 @@ object Bind:
     parent.appendChild(node)
     node
 
+  def text(value: Int, parent: dom.Node): dom.Text =
+    val node = dom.document.createTextNode(value.toString)
+    parent.appendChild(node)
+    node
+
   // ── Attribute bindings ─────────────────────────────────────────────────
 
   /** Compile-time guard: Var[Boolean] must use booleanAttr, not attr.
