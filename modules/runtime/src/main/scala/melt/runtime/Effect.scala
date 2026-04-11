@@ -28,8 +28,8 @@ def effect[A](dep: Var[A])(f: A => Unit): Unit =
   def run(value: A): Unit =
     Cleanup.runAll(innerCleanups)
     Cleanup.pushScope()
-    f(value)
-    innerCleanups = Cleanup.popScope()
+    try f(value)
+    finally innerCleanups = Cleanup.popScope()
 
   run(dep.now())
   val cancel = dep.subscribePost(run)
@@ -41,8 +41,8 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
   def run(value: A): Unit =
     Cleanup.runAll(innerCleanups)
     Cleanup.pushScope()
-    f(value)
-    innerCleanups = Cleanup.popScope()
+    try f(value)
+    finally innerCleanups = Cleanup.popScope()
 
   run(dep.now())
   val cancel = dep.subscribePost(run)
@@ -59,8 +59,8 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
   def run(): Unit =
     Cleanup.runAll(innerCleanups)
     Cleanup.pushScope()
-    f(depA.now(), depB.now())
-    innerCleanups = Cleanup.popScope()
+    try f(depA.now(), depB.now())
+    finally innerCleanups = Cleanup.popScope()
 
   lazy val scheduleRun: () => Unit = () => run()
 
