@@ -23,30 +23,28 @@ package melt.runtime
   * }}}
   */
 def effect[A](dep: Var[A])(f: A => Unit): Unit =
-  var innerCleanups: List[() => Unit] = Nil
+  var innerNode: Option[OwnerNode] = None
 
   def run(value: A): Unit =
-    Cleanup.runAll(innerCleanups)
-    Cleanup.pushScope()
-    try f(value)
-    finally innerCleanups = Cleanup.popScope()
+    innerNode.foreach(_.destroy())
+    val (_, node) = Owner.withNew { f(value) }
+    innerNode = Some(node)
 
   run(dep.now())
   val cancel = dep.subscribePost(run)
-  Cleanup.register(() => { cancel(); Cleanup.runAll(innerCleanups) })
+  Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
 
 def effect[A](dep: Signal[A])(f: A => Unit): Unit =
-  var innerCleanups: List[() => Unit] = Nil
+  var innerNode: Option[OwnerNode] = None
 
   def run(value: A): Unit =
-    Cleanup.runAll(innerCleanups)
-    Cleanup.pushScope()
-    try f(value)
-    finally innerCleanups = Cleanup.popScope()
+    innerNode.foreach(_.destroy())
+    val (_, node) = Owner.withNew { f(value) }
+    innerNode = Some(node)
 
   run(dep.now())
   val cancel = dep.subscribePost(run)
-  Cleanup.register(() => { cancel(); Cleanup.runAll(innerCleanups) })
+  Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
 
 /** Two-dependency effect — re-runs in the **Post** phase when either dependency changes.
   *
@@ -54,13 +52,12 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
   * the effect body runs only once.
   */
 def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
-  var innerCleanups: List[() => Unit] = Nil
+  var innerNode: Option[OwnerNode] = None
 
   def run(): Unit =
-    Cleanup.runAll(innerCleanups)
-    Cleanup.pushScope()
-    try f(depA.now(), depB.now())
-    finally innerCleanups = Cleanup.popScope()
+    innerNode.foreach(_.destroy())
+    val (_, node) = Owner.withNew { f(depA.now(), depB.now()) }
+    innerNode = Some(node)
 
   lazy val scheduleRun: () => Unit = () => run()
 
@@ -71,7 +68,7 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
   run()
   val cancelA = depA.subscribePost(_ => trigger())
   val cancelB = depB.subscribePost(_ => trigger())
-  Cleanup.register(() => { cancelA(); cancelB(); Cleanup.runAll(innerCleanups) })
+  Cleanup.register(() => { cancelA(); cancelB(); innerNode.foreach(_.destroy()) })
 
 // ── layoutEffect ────────────────────────────────────────────────────────────
 

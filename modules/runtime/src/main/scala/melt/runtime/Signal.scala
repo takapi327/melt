@@ -69,7 +69,7 @@ final class Signal[A] private[runtime] (private var _current: A):
     *
     * When the outer Signal emits a new value, the previous inner Signal is
     * unsubscribed and a fresh one is obtained by calling `f`.
-    * The internal subscriptions are registered with [[Cleanup]].
+    * The internal subscriptions are registered with [[Owner]] (via [[Cleanup.register]]).
     */
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner   = f(_current)

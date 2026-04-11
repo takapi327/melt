@@ -111,14 +111,24 @@ final class ReactiveScope[+A] private[runtime] (private val _run: () => (A, () =
     * **The returned function must be called** when the scope is no longer
     * needed. Omitting this call will cause subscriptions and other resources
     * to persist indefinitely. For bounded lifetimes prefer [[use]].
+    *
+    * The cancel function is also registered with the current [[Owner]] so that
+    * the scope is automatically released when the enclosing component is destroyed.
     */
-  def allocated: () => Unit = _memoized._2
+  def allocated: () => Unit =
+    val cancel = _memoized._2
+    Owner.register(cancel)
+    cancel
 
   /** Runs the scope and returns both the acquired value and a cancel function.
     *
     * Same memoization and idempotency guarantees as [[allocated]].
+    * The cancel function is registered with the current [[Owner]].
     */
-  def allocate(): (A, () => Unit) = _memoized
+  def allocate(): (A, () => Unit) =
+    val result = _memoized
+    Owner.register(result._2)
+    result
 
   /** Runs the scope for the duration of `f`, then releases automatically.
     *
@@ -207,17 +217,16 @@ object ReactiveScope:
     */
   def effect[A](dep: Var[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>
-      var innerCleanups: List[() => Unit] = Nil
+      var innerNode: Option[OwnerNode] = None
 
       def run(value: A): Unit =
-        Cleanup.runAll(innerCleanups)
-        Cleanup.pushScope()
-        try f(value)
-        finally innerCleanups = Cleanup.popScope()
+        innerNode.foreach(_.destroy())
+        val (_, node) = Owner.withNew { f(value) }
+        innerNode = Some(node)
 
       run(dep.now())
       val cancel = dep.subscribePost(run)
-      ((), () => { cancel(); Cleanup.runAll(innerCleanups) })
+      ((), () => { cancel(); innerNode.foreach(_.destroy()) })
     }
 
   /** Subscribes to a [[Signal]] in the **Post** phase (after DOM updates).
@@ -226,17 +235,16 @@ object ReactiveScope:
     */
   def effect[A](dep: Signal[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>
-      var innerCleanups: List[() => Unit] = Nil
+      var innerNode: Option[OwnerNode] = None
 
       def run(value: A): Unit =
-        Cleanup.runAll(innerCleanups)
-        Cleanup.pushScope()
-        try f(value)
-        finally innerCleanups = Cleanup.popScope()
+        innerNode.foreach(_.destroy())
+        val (_, node) = Owner.withNew { f(value) }
+        innerNode = Some(node)
 
       run(dep.now())
       val cancel = dep.subscribePost(run)
-      ((), () => { cancel(); Cleanup.runAll(innerCleanups) })
+      ((), () => { cancel(); innerNode.foreach(_.destroy()) })
     }
 
   /** Subscribes to a [[Var]] in the **Pre** phase (before DOM updates).

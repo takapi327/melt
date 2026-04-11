@@ -93,13 +93,18 @@ class OnMountSpec extends munit.FunSuite:
   test("cleanup returned from onMount runs on Lifecycle.destroyTree") {
     var mounted   = false
     var destroyed = false
-    val el        = dom.document.createElement("div")
     val container = makeContainer()
 
-    onMount { () =>
-      mounted         = true
-      () => destroyed = true
+    // onMount must be called inside Owner.withNew so the cleanup owner is captured
+    val (el, owner) = Owner.withNew {
+      val el = dom.document.createElement("div")
+      onMount { () =>
+        mounted         = true
+        () => destroyed = true
+      }
+      el
     }
+    Lifecycle.register(el, owner)
     Mount(container, el)
 
     assert(mounted, "onMount callback should have run")
@@ -112,11 +117,15 @@ class OnMountSpec extends munit.FunSuite:
 
   test("void onMount does not register a cleanup") {
     var ran       = false
-    val el        = dom.document.createElement("div")
     val container = makeContainer()
 
     // void overload: onMount(() => Unit)
-    onMount(() => ran = true)
+    val (el, owner) = Owner.withNew {
+      val el = dom.document.createElement("div")
+      onMount(() => ran = true)
+      el
+    }
+    Lifecycle.register(el, owner)
     Mount(container, el)
 
     assert(ran)
@@ -131,10 +140,8 @@ class OnMountSpec extends munit.FunSuite:
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
-    Cleanup.pushScope()
-    Cleanup.register(() => calls += 1)
-    val cleanups = Cleanup.popScope()
-    Lifecycle.register(el, cleanups)
+    val (_, owner) = Owner.withNew { Owner.register(() => calls += 1) }
+    Lifecycle.register(el, owner)
     container.appendChild(el)
 
     Lifecycle.destroy(el)
@@ -154,15 +161,11 @@ class OnMountSpec extends munit.FunSuite:
     root.appendChild(child)
     container.appendChild(root)
 
-    Cleanup.pushScope()
-    Cleanup.register(() => results += "root")
-    val rootCleanups = Cleanup.popScope()
-    Lifecycle.register(root, rootCleanups)
+    val (_, rootOwner) = Owner.withNew { Owner.register(() => results += "root") }
+    Lifecycle.register(root, rootOwner)
 
-    Cleanup.pushScope()
-    Cleanup.register(() => results += "child")
-    val childCleanups = Cleanup.popScope()
-    Lifecycle.register(child, childCleanups)
+    val (_, childOwner) = Owner.withNew { Owner.register(() => results += "child") }
+    Lifecycle.register(child, childOwner)
 
     Lifecycle.destroyTree(container)
 

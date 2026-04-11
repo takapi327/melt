@@ -89,14 +89,17 @@ object Flip extends AnimateFn:
           // Play: animate to the natural (new) position
           htmlEl.style.setProperty("transition", s"transform ${ duration }ms $timingFn")
           htmlEl.style.setProperty("transform", "")
-          // Clean up transition property after animation
+          // Clean up transition property after animation.
+          // listenerRef holds the handler so it can remove itself; it is assigned
+          // after the lambda is constructed to allow the self-reference.
           var done = false
-          var listener: js.Function1[dom.Event, Unit] = null
-          listener = (_: dom.Event) =>
+          var listenerRef: Option[js.Function1[dom.Event, Unit]] = None
+          val listener:    js.Function1[dom.Event, Unit]         = (_: dom.Event) =>
             if !done then
               done = true
               htmlEl.style.removeProperty("transition")
-              el.removeEventListener("transitionend", listener)
+              listenerRef.foreach(el.removeEventListener("transitionend", _))
+          listenerRef = Some(listener)
           el.addEventListener("transitionend", listener)
           // Fallback cleanup in case transitionend doesn't fire
           dom.window.setTimeout(

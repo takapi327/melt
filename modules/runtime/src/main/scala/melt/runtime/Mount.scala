@@ -25,4 +25,4 @@ object Mount:
     */
   def apply(target: dom.Element, component: dom.Element): Unit =
     target.appendChild(component)
-    OnMount.flush(component)
+    OnMount.flush()
