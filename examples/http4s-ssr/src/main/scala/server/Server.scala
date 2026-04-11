@@ -57,6 +57,21 @@ object Server extends IOApp.Simple:
           template.render(result, title = "About · Melt SSR"),
           `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
         )
+
+      case GET -> Root / "todos" =>
+        val result = Todos(Todos.Props(items = List("Buy milk", "Write docs", "Ship Phase B")))
+        Ok(
+          template.render(result, title = "Todos · Melt SSR"),
+          `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
+        )
+
+      case GET -> Root / "status" / IntVar(n) =>
+        // FQN to disambiguate from org.http4s.Status
+        val result = components.Status(components.Status.Props(isActive = n > 0, count = n))
+        Ok(
+          template.render(result, title = s"Status $n · Melt SSR"),
+          `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
+        )
     }
     .orNotFound
 
