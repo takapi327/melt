@@ -14,8 +14,12 @@ import meltc.ast.InlineTemplatePart
   * Each `.melt` file becomes a Scala `object` with:
   *   - `create(): dom.Element` or `create(props: Props): dom.Element`
   *   - `mount(target: dom.Element): Unit` or `mount(target: dom.Element, props: Props): Unit`
+  *
+  * This generator is selected when `MeltCompiler.compile` receives
+  * `CompileMode.SPA` (the default, for backwards compatibility). For the
+  * JVM / SSR code generator see [[SsrCodeGen]].
   */
-object ScalaCodeGen:
+object SpaCodeGen extends CodeGen:
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -350,7 +354,7 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case Attr.Dynamic("class", expr) =>
         buf ++= s"""${ indent }($expr).toString.split("\\\\s+").filter(_.nonEmpty).foreach($v.classList.add(_))\n"""
-      case Attr.Dynamic(name, expr) if ScalaCodeGen.htmlBooleanAttrs.contains(name) =>
+      case Attr.Dynamic(name, expr) if SpaCodeGen.htmlBooleanAttrs.contains(name) =>
         buf ++= s"""${ indent }Bind.booleanAttr($v, "$name", $expr)\n"""
       case Attr.Dynamic(name, expr) =>
         buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""

@@ -6,8 +6,8 @@
 
 package meltc
 
-import meltc.analysis.A11yChecker
-import meltc.codegen.{ CssScoper, ScalaCodeGen }
+import meltc.analysis.{ A11yChecker, AttrNameChecker, RawTextInterpolationChecker, TagNameChecker }
+import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
 import meltc.parser.MeltParser
 
 /** Entry point of the meltc compiler. */
@@ -19,35 +19,51 @@ object MeltCompiler:
     * @param filename   file name used in error messages (e.g. `"App.melt"`)
     * @param objectName Scala object name to generate (e.g. `"App"`)
     * @param pkg        Scala package (may be empty)
+    * @param mode       Target code-generation mode. Defaults to [[CompileMode.SPA]]
+    *                   for backwards compatibility with existing callers.
     */
   def compile(
     source:     String,
     filename:   String,
     objectName: String,
-    pkg:        String
+    pkg:        String,
+    mode:       CompileMode = CompileMode.SPA
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
       case Right(result) =>
-        val ast            = result.ast
-        val scopeId        = ScalaCodeGen.scopeIdFor(objectName)
-        val code           = ScalaCodeGen.generate(ast, objectName, pkg, scopeId)
-        val parserWarnings = result.warnings.map {
-          case (msg, pos) =>
-            val line = offsetToLine(source, pos)
-            CompileWarning(msg, line, 0, filename)
-        }
-        val a11yWarnings = A11yChecker.check(ast, source).map {
-          case (msg, line) =>
-            CompileWarning(msg, line, 0, filename)
-        }
-        CompileResult(
-          Some(code),
-          ast.style.map(s => CssScoper.scope(s.css, scopeId)),
-          Nil,
-          parserWarnings ++ a11yWarnings
-        )
+        val ast     = result.ast
+        val codegen: CodeGen = mode match
+          case CompileMode.SPA => SpaCodeGen
+          case CompileMode.SSR => SsrCodeGen
+        val scopeId = codegen.scopeIdFor(objectName)
+
+        // ── Semantic checks (§12.1.2, §12.1.3, §12.1.6) ────────────────
+        val semanticErrors =
+          AttrNameChecker.check(ast, filename) ++
+          TagNameChecker.check(ast, filename) ++
+          RawTextInterpolationChecker.check(ast, filename)
+
+        if semanticErrors.nonEmpty then
+          CompileResult(None, None, semanticErrors, Nil)
+        else
+          val code           = codegen.generate(ast, objectName, pkg, scopeId)
+          val parserWarnings = result.warnings.map {
+            case (msg, pos) =>
+              val line = offsetToLine(source, pos)
+              CompileWarning(msg, line, 0, filename)
+          }
+          val a11yWarnings = A11yChecker.check(ast, source).map {
+            case (msg, line) =>
+              CompileWarning(msg, line, 0, filename)
+          }
+          CompileResult(
+            Some(code),
+            ast.style.map(s => CssScoper.scope(s.css, scopeId)),
+            Nil,
+            parserWarnings ++ a11yWarnings
+          )
 
   /** Converts a character offset to a 1-based line number. */
   private def offsetToLine(source: String, offset: Int): Int =

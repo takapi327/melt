@@ -9,13 +9,13 @@ package meltc.codegen
 import meltc.ast.*
 import meltc.MeltCompiler
 
-/** Tests for [[ScalaCodeGen]].
+/** Tests for [[SpaCodeGen]].
   *
   * All tests compile a `.melt` source string through the full pipeline
   * (parse → generate) and assert on the generated Scala source, or use
   * the AST directly to test the generator in isolation.
   */
-class ScalaCodeGenSpec extends munit.FunSuite:
+class SpaCodeGenSpec extends munit.FunSuite:
 
   /** Compile source, assert success, return generated Scala. */
   private def compile(src: String, name: String = "App", pkg: String = ""): String =
@@ -26,14 +26,14 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   // ── scopeIdFor ────────────────────────────────────────────────────────────
 
   test("scopeIdFor produces deterministic melt-xxxxxx string") {
-    val id = ScalaCodeGen.scopeIdFor("App")
+    val id = SpaCodeGen.scopeIdFor("App")
     assert(id.startsWith("melt-"), id)
     assertEquals(id.length, 11)                      // "melt-" (5) + 6 hex digits
-    assertEquals(id, ScalaCodeGen.scopeIdFor("App")) // deterministic
+    assertEquals(id, SpaCodeGen.scopeIdFor("App")) // deterministic
   }
 
   test("scopeIdFor is unique across different names") {
-    assertNotEquals(ScalaCodeGen.scopeIdFor("App"), ScalaCodeGen.scopeIdFor("Counter"))
+    assertNotEquals(SpaCodeGen.scopeIdFor("App"), SpaCodeGen.scopeIdFor("Counter"))
   }
 
   // ── Package declaration ───────────────────────────────────────────────────
@@ -297,14 +297,14 @@ class ScalaCodeGenSpec extends munit.FunSuite:
   // ── scopeIdFor edge cases ─────────────────────────────────────────────
 
   test("scopeIdFor always produces valid hex (no negative values)") {
-    val ids = (0 to 500).map(i => ScalaCodeGen.scopeIdFor(s"Component$i"))
+    val ids = (0 to 500).map(i => SpaCodeGen.scopeIdFor(s"Component$i"))
     ids.foreach { id =>
       assert(id.matches("melt-[0-9a-f]{6}"), s"Invalid scope ID: $id")
     }
   }
 
   test("scopeIdFor produces valid hex for empty string") {
-    val id = ScalaCodeGen.scopeIdFor("")
+    val id = SpaCodeGen.scopeIdFor("")
     assert(id.matches("melt-[0-9a-f]{6}"), s"Bad scopeId: $id")
   }
 
@@ -317,7 +317,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
         |h1 { color: red; }
         |</style>""".stripMargin
     val code    = compile(src, name = "App")
-    val scopeId = ScalaCodeGen.scopeIdFor("App")
+    val scopeId = SpaCodeGen.scopeIdFor("App")
     assert(code.contains(s"h1.$scopeId"), s"CSS should contain scoped selector, got:\n$code")
   }
 
@@ -328,7 +328,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
         |p { color: blue; }
         |</style>""".stripMargin
     val result  = MeltCompiler.compile(src, "Test.melt", "Test", "")
-    val scopeId = ScalaCodeGen.scopeIdFor("Test")
+    val scopeId = SpaCodeGen.scopeIdFor("Test")
     result.scopedCss.foreach { css =>
       assert(css.contains(s"p.$scopeId"), s"scopedCss should contain scoped selector, got: $css")
     }
@@ -473,7 +473,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
         |div { padding: 1em; }
         |</style>""".stripMargin
     val result  = MeltCompiler.compile(src, "Full.melt", "Full", "pkg")
-    val scopeId = ScalaCodeGen.scopeIdFor("Full")
+    val scopeId = SpaCodeGen.scopeIdFor("Full")
     assert(result.isSuccess, s"Errors: ${ result.errors.map(_.message) }")
 
     // scopedCss contains scoped selectors
@@ -1166,7 +1166,7 @@ class ScalaCodeGenSpec extends munit.FunSuite:
 
   test("<melt:element> scopeId is passed to Bind.dynamicElement") {
     val code    = compile("<melt:element this={tag}>text</melt:element>", name = "MyApp")
-    val scopeId = ScalaCodeGen.scopeIdFor("MyApp")
+    val scopeId = SpaCodeGen.scopeIdFor("MyApp")
     assert(code.contains(s"Bind.dynamicElement(tag,"), code)
     assert(code.contains(s""""$scopeId""""), code)
   }
