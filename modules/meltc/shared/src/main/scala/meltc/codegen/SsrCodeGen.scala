@@ -76,23 +76,25 @@ object SsrCodeGen extends CodeGen:
 
     val propsType = ast.script.flatMap(_.propsType)
 
-    // ── Emit user's Props case class / type aliases from <script> at object level ──
-    // The existing <script> body is copied verbatim inside apply(), but
-    // Props must be visible at the object level so callers can write
-    // `Counter(Counter.Props(...))`. We extract the Props declaration by
-    // scanning the script text for the `case class Props` line and emit
-    // it both at object level and inside apply().
-
-    // Extract Props-related declarations (best-effort — Phase A uses the
-    // same heuristic as SpaCodeGen: copy the entire script verbatim into
-    // the apply method so user declarations are in scope).
+    // ── Hoist type definitions from <script> to object level ──
+    //
+    // `case class Props` needs to be visible at the object level so
+    // that external callers can write `Counter(Counter.Props(...))`.
+    // If Props references other types defined in the same script
+    // (e.g. `case class Todo; case class Props(items: List[Todo])`),
+    // those types must also live at the object level. We therefore
+    // extract ALL top-level `case class` / `type` / `sealed trait` /
+    // `enum` declarations from the script and emit them as object
+    // members, while keeping everything else (vals, expressions) inside
+    // the per-render apply() body.
     val scriptBody = ast.script.map(_.code.trim).getOrElse("")
 
-    // Emit Props case class at object level if present, so external callers
-    // can reference `ComponentName.Props(...)`.
-    val objectLevelProps = extractPropsDecl(scriptBody, propsType)
-    objectLevelProps.foreach { decl =>
-      buf ++= "  " + decl + "\n\n"
+    val (typeDecls, scriptBodyRest) = splitTypeDecls(scriptBody)
+    typeDecls.foreach { decl =>
+      decl.linesIterator.foreach { line =>
+        buf ++= "  " + line + "\n"
+      }
+      buf ++= "\n"
     }
 
     // ── apply() method ──────────────────────────────────────────────────
@@ -106,11 +108,10 @@ object SsrCodeGen extends CodeGen:
     if hasCss then buf ++= "    renderer.css.add(_scopeId, _css)\n"
     buf ++= "\n"
 
-    // ── Script body (excluding the Props declaration already emitted) ──
-    val scriptWithoutProps = stripPropsDecl(scriptBody, propsType)
-    if scriptWithoutProps.nonEmpty then
+    // ── Script body (excluding type declarations already hoisted) ──
+    if scriptBodyRest.nonEmpty then
       buf ++= "    // ── User script section ──\n"
-      scriptWithoutProps.linesIterator.foreach { line =>
+      scriptBodyRest.linesIterator.foreach { line =>
         if line.trim.isEmpty then buf ++= "\n"
         else buf ++= s"    $line\n"
       }
@@ -890,41 +891,89 @@ object SsrCodeGen extends CodeGen:
     }
     buf.toString
 
-  /** Phase A best-effort extraction of `case class Props(...)` /
-    * `type Props = ...` declarations from the user's script body so that
-    * they can be hoisted to the object level.
+  /** Splits a user's script body into:
+    *
+    *   - `typeDecls` — each element is the full text of one top-level
+    *     type definition (`case class`, `type`, `sealed trait`, `enum`),
+    *     in source order
+    *   - `rest` — everything else in its original order, with the
+    *     extracted type declarations removed
+    *
+    * Type declarations are hoisted to the object level so that Props
+    * (and any types referenced by Props) are visible to external
+    * callers via `ComponentName.Props(...)` / `ComponentName.Todo(...)`.
+    * Value expressions (vals, side-effects, var declarations) stay
+    * inside the per-render body.
+    *
+    * The extractor is paren-balanced: a `case class Foo(` on one line
+    * with closing `)` on a later line is captured as a single decl.
     */
-  private def extractPropsDecl(script: String, propsType: Option[String]): Option[String] =
-    if propsType.isEmpty || script.isEmpty then None
+  private def splitTypeDecls(script: String): (List[String], String) =
+    if script.isEmpty then (Nil, script)
     else
-      val tpe = propsType.get
-      // Look for a line that begins a `case class Props(` or `type Props =`
-      // and copy from that line up through the matching closing `)` or EOL.
-      val lines = script.linesIterator.toVector
-      val start = lines.indexWhere { l =>
-        val trimmed = l.trim
-        trimmed.startsWith(s"case class $tpe") || trimmed.startsWith(s"type $tpe")
-      }
-      if start < 0 then None
-      else
-        // Heuristic: assume the declaration fits on one physical line (the
-        // common case for Props). Multi-line case classes are left inline.
-        Some(lines(start).trim)
+      val lines       = script.linesIterator.toVector
+      val typeDecls   = scala.collection.mutable.ListBuffer.empty[String]
+      val rest        = scala.collection.mutable.ListBuffer.empty[String]
+      var i           = 0
+      while i < lines.length do
+        val line    = lines(i)
+        val trimmed = line.trim
+        if isTypeDeclStart(trimmed) then
+          // Find the balanced end of this declaration.
+          val (endIdx, chunk) = collectBalanced(lines, i)
+          typeDecls += chunk.mkString("\n")
+          i = endIdx + 1
+        else
+          rest += line
+          i += 1
+      (typeDecls.toList, rest.mkString("\n"))
 
-  /** Removes the Props declaration from the script body so it is not
-    * duplicated inside `render()`. Falls back to the original body if
-    * extraction fails.
+  /** Returns `true` if the trimmed line starts a top-level type
+    * declaration that should be hoisted to the object level.
     */
-  private def stripPropsDecl(script: String, propsType: Option[String]): String =
-    if propsType.isEmpty || script.isEmpty then script
-    else
-      val tpe = propsType.get
-      val lines = script.linesIterator.toVector
-      val withoutProps = lines.filterNot { l =>
-        val t = l.trim
-        t.startsWith(s"case class $tpe") || t.startsWith(s"type $tpe")
+  private def isTypeDeclStart(trimmed: String): Boolean =
+    trimmed.startsWith("case class ") ||
+    trimmed.startsWith("type ") ||
+    trimmed.startsWith("sealed trait ") ||
+    trimmed.startsWith("sealed abstract class ") ||
+    trimmed.startsWith("enum ")
+
+  /** Greedy extraction of a balanced declaration starting at `start`.
+    * Walks forward until the `(` / `{` / `[` counters return to zero,
+    * handling multi-line case-class definitions.
+    *
+    * @return `(lastLineIdx, linesIncluded)` — the last line index
+    *         consumed (inclusive) and the lines that form the full
+    *         declaration.
+    */
+  private def collectBalanced(
+    lines: Vector[String],
+    start: Int
+  ): (Int, Vector[String]) =
+    var depth: Int            = 0
+    var seenAnyOpen: Boolean  = false
+    val buf                   = scala.collection.mutable.ListBuffer.empty[String]
+    var i                     = start
+    var done                  = false
+    while !done && i < lines.length do
+      val line = lines(i)
+      buf += line
+      line.foreach {
+        case '(' | '[' | '{' =>
+          depth += 1
+          seenAnyOpen = true
+        case ')' | ']' | '}' =>
+          depth -= 1
+        case _ => ()
       }
-      withoutProps.mkString("\n")
+      // Stop when either:
+      //   - we've closed every opened bracket (seenAnyOpen && depth==0)
+      //   - there never was any opening bracket and the line ends (one-line
+      //     declarations like `type Foo = Bar`)
+      if (seenAnyOpen && depth == 0) || (!seenAnyOpen && depth == 0) then
+        done = true
+      i += 1
+    (i - 1, buf.toVector)
 
 /** Local copy of the runtime's URL attribute list, used by `SsrCodeGen` at
   * compile time. Kept in sync with `melt.runtime.UrlAttributes`.

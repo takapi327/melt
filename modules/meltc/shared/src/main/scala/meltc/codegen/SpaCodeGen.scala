@@ -683,38 +683,76 @@ object SpaCodeGen extends CodeGen:
     if curBuf.nonEmpty then buf += curBuf.toString.trim
     buf.toList
 
+  /** Splits the user's script into (hoistedTypeDecls, restBody).
+    *
+    * Extracts every top-level type declaration (`case class`, `type`,
+    * `sealed trait`, `sealed abstract class`, `enum`) so that Props and
+    * any types it references live at the object level. Non-type lines
+    * (vals, side-effects) stay in the per-instance body.
+    *
+    * The `propsTypeName` parameter is retained for backwards
+    * compatibility with the old call sites but is no longer used —
+    * the extractor is type-agnostic.
+    */
   private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
-    val lines      = code.linesWithSeparators.toArray
-    val propsDef   = new StringBuilder
-    val bodyCode   = new StringBuilder
-    var i          = 0
-    var inPropsDef = false
-    var depth      = 0
+    val (typeDecls, rest) = splitTypeDecls(code)
+    (typeDecls.mkString("\n\n"), rest)
 
-    while i < lines.length do
-      val line    = lines(i)
-      val trimmed = line.trim
+  /** Heuristic: extract all top-level type declarations from `script`.
+    * Returns the list of declarations (in source order) and the
+    * remaining non-type body. Same logic as `SsrCodeGen.splitTypeDecls`,
+    * kept local because meltc's codegen package doesn't share helpers
+    * across files.
+    */
+  private def splitTypeDecls(script: String): (List[String], String) =
+    if script.isEmpty then (Nil, script)
+    else
+      val lines     = script.linesIterator.toVector
+      val typeDecls = scala.collection.mutable.ListBuffer.empty[String]
+      val rest      = scala.collection.mutable.ListBuffer.empty[String]
+      var i         = 0
+      while i < lines.length do
+        val line    = lines(i)
+        val trimmed = line.trim
+        if isTypeDeclStart(trimmed) then
+          val (endIdx, chunk) = collectBalanced(lines, i)
+          typeDecls += chunk.mkString("\n")
+          i = endIdx + 1
+        else
+          rest += line
+          i += 1
+      (typeDecls.toList, rest.mkString("\n"))
 
-      if !inPropsDef && trimmed.startsWith(s"case class $propsTypeName") then
-        inPropsDef = true
-        depth      = 0
-        // Count parens to find end of case class
-        for c <- line do
-          if c == '(' then depth += 1
-          else if c == ')' then depth -= 1
-        propsDef ++= line
-        if depth <= 0 then inPropsDef = false
-      else if inPropsDef then
-        for c <- line do
-          if c == '(' then depth += 1
-          else if c == ')' then depth -= 1
-        propsDef ++= line
-        if depth <= 0 then inPropsDef = false
-      else bodyCode ++= line
+  private def isTypeDeclStart(trimmed: String): Boolean =
+    trimmed.startsWith("case class ") ||
+    trimmed.startsWith("type ") ||
+    trimmed.startsWith("sealed trait ") ||
+    trimmed.startsWith("sealed abstract class ") ||
+    trimmed.startsWith("enum ")
 
+  private def collectBalanced(
+    lines: Vector[String],
+    start: Int
+  ): (Int, Vector[String]) =
+    var depth        = 0
+    var seenAnyOpen  = false
+    val buf          = scala.collection.mutable.ListBuffer.empty[String]
+    var i            = start
+    var done         = false
+    while !done && i < lines.length do
+      val line = lines(i)
+      buf += line
+      line.foreach {
+        case '(' | '[' | '{' =>
+          depth += 1
+          seenAnyOpen = true
+        case ')' | ']' | '}' =>
+          depth -= 1
+        case _ => ()
+      }
+      if (seenAnyOpen && depth == 0) || (!seenAnyOpen && depth == 0) then done = true
       i += 1
-
-    (propsDef.toString.trim, bodyCode.toString)
+    (i - 1, buf.toVector)
 
   // ── Expression classification ───────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import Implicits._
 import JavaVersions._
 import ScalaVersions._
+import org.scalajs.linker.interface.ModuleSplitStyle
 
 ThisBuild / version            := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion       := scala3
@@ -249,24 +250,70 @@ lazy val `layout-effect` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
-// ── Example: http4s SSR-only (Phase A — JVM server-side rendering) ──────────
-lazy val `http4s-ssr` = project
-  .in(file("examples/http4s-ssr"))
+// ── Example: http4s SSR + Hydration (Phase C) ──────────────────────────────
+//
+// Composed of three sub-projects:
+//
+//   - `http4s-ssr-components` — crossProject (JVM + JS). Hosts the
+//     shared `.melt` sources. The JVM side compiles to SSR code, the JS
+//     side compiles to SPA code with `@JSExportTopLevel` hydration
+//     entries (`meltcHydration := true`).
+//   - `http4s-ssr-client` — Scala.js application that links
+//     `components.js` into per-component public modules via
+//     `ModuleSplitStyle.SmallModulesFor`. Its `fastLinkJS` output is
+//     what the server serves under `/assets`.
+//   - `http4s-ssr-server` — JVM http4s server that renders HTML using
+//     `components.jvm` and serves the client's `fastLinkJS` output as
+//     static files.
+
+lazy val `http4s-ssr-components` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("examples/http4s-ssr/components"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                   := "http4s-ssr",
+    name                   := "http4s-ssr-components",
     publish / skip         := true,
-    meltcCompilerClasspath := (meltc.jvm / Compile / fullClasspath).value.files,
-    // Files under src/main/scala/components/ already imply the `components`
-    // package, so we don't set meltcPackage here (otherwise we'd get
-    // `components.components.Home`).
+    meltcCompilerClasspath := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .jvmConfigure(_.dependsOn(runtime.jvm))
+  .jsConfigure(_.dependsOn(runtime.js))
+  .jsSettings(
+    // Enable hydration-entry emission on the JS side so each
+    // component gets an `@JSExportTopLevel("hydrate", moduleID = …)`.
+    meltcHydration := true
+  )
+
+lazy val `http4s-ssr-client` = project
+  .in(file("examples/http4s-ssr/client"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "http4s-ssr-client",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(
+          ModuleSplitStyle.SmallModulesFor(List("components"))
+        )
+    }
+  )
+  .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
+  .dependsOn(`http4s-ssr-components`.js)
+
+lazy val `http4s-ssr-server` = project
+  .in(file("examples/http4s-ssr/server"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name           := "http4s-ssr-server",
+    publish / skip := true,
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-ember-server" % "0.23.33",
       "org.http4s" %% "http4s-dsl"          % "0.23.33"
     )
   )
-  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime.jvm)
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(`http4s-ssr-components`.jvm)
 
 // ── Example: ReactiveScope (Phase 0 — resource management) ───────────────────
 lazy val `reactive-scope` = project
@@ -297,7 +344,10 @@ lazy val root = project
     `hello-world`,
     counter,
     `todo-app`,
-    `http4s-ssr`,
+    `http4s-ssr-components`.jvm,
+    `http4s-ssr-components`.js,
+    `http4s-ssr-client`,
+    `http4s-ssr-server`,
     transitions,
     `special-elements`,
     `dynamic-element`,
