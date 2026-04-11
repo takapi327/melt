@@ -94,7 +94,7 @@ object Flip extends AnimateFn:
           // after the lambda is constructed to allow the self-reference.
           var done = false
           var listenerRef: Option[js.Function1[dom.Event, Unit]] = None
-          val listener: js.Function1[dom.Event, Unit] = (_: dom.Event) =>
+          val listener:    js.Function1[dom.Event, Unit]         = (_: dom.Event) =>
             if !done then
               done = true
               htmlEl.style.removeProperty("transition")

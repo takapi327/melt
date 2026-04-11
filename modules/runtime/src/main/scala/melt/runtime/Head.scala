@@ -58,7 +58,8 @@ object Head:
     child.tagName.toLowerCase match
       case "title" => Some("title")
       case "meta"  =>
-        Option(child.getAttribute("name")).map(n => s"""meta[name="$n"]""")
+        Option(child.getAttribute("name"))
+          .map(n => s"""meta[name="$n"]""")
           .orElse(Option(child.getAttribute("property")).map(p => s"""meta[property="$p"]"""))
           .orElse(Option(child.getAttribute("http-equiv")).map(h => s"""meta[http-equiv="$h"]"""))
       case "link" =>

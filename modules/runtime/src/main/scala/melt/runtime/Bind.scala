@@ -583,7 +583,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementSignalNullable")
   def dynamicElement(
@@ -591,7 +592,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(
+    Option(tag.now()),
+    f => tag.subscribe(t => f(Option(t))),
+    anchor,
+    scopeId,
+    setup,
+    htmlCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementSignalOption")
   def dynamicElement(
@@ -607,7 +615,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVarNullable")
   def dynamicElement(
@@ -615,7 +624,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(
+    Option(tag.now()),
+    f => tag.subscribe(t => f(Option(t))),
+    anchor,
+    scopeId,
+    setup,
+    htmlCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementVarOption")
   def dynamicElement(
@@ -652,7 +668,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgSignalNullable")
   def dynamicElement(
@@ -660,7 +677,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
+  ): Unit =
+    mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgSignalOption")
   def dynamicElement(
@@ -676,7 +694,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgVarNullable")
   def dynamicElement(
@@ -684,7 +703,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
+  ): Unit =
+    mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgVarOption")
   def dynamicElement(
@@ -721,7 +741,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
 
   @scala.annotation.targetName("dynamicElementMathSignalNullable")
   def dynamicElement(
@@ -729,7 +750,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(
+    Option(tag.now()),
+    f => tag.subscribe(t => f(Option(t))),
+    anchor,
+    scopeId,
+    setup,
+    mathCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementMathSignalOption")
   def dynamicElement(
@@ -745,7 +773,8 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
+  ): Unit =
+    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
 
   @scala.annotation.targetName("dynamicElementMathVarNullable")
   def dynamicElement(
@@ -753,7 +782,14 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(
+    Option(tag.now()),
+    f => tag.subscribe(t => f(Option(t))),
+    anchor,
+    scopeId,
+    setup,
+    mathCreateElement
+  )
 
   @scala.annotation.targetName("dynamicElementMathVarOption")
   def dynamicElement(
