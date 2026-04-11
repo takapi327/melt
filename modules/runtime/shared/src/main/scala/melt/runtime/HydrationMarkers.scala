@@ -74,13 +74,13 @@ object HydrationMarkers:
       while i < raw.length do
         val c = raw.charAt(i)
         c match
-          case '<' => buf ++= "&#x3c;"
-          case '>' => buf ++= "&#x3e;"
+          case '<'                                                   => buf ++= "&#x3c;"
+          case '>'                                                   => buf ++= "&#x3e;"
           case '-' if i + 1 < raw.length && raw.charAt(i + 1) == '-' =>
             // `--` inside an HTML comment is illegal per HTML5; break it
             // with a zero-width joiner so parsers don't get confused.
             buf ++= "-&#x2d;"
-          case c if c.toInt < 0x20 || c.toInt == 0x7F => () // drop control chars
-          case c => buf += c
+          case c if c.toInt < 0x20 || c.toInt == 0x7f => () // drop control chars
+          case c                                      => buf += c
         i += 1
       buf.toString

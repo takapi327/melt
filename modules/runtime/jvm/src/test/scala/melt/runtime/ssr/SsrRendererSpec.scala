@@ -127,7 +127,7 @@ class SsrRendererSpec extends FunSuite:
     r.push("a" * 20)      // 40 bytes
     r.head.push("b" * 20) // 40 bytes → total 80
     intercept[MeltRenderException] {
-      r.push("c" * 20)    // would reach 120 — over limit
+      r.push("c" * 20) // would reach 120 — over limit
     }
   }
 
@@ -143,7 +143,8 @@ class SsrRendererSpec extends FunSuite:
     MeltWarnings.mute()
     try
       val r = SsrRenderer()
-      r.spreadAttrs("button",
+      r.spreadAttrs(
+        "button",
         Map(
           "type"                      -> "button",
           "onclick"                   -> "alert(1)",
@@ -336,7 +337,7 @@ class SsrRendererSpec extends FunSuite:
   test("merge — meta tags from child override parent's on name collision") {
     val parent = SsrRenderer()
     parent.head.meta("description", "Parent desc")
-    parent.head.meta("author",      "Parent author")
+    parent.head.meta("author", "Parent author")
 
     val childResult = RenderResult(
       body     = "",
@@ -348,5 +349,5 @@ class SsrRendererSpec extends FunSuite:
 
     val metas = parent.result().metaTags
     assertEquals(metas("description"), "Child desc")
-    assertEquals(metas("author"),      "Parent author")
+    assertEquals(metas("author"), "Parent author")
   }

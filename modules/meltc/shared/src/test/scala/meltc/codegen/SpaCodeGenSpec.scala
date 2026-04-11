@@ -28,7 +28,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("scopeIdFor produces deterministic melt-xxxxxx string") {
     val id = SpaCodeGen.scopeIdFor("App")
     assert(id.startsWith("melt-"), id)
-    assertEquals(id.length, 11)                      // "melt-" (5) + 6 hex digits
+    assertEquals(id.length, 11)                    // "melt-" (5) + 6 hex digits
     assertEquals(id, SpaCodeGen.scopeIdFor("App")) // deterministic
   }
 

@@ -124,19 +124,21 @@ class EscapeSpec extends FunSuite:
 
   test("Escape.url blocks data:text/html") {
     MeltWarnings.mute()
-    try assertEquals(
-      Escape.url("data:text/html,<script>alert(1)</script>"),
-      ""
-    )
+    try
+      assertEquals(
+        Escape.url("data:text/html,<script>alert(1)</script>"),
+        ""
+      )
     finally MeltWarnings.resetHandler()
   }
 
   test("Escape.url blocks data:image/svg+xml") {
     MeltWarnings.mute()
-    try assertEquals(
-      Escape.url("data:image/svg+xml,<svg><script>alert(1)</script></svg>"),
-      ""
-    )
+    try
+      assertEquals(
+        Escape.url("data:image/svg+xml,<svg><script>alert(1)</script></svg>"),
+        ""
+      )
     finally MeltWarnings.resetHandler()
   }
 
@@ -180,9 +182,9 @@ class EscapeSpec extends FunSuite:
   // ── CSS value escaping (§12.1.5) ───────────────────────────────────────
 
   test("Escape.cssValue passes safe values through") {
-    assertEquals(Escape.cssValue("red"),           "red")
-    assertEquals(Escape.cssValue("10px"),          "10px")
-    assertEquals(Escape.cssValue("#ff3e00"),       "#ff3e00")
+    assertEquals(Escape.cssValue("red"), "red")
+    assertEquals(Escape.cssValue("10px"), "10px")
+    assertEquals(Escape.cssValue("#ff3e00"), "#ff3e00")
     assertEquals(Escape.cssValue("rgba(0,0,0,.5)"), "rgba(0,0,0,.5)")
   }
 

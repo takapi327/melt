@@ -20,5 +20,4 @@ package melt.runtime.ssr
   * route can catch `MeltRenderException` and return HTTP 500 without
   * destabilising the JVM.
   */
-class MeltRenderException(message: String, cause: Throwable = null)
-    extends RuntimeException(message, cause)
+class MeltRenderException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)

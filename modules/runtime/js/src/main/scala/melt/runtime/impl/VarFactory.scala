@@ -8,7 +8,7 @@ package melt.runtime.impl
 
 import scala.collection.mutable
 
-import melt.runtime.{ Cleanup, Owner, Batch, Signal, Var }
+import melt.runtime.{ Batch, Cleanup, Owner, Signal, Var }
 
 /** Scala.js factory referenced by the shared `object Var`. Produces a real
   * reactive cell with three-phase subscriber lanes (Pre → Bind → Post).

@@ -29,7 +29,7 @@ class HydrationMarkersSpec extends FunSuite:
   test("escapeForComment breaks a -- sequence so the comment stays valid") {
     val escaped = HydrationMarkers.escapeForComment("ev-il-->end")
     assert(!escaped.contains("-->"), escaped)
-    assert(!escaped.contains("--"),  escaped)
+    assert(!escaped.contains("--"), escaped)
   }
 
   test("escapeForComment drops control characters") {
@@ -55,13 +55,13 @@ class HydrationMarkersSpec extends FunSuite:
     val cPayload = c.substring(HydrationMarkers.ClosePrefix.length, c.length - HydrationMarkers.Suffix.length)
     assert(!oPayload.contains("-->"), oPayload)
     assert(!cPayload.contains("-->"), cPayload)
-    assert(!oPayload.contains("--"),  oPayload)
-    assert(!cPayload.contains("--"),  cPayload)
+    assert(!oPayload.contains("--"), oPayload)
+    assert(!cPayload.contains("--"), cPayload)
     assert(!o.contains("<script>"), o)
     assert(!c.contains("<script>"), c)
   }
 
   test("open / close for multi-word moduleIDs preserve the id verbatim") {
-    assertEquals(HydrationMarkers.open("todo-list"),  "<!--[melt:todo-list-->")
+    assertEquals(HydrationMarkers.open("todo-list"), "<!--[melt:todo-list-->")
     assertEquals(HydrationMarkers.close("todo-list"), "<!--]melt:todo-list-->")
   }

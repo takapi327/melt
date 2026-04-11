@@ -41,9 +41,9 @@ object AttrNameValidator:
   private def isInvalidCodePoint(cp: Int): Boolean =
     // Whitespace (via Character.isWhitespace, which handles BMP correctly)
     Character.isWhitespace(cp) ||
-    // Literal characters forbidden in attribute names
-    cp == '\'' || cp == '"' || cp == '>' || cp == '/' || cp == '=' ||
-    // Unicode non-characters in the BMP: U+FDD0..U+FDEF
-    (cp >= 0xFDD0 && cp <= 0xFDEF) ||
-    // Plane-terminator non-characters U+xxFFFE / U+xxFFFF for x = 0..10
-    ((cp & 0xFFFE) == 0xFFFE && cp <= 0x10FFFF)
+      // Literal characters forbidden in attribute names
+      cp == '\'' || cp == '"' || cp == '>' || cp == '/' || cp == '=' ||
+      // Unicode non-characters in the BMP: U+FDD0..U+FDEF
+      (cp >= 0xfdd0 && cp <= 0xfdef) ||
+      // Plane-terminator non-characters U+xxFFFE / U+xxFFFF for x = 0..10
+      ((cp & 0xfffe) == 0xfffe && cp <= 0x10ffff)

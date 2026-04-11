@@ -14,11 +14,11 @@ private[runtime] object SignalFactory:
 
 /** JVM no-op implementation of [[Signal]]. */
 private final class JvmSignal[A](value: A) extends Signal[A]:
-  def now():                   A          = value
-  def subscribe(f: A => Unit): () => Unit = () => ()
-  def map[B](f: A => B):       Signal[B]  = SignalFactory.pure(f(value))
-  def flatMap[B](f: A => Signal[B]): Signal[B] = f(value)
+  def now():                         A          = value
+  def subscribe(f:  A => Unit):      () => Unit = () => ()
+  def map[B](f:     A => B):         Signal[B]  = SignalFactory.pure(f(value))
+  def flatMap[B](f: A => Signal[B]): Signal[B]  = f(value)
 
-  private[runtime] def emit(value: A): Unit = ()
+  private[runtime] def emit(value:      A):         Unit       = ()
   private[runtime] def subscribePre(f:  A => Unit): () => Unit = () => ()
   private[runtime] def subscribePost(f: A => Unit): () => Unit = () => ()

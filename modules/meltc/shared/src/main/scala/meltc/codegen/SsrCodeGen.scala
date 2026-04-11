@@ -57,7 +57,7 @@ object SsrCodeGen extends CodeGen:
   ): String =
     // `hydration` is ignored here — SSR never emits @JSExportTopLevel.
     // The flag only affects SpaCodeGen.
-    val _ = hydration
+    val _   = hydration
     val buf = new StringBuilder
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
@@ -219,8 +219,7 @@ object SsrCodeGen extends CodeGen:
           // left for Phase C. Skip the selected emission here.
           ()
 
-    if HtmlVoidElements.isVoid(tag) then
-      buf ++= s"""${ pad }renderer.push(">")\n"""
+    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
       buf ++= s"""${ pad }renderer.push(">")\n"""
       children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr))
@@ -242,25 +241,25 @@ object SsrCodeGen extends CodeGen:
   private def hasBindValue(attrs: List[Attr]): Boolean =
     attrs.exists {
       case Attr.Directive("bind", "value", Some(_), _) => true
-      case _                                            => false
+      case _                                           => false
     }
 
   private def hasBindGroup(attrs: List[Attr]): Boolean =
     attrs.exists {
       case Attr.Directive("bind", "group", Some(_), _) => true
-      case _                                            => false
+      case _                                           => false
     }
 
   private def hasBindInnerHtml(attrs: List[Attr]): Boolean =
     attrs.exists {
       case Attr.Directive("bind", "innerHTML", Some(_), _) => true
-      case _                                                => false
+      case _                                               => false
     }
 
   private def hasBindTextContent(attrs: List[Attr]): Boolean =
     attrs.exists {
       case Attr.Directive("bind", "textContent", Some(_), _) => true
-      case _                                                  => false
+      case _                                                 => false
     }
 
   /** `<textarea bind:value={v}>` — SSR serialisation.
@@ -270,13 +269,13 @@ object SsrCodeGen extends CodeGen:
     * browsers populate a textarea's displayed text.
     */
   private def emitTextareaBindValue(
-    attrs:   List[Attr],
+    attrs:    List[Attr],
     children: List[TemplateNode],
     buf:      StringBuilder,
     indent:   Int,
     scopeId:  String
   ): Unit =
-    val pad = " " * indent
+    val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "value", Some(e), _) => e
     }.get
@@ -313,7 +312,7 @@ object SsrCodeGen extends CodeGen:
     indent:   Int,
     scopeId:  String
   ): Unit =
-    val pad = " " * indent
+    val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "value", Some(e), _) => e
     }.get
@@ -345,7 +344,7 @@ object SsrCodeGen extends CodeGen:
     indent:  Int,
     scopeId: String
   ): Unit =
-    val pad = " " * indent
+    val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "group", Some(e), _) => e
     }.get
@@ -413,7 +412,7 @@ object SsrCodeGen extends CodeGen:
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "innerHTML", _, _)   => true
       case Attr.Directive("bind", "textContent", _, _) => true
-      case _                                            => false
+      case _                                           => false
     }
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
@@ -497,15 +496,13 @@ object SsrCodeGen extends CodeGen:
       case Attr.Dynamic(name, expr) =>
         if UrlAttributesForCodegen.isUrlAttribute(tag, name) then
           buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.url($expr) + \"\\\"\")\n"""
-        else
-          buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\")\n"""
+        else buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\")\n"""
 
       case Attr.Shorthand(varName) =>
         // `<input {value}>` → `value={value}` — treat as dynamic.
         if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
           buf ++= s"""${ pad }renderer.push(s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\")\n"""
-        else
-          buf ++= s"""${ pad }renderer.push(s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\")\n"""
+        else buf ++= s"""${ pad }renderer.push(s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\")\n"""
 
       case Attr.Spread(expr) =>
         buf ++= s"""${ pad }renderer.spreadAttrs("$tag", $expr)\n"""
@@ -552,17 +549,15 @@ object SsrCodeGen extends CodeGen:
     // Build a Props(...) call from attribute bindings. In Phase A we only
     // support Shorthand, Static, Dynamic, and Spread passed to components.
     val args = attrs.flatMap {
-      case Attr.Shorthand(n)   => Some(s"$n = $n")
-      case Attr.Static(n, v)   => Some(s"""$n = \"${ escapeString(v) }\"""")
-      case Attr.Dynamic(n, e)  => Some(s"$n = $e")
-      case Attr.Spread(_)      => None // spread to component not yet supported
-      case _                   => None
+      case Attr.Shorthand(n)  => Some(s"$n = $n")
+      case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
+      case Attr.Dynamic(n, e) => Some(s"$n = $e")
+      case Attr.Spread(_)     => None // spread to component not yet supported
+      case _                  => None
     }
 
-    if args.isEmpty then
-      buf ++= s"${ pad }renderer.merge($name())\n"
-    else
-      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+    if args.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
+    else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
 
   // ── Expression / InlineTemplate (Phase B) ──────────────────────────────
 
@@ -684,7 +679,7 @@ object SsrCodeGen extends CodeGen:
 
       // Other attributes.
       attrs.foreach {
-        case Attr.Static("class", _) => ()
+        case Attr.Static("class", _)  => ()
         case Attr.Static(name, value) =>
           val lit = escapeString(s""" $name=\"${ htmlAttrEscapeLiteral(value) }\"""")
           sb ++= s"""_sb ++= "$lit"; """
@@ -694,16 +689,14 @@ object SsrCodeGen extends CodeGen:
         case Attr.Dynamic(name, expr) =>
           if UrlAttributesForCodegen.isUrlAttribute(tag, name) then
             sb ++= s"""_sb ++= s\" $name=\\\"\" + Escape.url($expr) + \"\\\"\"; """
-          else
-            sb ++= s"""_sb ++= s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\"; """
+          else sb ++= s"""_sb ++= s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\"; """
         case Attr.Shorthand(varName) =>
           if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
             sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\"; """
-          else
-            sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\"; """
-        case Attr.EventHandler(_, _) => () // stripped in SSR
+          else sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\"; """
+        case Attr.EventHandler(_, _)    => () // stripped in SSR
         case Attr.Directive(_, _, _, _) => () // stripped in nested inline (Phase B follow-up)
-        case Attr.Spread(_) => () // spread on nested inline not supported in Phase B
+        case Attr.Spread(_)             => () // spread on nested inline not supported in Phase B
       }
 
       sb ++= s"""_sb ++= ">"; """
@@ -730,10 +723,8 @@ object SsrCodeGen extends CodeGen:
         case Attr.Dynamic(n, e) => Some(s"$n = $e")
         case _                  => None
       }
-      if args.isEmpty then
-        sb ++= s"""_sb ++= $name().body; """
-      else
-        sb ++= s"""_sb ++= $name($name.Props(${ args.mkString(", ") })).body; """
+      if args.isEmpty then sb ++= s"""_sb ++= $name().body; """
+      else sb ++= s"""_sb ++= $name($name.Props(${ args.mkString(", ") })).body; """
 
     case TemplateNode.InlineTemplate(nested) =>
       // Nested inline template — expand recursively.
@@ -800,7 +791,9 @@ object SsrCodeGen extends CodeGen:
             val staticText = titleChildren.collect {
               case TemplateNode.Text(t) => t
             }.mkString
-            buf ++= s"""${ pad }renderer.head.push("<title>${ escapeString(htmlEscapeLiteral(staticText)) }</title>")\n"""
+            buf ++= s"""${ pad }renderer.head.push("<title>${ escapeString(
+                htmlEscapeLiteral(staticText)
+              ) }</title>")\n"""
 
       case TemplateNode.Element(tag, attrs, children) =>
         // For arbitrary head children, emit their tag open / attrs / close
@@ -814,8 +807,7 @@ object SsrCodeGen extends CodeGen:
             buf ++= s"""${ pad }renderer.head.push(s\" $n=\\\"\" + Escape.attr($e) + \"\\\"\")\n"""
           case _ => ()
         }
-        if HtmlVoidElements.isVoid(tag) then
-          buf ++= s"""${ pad }renderer.head.push(">")\n"""
+        if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.head.push(">")\n"""
         else
           buf ++= s"""${ pad }renderer.head.push(">")\n"""
           children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
@@ -843,12 +835,12 @@ object SsrCodeGen extends CodeGen:
     */
   private def kebabCase(s: String): String =
     val buf = new StringBuilder(s.length + 4)
-    s.zipWithIndex.foreach { case (c, i) =>
-      if c.isUpper then
-        if i > 0 then buf += '-'
-        buf += c.toLower
-      else
-        buf += c
+    s.zipWithIndex.foreach {
+      case (c, i) =>
+        if c.isUpper then
+          if i > 0 then buf += '-'
+          buf += c.toLower
+        else buf += c
     }
     buf.toString
 
@@ -911,10 +903,10 @@ object SsrCodeGen extends CodeGen:
   private def splitTypeDecls(script: String): (List[String], String) =
     if script.isEmpty then (Nil, script)
     else
-      val lines       = script.linesIterator.toVector
-      val typeDecls   = scala.collection.mutable.ListBuffer.empty[String]
-      val rest        = scala.collection.mutable.ListBuffer.empty[String]
-      var i           = 0
+      val lines     = script.linesIterator.toVector
+      val typeDecls = scala.collection.mutable.ListBuffer.empty[String]
+      val rest      = scala.collection.mutable.ListBuffer.empty[String]
+      var i         = 0
       while i < lines.length do
         val line    = lines(i)
         val trimmed = line.trim
@@ -933,10 +925,10 @@ object SsrCodeGen extends CodeGen:
     */
   private def isTypeDeclStart(trimmed: String): Boolean =
     trimmed.startsWith("case class ") ||
-    trimmed.startsWith("type ") ||
-    trimmed.startsWith("sealed trait ") ||
-    trimmed.startsWith("sealed abstract class ") ||
-    trimmed.startsWith("enum ")
+      trimmed.startsWith("type ") ||
+      trimmed.startsWith("sealed trait ") ||
+      trimmed.startsWith("sealed abstract class ") ||
+      trimmed.startsWith("enum ")
 
   /** Greedy extraction of a balanced declaration starting at `start`.
     * Walks forward until the `(` / `{` / `[` counters return to zero,
@@ -950,11 +942,11 @@ object SsrCodeGen extends CodeGen:
     lines: Vector[String],
     start: Int
   ): (Int, Vector[String]) =
-    var depth: Int            = 0
-    var seenAnyOpen: Boolean  = false
-    val buf                   = scala.collection.mutable.ListBuffer.empty[String]
-    var i                     = start
-    var done                  = false
+    var depth:       Int     = 0
+    var seenAnyOpen: Boolean = false
+    val buf  = scala.collection.mutable.ListBuffer.empty[String]
+    var i    = start
+    var done = false
     while !done && i < lines.length do
       val line = lines(i)
       buf += line
@@ -970,8 +962,7 @@ object SsrCodeGen extends CodeGen:
       //   - we've closed every opened bracket (seenAnyOpen && depth==0)
       //   - there never was any opening bracket and the line ends (one-line
       //     declarations like `type Foo = Bar`)
-      if (seenAnyOpen && depth == 0) || (!seenAnyOpen && depth == 0) then
-        done = true
+      if (seenAnyOpen && depth == 0) || (!seenAnyOpen && depth == 0) then done = true
       i += 1
     (i - 1, buf.toVector)
 

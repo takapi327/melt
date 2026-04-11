@@ -194,7 +194,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
   // ── Phase B: conditional rendering (if / match) ───────────────────────
 
   test("if / else with inline HTML emits native if + renderer.push") {
-    val src = """<div>{if visible then <p>Yes</p> else <p>No</p>}</div>"""
+    val src  = """<div>{if visible then <p>Yes</p> else <p>No</p>}</div>"""
     val code = compile(src)
     assert(code.contains("renderer.push(if visible then"), code)
     assert(code.contains("else"), code)

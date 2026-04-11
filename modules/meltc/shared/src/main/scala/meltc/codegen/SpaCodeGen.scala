@@ -166,7 +166,7 @@ object SpaCodeGen extends CodeGen:
     val moduleId      = kebabCase(objectName)
     val propsDefaults =
       propsType match
-        case None => true // no Props → apply() is callable
+        case None           => true // no Props → apply() is callable
         case Some(typeName) =>
           ast.script
             .map { sc =>
@@ -612,11 +612,12 @@ object SpaCodeGen extends CodeGen:
     */
   private def kebabCase(s: String): String =
     val buf = new StringBuilder(s.length + 4)
-    s.zipWithIndex.foreach { case (c, i) =>
-      if c.isUpper then
-        if i > 0 then buf += '-'
-        buf += c.toLower
-      else buf += c
+    s.zipWithIndex.foreach {
+      case (c, i) =>
+        if c.isUpper then
+          if i > 0 then buf += '-'
+          buf += c.toLower
+        else buf += c
     }
     buf.toString
 
@@ -725,20 +726,20 @@ object SpaCodeGen extends CodeGen:
 
   private def isTypeDeclStart(trimmed: String): Boolean =
     trimmed.startsWith("case class ") ||
-    trimmed.startsWith("type ") ||
-    trimmed.startsWith("sealed trait ") ||
-    trimmed.startsWith("sealed abstract class ") ||
-    trimmed.startsWith("enum ")
+      trimmed.startsWith("type ") ||
+      trimmed.startsWith("sealed trait ") ||
+      trimmed.startsWith("sealed abstract class ") ||
+      trimmed.startsWith("enum ")
 
   private def collectBalanced(
     lines: Vector[String],
     start: Int
   ): (Int, Vector[String]) =
-    var depth        = 0
-    var seenAnyOpen  = false
-    val buf          = scala.collection.mutable.ListBuffer.empty[String]
-    var i            = start
-    var done         = false
+    var depth       = 0
+    var seenAnyOpen = false
+    val buf         = scala.collection.mutable.ListBuffer.empty[String]
+    var i           = start
+    var done        = false
     while !done && i < lines.length do
       val line = lines(i)
       buf += line

@@ -116,7 +116,7 @@ object SecurityChecker:
       case "meta" =>
         val httpEquivIsRefresh = attrs.exists {
           case Attr.Static("http-equiv", v) => v.equalsIgnoreCase("refresh")
-          case _                             => false
+          case _                            => false
         }
         if httpEquivIsRefresh && hasDynamicAttr(attrs, "content") then
           w += (("<meta http-equiv=\"refresh\" content={...}> triggers a redirect; " +
@@ -125,7 +125,7 @@ object SecurityChecker:
       case "a" =>
         val targetBlank = attrs.exists {
           case Attr.Static("target", v) => v == "_blank"
-          case _                         => false
+          case _                        => false
         }
         if targetBlank then
           val relAttr = attrs.collectFirst {
@@ -145,7 +145,7 @@ object SecurityChecker:
       case Attr.Dynamic(n, _)              => n == name
       case Attr.Shorthand(n)               => n == name
       case Attr.Directive("bind", n, _, _) => n == name
-      case _                                => false
+      case _                               => false
     }
 
   // ── Line-number bookkeeping (shared shape with A11yChecker) ───────────
@@ -184,5 +184,5 @@ object SecurityChecker:
     while lo <= hi do
       val mid = (lo + hi) >>> 1
       if lineIndex(mid) <= offset then lo = mid + 1
-      else hi = mid - 1
+      else hi                             = mid - 1
     lo

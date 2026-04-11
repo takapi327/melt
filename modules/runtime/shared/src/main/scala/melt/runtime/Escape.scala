@@ -79,9 +79,9 @@ object Escape:
     */
   def url(value: Any): String =
     value match
-      case null          => ""
-      case None          => ""
-      case Some(inner)   => url(inner) // recurse for nested Option
+      case null           => ""
+      case None           => ""
+      case Some(inner)    => url(inner) // recurse for nested Option
       case tu: TrustedUrl =>
         // AnyVal value class — the runtime type check is preserved despite
         // AnyVal's unboxing optimisation (unlike opaque types).
@@ -110,7 +110,7 @@ object Escape:
       case Some(inner)     => normalize(inner)
       case th: TrustedHtml => Some(th.value)
       case tu: TrustedUrl  => Some(tu.value)
-      case other =>
+      case other           =>
         val s = other.toString
         if s == null then None else Some(s)
 
@@ -151,14 +151,12 @@ object Escape:
     *   - `@import` — stylesheet injection
     */
   private def isDangerousCss(raw: String): Boolean =
-    val normalized = raw
-      .filterNot { c =>
-        val code = c.toInt
-        (code >= 0x00 && code <= 0x1F) || code == 0x7F ||
-        c == '\u0020' || c == '\u0009' ||
-        c == '\u000A' || c == '\u000D'
-      }
-      .toLowerCase
+    val normalized = raw.filterNot { c =>
+      val code = c.toInt
+      (code >= 0x00 && code <= 0x1f) || code == 0x7f ||
+      c == '\u0020' || c == '\u0009' ||
+      c == '\u000A' || c == '\u000D'
+    }.toLowerCase
 
     normalized.contains("javascript:") ||
     normalized.contains("vbscript:") ||
@@ -170,14 +168,12 @@ object Escape:
     * control characters (browsers do the same before parsing the scheme).
     */
   private def isDangerousUrl(raw: String): Boolean =
-    val normalized = raw
-      .filterNot { c =>
-        val code = c.toInt
-        (code >= 0x00 && code <= 0x1F) || code == 0x7F ||
-        c == '\u0020' || c == '\u0009' ||
-        c == '\u000A' || c == '\u000D'
-      }
-      .toLowerCase
+    val normalized = raw.filterNot { c =>
+      val code = c.toInt
+      (code >= 0x00 && code <= 0x1f) || code == 0x7f ||
+      c == '\u0020' || c == '\u0009' ||
+      c == '\u000A' || c == '\u000D'
+    }.toLowerCase
 
     if normalized.startsWith("javascript:") then true
     else if normalized.startsWith("vbscript:") then true

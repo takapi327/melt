@@ -21,7 +21,7 @@ class ViteManifestSpec extends FunSuite:
   test("fromString parses an empty manifest") {
     val m = ViteManifest.fromString("{}")
     assertEquals(m.chunksFor("counter"), Nil)
-    assertEquals(m.cssFor("counter"),    Nil)
+    assertEquals(m.cssFor("counter"), Nil)
   }
 
   test("fromString parses a single entry") {
@@ -34,7 +34,7 @@ class ViteManifestSpec extends FunSuite:
         |}""".stripMargin
     val m = ViteManifest.fromString(json)
     assertEquals(m.chunksFor("counter"), List("assets/counter-a3f8c2.js"))
-    assertEquals(m.cssFor("counter"),    Nil)
+    assertEquals(m.cssFor("counter"), Nil)
   }
 
   test("fromString resolves recursive imports") {
@@ -107,7 +107,7 @@ class ViteManifestSpec extends FunSuite:
         |    "imports": ["scalajs:counter.js"]
         |  }
         |}""".stripMargin
-    val m = ViteManifest.fromString(json)
+    val m      = ViteManifest.fromString(json)
     val chunks = m.chunksFor("counter")
     // The important property is termination and correct dedup — the
     // exact order depends on the traversal but each file must appear
@@ -120,7 +120,7 @@ class ViteManifestSpec extends FunSuite:
     val json = """{ "scalajs:counter.js": { "file": "assets/counter.js" } }"""
     val m    = ViteManifest.fromString(json)
     assertEquals(m.chunksFor("todo"), Nil)
-    assertEquals(m.cssFor("todo"),    Nil)
+    assertEquals(m.cssFor("todo"), Nil)
   }
 
   test("uriPrefix override lets non-scalajs bundlers plug in") {
@@ -177,7 +177,7 @@ class ViteManifestSpec extends FunSuite:
 
   test("empty manifest returns nothing for any moduleID") {
     assertEquals(ViteManifest.empty.chunksFor("anything"), Nil)
-    assertEquals(ViteManifest.empty.cssFor("anything"),    Nil)
+    assertEquals(ViteManifest.empty.cssFor("anything"), Nil)
   }
 
   test("fromEntries constructs a manifest from a plain map") {

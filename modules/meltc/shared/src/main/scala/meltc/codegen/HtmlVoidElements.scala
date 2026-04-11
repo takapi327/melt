@@ -17,8 +17,22 @@ package meltc.codegen
 object HtmlVoidElements:
 
   val set: Set[String] = Set(
-    "area", "base", "br", "col", "command", "embed", "hr", "img", "input",
-    "keygen", "link", "meta", "param", "source", "track", "wbr"
+    "area",
+    "base",
+    "br",
+    "col",
+    "command",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "keygen",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr"
   )
 
   def isVoid(tag: String): Boolean =

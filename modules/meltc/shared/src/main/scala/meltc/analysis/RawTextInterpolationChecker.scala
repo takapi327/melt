@@ -8,8 +8,8 @@ package meltc.analysis
 
 import scala.collection.mutable
 
-import meltc.CompileError
 import meltc.ast.*
+import meltc.CompileError
 
 /** Compile-time check for `{expr}` interpolation inside HTML raw-text
   * elements (`<script>`, `<style>`, `<textarea>`, `<title>`) — see
@@ -59,12 +59,9 @@ object RawTextInterpolationChecker:
                   "element (raw-text element). Escaping is structurally impossible here. " +
                   (if tagLower == "script" then
                      "Use a JSON data attribute and parse it from your client-side code instead."
-                   else if tagLower == "style" then
-                     "Move dynamic values to attribute bindings (e.g. style={...})."
-                   else if tagLower == "textarea" then
-                     "Use `bind:value={...}` to populate the textarea content."
-                   else
-                     "Wrap the element in `<melt:head>` to allow dynamic titles."),
+                   else if tagLower == "style" then "Move dynamic values to attribute bindings (e.g. style={...})."
+                   else if tagLower == "textarea" then "Use `bind:value={...}` to populate the textarea content."
+                   else "Wrap the element in `<melt:head>` to allow dynamic titles."),
                 line     = 0,
                 column   = 0,
                 filename = filename
@@ -74,8 +71,7 @@ object RawTextInterpolationChecker:
 
         // Continue walking so that nested violations are still caught.
         children.foreach(c => walk(c, Some(tagLower), errors, filename))
-      else
-        children.foreach(c => walk(c, Some(tagLower), errors, filename))
+      else children.foreach(c => walk(c, Some(tagLower), errors, filename))
 
     case TemplateNode.Component(_, _, children) =>
       children.foreach(c => walk(c, parent, errors, filename))

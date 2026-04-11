@@ -108,7 +108,7 @@ class TemplateSpec extends FunSuite:
   }
 
   test("custom var cannot override reserved body / title / lang") {
-    val t = mk("%melt.body%|%melt.title%|%melt.lang%")
+    val t    = mk("%melt.body%|%melt.title%|%melt.lang%")
     val html = t.render(
       sampleResult,
       title = "ok",
@@ -173,29 +173,29 @@ class TemplateSpec extends FunSuite:
   // ── §12.3.9 title fallback to RenderResult.title ───────────────────────
 
   test("explicit title argument takes precedence over result.title") {
-    val t = mk("<title>%melt.title%</title>")
+    val t      = mk("<title>%melt.title%</title>")
     val result = sampleResult.copy(title = Some("FromComponent"))
-    val html = t.render(result, title = "FromCaller")
+    val html   = t.render(result, title = "FromCaller")
     assertEquals(html, "<title>FromCaller</title>")
   }
 
   test("empty title argument falls back to result.title") {
-    val t = mk("<title>%melt.title%</title>")
+    val t      = mk("<title>%melt.title%</title>")
     val result = sampleResult.copy(title = Some("&lt;ComponentTitle&gt;"))
-    val html = t.render(result, title = "")
+    val html   = t.render(result, title = "")
     // result.title is already HTML-escaped when produced by SsrRenderer,
     // so Template should pass it through verbatim.
     assertEquals(html, "<title>&lt;ComponentTitle&gt;</title>")
   }
 
   test("empty title argument and no result.title yields empty <title>") {
-    val t = mk("<title>%melt.title%</title>")
+    val t    = mk("<title>%melt.title%</title>")
     val html = t.render(sampleResult, title = "")
     assertEquals(html, "<title></title>")
   }
 
   test("explicit title is HTML-escaped") {
-    val t = mk("<title>%melt.title%</title>")
+    val t    = mk("<title>%melt.title%</title>")
     val html = t.render(sampleResult, title = "<script>")
     assert(html.contains("&lt;script&gt;"), html)
   }
@@ -280,7 +280,8 @@ class TemplateSpec extends FunSuite:
     val manifest = ViteManifest.fromString(
       """{ "scalajs:counter.js": { "file": "assets/counter.js" } }"""
     )
-    val html = templateWithAll.render(result, manifest, title = "", lang = "en", basePath = "/public/", vars = Map.empty)
+    val html =
+      templateWithAll.render(result, manifest, title = "", lang = "en", basePath = "/public/", vars = Map.empty)
     assert(html.contains("href=\"/public/assets/counter.js\""), html)
     assert(!html.contains("//assets"), html)
   }
@@ -292,8 +293,8 @@ class TemplateSpec extends FunSuite:
   }
 
   test("hydration overload honours the title fallback from result.title") {
-    val t = mk("<title>%melt.title%</title>")
+    val t      = mk("<title>%melt.title%</title>")
     val result = sampleResult.copy(title = Some("FromComponent"))
-    val html = t.render(result, ViteManifest.empty)
+    val html   = t.render(result, ViteManifest.empty)
     assertEquals(html, "<title>FromComponent</title>")
   }

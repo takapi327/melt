@@ -8,18 +8,18 @@ package server
 
 import java.util.UUID
 
+import melt.runtime.ssr.Template
+
 import cats.effect.*
 import com.comcast.ip4s.*
+import components.*
+import generated.AssetManifest
 import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.headers.{ `Content-Type`, Location }
-import org.http4s.server.Router
 import org.http4s.server.staticcontent.*
-
-import melt.runtime.ssr.Template
-import components.*
-import generated.AssetManifest
+import org.http4s.server.Router
 
 /** Phase C SSR + Hydration sample — a tiny http4s server that
   * demonstrates the three current-generation patterns:
@@ -106,15 +106,15 @@ object Server extends IOApp.Simple:
       case GET -> Root / "todos" =>
         for
           items <- todoStore.get
-          html   = template.render(Todos(Todos.Props(items = items)), title = "Todos · Melt SSR")
-          resp  <- Ok(html, htmlContentType)
+          html = template.render(Todos(Todos.Props(items = items)), title = "Todos · Melt SSR")
+          resp <- Ok(html, htmlContentType)
         yield resp
 
       case req @ POST -> Root / "todos" / "add" =>
         for
           form <- req.as[UrlForm]
-          text  = form.getFirst("text").map(_.trim).getOrElse("")
-          _    <-
+          text = form.getFirst("text").map(_.trim).getOrElse("")
+          _ <-
             if text.nonEmpty then
               val todo = Todos.Todo(id = UUID.randomUUID().toString, text = text)
               todoStore.update(todo :: _)
@@ -164,15 +164,15 @@ object Server extends IOApp.Simple:
   def run: IO[Unit] =
     for
       todoStore <- Ref.of[IO, List[Todos.Todo]](Nil)
-      httpApp    = Router(
-                     "/"       -> routes(todoStore),
-                     "/assets" -> assetRoutes
-                   ).orNotFound
-      _         <- EmberServerBuilder
-                     .default[IO]
-                     .withHost(host"0.0.0.0")
-                     .withPort(port"8080")
-                     .withHttpApp(httpApp)
-                     .build
-                     .useForever
+      httpApp = Router(
+                  "/"       -> routes(todoStore),
+                  "/assets" -> assetRoutes
+                ).orNotFound
+      _ <- EmberServerBuilder
+             .default[IO]
+             .withHost(host"0.0.0.0")
+             .withPort(port"8080")
+             .withHttpApp(httpApp)
+             .build
+             .useForever
     yield ()

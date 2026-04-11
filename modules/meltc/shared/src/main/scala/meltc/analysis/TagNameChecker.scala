@@ -8,9 +8,9 @@ package meltc.analysis
 
 import scala.collection.mutable
 
-import meltc.CompileError
 import meltc.ast.*
 import meltc.codegen.NameValidators
+import meltc.CompileError
 
 /** Compile-time validator for HTML tag names and component names (§12.1.3).
   *

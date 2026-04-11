@@ -9,6 +9,7 @@ package melt.runtime.ssr
 import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Path }
+
 import scala.io.Source
 
 import melt.runtime.Escape
@@ -89,8 +90,8 @@ final class Template private (private val raw: String):
     */
   def render(
     result: RenderResult,
-    title:  String              = "",
-    lang:   String              = "en",
+    title:  String = "",
+    lang:   String = "en",
     vars:   Map[String, String] = Map.empty
   ): String =
     // If the caller did not supply an explicit title, fall back to
@@ -192,9 +193,7 @@ final class Template private (private val raw: String):
     // Map each component's moduleID directly to its own entry chunk
     // (the last element of `chunksFor(moduleId)`), so that the call to
     // `hydrate()` targets the correct module.
-    val bootstrap = result.components
-      .toList
-      .distinct
+    val bootstrap = result.components.toList.distinct
       .flatMap { moduleId =>
         manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
           s"""<script type="module">import("$strippedBase/$entryChunk").then(m => m.hydrate())</script>"""
@@ -226,15 +225,16 @@ final class Template private (private val raw: String):
       else s"${ result.body }\n$extraBody"
 
     var out = raw
-    out = out.replace("%melt.lang%",  Escape.attr(lang))
+    out = out.replace("%melt.lang%", Escape.attr(lang))
     out = out.replace("%melt.title%", effectiveTitle)
-    out = out.replace("%melt.head%",  headContent)
-    out = out.replace("%melt.body%",  bodyContent)
-    vars.foreach { case (k, v) =>
-      // Reserved keys are ignored so user-provided maps cannot override
-      // structural placeholders.
-      if k != "head" && k != "body" && k != "title" && k != "lang" then
-        out = out.replace(s"%melt.$k%", Escape.html(v))
+    out = out.replace("%melt.head%", headContent)
+    out = out.replace("%melt.body%", bodyContent)
+    vars.foreach {
+      case (k, v) =>
+        // Reserved keys are ignored so user-provided maps cannot override
+        // structural placeholders.
+        if k != "head" && k != "body" && k != "title" && k != "lang" then
+          out = out.replace(s"%melt.$k%", Escape.html(v))
     }
     out
 

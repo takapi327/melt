@@ -9,6 +9,7 @@ package melt.runtime.ssr
 import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Path, Paths }
+
 import scala.collection.immutable
 import scala.io.Source
 
@@ -122,8 +123,8 @@ object ViteManifest:
     * [[IllegalArgumentException]] on anything unexpected.
     */
   def fromString(json: String, uriPrefix: String = "scalajs"): ViteManifest =
-    val parser  = new JsonParser(json)
-    val topVal  = parser.parseValue()
+    val parser = new JsonParser(json)
+    val topVal = parser.parseValue()
     parser.skipWs()
     if parser.pos < json.length then
       throw new IllegalArgumentException(
@@ -150,7 +151,7 @@ object ViteManifest:
   private def parseEntry(fields: Map[String, JsonValue]): Entry =
     val file = fields.get("file") match
       case Some(JsonValue.Str(s)) => s
-      case _                       => ""
+      case _                      => ""
     val imports = fields.get("imports") match
       case Some(JsonValue.Arr(items)) =>
         items.collect { case JsonValue.Str(s) => s }
@@ -161,7 +162,7 @@ object ViteManifest:
       case _ => Nil
     val isEntry = fields.get("isEntry") match
       case Some(JsonValue.Bool(b)) => b
-      case _                        => false
+      case _                       => false
     Entry(file, imports, css, isEntry)
 
   // ── Minimal JSON parser ────────────────────────────────────────────────
@@ -175,12 +176,12 @@ object ViteManifest:
   private sealed trait JsonValue:
     def kind: String
   private object JsonValue:
-    final case class Obj(fields: Map[String, JsonValue])   extends JsonValue { def kind = "object" }
-    final case class Arr(items:  List[JsonValue])          extends JsonValue { def kind = "array"  }
-    final case class Str(value:  String)                   extends JsonValue { def kind = "string" }
-    final case class Num(value:  Double)                   extends JsonValue { def kind = "number" }
-    final case class Bool(value: Boolean)                  extends JsonValue { def kind = "bool"   }
-    case object Null                                       extends JsonValue { def kind = "null"   }
+    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue { def kind = "object" }
+    final case class Arr(items: List[JsonValue])         extends JsonValue { def kind = "array"  }
+    final case class Str(value: String)                  extends JsonValue { def kind = "string" }
+    final case class Num(value: Double)                  extends JsonValue { def kind = "number" }
+    final case class Bool(value: Boolean)                extends JsonValue { def kind = "bool"   }
+    case object Null                                     extends JsonValue { def kind = "null"   }
 
   private final class JsonParser(src: String):
     var pos: Int = 0
@@ -193,16 +194,15 @@ object ViteManifest:
 
     def parseValue(): JsonValue =
       skipWs()
-      if pos >= src.length then
-        throw new IllegalArgumentException("unexpected end of input")
+      if pos >= src.length then throw new IllegalArgumentException("unexpected end of input")
       src.charAt(pos) match
-        case '{' => parseObject()
-        case '[' => parseArray()
-        case '"' => JsonValue.Str(parseString())
-        case 't' | 'f' => JsonValue.Bool(parseBool())
-        case 'n' => parseNull()
+        case '{'                                     => parseObject()
+        case '['                                     => parseArray()
+        case '"'                                     => JsonValue.Str(parseString())
+        case 't' | 'f'                               => JsonValue.Bool(parseBool())
+        case 'n'                                     => parseNull()
         case c if c == '-' || (c >= '0' && c <= '9') => parseNumber()
-        case c => fail(s"unexpected '$c'")
+        case c                                       => fail(s"unexpected '$c'")
 
     private def parseObject(): JsonValue.Obj =
       expect('{')
@@ -245,7 +245,7 @@ object ViteManifest:
 
     private def parseString(): String =
       expect('"')
-      val buf = new StringBuilder
+      val buf  = new StringBuilder
       var done = false
       while !done do
         if pos >= src.length then fail("unterminated string")
@@ -294,9 +294,10 @@ object ViteManifest:
       val start = pos
       if pos < src.length && src.charAt(pos) == '-' then pos += 1
       while pos < src.length && {
-        val c = src.charAt(pos)
-        (c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-'
-      } do pos += 1
+          val c = src.charAt(pos)
+          (c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-'
+        }
+      do pos += 1
       JsonValue.Num(src.substring(start, pos).toDouble)
 
     private def peekChar(c: Char): Boolean =
@@ -305,8 +306,7 @@ object ViteManifest:
 
     private def expect(c: Char): Unit =
       skipWs()
-      if pos >= src.length || src.charAt(pos) != c then
-        fail(s"expected '$c'")
+      if pos >= src.length || src.charAt(pos) != c then fail(s"expected '$c'")
       pos += 1
 
     private def fail(msg: String): Nothing =

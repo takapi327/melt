@@ -24,13 +24,13 @@ private[runtime] object VarFactory:
   * that could ever mutate the value.
   */
 private final class JvmVar[A](initial: A) extends Var[A]:
-  def now():                    A          = initial
-  def set(value: A):            Unit       = ()
-  def update(f: A => A):        Unit       = ()
-  def subscribe(f: A => Unit):  () => Unit = () => ()
+  def now():                   A          = initial
+  def set(value:   A):         Unit       = ()
+  def update(f:    A => A):    Unit       = ()
+  def subscribe(f: A => Unit): () => Unit = () => ()
 
-  def map[B](f: A => B):              Signal[B] = Signal.pure(f(initial))
-  def flatMap[B](f: A => Signal[B]):  Signal[B] = f(initial)
+  def map[B](f:     A => B):         Signal[B] = Signal.pure(f(initial))
+  def flatMap[B](f: A => Signal[B]): Signal[B] = f(initial)
 
   lazy val signal: Signal[A] = Signal.pure(initial)
 

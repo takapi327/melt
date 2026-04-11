@@ -8,7 +8,7 @@ package melt.runtime.ssr
 
 import scala.collection.mutable
 
-import melt.runtime.{ Escape, MeltWarnings, UrlAttributes, AttrNameValidator }
+import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, UrlAttributes }
 
 /** SSR rendering engine used by `meltc`-generated code.
   *
@@ -39,7 +39,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   // §12.3.9 head dedup — the last call wins for title and for each
   // meta-tag name. These are NOT written into headBuf directly; they are
   // assembled into the final head string in result().
-  private var titleContent: Option[String]                   = None
+  private var titleContent: Option[String]                        = None
   private val metaTagMap:   mutable.LinkedHashMap[String, String] =
     mutable.LinkedHashMap.empty
 
@@ -120,8 +120,9 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     bodyBuf ++= child.body
     headBuf ++= child.head
     child.title.foreach(t => titleContent = Some(t))
-    child.metaTags.foreach { case (name, content) =>
-      metaTagMap.update(name, content)
+    child.metaTags.foreach {
+      case (name, content) =>
+        metaTagMap.update(name, content)
     }
     child.css.foreach { entry =>
       if !cssSet.contains(entry) then
@@ -189,7 +190,8 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
       case t: Throwable =>
         val html =
           try fallback(t)
-          catch case _: Throwable => "" // never let the fallback itself blow up
+          catch
+            case _: Throwable => "" // never let the fallback itself blow up
         // If the output is already over the size limit (which is likely
         // if body failed with MeltRenderException), the fallback would
         // itself blow up on trackSize. Write directly to the buffer to
@@ -222,30 +224,30 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     * developer sees dropped keys without the server crashing.
     */
   def spreadAttrs(tag: String, attrs: Map[String, Any]): Unit =
-    attrs.foreach { case (name, rawValue) =>
-      if !AttrNameValidator.isValid(name) then
-        MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
-      else if isEventHandler(name) then
-        MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
-      else if name.startsWith("$$") then
-        // Reserved internal prop — silently skip. Svelte 5 parity.
-        ()
-      else
-        val unwrapped = unwrapOption(rawValue)
-        unwrapped match
-          case null =>
-            () // drop silently
-          case f if isFunction(f) =>
-            MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
-          case false =>
-            () // HTML: false boolean attr → omit entirely
-          case true =>
-            // HTML boolean attr → emit bare (no `="..."`)
-            push(s" $name")
-          case v if UrlAttributes.isUrlAttribute(tag, name) =>
-            push(s""" $name="${ Escape.url(v) }"""")
-          case v =>
-            push(s""" $name="${ Escape.attr(v) }"""")
+    attrs.foreach {
+      case (name, rawValue) =>
+        if !AttrNameValidator.isValid(name) then
+          MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
+        else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
+        else if name.startsWith("$$") then
+          // Reserved internal prop — silently skip. Svelte 5 parity.
+          ()
+        else
+          val unwrapped = unwrapOption(rawValue)
+          unwrapped match
+            case null =>
+              () // drop silently
+            case f if isFunction(f) =>
+              MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
+            case false =>
+              () // HTML: false boolean attr → omit entirely
+            case true =>
+              // HTML boolean attr → emit bare (no `="..."`)
+              push(s" $name")
+            case v if UrlAttributes.isUrlAttribute(tag, name) =>
+              push(s""" $name="${ Escape.url(v) }"""")
+            case v =>
+              push(s""" $name="${ Escape.attr(v) }"""")
     }
 
   /** Unwraps at most a single layer of `Some(x)` so that users can pass
@@ -260,13 +262,13 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     case other       => other
 
   private def isFunction(value: Any): Boolean = value match
-    case _: scala.Function0[_] => true
-    case _: scala.Function1[_, _] => true
-    case _: scala.Function2[_, _, _] => true
-    case _: scala.Function3[_, _, _, _] => true
-    case _: scala.Function4[_, _, _, _, _] => true
-    case _: scala.Function5[_, _, _, _, _, _] => true
-    case _                           => false
+    case _: scala.Function0[?]                => true
+    case _: scala.Function1[?, ?]             => true
+    case _: scala.Function2[?, ?, ?]          => true
+    case _: scala.Function3[?, ?, ?, ?]       => true
+    case _: scala.Function4[?, ?, ?, ?, ?]    => true
+    case _: scala.Function5[?, ?, ?, ?, ?, ?] => true
+    case _                                    => false
 
   /** Finalises the renderer into an immutable [[RenderResult]].
     *
@@ -286,17 +288,22 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     * exercised.
     */
   def result(): RenderResult =
-    val metaHtml = metaTagMap.map { case (name, content) =>
-      s"""<meta name="$name" content="$content">"""
-    }.mkString("\n")
+    val metaHtml = metaTagMap
+      .map {
+        case (name, content) =>
+          s"""<meta name="$name" content="$content">"""
+      }
+      .mkString("\n")
 
     val titleHtml = titleContent match
       case Some(t) => s"<title>$t</title>"
       case None    => ""
 
-    val cssHtml = cssSet.map { entry =>
-      s"""<style id="${ entry.scopeId }">${ entry.code }</style>"""
-    }.mkString("\n")
+    val cssHtml = cssSet
+      .map { entry =>
+        s"""<style id="${ entry.scopeId }">${ entry.code }</style>"""
+      }
+      .mkString("\n")
 
     val headParts = List(metaHtml, headBuf.toString, titleHtml, cssHtml)
       .filter(_.nonEmpty)

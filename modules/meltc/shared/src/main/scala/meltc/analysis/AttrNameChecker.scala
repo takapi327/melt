@@ -8,9 +8,9 @@ package meltc.analysis
 
 import scala.collection.mutable
 
-import meltc.CompileError
 import meltc.ast.*
 import meltc.codegen.NameValidators
+import meltc.CompileError
 
 /** Compile-time validator for static attribute names (§12.1.2).
   *
@@ -66,13 +66,13 @@ object AttrNameChecker:
     filename: String
   ): Unit =
     val nameOpt: Option[String] = attr match
-      case Attr.Static(n, _)                 => Some(n)
-      case Attr.Dynamic(n, _)                => Some(n)
-      case Attr.BooleanAttr(n)               => Some(n)
-      case Attr.Directive(kind, n, _, _)     => Some(s"$kind:$n")
-      case Attr.EventHandler(event, _)       => Some(s"on$event")
-      case Attr.Shorthand(n)                 => Some(n)
-      case Attr.Spread(_)                    => None // dynamic — runtime-checked
+      case Attr.Static(n, _)             => Some(n)
+      case Attr.Dynamic(n, _)            => Some(n)
+      case Attr.BooleanAttr(n)           => Some(n)
+      case Attr.Directive(kind, n, _, _) => Some(s"$kind:$n")
+      case Attr.EventHandler(event, _)   => Some(s"on$event")
+      case Attr.Shorthand(n)             => Some(n)
+      case Attr.Spread(_)                => None // dynamic — runtime-checked
 
     nameOpt.foreach { n =>
       // Directive kind:name pairs contain a `:` which HTML attribute names

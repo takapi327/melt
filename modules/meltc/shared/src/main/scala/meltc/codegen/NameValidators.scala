@@ -32,9 +32,9 @@ object NameValidators:
 
   private def isInvalidAttrCodePoint(cp: Int): Boolean =
     Character.isWhitespace(cp) ||
-    cp == '\'' || cp == '"' || cp == '>' || cp == '/' || cp == '=' ||
-    (cp >= 0xFDD0 && cp <= 0xFDEF) ||
-    ((cp & 0xFFFE) == 0xFFFE && cp <= 0x10FFFF)
+      cp == '\'' || cp == '"' || cp == '>' || cp == '/' || cp == '=' ||
+      (cp >= 0xfdd0 && cp <= 0xfdef) ||
+      ((cp & 0xfffe) == 0xfffe && cp <= 0x10ffff)
 
   /** Validates an HTML tag name. Mirrors `TagNameValidator.isValid`. */
   def isValidTagName(name: String): Boolean =
@@ -51,7 +51,7 @@ object NameValidators:
           if cp == '-' then seenHyphen = true
           else if seenHyphen then
             if !isValidExtendedTagChar(cp) then valid = false
-          else if !isAsciiAlphaNum(cp) then valid = false
+          else if !isAsciiAlphaNum(cp) then valid     = false
           i += Character.charCount(cp)
         valid
 
@@ -71,17 +71,17 @@ object NameValidators:
 
   private def isValidExtendedTagChar(cp: Int): Boolean =
     isAsciiAlphaNum(cp) ||
-    cp == '.' || cp == '-' || cp == '_' ||
-    cp == 0x00B7 ||
-    (cp >= 0x00C0 && cp <= 0x00D6) ||
-    (cp >= 0x00D8 && cp <= 0x00F6) ||
-    (cp >= 0x00F8 && cp <= 0x037D) ||
-    (cp >= 0x037F && cp <= 0x1FFF) ||
-    (cp >= 0x200C && cp <= 0x200D) ||
-    (cp >= 0x203F && cp <= 0x2040) ||
-    (cp >= 0x2070 && cp <= 0x218F) ||
-    (cp >= 0x2C00 && cp <= 0x2FEF) ||
-    (cp >= 0x3001 && cp <= 0xD7FF) ||
-    (cp >= 0xF900 && cp <= 0xFDCF) ||
-    (cp >= 0xFDF0 && cp <= 0xFFFD) ||
-    (cp >= 0x10000 && cp <= 0xEFFFF)
+      cp == '.' || cp == '-' || cp == '_' ||
+      cp == 0x00b7 ||
+      (cp >= 0x00c0 && cp <= 0x00d6) ||
+      (cp >= 0x00d8 && cp <= 0x00f6) ||
+      (cp >= 0x00f8 && cp <= 0x037d) ||
+      (cp >= 0x037f && cp <= 0x1fff) ||
+      (cp >= 0x200c && cp <= 0x200d) ||
+      (cp >= 0x203f && cp <= 0x2040) ||
+      (cp >= 0x2070 && cp <= 0x218f) ||
+      (cp >= 0x2c00 && cp <= 0x2fef) ||
+      (cp >= 0x3001 && cp <= 0xd7ff) ||
+      (cp >= 0xf900 && cp <= 0xfdcf) ||
+      (cp >= 0xfdf0 && cp <= 0xfffd) ||
+      (cp >= 0x10000 && cp <= 0xeffff)

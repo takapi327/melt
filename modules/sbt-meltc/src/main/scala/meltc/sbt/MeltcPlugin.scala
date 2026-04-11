@@ -8,8 +8,9 @@ package meltc.sbt
 
 import sbt._
 import sbt.Keys._
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, scalaJSLinkerOutputDirectory }
+
 import org.scalajs.linker.interface.Report
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, scalaJSLinkerOutputDirectory }
 
 /** sbt-meltc plugin
   *
@@ -221,8 +222,8 @@ object MeltcPlugin extends AutoPlugin {
       // Users can override this setting explicitly if needed.
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
-    meltcHydration := false,
-    meltcSourceDirectory := (Compile / sourceDirectory).value / "scala",
+    meltcHydration         := false,
+    meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories := {
       // In a crossProject the unmanagedSourceDirectories list already
       // contains both the platform-specific and the shared `scala` directory,
@@ -324,59 +325,60 @@ object MeltcPlugin extends AutoPlugin {
 
     val normalisedMode = mode.toLowerCase match {
       case "spa" | "ssr" => mode.toLowerCase
-      case other =>
+      case other         =>
         log.warn(s"[sbt-meltc] unknown meltcMode '$other' — falling back to 'spa'")
         "spa"
     }
 
-    meltFilesWithRoot.flatMap { case (meltFile, srcDir) =>
-      val objectName = meltFile.base.head.toUpper + meltFile.base.tail
+    meltFilesWithRoot.flatMap {
+      case (meltFile, srcDir) =>
+        val objectName = meltFile.base.head.toUpper + meltFile.base.tail
 
-      // Derive sub-package from the relative path between the owning srcDir
-      // and the file's parent directory.
-      // e.g. srcDir=src/main/components, file=src/main/components/atom/Button.melt → subPkg="atom"
-      val subPkg = IO
-        .relativize(srcDir, meltFile.getParentFile)
-        .map(_.replace(java.io.File.separatorChar, '.'))
-        .getOrElse("")
-      val fullPkg = (pkg, subPkg) match {
-        case (p, "") => p
-        case ("", s) => s
-        case (p, s)  => s"$p.$s"
-      }
+        // Derive sub-package from the relative path between the owning srcDir
+        // and the file's parent directory.
+        // e.g. srcDir=src/main/components, file=src/main/components/atom/Button.melt → subPkg="atom"
+        val subPkg = IO
+          .relativize(srcDir, meltFile.getParentFile)
+          .map(_.replace(java.io.File.separatorChar, '.'))
+          .getOrElse("")
+        val fullPkg = (pkg, subPkg) match {
+          case (p, "") => p
+          case ("", s) => s
+          case (p, s)  => s"$p.$s"
+        }
 
-      // Mirror directory structure in the output so that each package lives
-      // in its own sub-folder. Derived against the owning srcDir.
-      val outSubDir = IO
-        .relativize(srcDir, meltFile.getParentFile)
-        .map(rel => new java.io.File(outDir, rel))
-        .getOrElse(outDir)
-      IO.createDirectory(outSubDir)
-      val outFile = outSubDir / s"$objectName.scala"
+        // Mirror directory structure in the output so that each package lives
+        // in its own sub-folder. Derived against the owning srcDir.
+        val outSubDir = IO
+          .relativize(srcDir, meltFile.getParentFile)
+          .map(rel => new java.io.File(outDir, rel))
+          .getOrElse(outDir)
+        IO.createDirectory(outSubDir)
+        val outFile = outSubDir / s"$objectName.scala"
 
-      log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
+        log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
-      val javaArgs = Seq(
-        "-cp",
-        cpStr,
-        "meltc.MeltcMain",
-        meltFile.getAbsolutePath,
-        outFile.getAbsolutePath,
-        objectName,
-        fullPkg,
-        "--mode",
-        normalisedMode
-      ) ++ (if (hydration) Seq("--hydration") else Seq.empty)
+        val javaArgs = Seq(
+          "-cp",
+          cpStr,
+          "meltc.MeltcMain",
+          meltFile.getAbsolutePath,
+          outFile.getAbsolutePath,
+          objectName,
+          fullPkg,
+          "--mode",
+          normalisedMode
+        ) ++ (if (hydration) Seq("--hydration") else Seq.empty)
 
-      val exitCode = Fork.java(ForkOptions(), javaArgs)
+        val exitCode = Fork.java(ForkOptions(), javaArgs)
 
-      if (exitCode == 0) {
-        log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
-        Seq(outFile)
-      } else {
-        log.error(s"[sbt-meltc] Compilation failed for ${ meltFile.getName } (exit $exitCode)")
-        Seq.empty
-      }
+        if (exitCode == 0) {
+          log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
+          Seq(outFile)
+        } else {
+          log.error(s"[sbt-meltc] Compilation failed for ${ meltFile.getName } (exit $exitCode)")
+          Seq.empty
+        }
     }
   }
 
