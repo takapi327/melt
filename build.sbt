@@ -91,6 +91,11 @@ lazy val `sbt-meltc` = BuildSettings
   .MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
     crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
+    // sbt-scalajs is pulled in via modules/sbt-meltc/build.sbt (a
+    // sub-project build file), because the meta-build compiles
+    // sbt-meltc as a source dependency of the root meta-project and
+    // that compile phase reads sbt-meltc's OWN build.sbt — not this
+    // one.
   )
 
 // ── Runtime (crossProject: JVM + JS) ──
@@ -310,9 +315,25 @@ lazy val `http4s-ssr-server` = project
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-ember-server" % "0.23.33",
       "org.http4s" %% "http4s-dsl"          % "0.23.33"
-    )
+    ),
+    // ── Auto-generate `generated.AssetManifest` from the client's
+    //    Scala.js `fastLinkJS` public modules (§C12) ───────────────────────
+    //
+    // Enabling `MeltcPlugin` and pointing `meltcAssetManifestClient`
+    // at the client sub-project is all the user has to do. The plugin
+    // wires up a sourceGenerator that:
+    //
+    //   1. Takes a `.value` dependency on the client's fastLinkJS so
+    //      sbt rebuilds the client whenever a `.melt` or `.scala`
+    //      source changes.
+    //   2. Reads `Report.publicModules` and writes
+    //      `generated.AssetManifest` containing both a `ViteManifest`
+    //      (moduleID → chunk file) and the absolute `clientDistDir`.
+    //
+    // No manual source-generator boilerplate in build.sbt.
+    meltcAssetManifestClient := Some(`http4s-ssr-client`)
   )
-  .enablePlugins(AutomateHeaderPlugin)
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(`http4s-ssr-components`.jvm)
 
 // ── Example: ReactiveScope (Phase 0 — resource management) ───────────────────
