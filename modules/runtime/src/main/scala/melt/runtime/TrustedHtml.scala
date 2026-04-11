@@ -24,18 +24,43 @@ package melt.runtime
   * // Compile error — plain Var[String] no longer accepted
   * Bind.html(el, Var(userInput))
   * }}}
+  *
+  * == Implementation note: why `AnyVal` instead of `opaque type` ==
+  *
+  * An earlier design used `opaque type TrustedHtml = String`, which is only
+  * distinguished at compile time and is fully erased to its underlying type
+  * (`String`) at runtime. That erasure breaks any code that needs to tell
+  * trusted from untrusted values at runtime — notably the SSR `Escape`
+  * helpers, which do:
+  *
+  * {{{
+  *   value match
+  *     case th: TrustedHtml => th.value          // bypass escaping
+  *     case s:  String      => escapeHtml(s)     // escape
+  * }}}
+  *
+  * With an opaque type, `case th: TrustedHtml` is compiled as
+  * `case _: String` and therefore matches **every** `String`, silently
+  * letting unsanitised user input bypass HTML escaping — a critical XSS
+  * vulnerability.
+  *
+  * `final class TrustedHtml(val value: String) extends AnyVal` gives us:
+  *
+  *   1. A runtime-distinguishable type, so `isInstanceOf[TrustedHtml]`
+  *      and the pattern match above behave as intended.
+  *   2. The same zero-overhead ergonomics as an opaque type in most call
+  *      sites (the JVM unboxes `AnyVal` wherever possible).
+  *   3. An API surface identical to the opaque-type version —
+  *      `TrustedHtml.unsafe(str)` wraps and `th.value` unwraps.
   */
-opaque type TrustedHtml = String
+final class TrustedHtml(val value: String) extends AnyVal
 
 object TrustedHtml:
 
   /** Marks a string as trusted HTML.
     *
-    * **Warning:** Only pass content that is either developer-controlled (static
-    * markup) or has been sanitised against XSS. Never pass raw user input.
+    * '''Warning:''' Only pass content that is either developer-controlled
+    * (static markup) or has been sanitised against XSS. Never pass raw user
+    * input.
     */
-  def unsafe(html: String): TrustedHtml = html
-
-  extension (th: TrustedHtml)
-    /** Returns the underlying string value. */
-    def value: String = th
+  def unsafe(html: String): TrustedHtml = new TrustedHtml(html)
