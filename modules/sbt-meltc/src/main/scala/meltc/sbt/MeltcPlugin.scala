@@ -51,11 +51,55 @@ object MeltcPlugin extends AutoPlugin {
 
   object autoImport {
 
+    /** Compilation mode for `.melt` files.
+      *
+      * Values:
+      *   - `"spa"` — generate Scala.js DOM-manipulating code (default for
+      *              projects with `ScalaJSPlugin` enabled)
+      *   - `"ssr"` — generate JVM HTML string-generating code (default for
+      *              projects without `ScalaJSPlugin`)
+      *
+      * The default is auto-detected from the project's enabled plugins, so
+      * crossProject (JVM + JS) users normally do not need to set this
+      * manually: the `.jvm` sub-project will get `"ssr"` and the `.js`
+      * sub-project will get `"spa"`.
+      *
+      * Detection is performed by scanning `thisProject.value.autoPlugins` for
+      * a plugin whose class name is `org.scalajs.sbtplugin.ScalaJSPlugin`.
+      * This avoids making sbt-meltc itself depend on sbt-scalajs.
+      */
+    val meltcMode =
+      settingKey[String]("Compilation mode: 'spa' or 'ssr' (auto-detected from platform)")
+
     /** Directory that contains `.melt` source files.
-      * Default: `src/main/scala`
+      *
+      * Default: `src/main/scala`.
+      *
+      * In a `crossProject` layout this setting alone is insufficient because
+      * the platform-specific source directory does not contain `shared/` files.
+      * Use [[meltcSourceDirectories]] instead — it defaults to the union of
+      * all `Compile / unmanagedSourceDirectories`, which includes both the
+      * platform-specific and the shared source directory provided by
+      * sbt-crossproject.
+      *
+      * This key is kept for backwards compatibility; it seeds
+      * `meltcSourceDirectories` by default.
       */
     val meltcSourceDirectory =
-      settingKey[File]("Directory containing .melt source files")
+      settingKey[File]("Directory containing .melt source files (legacy single-dir form)")
+
+    /** All directories to scan for `.melt` source files.
+      *
+      * Default: `Compile / unmanagedSourceDirectories` — this picks up both
+      * the platform-specific source root (e.g. `jvm/src/main/scala`) and the
+      * shared source root (e.g. `shared/src/main/scala`) automatically when
+      * the project is a `crossProject` member.
+      *
+      * For single-platform projects this defaults to the single directory
+      * `Compile / sourceDirectory / "scala"`, preserving legacy behaviour.
+      */
+    val meltcSourceDirectories =
+      settingKey[Seq[File]]("Directories containing .melt source files (crossProject-aware)")
 
     /** Directory where generated `.scala` files are written.
       * Default: `target/scala-x.y/src_managed/meltc`
@@ -92,8 +136,33 @@ object MeltcPlugin extends AutoPlugin {
 
   import autoImport._
 
+  /** Class name of Scala.js's sbt plugin. We check for this by string rather
+    * than importing the class, so sbt-meltc does not need to declare a hard
+    * dependency on sbt-scalajs.
+    */
+  private val ScalaJSPluginClassName = "org.scalajs.sbtplugin.ScalaJSPlugin$"
+
+  /** Returns `true` iff the resolved project has `ScalaJSPlugin` enabled. */
+  private def hasScalaJSPlugin(project: sbt.ResolvedProject): Boolean =
+    project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
+
   override def projectSettings: Seq[Setting[_]] = Seq(
+    meltcMode := {
+      // Auto-detect: projects with ScalaJSPlugin → "spa", otherwise → "ssr".
+      // Users can override this setting explicitly if needed.
+      if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
+    },
     meltcSourceDirectory := (Compile / sourceDirectory).value / "scala",
+    meltcSourceDirectories := {
+      // In a crossProject the unmanagedSourceDirectories list already
+      // contains both the platform-specific and the shared `scala` directory,
+      // so scanning them all naturally supports .melt placement under shared.
+      val unmanaged = (Compile / unmanagedSourceDirectories).value
+      val legacy    = meltcSourceDirectory.value
+      // Deduplicate while preserving order: unmanaged first, then legacy
+      // (if not already included).
+      (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
+    },
     meltcOutputDirectory := (Compile / sourceManaged).value / "meltc",
     meltcPackage         := "",
     meltcCompilerVersion := sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT"),
@@ -111,9 +180,10 @@ object MeltcPlugin extends AutoPlugin {
 
     meltcGenerate := compileMeltFiles(
       streams    = streams.value,
-      srcDir     = meltcSourceDirectory.value,
+      srcDirs    = meltcSourceDirectories.value,
       outDir     = meltcOutputDirectory.value,
       pkg        = meltcPackage.value,
+      mode       = meltcMode.value,
       compilerCp = meltcCompilerClasspath.value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue
@@ -123,9 +193,10 @@ object MeltcPlugin extends AutoPlugin {
 
   private def compileMeltFiles(
     streams:    TaskStreams,
-    srcDir:     File,
+    srcDirs:    Seq[File],
     outDir:     File,
     pkg:        String,
+    mode:       String,
     compilerCp: Seq[File]
   ): Seq[File] = {
     val log = streams.log
@@ -140,18 +211,33 @@ object MeltcPlugin extends AutoPlugin {
 
     IO.createDirectory(outDir)
 
-    val meltFiles = (srcDir ** "*.melt").get
-    if (meltFiles.isEmpty) {
-      log.debug(s"[sbt-meltc] No .melt files found in $srcDir")
+    // Collect all .melt files from every configured source directory, tagged
+    // with the directory they were discovered in (so we can compute the
+    // correct relative sub-package against the owning source root).
+    val meltFilesWithRoot: Seq[(File, File)] =
+      srcDirs.filter(_.exists).flatMap { srcDir =>
+        (srcDir ** "*.melt").get.map(f => (f, srcDir))
+      }
+
+    if (meltFilesWithRoot.isEmpty) {
+      log.debug(s"[sbt-meltc] No .melt files found under ${ srcDirs.mkString(", ") }")
       return Seq.empty
     }
 
     val cpStr = compilerCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
-    meltFiles.flatMap { meltFile =>
+    val normalisedMode = mode.toLowerCase match {
+      case "spa" | "ssr" => mode.toLowerCase
+      case other =>
+        log.warn(s"[sbt-meltc] unknown meltcMode '$other' — falling back to 'spa'")
+        "spa"
+    }
+
+    meltFilesWithRoot.flatMap { case (meltFile, srcDir) =>
       val objectName = meltFile.base.head.toUpper + meltFile.base.tail
 
-      // Derive sub-package from the relative path between srcDir and the file's parent directory.
+      // Derive sub-package from the relative path between the owning srcDir
+      // and the file's parent directory.
       // e.g. srcDir=src/main/components, file=src/main/components/atom/Button.melt → subPkg="atom"
       val subPkg = IO
         .relativize(srcDir, meltFile.getParentFile)
@@ -163,7 +249,8 @@ object MeltcPlugin extends AutoPlugin {
         case (p, s)  => s"$p.$s"
       }
 
-      // Mirror directory structure in the output so that each package lives in its own sub-folder.
+      // Mirror directory structure in the output so that each package lives
+      // in its own sub-folder. Derived against the owning srcDir.
       val outSubDir = IO
         .relativize(srcDir, meltFile.getParentFile)
         .map(rel => new java.io.File(outDir, rel))
@@ -180,7 +267,9 @@ object MeltcPlugin extends AutoPlugin {
         meltFile.getAbsolutePath,
         outFile.getAbsolutePath,
         objectName,
-        fullPkg
+        fullPkg,
+        "--mode",
+        normalisedMode
       )
 
       val exitCode = Fork.java(ForkOptions(), javaArgs)
