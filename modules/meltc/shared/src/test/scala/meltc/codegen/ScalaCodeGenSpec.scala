@@ -141,10 +141,10 @@ class ScalaCodeGenSpec extends munit.FunSuite:
         |<p>{count}</p>""".stripMargin
     val code = compile(src)
     assert(code.contains("val count = 42"), code)
-    // Script code should be inside create(), after Cleanup.pushScope()
+    // Script code should be inside create(), inside Owner.withNew { ... }
     val createIdx  = code.indexOf("def create()")
     val scriptIdx  = code.indexOf("val count = 42")
-    val closingIdx = code.indexOf("val _cleanups")
+    val closingIdx = code.indexOf("Lifecycle.register")
     assert(
       createIdx >= 0 && scriptIdx > createIdx && scriptIdx < closingIdx,
       s"Script should be inside create():\n$code"
@@ -414,10 +414,10 @@ class ScalaCodeGenSpec extends munit.FunSuite:
 
   // ── Phase 4: Reactive bindings ──────────────────────────────────────────
 
-  test("create() includes Cleanup.pushScope and popScope with stored cleanups") {
+  test("create() wraps body in Owner.withNew and registers with Lifecycle") {
     val code = compile("<div></div>")
-    assert(code.contains("Cleanup.pushScope()"), code)
-    assert(code.contains("val _cleanups = Cleanup.popScope()"), code)
+    assert(code.contains("Owner.withNew"), code)
+    assert(code.contains("Lifecycle.register"), code)
   }
 
   test("bind:value directive emits Bind.inputValue") {
@@ -452,8 +452,8 @@ class ScalaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("createTextNode(\"Hello, \")"), code)
     // Script code
     assert(code.contains("val count = Var(0)"), code)
-    // Cleanup
-    assert(code.contains("Cleanup.pushScope()"), code)
+    // Owner-based lifecycle
+    assert(code.contains("Owner.withNew"), code)
   }
 
   // ── MeltCompiler integration: style + script + template ─────────────────
