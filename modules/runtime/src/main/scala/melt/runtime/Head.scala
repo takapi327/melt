@@ -29,12 +29,13 @@ object Head:
     * - A cleanup is registered to remove `child` when the component is destroyed.
     */
   def appendChild(child: dom.Element): Unit =
-    val selector = existingSelector(child)
-    if selector != null then
-      val existing = dom.document.head.querySelector(selector)
-      if existing != null then dom.document.head.replaceChild(child, existing)
-      else dom.document.head.appendChild(child)
-    else dom.document.head.appendChild(child)
+    existingSelector(child) match
+      case Some(selector) =>
+        val existing = Option(dom.document.head.querySelector(selector))
+        existing.fold(dom.document.head.appendChild(child))(
+          dom.document.head.replaceChild(child, _)
+        )
+      case None => dom.document.head.appendChild(child)
     Cleanup.register(() => {
       if dom.document.head.contains(child) then
         dom.document.head.removeChild(child)
@@ -42,29 +43,24 @@ object Head:
     })
 
   /** Returns a CSS selector that uniquely identifies an element of the same
-    * "kind" as `child` within `document.head`, or `null` if no deduplication
+    * "kind" as `child` within `document.head`, or [[None]] if no deduplication
     * is needed (i.e. the element should always be appended).
     *
     * Matching rules:
-    * - `<title>`                         → `"title"`
-    * - `<meta name="…">`                 → `meta[name="…"]`
-    * - `<meta property="…">`             → `meta[property="…"]`  (Open Graph etc.)
-    * - `<meta http-equiv="…">`           → `meta[http-equiv="…"]`
-    * - `<link rel="…">`                  → `link[rel="…"]`
-    * - everything else                   → `null` (append)
+    * - `<title>`                         → `Some("title")`
+    * - `<meta name="…">`                 → `Some(meta[name="…"])`
+    * - `<meta property="…">`             → `Some(meta[property="…"])`  (Open Graph etc.)
+    * - `<meta http-equiv="…">`           → `Some(meta[http-equiv="…"])`
+    * - `<link rel="…">`                  → `Some(link[rel="…"])`
+    * - everything else                   → `None` (append)
     */
-  private def existingSelector(child: dom.Element): String | Null =
+  private def existingSelector(child: dom.Element): Option[String] =
     child.tagName.toLowerCase match
-      case "title" => "title"
+      case "title" => Some("title")
       case "meta"  =>
-        val name      = child.getAttribute("name")
-        val property  = child.getAttribute("property")
-        val httpEquiv = child.getAttribute("http-equiv")
-        if name != null then s"""meta[name="$name"]"""
-        else if property != null then s"""meta[property="$property"]"""
-        else if httpEquiv != null then s"""meta[http-equiv="$httpEquiv"]"""
-        else null
+        Option(child.getAttribute("name")).map(n => s"""meta[name="$n"]""")
+          .orElse(Option(child.getAttribute("property")).map(p => s"""meta[property="$p"]"""))
+          .orElse(Option(child.getAttribute("http-equiv")).map(h => s"""meta[http-equiv="$h"]"""))
       case "link" =>
-        val rel = child.getAttribute("rel")
-        if rel != null then s"""link[rel="$rel"]""" else null
-      case _ => null
+        Option(child.getAttribute("rel")).map(r => s"""link[rel="$r"]""")
+      case _ => None
