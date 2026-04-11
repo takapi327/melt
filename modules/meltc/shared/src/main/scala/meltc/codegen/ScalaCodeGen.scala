@@ -67,7 +67,7 @@ object ScalaCodeGen:
       case None =>
         buf ++= "  def create(): dom.Element = {\n"
 
-    buf ++= "    Cleanup.pushScope()\n"
+    buf ++= "    val (_result, _owner) = Owner.withNew {\n"
 
     if ast.style.isDefined then buf ++= "    Style.inject(_scopeId, _css)\n"
 
@@ -104,8 +104,9 @@ object ScalaCodeGen:
         }
         buf ++= "    val _result = _root\n"
 
-    buf ++= "    val _cleanups = Cleanup.popScope()\n"
-    buf ++= "    Lifecycle.register(_result, _cleanups)\n"
+    buf ++= "    _result\n"
+    buf ++= "    }\n"
+    buf ++= "    Lifecycle.register(_result, _owner)\n"
     buf ++= "    _result\n"
     buf ++= "  }\n\n"
 
