@@ -349,6 +349,8 @@ object ScalaCodeGen:
         buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case Attr.Dynamic("class", expr) =>
         buf ++= s"""${ indent }($expr).toString.split("\\\\s+").filter(_.nonEmpty).foreach($v.classList.add(_))\n"""
+      case Attr.Dynamic(name, expr) if ScalaCodeGen.htmlBooleanAttrs.contains(name) =>
+        buf ++= s"""${ indent }Bind.booleanAttr($v, "$name", $expr)\n"""
       case Attr.Dynamic(name, expr) =>
         buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""
       case Attr.EventHandler(event, expr) =>
@@ -673,6 +675,33 @@ object ScalaCodeGen:
     "munder",
     "munderover",
     "semantics"
+  )
+
+  // ── Known HTML boolean attributes ─────────────────────────────────────────
+  // These attributes use presence/absence (not value) to mean true/false.
+  // Dynamic bindings for these names emit Bind.booleanAttr instead of Bind.attr.
+  val htmlBooleanAttrs: Set[String] = Set(
+    "disabled",
+    "checked",
+    "readonly",
+    "required",
+    "selected",
+    "multiple",
+    "autofocus",
+    "autoplay",
+    "controls",
+    "default",
+    "defer",
+    "formnovalidate",
+    "hidden",
+    "ismap",
+    "loop",
+    "nomodule",
+    "novalidate",
+    "open",
+    "reversed",
+    "scoped",
+    "seamless"
   )
 
   // ── Helpers ───────────────────────────────────────────────────────────────
