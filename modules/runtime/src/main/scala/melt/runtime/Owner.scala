@@ -22,10 +22,14 @@ import scala.scalajs.js
   */
 final class OwnerNode(val parent: Option[OwnerNode]):
 
-  private var _firstChild:  OwnerNode | Null = null
-  private var _lastChild:   OwnerNode | Null = null
-  private var _nextSibling: OwnerNode | Null = null
-  private var _prevSibling: OwnerNode | Null = null
+  // Doubly-linked sibling list.  Option is used rather than `OwnerNode | Null`
+  // to keep the type consistent with `parent` and to avoid null in internal code.
+  // The trade-off is a small allocation per `Some` wrapper on each pointer write,
+  // which is acceptable for typical component trees.
+  private var _firstChild:  Option[OwnerNode] = None
+  private var _lastChild:   Option[OwnerNode] = None
+  private var _nextSibling: Option[OwnerNode] = None
+  private var _prevSibling: Option[OwnerNode] = None
 
   // js.Set preserves insertion order and is the standard Svelte 5 approach
   private val _cleanups: js.Set[() => Unit] = new js.Set()
@@ -39,33 +43,35 @@ final class OwnerNode(val parent: Option[OwnerNode]):
     */
   private[runtime] def addChild(child: OwnerNode): Unit =
     if _destroyed then return
-    val last = _lastChild
-    if last == null then
-      _firstChild = child
-      _lastChild  = child
-    else
-      last._nextSibling  = child
-      child._prevSibling = last
-      _lastChild         = child
+    _lastChild match
+      case None =>
+        _firstChild = Some(child)
+        _lastChild  = Some(child)
+      case Some(last) =>
+        last._nextSibling  = Some(child)
+        child._prevSibling = Some(last)
+        _lastChild         = Some(child)
 
   /** Removes this node from its parent's child list.
     *
-    * The Svelte 5 guard (`if p._firstChild != null || p._lastChild != null`) prevents
+    * The Svelte 5 guard (`if p._firstChild.isDefined || p._lastChild.isDefined`) prevents
     * children from writing back into a parent that has already cleared its child list
     * during its own `destroy()` call, avoiding stale pointer overwrites.
     */
   private def unlinkFromParent(): Unit =
     parent.foreach { p =>
       // Guard: skip if parent has already cleared its child list (during parent.destroy())
-      if p._firstChild != null || p._lastChild != null then
+      if p._firstChild.isDefined || p._lastChild.isDefined then
         val prev = _prevSibling
         val next = _nextSibling
-        if prev != null then prev._nextSibling = next
-        else p._firstChild                     = next
-        if next != null then next._prevSibling = prev
-        else p._lastChild                      = prev
-        _prevSibling                           = null
-        _nextSibling                           = null
+        prev match
+          case Some(prevNode) => prevNode._nextSibling = next
+          case None           => p._firstChild = next
+        next match
+          case Some(nextNode) => nextNode._prevSibling = prev
+          case None           => p._lastChild = prev
+        _prevSibling = None
+        _nextSibling = None
     }
 
   /** Registers a cleanup function to run when this node is destroyed.
@@ -97,8 +103,8 @@ final class OwnerNode(val parent: Option[OwnerNode]):
 
     // Snapshot children and cleanups before clearing (Svelte 5 pattern)
     var child = _firstChild
-    _firstChild = null
-    _lastChild  = null
+    _firstChild = None
+    _lastChild  = None
 
     val cleanupsSnap = js.Array.from(_cleanups)
     _cleanups.clear()
@@ -107,9 +113,10 @@ final class OwnerNode(val parent: Option[OwnerNode]):
     unlinkFromParent()
 
     // Destroy children FIFO
-    while child != null do
-      val next = child._nextSibling
-      try child.destroy()
+    while child.isDefined do
+      val node = child.get
+      val next = node._nextSibling
+      try node.destroy()
       catch case _: Throwable => ()
       child = next
 
