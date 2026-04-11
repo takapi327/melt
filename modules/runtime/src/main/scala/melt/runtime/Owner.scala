@@ -66,10 +66,10 @@ final class OwnerNode(val parent: Option[OwnerNode]):
         val next = _nextSibling
         prev match
           case Some(prevNode) => prevNode._nextSibling = next
-          case None           => p._firstChild = next
+          case None           => p._firstChild         = next
         next match
           case Some(nextNode) => nextNode._prevSibling = prev
-          case None           => p._lastChild = prev
+          case None           => p._lastChild          = prev
         _prevSibling = None
         _nextSibling = None
     }
