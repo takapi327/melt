@@ -32,9 +32,9 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("import melt.runtime.ssr.*"), code)
   }
 
-  test("SsrCodeGen emits render() returning RenderResult") {
+  test("SsrCodeGen emits apply() returning RenderResult") {
     val code = compile("<div></div>")
-    assert(code.contains("def render"), code)
+    assert(code.contains("def apply"), code)
     assert(code.contains(": RenderResult"), code)
     assert(code.contains("SsrRenderer()"), code)
     assert(code.contains("renderer.result()"), code)
@@ -124,9 +124,9 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   // ── Components ─────────────────────────────────────────────────────────
 
-  test("bare component renders via merge") {
+  test("bare component renders via apply + merge") {
     val code = compile("""<div><Child/></div>""")
-    assert(code.contains("renderer.merge(Child.render())"), code)
+    assert(code.contains("renderer.merge(Child())"), code)
   }
 
   test("component with attributes builds Props()") {

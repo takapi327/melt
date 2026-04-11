@@ -64,9 +64,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Style"), code)
   }
 
-  test("creates() and mount() methods are present") {
+  test("apply() and mount() methods are present") {
     val code = compile("<div></div>")
-    assert(code.contains("def create(): dom.Element"), code)
+    assert(code.contains("def apply(): dom.Element"), code)
     assert(code.contains("def mount(target: dom.Element): Unit"), code)
   }
 
@@ -142,7 +142,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("val count = 42"), code)
     // Script code should be inside create(), inside Owner.withNew { ... }
-    val createIdx  = code.indexOf("def create()")
+    val createIdx  = code.indexOf("def apply()")
     val scriptIdx  = code.indexOf("val count = 42")
     val closingIdx = code.indexOf("Lifecycle.register")
     assert(
@@ -414,7 +414,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── Phase 4: Reactive bindings ──────────────────────────────────────────
 
-  test("create() wraps body in Owner.withNew and registers with Lifecycle") {
+  test("apply() wraps body in Owner.withNew and registers with Lifecycle") {
     val code = compile("<div></div>")
     assert(code.contains("Owner.withNew"), code)
     assert(code.contains("Lifecycle.register"), code)
@@ -503,10 +503,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
     // Props definition at object level (before create)
     assert(code.contains("case class Props(label: String, count: Int)"), code)
     val propsDefIdx = code.indexOf("case class Props")
-    val createIdx   = code.indexOf("def create(")
+    val createIdx   = code.indexOf("def apply(")
     assert(propsDefIdx < createIdx, s"Props def should be before create():\n$code")
     // create takes props parameter
-    assert(code.contains("def create(props: Props): dom.Element"), code)
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
     // mount takes props parameter
     assert(code.contains("def mount(target: dom.Element, props: Props)"), code)
     // body code is inside create
@@ -515,18 +515,18 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("component reference without props generates create()") {
     val code = compile("<div><Footer /></div>")
-    assert(code.contains("Footer.create()"), code)
+    assert(code.contains("Footer()"), code)
   }
 
   test("component reference with static props") {
     val code = compile("""<div><Counter label="Hello" /></div>""")
-    assert(code.contains("Counter.create(Counter.Props("), code)
+    assert(code.contains("Counter(Counter.Props("), code)
     assert(code.contains("""label = "Hello""""), code)
   }
 
   test("component reference with dynamic props") {
     val code = compile("<div><Counter count={n} /></div>")
-    assert(code.contains("Counter.create(Counter.Props("), code)
+    assert(code.contains("Counter(Counter.Props("), code)
     assert(code.contains("count = n"), code)
   }
 
@@ -537,7 +537,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("component reference with spread attribute") {
     val code = compile("<div><Counter {...counterProps} /></div>")
-    assert(code.contains("Counter.create(counterProps)"), code)
+    assert(code.contains("Counter(counterProps)"), code)
   }
 
   test("component with event handler as prop") {
@@ -547,21 +547,21 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("styled attribute adds parent scope ID to component root") {
     val code        = compile("<div><Button styled /></div>")
-    val createIdx   = code.indexOf("Button.create()")
-    val classAddIdx = code.indexOf("classList.add(_scopeId)", createIdx)
-    assert(createIdx >= 0 && classAddIdx > createIdx, s"styled should add _scopeId after create:\n$code")
+    val applyIdx    = code.indexOf("Button()")
+    val classAddIdx = code.indexOf("classList.add(_scopeId)", applyIdx)
+    assert(applyIdx >= 0 && classAddIdx > applyIdx, s"styled should add _scopeId after apply:\n$code")
   }
 
   test("component with children generates children lambda") {
     val code = compile("<div><Card><p>Content</p></Card></div>")
-    assert(code.contains("Card.create(Card.Props(children ="), code)
+    assert(code.contains("Card(Card.Props(children ="), code)
     assert(code.contains("() => {"), code)
     assert(code.contains("""createElement("p")"""), code)
   }
 
   test("no-props component omits Props constructor") {
     val code = compile("<div><Divider /></div>")
-    assert(code.contains("Divider.create()"), code)
+    assert(code.contains("Divider()"), code)
     assert(!code.contains("Divider.Props"), code)
   }
 
@@ -750,7 +750,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("component caller passes HtmlProps fields as named args") {
     val code = compile("""<div><MyButton label="Click" disabled={true} /></div>""")
-    assert(code.contains("MyButton.create(MyButton.Props("), code)
+    assert(code.contains("MyButton(MyButton.Props("), code)
     assert(code.contains("""label = "Click""""), code)
     assert(code.contains("disabled = true"), code)
   }
@@ -758,7 +758,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("component caller passes withHtml for html attrs") {
     // data-* and aria-* attributes should pass through as regular props
     val code = compile("""<div><MyInput text="hi" id="inp" /></div>""")
-    assert(code.contains("MyInput.create(MyInput.Props("), code)
+    assert(code.contains("MyInput(MyInput.Props("), code)
     assert(code.contains("""text = "hi""""), code)
     assert(code.contains("""id = "inp""""), code)
   }

@@ -64,12 +64,16 @@ object SpaCodeGen extends CodeGen:
           case None => // no props definition to emit at object level
     }
 
-    // ── create() ─────────────────────────────────────────────────────────────
+    // ── apply() ──────────────────────────────────────────────────────────────
+    // Generated components expose a single `apply` entry point so that
+    // user code can call them like functions: `Counter(Counter.Props(0))`
+    // or `App()` when there is no Props type. `mount()` delegates to the
+    // same apply below.
     propsType match
       case Some(typeName) =>
-        buf ++= s"  def create(props: $typeName): dom.Element = {\n"
+        buf ++= s"  def apply(props: $typeName): dom.Element = {\n"
       case None =>
-        buf ++= "  def create(): dom.Element = {\n"
+        buf ++= "  def apply(): dom.Element = {\n"
 
     buf ++= "    val (_result, _owner) = Owner.withNew {\n"
 
@@ -117,9 +121,9 @@ object SpaCodeGen extends CodeGen:
     // ── mount() ──────────────────────────────────────────────────────────────
     propsType match
       case Some(typeName) =>
-        buf ++= s"  def mount(target: dom.Element, props: $typeName): Unit = Mount(target, create(props))\n\n"
+        buf ++= s"  def mount(target: dom.Element, props: $typeName): Unit = Mount(target, apply(props))\n\n"
       case None =>
-        buf ++= "  def mount(target: dom.Element): Unit = Mount(target, create())\n\n"
+        buf ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
     buf ++= "}\n"
     buf.toString
@@ -322,14 +326,14 @@ object SpaCodeGen extends CodeGen:
           case _                    => true
         }
 
-        // Build create call
+        // Build child component invocation via apply (Child(...) / Child()).
         spreadExpr match
           case Some(expr) =>
-            buf ++= s"${ indent }val $v = $name.create($expr)\n"
+            buf ++= s"${ indent }val $v = $name($expr)\n"
           case None =>
             val propsArgs = buildPropsArgs(attrs, filteredChildren, indent, ctr, buf)
-            if propsArgs.nonEmpty then buf ++= s"${ indent }val $v = $name.create($name.Props($propsArgs))\n"
-            else buf ++= s"${ indent }val $v = $name.create()\n"
+            if propsArgs.nonEmpty then buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
+            else buf ++= s"${ indent }val $v = $name()\n"
 
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         v

@@ -73,23 +73,15 @@ object SsrCodeGen extends CodeGen:
     val propsType = ast.script.flatMap(_.propsType)
 
     // ── Emit user's Props case class / type aliases from <script> at object level ──
-    // The existing <script> body is copied verbatim inside render(), but
+    // The existing <script> body is copied verbatim inside apply(), but
     // Props must be visible at the object level so callers can write
-    // `Counter.render(Counter.Props(...))`. We extract the Props
-    // declaration by scanning the script text for the `case class Props`
-    // line and emitting it both at object level and inside render().
-    //
-    // For Phase A simplicity, we simply copy the entire script body into
-    // the object body. `Var` / `Signal` / `effect` / `onMount` at the object
-    // level on JVM would execute once at class-load time with the JVM
-    // no-op semantics, which is harmless for Phase A.
-    //
-    // NOTE: This differs from SpaCodeGen which hoists Props to the object
-    // level and emits a render() that takes it. For Phase A we do the same.
+    // `Counter(Counter.Props(...))`. We extract the Props declaration by
+    // scanning the script text for the `case class Props` line and emit
+    // it both at object level and inside apply().
 
     // Extract Props-related declarations (best-effort — Phase A uses the
     // same heuristic as SpaCodeGen: copy the entire script verbatim into
-    // the render method so user declarations are in scope).
+    // the apply method so user declarations are in scope).
     val scriptBody = ast.script.map(_.code.trim).getOrElse("")
 
     // Emit Props case class at object level if present, so external callers
@@ -99,8 +91,11 @@ object SsrCodeGen extends CodeGen:
       buf ++= "  " + decl + "\n\n"
     }
 
-    // ── render() method ─────────────────────────────────────────────────
-    buf ++= s"  def render(${ renderParams(propsType) }): RenderResult = {\n"
+    // ── apply() method ──────────────────────────────────────────────────
+    // Components expose a single `apply` entry point so that user code can
+    // call them like functions: `Counter(Counter.Props(0))` or `App()` when
+    // there is no Props type.
+    buf ++= s"  def apply(${ renderParams(propsType) }): RenderResult = {\n"
     buf ++= "    val renderer = SsrRenderer()\n"
     val moduleId = kebabCase(objectName)
     buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
@@ -295,9 +290,9 @@ object SsrCodeGen extends CodeGen:
     }
 
     if args.isEmpty then
-      buf ++= s"${ pad }renderer.merge($name.render())\n"
+      buf ++= s"${ pad }renderer.merge($name())\n"
     else
-      buf ++= s"${ pad }renderer.merge($name.render($name.Props(${ args.mkString(", ") })))\n"
+      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
 
   /** Recursively emits a child of `<melt:head>` so that the HTML ends up
     * in `renderer.head` rather than the body buffer.
