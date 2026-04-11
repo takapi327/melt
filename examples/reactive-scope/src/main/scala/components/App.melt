@@ -1,0 +1,275 @@
+<script lang="scala">
+import scala.scalajs.js
+import scala.scalajs.js.timers.*
+
+// ── Panel 1: make — manage acquire/release as a pair ─────────────────────────
+// Typical example: pass the ID returned by setInterval to clearInterval.
+// "Start" calls allocated; "Stop" calls cancel().
+
+val ticker1   = Var(0)
+val running1  = Var(false)
+var cancel1: () => Unit = () => ()
+
+def start1(): Unit =
+  val scope =
+    ReactiveScope.make(setInterval(1000.0) { ticker1.update(_ + 1) })(clearInterval)
+  cancel1 = scope.allocated
+  running1.set(true)
+
+def stop1(): Unit =
+  cancel1()
+  cancel1 = () => ()
+  running1.set(false)
+
+// ── Panel 2: resource — independent side-effect pair ─────────────────────────
+// Use when no value needs to be passed from acquire to release.
+// Manages a window keydown listener with resource.
+
+val lastKey   = Var("—")
+val running2  = Var(false)
+var cancel2: () => Unit = () => ()
+
+val onKeyDown: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
+  lastKey.set(e.key)
+
+def start2(): Unit =
+  val scope =
+    ReactiveScope.resource {
+      org.scalajs.dom.window.addEventListener("keydown", onKeyDown)
+    } {
+      org.scalajs.dom.window.removeEventListener("keydown", onKeyDown)
+    }
+  cancel2 = scope.allocated
+  running2.set(true)
+
+def stop2(): Unit =
+  cancel2()
+  cancel2 = () => ()
+  running2.set(false)
+  lastKey.set("—")
+
+// ── Panel 3: for-comprehension — composing multiple resources ─────────────────
+// Combine a timer, key log, and effect into one scope.
+// A single cancel() releases all of them in LIFO order.
+
+val ticker3  = Var(0)
+val keyLog   = Var(List.empty[String])
+val running3 = Var(false)
+var cancel3: () => Unit = () => ()
+
+val onKeyDown3: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
+  keyLog.update(ls => (s"key: ${e.key}" :: ls).take(5))
+
+def start3(): Unit =
+  val program =
+    for
+      _ <- ReactiveScope.make(setInterval(1000.0) { ticker3.update(_ + 1) })(clearInterval)
+      _ <- ReactiveScope.resource {
+             org.scalajs.dom.window.addEventListener("keydown", onKeyDown3)
+           } {
+             org.scalajs.dom.window.removeEventListener("keydown", onKeyDown3)
+           }
+      _ <- ReactiveScope.effect(ticker3) { n =>
+             org.scalajs.dom.console.log(s"[ReactiveScope] ticker3 = $n")
+           }
+    yield ()
+  cancel3 = program.allocated
+  running3.set(true)
+
+def stop3(): Unit =
+  cancel3()
+  cancel3   = () => ()
+  running3.set(false)
+  ticker3.set(0)
+  keyLog.set(List.empty)
+
+// ── Panel 4: onMount integration ─────────────────────────────────────────────
+// Start a ReactiveScope when the component mounts and release it automatically
+// on unmount by returning the cancel function from onMount.
+
+val elapsed = Var(0)
+
+onMount { () =>
+  val program =
+    for
+      _ <- ReactiveScope.make(setInterval(1000.0) { elapsed.update(_ + 1) })(clearInterval)
+      _ <- ReactiveScope.effect(elapsed) { n =>
+             org.scalajs.dom.console.log(s"[onMount scope] elapsed = $n s")
+           }
+    yield ()
+  program.allocated
+}
+</script>
+
+<div class="app">
+  <h1>ReactiveScope</h1>
+  <p class="subtitle">Scala-idiomatic resource management — define acquire and release explicitly as a pair</p>
+
+  <!-- Panel 1: make -->
+  <section class="panel">
+    <h2>1. <code>ReactiveScope.make</code></h2>
+    <p class="desc">The value returned by acquire (interval ID) is passed to release (clearInterval).</p>
+    <div class="controls">
+      <button onclick={_ => start1()} disabled={running1}>Start</button>
+      <button onclick={_ => stop1()}  disabled={running1.map(!_)}>Stop</button>
+    </div>
+    <div class="display">
+      <span class="badge" class:active={running1}>{running1.map(r => if r then "running" else "stopped")}</span>
+      <span class="count">{ticker1} s</span>
+    </div>
+  </section>
+
+  <!-- Panel 2: resource -->
+  <section class="panel">
+    <h2>2. <code>ReactiveScope.resource</code></h2>
+    <p class="desc">acquire and release are independent side effects (window keydown listener).</p>
+    <div class="controls">
+      <button onclick={_ => start2()} disabled={running2}>Start</button>
+      <button onclick={_ => stop2()}  disabled={running2.map(!_)}>Stop</button>
+    </div>
+    <div class="display">
+      <span class="badge" class:active={running2}>{running2.map(r => if r then "listening" else "stopped")}</span>
+      <span class="key-display">Last key: <strong>{lastKey}</strong></span>
+    </div>
+    <p class="hint">Press any key after clicking Start.</p>
+  </section>
+
+  <!-- Panel 3: for composition -->
+  <section class="panel">
+    <h2>3. Composition via <code>for</code>-comprehension</h2>
+    <p class="desc">Timer + key log + effect combined into one scope; cancel() releases all in LIFO order.</p>
+    <div class="controls">
+      <button onclick={_ => start3()} disabled={running3}>Start</button>
+      <button onclick={_ => stop3()}  disabled={running3.map(!_)}>Stop</button>
+    </div>
+    <div class="display">
+      <span class="badge" class:active={running3}>{running3.map(r => if r then "running" else "stopped")}</span>
+      <span class="count">{ticker3} s</span>
+    </div>
+    <ul class="key-log">
+      {keyLog.map((entry: String) => <li>{entry}</li>)}
+    </ul>
+  </section>
+
+  <!-- Panel 4: onMount -->
+  <section class="panel">
+    <h2>4. <code>onMount</code> integration</h2>
+    <p class="desc">Starts automatically on mount and releases automatically on unmount.</p>
+    <div class="display">
+      <span class="badge active">auto</span>
+      <span class="count">{elapsed} s elapsed</span>
+    </div>
+  </section>
+</div>
+
+<style>
+.app {
+  font-family: sans-serif;
+  max-width: 640px;
+  margin: 2em auto;
+  padding: 1em;
+}
+
+h1 { color: #ff3e00; margin-bottom: 0.2em; }
+
+.subtitle {
+  color: #555;
+  font-size: 0.9em;
+  margin-top: 0;
+  margin-bottom: 1.5em;
+}
+
+.panel {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1em 1.2em;
+  margin-bottom: 1.2em;
+  background: #fafafa;
+}
+
+h2 {
+  margin: 0 0 0.4em;
+  font-size: 1em;
+  color: #333;
+}
+
+h2 code {
+  color: #ff3e00;
+  font-size: 0.95em;
+}
+
+.desc {
+  color: #666;
+  font-size: 0.85em;
+  margin: 0 0 0.8em;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 0.8em;
+}
+
+button {
+  padding: 0.4em 1em;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.display {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  border-radius: 12px;
+  font-size: 0.8em;
+  background: #eee;
+  color: #888;
+}
+
+.badge.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.count {
+  font-size: 1.4em;
+  font-weight: 600;
+  color: #333;
+}
+
+.key-display {
+  font-size: 0.95em;
+  color: #444;
+}
+
+.hint {
+  font-size: 0.8em;
+  color: #999;
+  margin: 0.5em 0 0;
+}
+
+.key-log {
+  list-style: none;
+  padding: 0;
+  margin: 0.5em 0 0;
+  min-height: 2em;
+}
+
+.key-log li {
+  font-size: 0.8em;
+  color: #555;
+  padding: 0.1em 0;
+}
+</style>

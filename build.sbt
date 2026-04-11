@@ -244,6 +244,20 @@ lazy val `layout-effect` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime)
 
+// ── Example: ReactiveScope (Phase 0 — resource management) ───────────────────
+lazy val `reactive-scope` = project
+  .in(file("examples/reactive-scope"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "reactive-scope",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files,
+    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime, `melt-testkit` % Test)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -261,7 +275,8 @@ lazy val root = project
     transitions,
     `special-elements`,
     `dynamic-element`,
-    `layout-effect`
+    `layout-effect`,
+    `reactive-scope`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
