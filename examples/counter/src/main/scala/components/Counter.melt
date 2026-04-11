@@ -60,6 +60,19 @@ onMount { () =>
   <hr />
   <input use:autoFocus bind:value={name} placeholder="Your name" />
   <p>Hello, {name}!</p>
+
+  <hr />
+  <!-- ── Var as props: bidirectional binding ─────────────────────────── -->
+  <!-- Both StepControl components receive the same Var[Int].              -->
+  <!-- Clicking either child's button calls .update() on the shared Var,  -->
+  <!-- and all three displays (parent + both children) update in sync.     -->
+  <p class="section-label">Var as props — bidirectional binding</p>
+  <p class="meta">Two independent child components sharing the same <code>Var[Int]</code>:</p>
+  <div class="step-row">
+    <StepControl count={count} step={1} />
+    <StepControl count={count} step={5} />
+  </div>
+  <p class="meta">Parent sees: <strong>{count}</strong></p>
 </div>
 
 <style>
@@ -70,4 +83,6 @@ p { color: #333; }
 button { margin: 0 0.25em; padding: 0.5em 1em; cursor: pointer; }
 input { padding: 0.5em; width: 100%; box-sizing: border-box; margin-top: 1em; }
 hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+.section-label { font-weight: 600; margin-top: 0.5em; color: #ff3e00; }
+.step-row { display: flex; gap: 1em; flex-wrap: wrap; margin: 0.5em 0; }
 </style>
