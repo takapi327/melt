@@ -1,7 +1,8 @@
+import org.scalajs.linker.interface.ModuleSplitStyle
+
 import Implicits._
 import JavaVersions._
 import ScalaVersions._
-import org.scalajs.linker.interface.ModuleSplitStyle
 
 ThisBuild / version            := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion       := scala3
@@ -108,7 +109,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/runtime"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name := "melt-runtime",
+    name                                    := "melt-runtime",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
   .jsSettings(
