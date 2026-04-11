@@ -42,8 +42,8 @@ class CounterSpec extends MeltSuite:
   test("findAll returns all matching elements") {
     val c       = mount(Counter.create())
     val buttons = c.findAll("button")
-    // Counter has three buttons: +1, -1, Reset All
-    assertEquals(buttons.length, 3)
+    // Counter has 3 own buttons (+1, -1, Reset All) + 2 per StepControl × 2 = 7 total
+    assertEquals(buttons.length, 7)
   }
 
   test("attr returns element attribute") {
@@ -96,10 +96,9 @@ class CounterSpec extends MeltSuite:
   test("typing in input updates greeting") {
     val c = mount(Counter.create())
     c.input("input", "Melt")
-    // The last <p> shows "Hello, {name}!"
-    val allPs    = c.findAll("p")
-    val greeting = allPs.last.textContent
-    assertEquals(greeting, "Hello, Melt!")
+    // Find the "Hello, ..." paragraph by text content
+    val greeting = c.getByText("Hello, Melt!", exact = false)
+    assertEquals(greeting.textContent, "Hello, Melt!")
   }
 
   // ── Unmount ──────────────────────────────────────────────────────────────
@@ -190,7 +189,8 @@ class CounterSpec extends MeltSuite:
   test("getAllByRole returns all buttons") {
     val c       = mount(Counter.create())
     val buttons = c.getAllByRole("button")
-    assertEquals(buttons.length, 3)
+    // 3 own buttons (+1, -1, Reset All) + 2 per StepControl × 2 = 7 total
+    assertEquals(buttons.length, 7)
   }
 
   test("getAllByRole returns the heading") {
