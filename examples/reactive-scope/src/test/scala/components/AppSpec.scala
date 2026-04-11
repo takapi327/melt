@@ -6,8 +6,8 @@
 
 package components
 
-import melt.testkit.*
 import melt.runtime.*
+import melt.testkit.*
 
 class AppSpec extends MeltSuite:
 
@@ -38,9 +38,11 @@ class AppSpec extends MeltSuite:
     // Initially stopped
     assert(c.queryByText("stopped").isDefined)
     // Click Start (first button)
-    c.findAll("button").head.dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
-    )
+    c.findAll("button")
+      .head
+      .dispatchEvent(
+        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      )
     assert(c.queryByText("running").isDefined)
     c.unmount()
   }

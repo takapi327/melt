@@ -681,10 +681,26 @@ object ScalaCodeGen:
   // These attributes use presence/absence (not value) to mean true/false.
   // Dynamic bindings for these names emit Bind.booleanAttr instead of Bind.attr.
   val htmlBooleanAttrs: Set[String] = Set(
-    "disabled", "checked", "readonly", "required", "selected",
-    "multiple", "autofocus", "autoplay", "controls", "default",
-    "defer", "formnovalidate", "hidden", "ismap", "loop",
-    "nomodule", "novalidate", "open", "reversed", "scoped",
+    "disabled",
+    "checked",
+    "readonly",
+    "required",
+    "selected",
+    "multiple",
+    "autofocus",
+    "autoplay",
+    "controls",
+    "default",
+    "defer",
+    "formnovalidate",
+    "hidden",
+    "ismap",
+    "loop",
+    "nomodule",
+    "novalidate",
+    "open",
+    "reversed",
+    "scoped",
     "seamless"
   )
 

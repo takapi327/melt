@@ -11,14 +11,14 @@ class ReactiveScopeSpec extends munit.FunSuite:
   // ── pure / unit ──────────────────────────────────────────────────────────
 
   test("pure provides the given value with no cleanup") {
-    val scope          = ReactiveScope.pure(42)
+    val scope           = ReactiveScope.pure(42)
     val (value, cancel) = scope.allocate()
     assertEquals(value, 42)
     cancel() // no-op
   }
 
   test("unit provides Unit with no cleanup") {
-    val scope          = ReactiveScope.unit
+    val scope           = ReactiveScope.unit
     val (value, cancel) = scope.allocate()
     assertEquals(value, ())
     cancel()
@@ -29,7 +29,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   test("make acquires and releases") {
     var acquired = false
     var released = false
-    val scope = ReactiveScope.make { acquired = true; "resource" } { _ => released = true }
+    val scope    = ReactiveScope.make { acquired = true; "resource" } { _ => released = true }
     assert(!acquired)
     val (value, cancel) = scope.allocate()
     assert(acquired)
@@ -40,8 +40,8 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("make passes the acquired value to release") {
-    val log   = scala.collection.mutable.ListBuffer[String]()
-    val scope = ReactiveScope.make("hello")(v => log += s"released: $v")
+    val log         = scala.collection.mutable.ListBuffer[String]()
+    val scope       = ReactiveScope.make("hello")(v => log += s"released: $v")
     val (_, cancel) = scope.allocate()
     cancel()
     assertEquals(log.toList, List("released: hello"))
@@ -51,7 +51,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
 
   test("resource runs acquire then release on cancel") {
     val log   = scala.collection.mutable.ListBuffer[String]()
-    val scope = ReactiveScope.resource { log += "acquired" }{ log += "released" }
+    val scope = ReactiveScope.resource { log += "acquired" } { log += "released" }
     assert(log.isEmpty)
     val cancel = scope.allocated
     assertEquals(log.toList, List("acquired"))
@@ -60,8 +60,8 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("resource release is evaluated at cancel time, not at definition time") {
-    var flag  = "initial"
-    val scope = ReactiveScope.resource { flag = "acquired" }{ flag = "released" }
+    var flag   = "initial"
+    val scope  = ReactiveScope.resource { flag = "acquired" } { flag = "released" }
     val cancel = scope.allocated
     assertEquals(flag, "acquired")
     flag = "mutated"
@@ -73,7 +73,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   // ── for-comprehension (map / flatMap) ────────────────────────────────────
 
   test("for-comprehension composes acquire order") {
-    val log = scala.collection.mutable.ListBuffer[String]()
+    val log     = scala.collection.mutable.ListBuffer[String]()
     val program =
       for
         a <- ReactiveScope.make { log += "acquire A"; "A" } { _ => log += "release A" }
@@ -96,10 +96,11 @@ class ReactiveScopeSpec extends munit.FunSuite:
         v3 <- ReactiveScope.pure(v1 + v2)
       yield (v1, v2, v3)
 
-    program.use { case (v1, v2, v3) =>
-      assertEquals(v1, 10)
-      assertEquals(v2, 20)
-      assertEquals(v3, 30)
+    program.use {
+      case (v1, v2, v3) =>
+        assertEquals(v1, 10)
+        assertEquals(v2, 20)
+        assertEquals(v3, 30)
     }
   }
 
@@ -107,9 +108,9 @@ class ReactiveScopeSpec extends munit.FunSuite:
 
   test("allocated returns same cancel function on multiple calls") {
     var acquireCount = 0
-    val scope = ReactiveScope.make { acquireCount += 1; acquireCount } { _ => () }
-    val c1 = scope.allocated
-    val c2 = scope.allocated
+    val scope        = ReactiveScope.make { acquireCount += 1; acquireCount } { _ => () }
+    val c1           = scope.allocated
+    val c2           = scope.allocated
     // _run called only once
     assertEquals(acquireCount, 1)
     c1()
@@ -158,9 +159,9 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("flatMap runs both cleanups even if first cleanup throws") {
-    val log    = scala.collection.mutable.ListBuffer[String]()
-    val scopeA = ReactiveScope.make("A") { _ => log += "release A"; throw RuntimeException("A cleanup failed") }
-    val scopeB = ReactiveScope.make("B") { _ => log += "release B" }
+    val log     = scala.collection.mutable.ListBuffer[String]()
+    val scopeA  = ReactiveScope.make("A") { _ => log += "release A"; throw RuntimeException("A cleanup failed") }
+    val scopeB  = ReactiveScope.make("B") { _ => log += "release B" }
     val program = scopeA.flatMap(_ => scopeB)
 
     val (_, cancel) = program.allocate()
@@ -202,12 +203,14 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("onCleanup inside ReactiveScope.effect runs before re-execution") {
-    val v         = Var(0)
-    val log       = scala.collection.mutable.ListBuffer[String]()
-    val cancel    = ReactiveScope.effect(v) { n =>
-      log += s"run $n"
-      onCleanup(() => log += s"cleanup $n")
-    }.allocated
+    val v      = Var(0)
+    val log    = scala.collection.mutable.ListBuffer[String]()
+    val cancel = ReactiveScope
+      .effect(v) { n =>
+        log += s"run $n"
+        onCleanup(() => log += s"cleanup $n")
+      }
+      .allocated
 
     assertEquals(log.toList, List("run 0"))
     v.set(1)
@@ -258,7 +261,8 @@ class ReactiveScopeSpec extends munit.FunSuite:
     // stack was pushed before effect, pop it now — must not throw
     val cleanups = Cleanup.popScope()
     // trigger the throwing body
-    try v.set(1) catch case _ => ()
-    // stack should still be balanced (no extra pushScope left behind)
+    try v.set(1)
+    catch case _ => ()
+      // stack should still be balanced (no extra pushScope left behind)
     Cleanup.runAll(cleanups)
   }
