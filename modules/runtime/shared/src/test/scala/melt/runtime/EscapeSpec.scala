@@ -176,3 +176,55 @@ class EscapeSpec extends FunSuite:
       assert(warned.contains("Blocked dangerous URL"), s"got: $warned")
     finally MeltWarnings.resetHandler()
   }
+
+  // ── CSS value escaping (§12.1.5) ───────────────────────────────────────
+
+  test("Escape.cssValue passes safe values through") {
+    assertEquals(Escape.cssValue("red"),           "red")
+    assertEquals(Escape.cssValue("10px"),          "10px")
+    assertEquals(Escape.cssValue("#ff3e00"),       "#ff3e00")
+    assertEquals(Escape.cssValue("rgba(0,0,0,.5)"), "rgba(0,0,0,.5)")
+  }
+
+  test("Escape.cssValue blocks url(javascript:...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(javascript:alert(1))"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks expression(...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("expression(alert(1))"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks @import") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("@import 'http://evil/'"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks whitespace-obfuscated javascript:") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url( java\tscript:alert(1) )"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks vbscript:") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(vbscript:msgbox(1))"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue(null) is empty string") {
+    assertEquals(Escape.cssValue(null), "")
+  }
+
+  test("Escape.cssValue(None) is empty string") {
+    assertEquals(Escape.cssValue(None), "")
+  }
+
+  test("Escape.cssValue escapes HTML-special chars like other attr values") {
+    // The output must be safe for use inside an HTML attribute value.
+    assertEquals(Escape.cssValue("red\"><script>"), "red&quot;&gt;&lt;script&gt;")
+  }

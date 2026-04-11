@@ -176,3 +176,129 @@ class SsrRendererSpec extends FunSuite:
       assert(!body.contains("javascript:"), body)
     finally MeltWarnings.resetHandler()
   }
+
+  // ── §12.1.4 spread attribute polish ──────────────────────────────────
+
+  test("spreadAttrs unwraps Some(x)") {
+    val r = SsrRenderer()
+    r.spreadAttrs("div", Map("data-id" -> Some("42")))
+    assert(r.result().body.contains("""data-id="42""""))
+  }
+
+  test("spreadAttrs drops function-valued entries with a warning") {
+    MeltWarnings.mute()
+    try
+      val r = SsrRenderer()
+      val fn: () => Unit = () => ()
+      r.spreadAttrs("button", Map("onclick" -> "alert()", "cb" -> fn, "id" -> "ok"))
+      val body = r.result().body
+      assert(body.contains("""id="ok""""), body)
+      assert(!body.contains("cb"), body)
+      assert(!body.contains("onclick"), body)
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("spreadAttrs drops keys starting with $$ ($$slots reserved)") {
+    val r = SsrRenderer()
+    r.spreadAttrs("div", Map("$$slots" -> "default", "id" -> "x"))
+    val body = r.result().body
+    assert(body.contains("""id="x""""), body)
+    assert(!body.contains("$$slots"), body)
+  }
+
+  test("spreadAttrs — true boolean value emits bare attribute") {
+    val r = SsrRenderer()
+    r.spreadAttrs("input", Map("disabled" -> true))
+    val body = r.result().body
+    // HTML boolean attribute convention: `disabled` with no `="..."`.
+    assert(body.contains(" disabled"), body)
+    assert(!body.contains("""disabled=""""), body)
+  }
+
+  test("spreadAttrs — false boolean value is dropped") {
+    val r = SsrRenderer()
+    r.spreadAttrs("input", Map("disabled" -> false, "id" -> "x"))
+    val body = r.result().body
+    assert(body.contains("""id="x""""), body)
+    assert(!body.contains("disabled"), body)
+  }
+
+  // ── §12.3.9 Head dedup ────────────────────────────────────────────────
+
+  test("head.title dedup — last call wins") {
+    val r = SsrRenderer()
+    r.head.title("First")
+    r.head.title("Second")
+    r.head.title("Third")
+    val result = r.result()
+    assertEquals(result.title, Some("Third"))
+    assert(result.head.contains("<title>Third</title>"), result.head)
+    assert(!result.head.contains("<title>First</title>"), result.head)
+    assert(!result.head.contains("<title>Second</title>"), result.head)
+  }
+
+  test("head.title escapes the content") {
+    val r = SsrRenderer()
+    r.head.title("<script>alert(1)</script>")
+    val result = r.result()
+    assertEquals(result.title, Some("&lt;script&gt;alert(1)&lt;/script&gt;"))
+    assert(result.head.contains("&lt;script&gt;alert(1)&lt;/script&gt;"), result.head)
+  }
+
+  test("head.meta dedup — last call wins per name") {
+    val r = SsrRenderer()
+    r.head.meta("description", "First description")
+    r.head.meta("description", "Second description")
+    r.head.meta("keywords", "a, b, c")
+    val result = r.result()
+    assertEquals(result.metaTags("description"), "Second description")
+    assertEquals(result.metaTags("keywords"), "a, b, c")
+    assert(result.head.contains("""<meta name="description" content="Second description">"""), result.head)
+    assert(!result.head.contains("First description"), result.head)
+  }
+
+  test("head.meta escapes name and content attribute values") {
+    val r = SsrRenderer()
+    r.head.meta("description", """safe "then" dangerous""")
+    val result = r.result()
+    assertEquals(result.metaTags("description"), """safe &quot;then&quot; dangerous""")
+  }
+
+  test("merge — child's title overrides parent's") {
+    val parent = SsrRenderer()
+    parent.head.title("Parent")
+    val childResult = RenderResult(
+      body     = "",
+      head     = "",
+      title    = Some("Child"),
+      metaTags = Map.empty
+    )
+    parent.merge(childResult)
+    assertEquals(parent.result().title, Some("Child"))
+  }
+
+  test("merge — parent keeps title if child has none") {
+    val parent = SsrRenderer()
+    parent.head.title("Parent")
+    val childResult = RenderResult(body = "", head = "")
+    parent.merge(childResult)
+    assertEquals(parent.result().title, Some("Parent"))
+  }
+
+  test("merge — meta tags from child override parent's on name collision") {
+    val parent = SsrRenderer()
+    parent.head.meta("description", "Parent desc")
+    parent.head.meta("author",      "Parent author")
+
+    val childResult = RenderResult(
+      body     = "",
+      head     = "",
+      title    = None,
+      metaTags = Map("description" -> "Child desc") // override description only
+    )
+    parent.merge(childResult)
+
+    val metas = parent.result().metaTags
+    assertEquals(metas("description"), "Child desc")
+    assertEquals(metas("author"),      "Parent author")
+  }

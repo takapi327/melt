@@ -13,8 +13,19 @@ package melt.runtime.ssr
   * inspected, or serialised freely.
   *
   * @param body       HTML emitted to `<body>` (the component tree itself)
-  * @param head       HTML emitted to `<head>` (`<melt:head>` content plus
-  *                   the collected `<style id="melt-…">` blocks)
+  * @param head       HTML emitted to `<head>` — `<melt:head>` free-form
+  *                   content (non-`title` / non-`<meta name=...>` tags)
+  *                   plus the collected `<style id="melt-…">` blocks.
+  *                   Title / meta tags are merged separately (see below).
+  * @param title      Deduplicated `<title>` content — the last component
+  *                   to call `renderer.head.title(x)` wins. Use this as
+  *                   the `%melt.title%` placeholder value in
+  *                   [[melt.runtime.ssr.Template.render]] when the caller
+  *                   does not provide an explicit title.
+  * @param metaTags   Deduplicated `<meta name="...">` entries keyed by
+  *                   name. Already folded into [[head]] in the canonical
+  *                   order (name → content). Retained here for inspection
+  *                   and potential merging by a parent renderer.
   * @param css        Unique CSS entries collected during rendering
   * @param components Component `moduleID`s used during rendering
   *                   (for future Hydration chunk resolution in Phase C)
@@ -22,12 +33,14 @@ package melt.runtime.ssr
 final case class RenderResult(
   body:       String,
   head:       String,
-  css:        Set[CssEntry],
-  components: Set[String]
+  title:      Option[String]      = None,
+  metaTags:   Map[String, String] = Map.empty,
+  css:        Set[CssEntry]       = Set.empty,
+  components: Set[String]         = Set.empty
 )
 
 object RenderResult:
-  val empty: RenderResult = RenderResult("", "", Set.empty, Set.empty)
+  val empty: RenderResult = RenderResult("", "")
 
 /** A single scoped CSS block discovered during rendering. */
 final case class CssEntry(scopeId: String, code: String)

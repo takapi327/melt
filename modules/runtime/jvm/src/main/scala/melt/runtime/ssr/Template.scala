@@ -78,8 +78,10 @@ final class Template private (private val raw: String):
   /** Substitutes the template placeholders and returns the resulting HTML.
     *
     * @param result the component render result
-    * @param title  page title (HTML-escaped before substitution). Pass an
-    *               empty string to skip
+    * @param title  page title. If empty, `result.title` is used instead
+    *               (allowing components to set the title via
+    *               `<melt:head><title>{...}</title></melt:head>`).
+    *               The final value is HTML-escaped before substitution.
     * @param lang   value for `%melt.lang%`, default `"en"`
     * @param vars   extra placeholder values. Each entry `k -> v` replaces
     *               `%melt.k%` with `Escape.html(v)`. Reserved names (`head`,
@@ -91,9 +93,18 @@ final class Template private (private val raw: String):
     lang:   String              = "en",
     vars:   Map[String, String] = Map.empty
   ): String =
+    // If the caller did not supply an explicit title, fall back to
+    // the title set by the component tree via `<melt:head><title>...`.
+    // `result.title` is already HTML-escaped by `SsrRenderer.head.title`,
+    // so we pass it through `Escape.html` once more only on the caller's
+    // plain-string path.
+    val effectiveTitle: String =
+      if title.nonEmpty then Escape.html(title)
+      else result.title.getOrElse("")
+
     var out = raw
     out = out.replace("%melt.lang%",  Escape.attr(lang))
-    out = out.replace("%melt.title%", Escape.html(title))
+    out = out.replace("%melt.title%", effectiveTitle)
     out = out.replace("%melt.head%",  result.head)
     out = out.replace("%melt.body%",  result.body)
     vars.foreach { case (k, v) =>

@@ -41,6 +41,34 @@ object Escape:
       case None      => ""
       case Some(str) => escapeAttrInner(str)
 
+  /** Escapes `value` for use as a CSS property value (e.g. inside
+    * `style="prop: VALUE"`).
+    *
+    * Blocks CSS-specific attack vectors that plain attribute escaping
+    * misses:
+    *
+    *   - `url(javascript:...)` — executes JavaScript in some legacy
+    *     browsers and tooling
+    *   - `url(data:text/html,...)` — can embed arbitrary HTML
+    *   - `expression(...)` — IE-era JavaScript expressions
+    *   - `@import "..."` — pulls in arbitrary stylesheets
+    *
+    * Detection is case-insensitive and tolerates whitespace / control
+    * characters inside the dangerous construct (mirroring
+    * [[isDangerousUrl]]). When a dangerous pattern is found the whole
+    * value is replaced with an empty string and a warning is emitted.
+    *
+    * `null` / `None` collapse to empty string as elsewhere in this object.
+    */
+  def cssValue(value: Any): String =
+    normalize(value) match
+      case None      => ""
+      case Some(str) =>
+        if isDangerousCss(str) then
+          MeltWarnings.warn(s"Blocked dangerous CSS value: ${ truncate(str, 80) }")
+          ""
+        else escapeAttrInner(str)
+
   /** Escapes `value` for use in a URL attribute (e.g. `href`, `src`).
     *
     * Dangerous protocols (`javascript:`, `vbscript:`, `file:`,
@@ -110,6 +138,33 @@ object Escape:
         case c   => buf += c
       i += 1
     buf.toString
+
+  /** Detects dangerous patterns inside a CSS property value.
+    *
+    * Normalises whitespace, tabs, and newlines before matching, which
+    * covers most bypass attempts (`java  script:`, `expre\nssion(...)`).
+    * Returns `true` if any of the following substrings appear:
+    *
+    *   - `javascript:` / `vbscript:` / `file:` — any script protocol in
+    *     `url()` or otherwise
+    *   - `expression(` — IE CSS expressions
+    *   - `@import` — stylesheet injection
+    */
+  private def isDangerousCss(raw: String): Boolean =
+    val normalized = raw
+      .filterNot { c =>
+        val code = c.toInt
+        (code >= 0x00 && code <= 0x1F) || code == 0x7F ||
+        c == '\u0020' || c == '\u0009' ||
+        c == '\u000A' || c == '\u000D'
+      }
+      .toLowerCase
+
+    normalized.contains("javascript:") ||
+    normalized.contains("vbscript:") ||
+    normalized.contains("file:") ||
+    normalized.contains("expression(") ||
+    normalized.contains("@import")
 
   /** Detects dangerous URL protocols after normalising whitespace and
     * control characters (browsers do the same before parsing the scheme).
