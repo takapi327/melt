@@ -19,7 +19,8 @@ import melt.runtime.{ Escape, MeltWarnings, UrlAttributes, AttrNameValidator }
   *       User code should only interact with:
   *         - `Component.render(props): RenderResult` — the entry point
   *           exposed by each generated component
-  *         - `Layout.document(result, ...)` — assembles a full HTML document
+  *         - `Template.fromResource(...)` — loads a user-owned HTML
+  *           template with `%melt.X%` placeholders
   *         - `TrustedHtml` / `Escape.*` — explicit opt-in escalation paths
   *
   *       Methods on `SsrRenderer` may change without notice between
