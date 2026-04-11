@@ -8,6 +8,8 @@ package meltc.sbt
 
 import sbt._
 import sbt.Keys._
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, scalaJSLinkerOutputDirectory }
+import org.scalajs.linker.interface.Report
 
 /** sbt-meltc plugin
   *
@@ -149,6 +151,56 @@ object MeltcPlugin extends AutoPlugin {
     /** Compiles all `.melt` files and returns the generated `.scala` files. */
     val meltcGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
+
+    // ── Asset manifest auto-generation (§C12) ────────────────────────────
+
+    /** Client sub-project whose Scala.js `fastLinkJS` public modules
+      * drive the auto-generated `AssetManifest` object.
+      *
+      * Set this on the server project that serves the client's chunks.
+      * The plugin will add a `Compile / sourceGenerators` task that:
+      *
+      *   1. Takes a `.value` dependency on
+      *      `(clientProject / Compile / fastLinkJS)` so sbt rebuilds the
+      *      client whenever the server needs to be compiled.
+      *   2. Reads the resulting `Report.publicModules` and writes a
+      *      Scala source exposing both a `ViteManifest` and the
+      *      absolute `clientDistDir: File` path.
+      *
+      * Default: `None` — no manifest is generated, the project is
+      * treated as a regular Melt server with no hydration client.
+      *
+      * Typical setup:
+      * {{{
+      * lazy val `my-client` = project.enablePlugins(ScalaJSPlugin, MeltcPlugin)
+      * lazy val `my-server` = project
+      *   .enablePlugins(MeltcPlugin)
+      *   .settings(meltcAssetManifestClient := Some(`my-client`))
+      *   .dependsOn(`my-components`.jvm)
+      * }}}
+      */
+    val meltcAssetManifestClient =
+      settingKey[Option[Project]](
+        "Client sub-project whose fastLinkJS output drives AssetManifest generation"
+      )
+
+    /** Package of the generated asset manifest object.
+      * Default: `"generated"`.
+      */
+    val meltcAssetManifestPackage =
+      settingKey[String]("Package for the auto-generated AssetManifest object")
+
+    /** Object name of the generated asset manifest.
+      * Default: `"AssetManifest"`.
+      */
+    val meltcAssetManifestObject =
+      settingKey[String]("Object name for the auto-generated AssetManifest")
+
+    /** The generator task itself — exposed so advanced users can
+      * customise invocation or inspect the output path.
+      */
+    val meltcAssetManifestGenerate =
+      taskKey[Seq[File]]("Generate AssetManifest.scala from the client's fastLinkJS Report")
   }
 
   import autoImport._
@@ -205,7 +257,31 @@ object MeltcPlugin extends AutoPlugin {
       hydration  = meltcHydration.value,
       compilerCp = meltcCompilerClasspath.value
     ),
-    Compile / sourceGenerators += meltcGenerate.taskValue
+    Compile / sourceGenerators += meltcGenerate.taskValue,
+
+    // ── Asset manifest generation (§C12) ─────────────────────────────────
+    meltcAssetManifestClient  := None,
+    meltcAssetManifestPackage := "generated",
+    meltcAssetManifestObject  := "AssetManifest",
+
+    meltcAssetManifestGenerate := Def.taskDyn {
+      meltcAssetManifestClient.value match {
+        case Some(clientProject) =>
+          Def.task {
+            generateAssetManifest(
+              streams    = streams.value,
+              outDir     = (Compile / sourceManaged).value / "generated",
+              pkgName    = meltcAssetManifestPackage.value,
+              objectName = meltcAssetManifestObject.value,
+              report     = (clientProject / Compile / fastLinkJS).value.data,
+              distDir    = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
+            )
+          }
+        case None =>
+          Def.task(Seq.empty[File])
+      }
+    }.value,
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
   )
 
   // ── Implementation ─────────────────────────────────────────────────────────
@@ -302,5 +378,75 @@ object MeltcPlugin extends AutoPlugin {
         Seq.empty
       }
     }
+  }
+
+  // ── Asset manifest generation helper (§C12) ─────────────────────────────
+
+  /** Writes a `generated.AssetManifest` Scala source that exposes the
+    * client project's Scala.js `fastLinkJS` output as a
+    * [[melt.runtime.ssr.ViteManifest]] plus the absolute filesystem
+    * path of the fastopt output directory. Regenerated on every
+    * compile so adding or removing a `.melt` component requires zero
+    * edits to this file.
+    */
+  private def generateAssetManifest(
+    streams:    TaskStreams,
+    outDir:     File,
+    pkgName:    String,
+    objectName: String,
+    report:     Report,
+    distDir:    File
+  ): Seq[File] = {
+    val log = streams.log
+    IO.createDirectory(outDir)
+    val outFile = outDir / s"$objectName.scala"
+
+    // `Report.publicModules` is a Set, so sort by moduleID for stable
+    // output — otherwise the generated file churns between compiles.
+    val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
+
+    val entriesSrc = sortedModules
+      .map { m =>
+        s"""    "scalajs:${ m.moduleID }.js" -> ViteManifest.Entry(file = "${ m.jsFileName }")"""
+      }
+      .mkString(",\n")
+
+    // Embed the absolute path so the server can locate the fastopt
+    // directory without any runtime configuration. Backslashes (Windows)
+    // are escaped for the Scala string literal.
+    val distPathLit = distDir.getAbsolutePath.replace("\\", "\\\\")
+
+    val code =
+      s"""package $pkgName
+         |
+         |import java.io.File
+         |import melt.runtime.ssr.ViteManifest
+         |
+         |/** Auto-generated by sbt-meltc — do not edit.
+         |  *
+         |  * Maps every `@JSExportTopLevel("hydrate", moduleID = ...)` from
+         |  * the client project's Scala.js `fastLinkJS` output to its
+         |  * emitted chunk file name. `clientDistDir` is the absolute path
+         |  * of the fastopt directory, for use with http4s `fileService`
+         |  * (or equivalent static content handlers in other servers).
+         |  *
+         |  * Regenerated automatically on every `sbt compile` — add or
+         |  * remove a `.melt` file and this object will re-flow with no
+         |  * manual edits.
+         |  */
+         |object $objectName {
+         |  val manifest: ViteManifest = ViteManifest.fromEntries(Map(
+         |$entriesSrc
+         |  ))
+         |
+         |  val clientDistDir: File = new File("$distPathLit")
+         |}
+         |""".stripMargin
+
+    IO.write(outFile, code)
+    log.info(
+      s"[sbt-meltc] regenerated ${ outFile.getName } with ${ sortedModules.size } public modules"
+    )
+    Seq(outFile)
   }
 }
