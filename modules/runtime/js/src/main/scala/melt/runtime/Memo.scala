@@ -6,18 +6,20 @@
 
 package melt.runtime
 
+import melt.runtime.impl.JsSignal
+
 /** Creates a memoized [[Signal]] that only propagates when the computed value changes.
   *
   * Unlike `Signal.map`, which always emits downstream, `memo` checks referential
   * equality (`!=`) and suppresses redundant updates.
   *
   * {{{
-  * val count = Var(0)
+  * val count  = Var(0)
   * val isEven = memo(count)(_ % 2 == 0) // only emits when parity changes
   * }}}
   */
 def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] =
-  val derived = new Signal[B](f(dep.now()))
+  val derived = JsSignal.create[B](f(dep.now()))
   val cancel  = dep.subscribe { a =>
     val newVal = f(a)
     if newVal != derived.now() then derived.emit(newVal)

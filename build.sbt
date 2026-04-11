@@ -92,21 +92,26 @@ lazy val `sbt-meltc` = BuildSettings
     crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
   )
 
-// ── Runtime (Scala.js library) ──
-lazy val runtime = project
+// ── Runtime (crossProject: JVM + JS) ──
+// JS side: Scala.js reactive runtime (existing SPA implementation).
+// JVM side: no-op stubs + SSR helpers under melt.runtime.ssr.
+// Shared:   trait Var[A] / Signal[A] / Memo[A] API contract + TrustedHtml +
+//           VarExtensions.
+lazy val runtime = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
   .in(file("modules/runtime"))
   .settings(BuildSettings.commonSettings)
   .settings(
     name := "melt-runtime",
-    libraryDependencies ++= Seq(
-      "org.scala-js"  %%% "scalajs-dom" % "2.8.1",
-      "org.scalameta" %%% "munit"       % "1.2.4" % Test
-    ),
-    // Use jsdom so that DOM APIs (matchMedia, dispatchEvent, etc.) are available
-    // in unit tests. Required by TransitionEventSpec which tests TransitionEngine directly.
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+  )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.1",
+    // Use jsdom so that DOM APIs (matchMedia, dispatchEvent, etc.) are
+    // available in unit tests.
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
-  .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
+  .enablePlugins(AutomateHeaderPlugin)
 
 // ── Language Server (LSP — shared across all editors) ──
 lazy val `language-server` = project
@@ -146,7 +151,7 @@ lazy val `melt-testkit` = project
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: Hello World ──────────────────────────────────────────────────────
 // MeltcPlugin is loaded from source via project/build.sbt (no publishLocal needed).
@@ -162,7 +167,7 @@ lazy val `hello-world` = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: Counter (Phase 4 — reactive bindings) ��─────────────────────────
 lazy val counter = project
@@ -177,7 +182,7 @@ lazy val counter = project
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime, `melt-testkit` % Test)
+  .dependsOn(runtime.js, `melt-testkit` % Test)
 
 // ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
 lazy val `todo-app` = project
@@ -190,7 +195,7 @@ lazy val `todo-app` = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: Transitions (Phase 9 — transitions & animations) ─────────────────
 lazy val transitions = project
@@ -203,7 +208,7 @@ lazy val transitions = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: Special Elements (Phase 14 — melt:head / melt:window / melt:body) ──
 lazy val `special-elements` = project
@@ -216,7 +221,7 @@ lazy val `special-elements` = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: Dynamic Element (Phase 0 — melt:element) ────────────────────────
 lazy val `dynamic-element` = project
@@ -229,7 +234,7 @@ lazy val `dynamic-element` = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
 
 // ── Example: layoutEffect (Phase 13 — pre/post subscriber lanes) ─────────────
 lazy val `layout-effect` = project
@@ -242,7 +247,26 @@ lazy val `layout-effect` = project
     meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime)
+  .dependsOn(runtime.js)
+
+// ── Example: http4s SSR-only (Phase A — JVM server-side rendering) ──────────
+lazy val `http4s-ssr` = project
+  .in(file("examples/http4s-ssr"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                   := "http4s-ssr",
+    publish / skip         := true,
+    meltcCompilerClasspath := (meltc.jvm / Compile / fullClasspath).value.files,
+    // Files under src/main/scala/components/ already imply the `components`
+    // package, so we don't set meltcPackage here (otherwise we'd get
+    // `components.components.Home`).
+    libraryDependencies ++= Seq(
+      "org.http4s" %% "http4s-ember-server" % "0.23.33",
+      "org.http4s" %% "http4s-dsl"          % "0.23.33"
+    )
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.jvm)
 
 // ── Example: ReactiveScope (Phase 0 — resource management) ───────────────────
 lazy val `reactive-scope` = project
@@ -256,7 +280,7 @@ lazy val `reactive-scope` = project
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime, `melt-testkit` % Test)
+  .dependsOn(runtime.js, `melt-testkit` % Test)
 
 // ── Root (no publish) ──
 lazy val root = project
@@ -266,12 +290,14 @@ lazy val root = project
     meltc.js,
     meltc.native,
     `sbt-meltc`,
-    runtime,
+    runtime.jvm,
+    runtime.js,
     `melt-testkit`,
     `language-server`,
     `hello-world`,
     counter,
     `todo-app`,
+    `http4s-ssr`,
     transitions,
     `special-elements`,
     `dynamic-element`,
