@@ -67,7 +67,7 @@ object SecurityChecker:
     tagCount:  mutable.Map[String, Int]
   ): Unit = node match
     case TemplateNode.Element(tag, attrs, children) =>
-      val nth  = tagCount.getOrElse(tag, 0)
+      val nth = tagCount.getOrElse(tag, 0)
       tagCount(tag) = nth + 1
       val line = findNthTagLine(tag, source, lineIndex, nth)
       if tag.toLowerCase == "iframe" && hasDynamicAttr(attrs, "srcdoc") then

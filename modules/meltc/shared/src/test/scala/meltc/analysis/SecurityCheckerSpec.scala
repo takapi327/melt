@@ -43,7 +43,8 @@ class SecurityCheckerSpec extends munit.FunSuite:
   }
 
   test("iframe with static srcdoc is not flagged (S-5)") {
-    val result = MeltCompiler.compile("""<iframe srcdoc="<p>safe</p>"></iframe>""", "App.melt", "App", "", CompileMode.SSR)
+    val result =
+      MeltCompiler.compile("""<iframe srcdoc="<p>safe</p>"></iframe>""", "App.melt", "App", "", CompileMode.SSR)
     assert(result.errors.isEmpty, result.errors)
   }
 

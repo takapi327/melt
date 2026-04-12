@@ -217,7 +217,30 @@ class SsrRendererSpec extends FunSuite:
     MeltWarnings.mute()
     try
       val r = SsrRenderer()
-      val fn: (Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int) => Int =
+      val fn: (
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int
+      ) => Int =
         (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r2, s, t, u, v) => a + b
       r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
       val body = r.result().body
