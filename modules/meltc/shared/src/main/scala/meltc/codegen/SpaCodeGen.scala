@@ -550,8 +550,7 @@ object SpaCodeGen extends CodeGen:
       case Attr.Directive("on", event, Some(expr), mods) =>
         if mods.contains("preventDefault") then
           buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => { _: dom.Event => ().asInstanceOf[Unit]; ($expr).asInstanceOf[Any] }))\n"""
-        else
-          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => ($expr).asInstanceOf[Any]))\n"""
+        else buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => ($expr).asInstanceOf[Any]))\n"""
       case Attr.Directive("bind", "value", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive("bind", "value-int", Some(expr), _) =>

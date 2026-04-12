@@ -157,7 +157,7 @@ object ViteManifest:
           case (key, entry) if entry.isEntry && !key.startsWith(s"$uriPrefix:") =>
             val basename = key.split('/').last
             // If the key has no extension (e.g. "home"), append ".js"
-            val withExt = if basename.contains('.') then basename else s"$basename.js"
+            val withExt  = if basename.contains('.') then basename else s"$basename.js"
             val aliasKey = s"$uriPrefix:$withExt"
             if rawEntries.contains(aliasKey) then None
             else Some(aliasKey -> entry)

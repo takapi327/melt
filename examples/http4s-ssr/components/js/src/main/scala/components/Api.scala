@@ -7,6 +7,7 @@
 package components
 
 import scala.scalajs.js
+
 import melt.runtime.Var
 
 /** JS-only fetch helper used by `.melt` event handlers to communicate
@@ -28,7 +29,7 @@ object Api:
     */
   def addTodo(text: String, todos: Var[List[Todos.Todo]]): Unit =
     val body = js.JSON.stringify(js.Dynamic.literal(text = text))
-    val p = js.Dynamic.global.fetch(
+    val p    = js.Dynamic.global.fetch(
       "/api/todos/add",
       js.Dynamic.literal(
         method  = "POST",
@@ -37,7 +38,7 @@ object Api:
       )
     )
     p.`then`((resp: js.Dynamic) => resp.json())
-     .`then` { (data: js.Dynamic) =>
+      .`then` { (data: js.Dynamic) =>
         val id   = data.id.asInstanceOf[String]
         val todo = Todos.Todo(id = id, text = text)
         todos.update(todo :: _)

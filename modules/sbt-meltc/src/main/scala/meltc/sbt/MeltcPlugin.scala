@@ -10,11 +10,7 @@ import sbt._
 import sbt.Keys._
 
 import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{
-  fastLinkJS,
-  fullLinkJS,
-  scalaJSLinkerOutputDirectory
-}
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
 
 /** sbt-meltc plugin
   *
@@ -310,7 +306,7 @@ object MeltcPlugin extends AutoPlugin {
     meltcAssetManifestObject  := "AssetManifest",
 
     // ── Vite integration defaults (Tier 2) ────────────────────────────
-    meltcProd := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
+    meltcProd             := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
     meltcViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
     meltcViteDistDir      := baseDirectory.value / ".." / "dist",
 
@@ -336,12 +332,12 @@ object MeltcPlugin extends AutoPlugin {
           // Prod mode: read the real Vite manifest.json.
           Def.task {
             generateAssetManifestFromVite(
-              streams       = streams.value,
-              outDir        = (Compile / sourceManaged).value / "generated",
-              pkgName       = meltcAssetManifestPackage.value,
-              objectName    = meltcAssetManifestObject.value,
-              manifestPath  = meltcViteManifestPath.value,
-              distDir       = meltcViteDistDir.value
+              streams      = streams.value,
+              outDir       = (Compile / sourceManaged).value / "generated",
+              pkgName      = meltcAssetManifestPackage.value,
+              objectName   = meltcAssetManifestObject.value,
+              manifestPath = meltcViteManifestPath.value,
+              distDir      = meltcViteDistDir.value
             )
           }
         case Some(clientProject) =>
@@ -548,13 +544,13 @@ object MeltcPlugin extends AutoPlugin {
     distDir: File,
     outFile: File
   ): File = {
-    val log = streams.log
+    val log           = streams.log
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
     // Build a JSON object: { "home": "/abs/path/to/home.js", ... }
     val entries = sortedModules.map { m =>
       val absPath = (distDir / m.jsFileName).getAbsolutePath
-        .replace("\\", "/")  // normalise for JSON
+        .replace("\\", "/") // normalise for JSON
       s"""  "${ m.moduleID }": "$absPath""""
     }
     val json = entries.mkString("{\n", ",\n", "\n}\n")
@@ -587,7 +583,7 @@ object MeltcPlugin extends AutoPlugin {
     if (!manifestPath.exists()) {
       log.error(
         s"[sbt-meltc] Vite manifest not found at ${ manifestPath.getAbsolutePath }. " +
-        "Run `npx vite build` in the example directory first."
+          "Run `npx vite build` in the example directory first."
       )
       return Seq.empty
     }

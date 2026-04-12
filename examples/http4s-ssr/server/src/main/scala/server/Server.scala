@@ -102,7 +102,7 @@ object Server extends IOApp.Simple:
             if text.nonEmpty then
               val todo = Todos.Todo(id = UUID.randomUUID().toString, text = text)
               todoStore.update(todo :: _) *>
-                Created(s"""{"id":"${todo.id}"}""", jsonContentType)
+                Created(s"""{"id":"${ todo.id }"}""", jsonContentType)
             else BadRequest()
         yield resp
 
