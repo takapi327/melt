@@ -153,8 +153,6 @@ object MeltcPlugin extends AutoPlugin {
     val meltcGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
 
-    // ── Asset manifest auto-generation (§C12) ────────────────────────────
-
     /** Client sub-project whose Scala.js `fastLinkJS` public modules
       * drive the auto-generated `AssetManifest` object.
       *
@@ -202,8 +200,6 @@ object MeltcPlugin extends AutoPlugin {
       */
     val meltcAssetManifestGenerate =
       taskKey[Seq[File]]("Generate AssetManifest.scala from the client's fastLinkJS Report")
-
-    // ── Vite integration (Tier 2) ──────────────────────────────────────
 
     /** When `true`, the asset manifest is generated from a real Vite
       * `manifest.json` (produced by `vite build`) instead of being
@@ -258,31 +254,22 @@ object MeltcPlugin extends AutoPlugin {
 
   override def projectSettings: Seq[Setting[_]] = Seq(
     meltcMode := {
-      // Auto-detect: projects with ScalaJSPlugin → "spa", otherwise → "ssr".
-      // Users can override this setting explicitly if needed.
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
     meltcHydration         := false,
     meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories := {
-      // In a crossProject the unmanagedSourceDirectories list already
-      // contains both the platform-specific and the shared `scala` directory,
-      // so scanning them all naturally supports .melt placement under shared.
       val unmanaged = (Compile / unmanagedSourceDirectories).value
       val legacy    = meltcSourceDirectory.value
-      // Deduplicate while preserving order: unmanaged first, then legacy
-      // (if not already included).
       (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
     },
     meltcOutputDirectory := (Compile / sourceManaged).value / "meltc",
     meltcPackage         := "",
     meltcCompilerVersion := sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT"),
 
-    // ── Ivy resolution for the compiler classpath ──────────────────────────
     ivyConfigurations += MeltcCompilerConfig,
     libraryDependencies += {
       val v = meltcCompilerVersion.value
-      // CrossVersion.disabled: meltc_3 is already the full artifact ID after publishLocal
       ("io.github.takapi327" % "meltc_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
     },
     meltcCompilerClasspath := update.value.select(
@@ -300,12 +287,10 @@ object MeltcPlugin extends AutoPlugin {
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
-    // ── Asset manifest generation (§C12) ─────────────────────────────────
     meltcAssetManifestClient  := None,
     meltcAssetManifestPackage := "generated",
     meltcAssetManifestObject  := "AssetManifest",
 
-    // ── Vite integration defaults (Tier 2) ────────────────────────────
     meltcProd             := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
     meltcViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
     meltcViteDistDir      := baseDirectory.value / ".." / "dist",
@@ -329,7 +314,6 @@ object MeltcPlugin extends AutoPlugin {
     meltcAssetManifestGenerate := Def.taskDyn {
       meltcAssetManifestClient.value match {
         case Some(clientProject) if meltcProd.value =>
-          // Prod mode: read the real Vite manifest.json.
           Def.task {
             generateAssetManifestFromVite(
               streams      = streams.value,
@@ -341,7 +325,6 @@ object MeltcPlugin extends AutoPlugin {
             )
           }
         case Some(clientProject) =>
-          // Dev mode: synthesise from fastLinkJS public modules.
           Def.task {
             generateAssetManifest(
               streams    = streams.value,
@@ -358,8 +341,6 @@ object MeltcPlugin extends AutoPlugin {
     }.value,
     Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
   )
-
-  // ── Implementation ─────────────────────────────────────────────────────────
 
   private def compileMeltFiles(
     streams:    TaskStreams,
@@ -382,9 +363,6 @@ object MeltcPlugin extends AutoPlugin {
 
     IO.createDirectory(outDir)
 
-    // Collect all .melt files from every configured source directory, tagged
-    // with the directory they were discovered in (so we can compute the
-    // correct relative sub-package against the owning source root).
     val meltFilesWithRoot: Seq[(File, File)] =
       srcDirs.filter(_.exists).flatMap { srcDir =>
         (srcDir ** "*.melt").get.map(f => (f, srcDir))
@@ -408,9 +386,6 @@ object MeltcPlugin extends AutoPlugin {
       case (meltFile, srcDir) =>
         val objectName = meltFile.base.head.toUpper + meltFile.base.tail
 
-        // Derive sub-package from the relative path between the owning srcDir
-        // and the file's parent directory.
-        // e.g. srcDir=src/main/components, file=src/main/components/atom/Button.melt → subPkg="atom"
         val subPkg = IO
           .relativize(srcDir, meltFile.getParentFile)
           .map(_.replace(java.io.File.separatorChar, '.'))
@@ -421,8 +396,6 @@ object MeltcPlugin extends AutoPlugin {
           case (p, s)  => s"$p.$s"
         }
 
-        // Mirror directory structure in the output so that each package lives
-        // in its own sub-folder. Derived against the owning srcDir.
         val outSubDir = IO
           .relativize(srcDir, meltFile.getParentFile)
           .map(rel => new java.io.File(outDir, rel))
@@ -456,8 +429,6 @@ object MeltcPlugin extends AutoPlugin {
     }
   }
 
-  // ── Asset manifest generation helper (§C12) ─────────────────────────────
-
   /** Writes a `generated.AssetManifest` Scala source that exposes the
     * client project's Scala.js `fastLinkJS` output as a
     * [[melt.runtime.ssr.ViteManifest]] plus the absolute filesystem
@@ -477,8 +448,6 @@ object MeltcPlugin extends AutoPlugin {
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
 
-    // `Report.publicModules` is a Set, so sort by moduleID for stable
-    // output — otherwise the generated file churns between compiles.
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
     val entriesSrc = sortedModules
@@ -487,9 +456,6 @@ object MeltcPlugin extends AutoPlugin {
       }
       .mkString(",\n")
 
-    // Embed the absolute path so the server can locate the fastopt
-    // directory without any runtime configuration. Backslashes (Windows)
-    // are escaped for the Scala string literal.
     val distPathLit = distDir.getAbsolutePath.replace("\\", "\\\\")
 
     val code =
@@ -526,8 +492,6 @@ object MeltcPlugin extends AutoPlugin {
     Seq(outFile)
   }
 
-  // ── Vite integration helpers (Tier 2) ────────────────────────────────
-
   /** Writes a `vite-inputs.json` file that maps each Scala.js public
     * module's moduleID to its absolute filesystem path. `vite.config.js`
     * reads this as `rollupOptions.input` so adding or removing a `.melt`
@@ -547,10 +511,9 @@ object MeltcPlugin extends AutoPlugin {
     val log           = streams.log
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
-    // Build a JSON object: { "home": "/abs/path/to/home.js", ... }
     val entries = sortedModules.map { m =>
       val absPath = (distDir / m.jsFileName).getAbsolutePath
-        .replace("\\", "/") // normalise for JSON
+        .replace("\\", "/")
       s"""  "${ m.moduleID }": "$absPath""""
     }
     val json = entries.mkString("{\n", ",\n", "\n}\n")

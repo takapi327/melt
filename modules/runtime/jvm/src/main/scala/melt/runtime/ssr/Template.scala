@@ -19,7 +19,7 @@ import melt.runtime.Escape
   * Load the template once at application startup with one of the factory
   * methods in the companion object, then reuse it across requests.
   * Instances are immutable and thread-safe (see
-  * `docs/meltc-ssr-design.md` §12.3.3).
+  * `docs/meltc-ssr-design.md`).
   *
   * == Placeholders ==
   *
@@ -94,11 +94,6 @@ final class Template private (private val raw: String):
     lang:   String = "en",
     vars:   Map[String, String] = Map.empty
   ): String =
-    // If the caller did not supply an explicit title, fall back to
-    // the title set by the component tree via `<melt:head><title>...`.
-    // `result.title` is already HTML-escaped by `SsrRenderer.head.title`,
-    // so we pass it through `Escape.html` once more only on the caller's
-    // plain-string path.
     val effectiveTitle: String =
       if title.nonEmpty then Escape.html(title)
       else result.title.getOrElse("")
@@ -178,21 +173,6 @@ final class Template private (private val raw: String):
       .map(f => s"""<link rel="modulepreload" href="$strippedBase/$f">""")
       .mkString("\n")
 
-    // Build one <script type="module"> per tracked component that
-    // dynamically imports its chunk and calls the chunk's `hydrate`
-    // export. Scala.js's `@JSExportTopLevel("hydrate", moduleID = ...)`
-    // produces a named export, so simply loading the chunk via
-    // `<script type="module" src="...">` is NOT enough — the export
-    // would never execute. We therefore emit an inline script that
-    // imports the chunk and invokes `hydrate()` explicitly.
-    //
-    // Dynamic import + `.then(...)` runs chunks in parallel, and the
-    // browser's module cache deduplicates shared dependencies so each
-    // shared chunk is fetched only once.
-    //
-    // Map each component's moduleID directly to its own entry chunk
-    // (the last element of `chunksFor(moduleId)`), so that the call to
-    // `hydrate()` targets the correct module.
     val bootstrap = result.components.toList.distinct
       .flatMap { moduleId =>
         manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
@@ -201,19 +181,6 @@ final class Template private (private val raw: String):
       }
       .mkString("\n")
 
-    // §12.3.11 Props serialisation — emit one inline JSON blob per
-    // tracked component that has recorded hydration Props. The SPA
-    // hydration entry locates these tags via
-    // `document.querySelector("script[data-melt-props=...]")` and
-    // decodes the JSON back into the component's Props case class
-    // using `melt.runtime.json.PropsCodec`.
-    //
-    // The JSON payload is already escaped by `PropsCodec` (which
-    // delegates to `SimpleJson.encString`) — in particular the `</`
-    // sequence is broken up with a `\/` so this block cannot be
-    // terminated prematurely by an HTML parser. The `data-melt-props`
-    // attribute value is HTML-attr-escaped for safety even though
-    // module IDs are restricted by the compiler to a safe alphabet.
     val propsBlobs = result.components.toList.distinct
       .flatMap { moduleId =>
         result.hydrationProps.get(moduleId).map { json =>
@@ -253,8 +220,6 @@ final class Template private (private val raw: String):
     out = out.replace("%melt.body%", bodyContent)
     vars.foreach {
       case (k, v) =>
-        // Reserved keys are ignored so user-provided maps cannot override
-        // structural placeholders.
         if k != "head" && k != "body" && k != "title" && k != "lang" then
           out = out.replace(s"%melt.$k%", Escape.html(v))
     }

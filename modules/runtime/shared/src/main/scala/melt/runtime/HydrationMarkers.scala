@@ -24,7 +24,7 @@ package melt.runtime
   * component `moduleID` so that a page-level hydrator can dispatch to
   * the correct component by name.
   *
-  * == Security (§12.1.7) ==
+  * == Security ==
   *
   * The marker payload (module ID) is attacker-derivable only if a
   * component name contains unusual characters. To keep the SSR output

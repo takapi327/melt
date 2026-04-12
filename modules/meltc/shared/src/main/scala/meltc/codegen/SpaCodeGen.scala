@@ -21,7 +21,6 @@ import meltc.ast.InlineTemplatePart
   */
 object SpaCodeGen extends CodeGen:
 
-  // ── Public API ─────────────────────────────────────────────────────────────
 
   /** Generates a scope ID from the component name (deterministic hash). */
   def scopeIdFor(objectName: String): String =
@@ -45,10 +44,6 @@ object SpaCodeGen extends CodeGen:
     buf ++= "import org.scalajs.dom\n"
     buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     buf ++= "import melt.runtime.*\n"
-    // Props JSON plumbing is only pulled in when a hydration entry is
-    // being emitted for a component that has Props — otherwise the
-    // import is dead weight and pollutes non-hydrating generated
-    // sources.
     if hydration && ast.script.flatMap(_.propsType).isDefined then
       buf ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     buf ++= "import melt.runtime.transition.*\n"
@@ -57,14 +52,12 @@ object SpaCodeGen extends CodeGen:
     buf ++= s"object $objectName {\n\n"
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
 
-    // ── CSS ──────────────────────────────────────────────────────────────────
     ast.style.foreach { s =>
       val scoped = CssScoper.scope(s.css, scopeId)
       val css    = escapeString(scoped)
       buf ++= s"""  private val _css =\n    "$css"\n\n"""
     }
 
-    // ── Props type definition (object level) ─────────────────────────────────
     val propsType = ast.script.flatMap(_.propsType)
     ast.script.foreach { sc =>
       if sc.code.nonEmpty then
@@ -74,25 +67,14 @@ object SpaCodeGen extends CodeGen:
             if propsDef.nonEmpty then
               propsDef.linesIterator.foreach(line => buf ++= s"  $line\n")
               buf += '\n'
-          case None => // no props definition to emit at object level
+          case None =>
     }
 
-    // ── Props codec (§12.3.11) ──────────────────────────────────────────
-    // Mirror-derived codec for decoding the Props JSON embedded by the
-    // SSR side. Same mechanism as SsrCodeGen — meltc only knows the
-    // type name, Scala's inline derivation takes care of the fields.
-    // Only emitted when hydration is enabled so non-hydrating components
-    // stay free of the `melt.runtime.json` import burden at runtime.
     if hydration then
       propsType.foreach { tpe =>
         buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
       }
 
-    // ── apply() ──────────────────────────────────────────────────────────────
-    // Generated components expose a single `apply` entry point so that
-    // user code can call them like functions: `Counter(Counter.Props(0))`
-    // or `App()` when there is no Props type. `mount()` delegates to the
-    // same apply below.
     propsType match
       case Some(typeName) =>
         buf ++= s"  def apply(props: $typeName): dom.Element = {\n"
@@ -103,7 +85,6 @@ object SpaCodeGen extends CodeGen:
 
     if ast.style.isDefined then buf ++= "    Style.inject(_scopeId, _css)\n"
 
-    // ── User script code (inside create for per-instance state) ──────────────
     ast.script.foreach { sc =>
       if sc.code.nonEmpty then
         val bodyCode = propsType match
@@ -114,7 +95,6 @@ object SpaCodeGen extends CodeGen:
           buf += '\n'
     }
 
-    // ── Template ─────────────────────────────────────────────────────────────
     val roots = ast.template.filter {
       case TemplateNode.Text(t) => !t.isBlank
       case _                    => true
@@ -142,7 +122,6 @@ object SpaCodeGen extends CodeGen:
     buf ++= "    _result\n"
     buf ++= "  }\n\n"
 
-    // ── mount() ──────────────────────────────────────────────────────────────
     propsType match
       case Some(typeName) =>
         buf ++= s"  def mount(target: dom.Element, props: $typeName): Unit = Mount(target, apply(props))\n\n"
@@ -160,37 +139,10 @@ object SpaCodeGen extends CodeGen:
     propsType:  Option[String],
     ast:        meltc.ast.MeltFile
   ): Unit =
-    // ── Hydration entry (§C5 + §12.3.11) ────────────────────────────────
-    // Each generated component exports a top-level `hydrate` function
-    // through Scala.js's `@JSExportTopLevel` with a `moduleID` set to
-    // the component's kebab-case name. When a Vite-bundled chunk for
-    // this component is loaded into the browser, the application can
-    // call `hydrate()` to attach reactive bindings to the SSR output.
-    //
-    // The implementation locates the paired hydration markers emitted
-    // by `SsrCodeGen` (`<!--[melt:NAME-->` / `<!--]melt:NAME-->`) and
-    // uses "replace-on-mount" semantics: the SSR HTML inside each
-    // marker pair is removed and replaced with a freshly-built DOM
-    // sub-tree via `Mount`. True hydration (attaching to existing
-    // nodes without reconstructing them) is a Phase D / follow-up
-    // effort.
-    //
-    // Props are recovered from the SSR output via an inline
-    // `<script type="application/json" data-melt-props="$moduleId">`
-    // tag emitted by `Template.render`. The JSON payload is decoded
-    // with the same `PropsCodec[Props]` instance used on the server,
-    // giving the client the exact values the server rendered with.
-    //
-    // Fallback rules when the JSON tag is missing (legacy pages, or
-    // hand-built templates that don't go through `Template.render`):
-    //
-    //   - No `Props` declared → call `apply()` (always safe)
-    //   - All `Props` fields have defaults → call `apply(Props())`
-    //   - Otherwise → log a warning and skip hydration
     val moduleId      = kebabCase(objectName)
     val propsDefaults =
       propsType match
-        case None           => true // no Props → apply() is callable
+        case None           => true
         case Some(typeName) =>
           ast.script
             .map { sc =>
@@ -199,24 +151,10 @@ object SpaCodeGen extends CodeGen:
             }
             .getOrElse(true)
 
-    // Compute the per-iteration mount expression. Three cases:
-    //
-    //   1. No Props              → `Mount(host, apply())`
-    //   2. Props with JSON       → `Mount(host, apply(_props))`
-    //   3. Props without JSON    → resolved lazily in `resolveProps`
-    //
-    // When Props is declared, the JSON lookup + decode is performed
-    // once up-front and stored in `_props`, which is either the
-    // decoded value, the user's default-constructor value, or — if
-    // neither is available — `null` (in which case hydration is
-    // skipped with a console warning).
     val mountExpr: String = propsType match
       case None    => "Mount(host, apply())"
       case Some(_) => "Mount(host, apply(_props))"
 
-    // The `_props` resolution block. For components without Props we
-    // emit nothing. For components with Props we emit a decode +
-    // fallback chain that results in a final `val _props: Type | Null`.
     val resolveProps: String = propsType match
       case None      => ""
       case Some(tpe) =>
@@ -246,8 +184,6 @@ object SpaCodeGen extends CodeGen:
            |$fallback
            |""".stripMargin
 
-    // Skip-guard wrapping the mount loop when Props is required and
-    // cannot be defaulted — keeps the loop itself simple and readable.
     val (guardOpen, guardClose) = propsType match
       case Some(_) if !propsDefaults =>
         ("    if _props != null then\n", "")
@@ -300,7 +236,6 @@ object SpaCodeGen extends CodeGen:
                 |
                 |""".stripMargin
 
-  // ── Node emission ──────────────────────────────────────────────────────────
 
   private def emitNode(
     buf:       StringBuilder,
@@ -309,12 +244,11 @@ object SpaCodeGen extends CodeGen:
     ctr:       Counter,
     isRoot:    Boolean,
     parentVar: Option[String],
-    ns:        String = "" // current namespace context: "" | "svg" | "math"
+    ns:        String = ""
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         val v = ctr.nextEl()
-        // Determine namespace for this element and propagate to children.
         val childNs =
           if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
           else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
@@ -342,24 +276,17 @@ object SpaCodeGen extends CodeGen:
       case TemplateNode.Expression(code) =>
         classifyExpr(code) match
           case ExprKind.ListMap =>
-            // {source.map(renderFn)} → anchor + Bind.list
-            // When the source ends with `.now()` (e.g. `todos.now().map(fn)`),
-            // strip it so we pass the `Var` itself to `Bind.list`, which
-            // subscribes and reactively rebuilds on every update. Without
-            // stripping, `Bind.list` would receive the plain `List` snapshot
-            // and render only once (static overload).
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
             val dotMap    = code.lastIndexOf(".map(")
             val rawSource = code.substring(0, dotMap).trim
             val source    = if rawSource.endsWith(".now()") then rawSource.dropRight(6) else rawSource
-            val fnBody    = code.substring(dotMap + 5, code.length - 1).trim // remove trailing ')'
+            val fnBody    = code.substring(dotMap + 5, code.length - 1).trim
             buf ++= s"${ indent }Bind.list($source, $fnBody, $anchor)\n"
             ""
 
           case ExprKind.KeyedMap =>
-            // {source.keyed(keyFn).map(renderFn)} → anchor + Bind.each
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
@@ -368,16 +295,13 @@ object SpaCodeGen extends CodeGen:
             val afterKeyed = code.substring(keyedIdx + 7)
             val keyEnd     = findBalancedParen(afterKeyed, 0)
             val keyFn      = afterKeyed.substring(0, keyEnd).trim
-            val rest       = afterKeyed.substring(keyEnd + 1) // skip ')'
+            val rest       = afterKeyed.substring(keyEnd + 1)
             val dotMap     = rest.indexOf(".map(")
             val fnBody     = rest.substring(dotMap + 5, rest.length - 1).trim
             buf ++= s"${ indent }Bind.each($source, $keyFn, $fnBody, $anchor)\n"
             ""
 
           case ExprKind.DomExpr =>
-            // if/else or match returning DOM nodes — use Bind.show with anchor.
-            // If the expression begins with `if <var>.now()`, emit the reactive overload so
-            // that Bind.show re-renders whenever the referenced Var/Signal changes.
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
@@ -399,7 +323,6 @@ object SpaCodeGen extends CodeGen:
                 v
 
       case TemplateNode.InlineTemplate(parts) =>
-        // Build a Scala expression by converting HTML parts to DOM construction code
         val exprBuf = new StringBuilder
         parts.foreach {
           case InlineTemplatePart.Code(code) =>
@@ -422,7 +345,6 @@ object SpaCodeGen extends CodeGen:
                 }
                 exprBuf ++= s"{\n$innerBuf${ indent }  _frag\n${ indent }}"
         }
-        // Re-emit as a regular Expression with the expanded code
         emitNode(buf, TemplateNode.Expression(exprBuf.toString), indent, ctr, isRoot, parentVar)
 
       case TemplateNode.Head(children) =>
@@ -482,29 +404,25 @@ object SpaCodeGen extends CodeGen:
         parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
         buf ++= s"${ indent }Bind.dynamicElement($tagExpr, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
         buf ++= setupBuf.toString
-        buf ++= s"${ indent }  ()\n" // ensure the setup lambda returns Unit
+        buf ++= s"${ indent }  ()\n"
         buf ++= s"${ indent }})\n"
         ""
 
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
 
-        // Check for spread attribute
         val spreadExpr = attrs.collectFirst { case Attr.Spread(expr) => expr }
 
-        // Check for `styled` attribute
         val hasStyled = attrs.exists {
           case Attr.BooleanAttr("styled") => true
           case _                          => false
         }
 
-        // Filter children
         val filteredChildren = children.filter {
           case TemplateNode.Text(t) => !t.isBlank
           case _                    => true
         }
 
-        // Build child component invocation via apply (Child(...) / Child()).
         spreadExpr match
           case Some(expr) =>
             buf ++= s"${ indent }val $v = $name($expr)\n"
@@ -516,7 +434,6 @@ object SpaCodeGen extends CodeGen:
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         v
 
-  // ── Attribute emission ─────────────────────────────────────────────────────
 
   private def emitAttr(
     buf:      StringBuilder,
@@ -542,11 +459,6 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""
       case Attr.EventHandler(event, expr) =>
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
-      // `on:click={expr}` is parsed as Directive("on", "click", expr)
-      // because the colon triggers the directive branch in the parser.
-      // We wrap in `((_: dom.Event) => ...)` so that both zero-arg
-      // `() => doSomething()` and one-arg `(e) => ...` lambdas resolve
-      // to the `js.Function1[Event, _]` that addEventListener expects.
       case Attr.Directive("on", event, Some(expr), mods) =>
         if mods.contains("preventDefault") then
           buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => { _: dom.Event => ().asInstanceOf[Unit]; ($expr).asInstanceOf[Any] }))\n"""
@@ -601,18 +513,12 @@ object SpaCodeGen extends CodeGen:
       case Attr.Directive("animate", animName, exprOpt, _) =>
         val fn     = animName.capitalize
         val params = exprOpt.getOrElse("AnimateParams()")
-        // Type ascriptions ensure the Scala compiler rejects wrong types at compile time:
-        //   ($fn: AnimateFn)      — non-AnimateFn values are rejected before erasure
-        //   ($params: AnimateParams) — wrong param types (e.g. TransitionParams) are caught
         buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")(($fn: AnimateFn).asInstanceOf[scalajs.js.Any])\n"""
         buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params: AnimateParams).asInstanceOf[scalajs.js.Any])\n"""
       case Attr.Spread(expr) =>
-        // On HTML elements: apply HtmlAttrs spread
         buf ++= s"""${ indent }$expr.apply($v)\n"""
       case Attr.Directive(_, _, _, _) | Attr.Shorthand(_) =>
-      // Shorthand handled at component level; remaining directives deferred
 
-  // ── Component props building ───────────────────────────────────────────────
 
   /** Builds the Props constructor argument string from component attributes and children. */
   private def buildPropsArgs(
@@ -632,17 +538,14 @@ object SpaCodeGen extends CodeGen:
       case Attr.Shorthand(varName) =>
         args += s"$varName = $varName"
       case Attr.EventHandler(event, expr) =>
-        // On components, event handlers become props (e.g., onAdd = handler)
         val propName = s"on${ event.charAt(0).toUpper }${ event.substring(1) }"
         args += s"$propName = $expr"
       case Attr.BooleanAttr("styled") =>
-      // handled separately, not a prop
       case Attr.BooleanAttr(name) =>
         args += s"$name = true"
-      case _ => // Spread handled at caller; Directive not a prop
+      case _ =>
     }
 
-    // Children as a `() => dom.Element` prop
     if children.nonEmpty then
       val childVar = emitChildrenLambda(children, indent, ctr, buf)
       args += s"children = $childVar"
@@ -680,7 +583,6 @@ object SpaCodeGen extends CodeGen:
     buf ++= s"${ indent }}\n"
     varName
 
-  // ── Props definition splitting ─────────────────────────────────────────────
 
   /** Splits script code into (propsDefinition, bodyCode).
     * The props definition (e.g. `case class Props(...)`) goes at object level;
@@ -834,13 +736,12 @@ object SpaCodeGen extends CodeGen:
       i += 1
     (i - 1, buf.toVector)
 
-  // ── Expression classification ───────────────────────────────────────────
 
   private enum ExprKind:
-    case ListMap   // contains ".map(" with DOM body — list rendering
-    case KeyedMap  // contains ".keyed(" ... ".map(" — keyed list
-    case DomExpr   // if/else or match that produces DOM nodes
-    case PlainText // everything else — rendered as text via Bind.text
+    case ListMap
+    case KeyedMap
+    case DomExpr
+    case PlainText
 
   /** Classifies a template expression to determine rendering strategy.
     *
@@ -881,7 +782,6 @@ object SpaCodeGen extends CodeGen:
     */
   private def extractReactiveSource(code: String): Option[String] =
     val trimmed = code.trim
-    // Pattern: if [!]<ident>.now() then ...
     val ifNowRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.now\(\)""".r
     ifNowRe.findFirstMatchIn(trimmed).map(_.group(1))
 
@@ -897,7 +797,6 @@ object SpaCodeGen extends CodeGen:
       i += 1
     i
 
-  // ── Namespace constants ───────────────────────────────────────────────────
 
   private val SvgNs  = "http://www.w3.org/2000/svg"
   private val MathNs = "http://www.w3.org/1998/Math/MathML"
@@ -988,9 +887,6 @@ object SpaCodeGen extends CodeGen:
     "semantics"
   )
 
-  // ── Known HTML boolean attributes ─────────────────────────────────────────
-  // These attributes use presence/absence (not value) to mean true/false.
-  // Dynamic bindings for these names emit Bind.booleanAttr instead of Bind.attr.
   val htmlBooleanAttrs: Set[String] = Set(
     "disabled",
     "checked",
@@ -1015,7 +911,6 @@ object SpaCodeGen extends CodeGen:
     "seamless"
   )
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private def escapeString(s: String): String =
     s.replace("\\", "\\\\")

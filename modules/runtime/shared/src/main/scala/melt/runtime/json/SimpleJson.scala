@@ -10,10 +10,9 @@ import scala.collection.mutable
 
 /** Minimal zero-dependency JSON parser / encoder used by the Melt runtime.
   *
-  * Props serialisation (§12.3.11) needs to round-trip a component's Props
-  * case class between the SSR side (JVM) and the hydration entry (JS).
-  * Both sides live in `melt-runtime`, which the design doc (§2.3) wants
-  * to stay external-dependency-free, so we hand-roll a small parser that
+  * Round-trips a component's Props case class between the SSR side (JVM)
+  * and the hydration entry (JS). Both sides live in `melt-runtime` which
+  * stays external-dependency-free, so we hand-roll a small parser that
   * covers the subset of JSON that [[PropsCodec]] actually emits:
   *
   *   - objects `{ "k": v, ... }`
@@ -21,19 +20,10 @@ import scala.collection.mutable
   *   - strings (with standard `\` escapes and `\uXXXX`)
   *   - numbers (integer and decimal with optional exponent)
   *   - booleans / null
-  *
-  * This is the same hand-rolled parser that `ViteManifest` used to carry
-  * privately, lifted into the shared source tree so both the JVM SSR
-  * path and the JS hydration path can reach it without adding a circe /
-  * upickle dependency.
   */
 object SimpleJson:
 
-  // ── AST ────────────────────────────────────────────────────────────────
-
-  /** Discriminated union of JSON values. Kept deliberately small — the
-    * shapes we care about are Obj, Arr, Str, Num, Bool, Null.
-    */
+  /** Discriminated union of JSON values. */
   sealed trait JsonValue:
     def kind: String
 
@@ -86,8 +76,6 @@ object SimpleJson:
           case None | Some(Null) => None
           case Some(v)           => Some(f(v))
 
-  // ── Parse ──────────────────────────────────────────────────────────────
-
   /** Parses a JSON document. Throws [[IllegalArgumentException]] on
     * syntactically invalid input — callers that accept untrusted input
     * should wrap this in `Try`.
@@ -99,15 +87,13 @@ object SimpleJson:
     if p.pos != src.length then throw new IllegalArgumentException(s"unexpected trailing input at offset ${ p.pos }")
     v
 
-  // ── Encode ─────────────────────────────────────────────────────────────
-
   /** Escapes a string for inclusion in a JSON string literal.
     *
     * In addition to the standard JSON escapes, also escapes the `</`
     * sequence so that the resulting JSON can be safely embedded inside
     * a `<script type="application/json">` tag without risk of early
     * termination by an HTML parser. The escape uses `<\/`, which is
-    * still valid JSON per RFC 8259 §7 (forward slash MAY be escaped).
+    * still valid JSON per RFC 8259 (forward slash MAY be escaped).
     */
   def encString(s: String): String =
     val buf = new StringBuilder(s.length + 2)
@@ -124,8 +110,6 @@ object SimpleJson:
         case '\r'                                   => buf ++= "\\r"
         case '\t'                                   => buf ++= "\\t"
         case '/' if i > 0 && s.charAt(i - 1) == '<' =>
-          // Break the `</` sequence so an HTML parser can't terminate
-          // the enclosing <script type="application/json"> block.
           buf ++= "\\/"
         case c if c < 0x20 =>
           buf ++= "\\u%04x".format(c.toInt)
@@ -143,8 +127,6 @@ object SimpleJson:
     if d.isNaN || d.isInfinite then throw new IllegalArgumentException(s"cannot encode non-finite number: $d")
     else if d == d.toLong.toDouble && !d.toString.contains("E") then d.toLong.toString
     else d.toString
-
-  // ── Parser implementation ──────────────────────────────────────────────
 
   private final class Parser(src: String):
     var pos: Int = 0

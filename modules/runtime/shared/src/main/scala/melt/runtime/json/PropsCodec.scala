@@ -59,8 +59,6 @@ trait PropsCodec[A]:
 
 object PropsCodec:
 
-  // ── Primitive instances ────────────────────────────────────────────────
-
   given PropsCodec[String] with
     def encode(v: String, buf: StringBuilder): Unit   = buf ++= SimpleJson.encString(v)
     def decode(j: SimpleJson.JsonValue):       String = j match
@@ -96,8 +94,6 @@ object PropsCodec:
     def decode(j: SimpleJson.JsonValue):        Boolean = j match
       case SimpleJson.JsonValue.Bool(b) => b
       case other                        => typeMismatch("Boolean", other)
-
-  // ── Generic / collection instances ─────────────────────────────────────
 
   given [A](using inner: PropsCodec[A]): PropsCodec[Option[A]] with
     def encode(v: Option[A], buf: StringBuilder): Unit = v match
@@ -149,8 +145,6 @@ object PropsCodec:
       case SimpleJson.JsonValue.Null       => Nil
       case other                           => typeMismatch("Seq", other)
 
-  // ── Product derivation via Mirror.ProductOf ───────────────────────────
-
   /** Automatic derivation for any product type (case class / Tuple).
     *
     * Exposed as an `inline given` so that nested Props types — e.g.
@@ -195,15 +189,11 @@ object PropsCodec:
         while i < labelsArr.length do
           obj.fields.get(labelsArr(i)) match
             case Some(SimpleJson.JsonValue.Null) | None =>
-              // Missing / null → use codec's default decode path, which
-              // for Option returns None and for everything else throws.
               values(i) = codecsArr(i).decode(SimpleJson.JsonValue.Null)
             case Some(v) =>
               values(i) = codecsArr(i).decode(v)
           i += 1
         m.fromProduct(Tuple.fromArray(values))
-
-  // ── Compile-time helpers ───────────────────────────────────────────────
 
   private inline def summonLabels[T <: Tuple]: List[String] =
     inline erasedValue[T] match

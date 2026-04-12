@@ -41,11 +41,8 @@ import meltc.ast.*
   */
 object SsrCodeGen extends CodeGen:
 
-  // ── Public API ─────────────────────────────────────────────────────────
 
   def scopeIdFor(objectName: String): String =
-    // Mirrors SpaCodeGen so the same .melt file produces matching scope
-    // IDs on both platforms — essential for hydration in Phase C.
     SpaCodeGen.scopeIdFor(objectName)
 
   def generate(
@@ -55,24 +52,17 @@ object SsrCodeGen extends CodeGen:
     scopeId:    String,
     hydration:  Boolean = false
   ): String =
-    // `hydration` is ignored here — SSR never emits @JSExportTopLevel.
-    // The flag only affects SpaCodeGen.
     val _   = hydration
     val buf = new StringBuilder
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
     buf ++= "import melt.runtime.*\n"
-    // `PropsCodec` is only needed when the component declares a Props
-    // type — most components don't, and emitting the import anyway
-    // would pollute generated sources. We decide based on the parsed
-    // script's `props` attribute.
     if ast.script.flatMap(_.propsType).isDefined then buf ++= "import melt.runtime.json.PropsCodec\n"
     buf ++= "import melt.runtime.ssr.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
 
-    // ── CSS ──────────────────────────────────────────────────────────────
     val hasCss = ast.style.isDefined
     ast.style.foreach { s =>
       val scoped = CssScoper.scope(s.css, scopeId)
@@ -81,17 +71,6 @@ object SsrCodeGen extends CodeGen:
 
     val propsType = ast.script.flatMap(_.propsType)
 
-    // ── Hoist type definitions from <script> to object level ──
-    //
-    // `case class Props` needs to be visible at the object level so
-    // that external callers can write `Counter(Counter.Props(...))`.
-    // If Props references other types defined in the same script
-    // (e.g. `case class Todo; case class Props(items: List[Todo])`),
-    // those types must also live at the object level. We therefore
-    // extract ALL top-level `case class` / `type` / `sealed trait` /
-    // `enum` declarations from the script and emit them as object
-    // members, while keeping everything else (vals, expressions) inside
-    // the per-render apply() body.
     val scriptBody = ast.script.map(_.code.trim).getOrElse("")
 
     val (typeDecls, scriptBodyRest) = splitTypeDecls(scriptBody)
@@ -102,38 +81,19 @@ object SsrCodeGen extends CodeGen:
       buf ++= "\n"
     }
 
-    // ── Props codec (§12.3.11) ──────────────────────────────────────────
-    // Emit a `PropsCodec[Props]` derived via Scala 3's Mirror so that
-    // the SSR path can serialise the incoming Props to JSON once per
-    // render. The SPA hydration entry picks this JSON up from the DOM
-    // and decodes it with a symmetric `PropsCodec` on the client side,
-    // avoiding the "fallback to defaults" gap that caused visible
-    // hydration flicker (e.g. "Hello, Melt!" → "Hello, world!").
-    //
-    // Derivation happens at Scala compile time — meltc knows only the
-    // type *name* here. Any field type that has a `PropsCodec` given
-    // in scope works (primitives, Option/List, nested case classes
-    // defined anywhere the component can see).
     propsType.foreach { tpe =>
       buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
     }
 
-    // ── apply() method ──────────────────────────────────────────────────
-    // Components expose a single `apply` entry point so that user code can
-    // call them like functions: `Counter(Counter.Props(0))` or `App()` when
-    // there is no Props type.
     buf ++= s"  def apply(${ renderParams(propsType) }): RenderResult = {\n"
     buf ++= "    val renderer = SsrRenderer()\n"
     val moduleId = kebabCase(objectName)
     buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
-    // §12.3.11 — record the serialised Props so that Template.render
-    // can embed them in the SSR output for the SPA hydration entry.
     if propsType.isDefined then
       buf ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
     if hasCss then buf ++= "    renderer.css.add(_scopeId, _css)\n"
     buf ++= "\n"
 
-    // ── Script body (excluding type declarations already hoisted) ──
     if scriptBodyRest.nonEmpty then
       buf ++= "    // ── User script section ──\n"
       scriptBodyRest.linesIterator.foreach { line =>
@@ -142,17 +102,11 @@ object SsrCodeGen extends CodeGen:
       }
       buf ++= "\n"
 
-    // ── Hydration marker (open) ──
-    // §12.1.7 — wraps the component's HTML in `<!--[melt:MODULE-->` /
-    // `<!--]melt:MODULE-->` so that client-side hydration can find the
-    // exact DOM range that belongs to this component.
     buf ++= s"""    renderer.push(HydrationMarkers.open("$moduleId"))\n"""
 
-    // ── Template nodes ────────────────────────────────────────────────────
     buf ++= "    // ── Template ──\n"
     ast.template.foreach(node => emitNode(node, buf, indent = 4, scopeId))
 
-    // ── Hydration marker (close) ──
     buf ++= s"""    renderer.push(HydrationMarkers.close("$moduleId"))\n"""
 
     buf ++= "\n    renderer.result()\n"
@@ -161,7 +115,6 @@ object SsrCodeGen extends CodeGen:
 
     buf.toString
 
-  // ── Node emission ──────────────────────────────────────────────────────
 
   private def emitNode(
     node:           TemplateNode,
@@ -186,8 +139,6 @@ object SsrCodeGen extends CodeGen:
             emitGenericElement(tag, attrs, children, buf, indent, scopeId, selectBindExpr)
 
       case TemplateNode.Text(content) =>
-        // Text content is compile-time static, so we escape it once here
-        // rather than at runtime. This matches Svelte 5's behaviour.
         val escaped = htmlEscapeLiteral(content)
         buf ++= s"""${ pad }renderer.push("${ escapeString(escaped) }")\n"""
 
@@ -198,18 +149,15 @@ object SsrCodeGen extends CodeGen:
         emitComponentCall(name, attrs, buf, indent)
 
       case TemplateNode.Head(children) =>
-        // <melt:head> — route children through renderer.head
         children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
 
       case TemplateNode.Window(_) | TemplateNode.Body(_) =>
-        // Window / body event handlers have no meaning in SSR.
         ()
 
       case TemplateNode.InlineTemplate(parts) =>
         emitInlineTemplate(parts, buf, indent, scopeId)
 
       case TemplateNode.DynamicElement(_, _, _) =>
-        // Phase B / C: dynamic elements.
         buf ++= s"${ pad }// TODO(SSR Phase C): DynamicElement\n"
 
   /** Generic element emission — the normal open/close path used when no
@@ -229,19 +177,12 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart(tag, attrs, buf, indent, scopeId)
 
-    // When this `<option>` sits inside a `<select bind:value={expr}>`,
-    // emit a dynamic `selected` attribute comparing the option's value
-    // to the bind expression. Phase B handles static and dynamic option
-    // `value` attributes; options with no value fall back to their text
-    // content (which is not fully supported here — that is Phase C work).
     if tag.equalsIgnoreCase("option") && selectBindExpr.isDefined then
       val bindExpr = selectBindExpr.get
       optionValueExpr(attrs) match
         case Some(valueExpr) =>
           buf ++= s"""${ pad }if ($bindExpr == $valueExpr) renderer.push(" selected")\n"""
         case None =>
-          // Options without a `value` attribute match by inner text —
-          // left for Phase C. Skip the selected emission here.
           ()
 
     if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
@@ -261,7 +202,6 @@ object SsrCodeGen extends CodeGen:
       case Attr.Dynamic("value", e) => e
     }
 
-  // ── §12.3.6 Special element bindings ───────────────────────────────────
 
   private def hasBindValue(attrs: List[Attr]): Boolean =
     attrs.exists {
@@ -305,8 +245,6 @@ object SsrCodeGen extends CodeGen:
       case Attr.Directive("bind", "value", Some(e), _) => e
     }.get
 
-    // All other attributes are emitted as usual, but we must strip the
-    // bind:value directive since its value goes into the body.
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "value", _, _) => true
       case _                                     => false
@@ -314,10 +252,6 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart("textarea", restAttrs, buf, indent, scopeId)
     buf ++= s"""${ pad }renderer.push(">")\n"""
-    // User-provided children are appended before the bind:value text for
-    // compatibility with typical mixed-content templates. In practice
-    // Svelte requires textarea to have no static children when bind:value
-    // is set, but we permit it here.
     children.foreach(c => emitNode(c, buf, indent, scopeId))
     buf ++= s"""${ pad }renderer.push(Escape.html($bindExpr))\n"""
     buf ++= s"""${ pad }renderer.push("</textarea>")\n"""
@@ -394,13 +328,10 @@ object SsrCodeGen extends CodeGen:
       case (Some("checkbox"), Some(v)) =>
         buf ++= s"""${ pad }if ($bindExpr.contains($v)) renderer.push(" checked")\n"""
       case (_, Some(v)) =>
-        // radio (or unspecified type — treated as radio semantics)
         buf ++= s"""${ pad }if ($bindExpr == $v) renderer.push(" checked")\n"""
       case _ =>
-        // bind:group without a value is meaningless; skip emission.
         ()
 
-    // <input> is a void element.
     buf ++= s"""${ pad }renderer.push(">")\n"""
 
   /** Any element with `bind:innerHTML={v}` or `bind:textContent={v}`.
@@ -442,14 +373,11 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
     if HtmlVoidElements.isVoid(tag) then
-      // Void elements can't have inner content; ignore the bind: directive.
       buf ++= s"""${ pad }renderer.push(">")\n"""
     else
       buf ++= s"""${ pad }renderer.push(">")\n"""
       innerHtmlExpr match
         case Some(e) =>
-          // The user's expression must be a TrustedHtml; we extract the
-          // underlying String so it is spliced into the body verbatim.
           buf ++= s"${ pad }renderer.push($e.value)\n"
         case None =>
           textContentExpr.foreach { e =>
@@ -486,7 +414,6 @@ object SsrCodeGen extends CodeGen:
     scopeId: String
   ): Unit =
     val pad = " " * indent
-    // Find an existing static class attribute to combine with the scope id.
     val staticClass = attrs.collectFirst {
       case Attr.Static("class", v) => v
     }
@@ -507,7 +434,6 @@ object SsrCodeGen extends CodeGen:
   ): Unit =
     val pad = " " * indent
     attr match
-      // Static class is folded into emitScopedClassAttr — skip here.
       case Attr.Static("class", _) => ()
 
       case Attr.Static(name, value) =>
@@ -524,7 +450,6 @@ object SsrCodeGen extends CodeGen:
         else buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\")\n"""
 
       case Attr.Shorthand(varName) =>
-        // `<input {value}>` → `value={value}` — treat as dynamic.
         if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
           buf ++= s"""${ pad }renderer.push(s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\")\n"""
         else buf ++= s"""${ pad }renderer.push(s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\")\n"""
@@ -533,35 +458,23 @@ object SsrCodeGen extends CodeGen:
         buf ++= s"""${ pad }renderer.spreadAttrs("$tag", $expr)\n"""
 
       case Attr.EventHandler(_, _) =>
-        // Event handlers are stripped in SSR.
         ()
 
       case Attr.Directive(kind, name, expr, _) =>
         kind match
           case "bind" =>
-            // Phase A: bind:value={v} on a normal input → emit as a plain
-            // value attribute. The expression is always a `Var`, so we
-            // call `.now()` to read the current snapshot for SSR.
-            // Rich <textarea> / <select> handling arrives in Phase B (§12.3.6).
             expr.foreach { e =>
               buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e.now()) + \"\\\"\")\n"""
             }
           case "class" =>
-            // class:active={flag} → conditionally append class name.
-            // Phase A simplified: emit as additional class attribute through
-            // a runtime helper.
             expr.foreach { e =>
               buf ++= s"""${ pad }if ($e) then renderer.push(" $name")\n"""
             }
           case "style" =>
-            // §12.1.5: route dynamic CSS values through Escape.cssValue so
-            // that `url(javascript:...)`, `expression(...)`, `@import`
-            // are blocked.
             expr.foreach { e =>
               buf ++= s"""${ pad }renderer.push(s\" style=\\\"$name:\" + Escape.cssValue($e) + \";\\\"\")\n"""
             }
           case _ =>
-            // use:, transition:, in:, out:, animate: — ignored in SSR.
             ()
 
   /** Emits a `<Child ... />` component invocation. */
@@ -572,20 +485,17 @@ object SsrCodeGen extends CodeGen:
     indent: Int
   ): Unit =
     val pad = " " * indent
-    // Build a Props(...) call from attribute bindings. In Phase A we only
-    // support Shorthand, Static, Dynamic, and Spread passed to components.
     val args = attrs.flatMap {
       case Attr.Shorthand(n)  => Some(s"$n = $n")
       case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
       case Attr.Dynamic(n, e) => Some(s"$n = $e")
-      case Attr.Spread(_)     => None // spread to component not yet supported
+      case Attr.Spread(_)     => None
       case _                  => None
     }
 
     if args.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
     else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
 
-  // ── Expression / InlineTemplate (Phase B) ──────────────────────────────
 
   /** Emits a `TemplateNode.Expression`.
     *
@@ -608,8 +518,6 @@ object SsrCodeGen extends CodeGen:
     scopeId: String
   ): Unit =
     val pad = " " * indent
-    // Straight Expression nodes never carry inline HTML (that path goes
-    // through InlineTemplate), so we always escape + push.
     buf ++= s"""${ pad }renderer.push(Escape.html($code))\n"""
 
   /** Emits a `TemplateNode.InlineTemplate`.
@@ -640,7 +548,6 @@ object SsrCodeGen extends CodeGen:
   ): Unit =
     val pad = " " * indent
 
-    // Build a single Scala expression that evaluates to the HTML contents.
     val exprBuf = new StringBuilder
     parts.foreach {
       case InlineTemplatePart.Code(code) =>
@@ -654,12 +561,6 @@ object SsrCodeGen extends CodeGen:
 
     kind match
       case InlineKind.Iterable =>
-        // .map(...) → convert to .foreach(... renderer.push(...))
-        // We wrap the entire map-returning expression in
-        // `.foreach(renderer.push(_))` at the outer level. Alternative:
-        // `renderer.push(expr.mkString)` which materialises a single
-        // String. We pick the foreach form to avoid allocating the
-        // intermediate Seq.
         buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
 
       case InlineKind.SingleString =>
@@ -693,7 +594,6 @@ object SsrCodeGen extends CodeGen:
   ): Unit = node match
     case TemplateNode.Element(tag, attrs, children) =>
       sb ++= s"""_sb ++= "<$tag"; """
-      // Class attribute with scope id (combined with static class if any).
       val staticClass = attrs.collectFirst {
         case Attr.Static("class", v) => v
       }
@@ -703,7 +603,6 @@ object SsrCodeGen extends CodeGen:
         case None =>
           sb ++= s"""_sb ++= " class=\\"$scopeId\\""; """
 
-      // Other attributes.
       attrs.foreach {
         case Attr.Static("class", _)  => ()
         case Attr.Static(name, value) =>
@@ -720,9 +619,9 @@ object SsrCodeGen extends CodeGen:
           if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
             sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\"; """
           else sb ++= s"""_sb ++= s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\"; """
-        case Attr.EventHandler(_, _)    => () // stripped in SSR
-        case Attr.Directive(_, _, _, _) => () // stripped in nested inline (Phase B follow-up)
-        case Attr.Spread(_)             => () // spread on nested inline not supported in Phase B
+        case Attr.EventHandler(_, _)    => ()
+        case Attr.Directive(_, _, _, _) => ()
+        case Attr.Spread(_)             => ()
       }
 
       sb ++= s"""_sb ++= ">"; """
@@ -738,11 +637,6 @@ object SsrCodeGen extends CodeGen:
       sb ++= s"""_sb ++= Escape.html($code); """
 
     case TemplateNode.Component(name, attrs, _) =>
-      // Render child component into a sub-renderer and append its body.
-      // The .body string already contains the inner HTML; merge into parent
-      // renderer via a temporary RenderResult. For Phase B simplicity we
-      // just embed the body directly — any <melt:head> / CSS from children
-      // inside a list will be lost (Phase B follow-up).
       val args = attrs.flatMap {
         case Attr.Shorthand(n)  => Some(s"$n = $n")
         case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
@@ -753,14 +647,11 @@ object SsrCodeGen extends CodeGen:
       else sb ++= s"""_sb ++= $name($name.Props(${ args.mkString(", ") })).body; """
 
     case TemplateNode.InlineTemplate(nested) =>
-      // Nested inline template — expand recursively.
       sb ++= "_sb ++= "
       sb ++= htmlNodesToStringExprFromParts(nested, scopeId)
       sb ++= "; "
 
     case _ =>
-      // Head / Window / Body / DynamicElement inside inline list rendering
-      // are not meaningful for Phase B — drop silently.
       ()
 
   /** Helper: convert a nested `List[InlineTemplatePart]` (recursive case). */
@@ -809,7 +700,6 @@ object SsrCodeGen extends CodeGen:
     val pad = " " * indent
     node match
       case TemplateNode.Element("title", _, titleChildren) =>
-        // Single dynamic or static title: collapse children into one string.
         titleChildren match
           case TemplateNode.Expression(code) :: Nil =>
             buf ++= s"${ pad }renderer.head.title($code)\n"
@@ -822,8 +712,6 @@ object SsrCodeGen extends CodeGen:
               ) }</title>")\n"""
 
       case TemplateNode.Element(tag, attrs, children) =>
-        // For arbitrary head children, emit their tag open / attrs / close
-        // into the head buffer using a helper.
         buf ++= s"""${ pad }renderer.head.push("<$tag")\n"""
         attrs.foreach {
           case Attr.Static(n, v) =>
@@ -846,10 +734,8 @@ object SsrCodeGen extends CodeGen:
         buf ++= s"${ pad }renderer.head.push(Escape.html($code))\n"
 
       case _ =>
-        // Other node kinds inside <melt:head> are skipped in Phase A.
         ()
 
-  // ── Utilities ──────────────────────────────────────────────────────────
 
   private def renderParams(propsType: Option[String]): String =
     propsType match
@@ -937,7 +823,6 @@ object SsrCodeGen extends CodeGen:
         val line    = lines(i)
         val trimmed = line.trim
         if isTypeDeclStart(trimmed) then
-          // Find the balanced end of this declaration.
           val (endIdx, chunk) = collectBalanced(lines, i)
           typeDecls += chunk.mkString("\n")
           i = endIdx + 1
@@ -984,10 +869,6 @@ object SsrCodeGen extends CodeGen:
           depth -= 1
         case _ => ()
       }
-      // Stop when either:
-      //   - we've closed every opened bracket (seenAnyOpen && depth==0)
-      //   - there never was any opening bracket and the line ends (one-line
-      //     declarations like `type Foo = Bar`)
       if (seenAnyOpen && depth == 0) || (!seenAnyOpen && depth == 0) then done = true
       i += 1
     (i - 1, buf.toVector)

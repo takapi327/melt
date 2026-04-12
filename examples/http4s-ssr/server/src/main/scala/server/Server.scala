@@ -56,7 +56,6 @@ object Server extends IOApp.Simple:
   private def routes(todoStore: Ref[IO, List[Todos.Todo]]): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
 
-      // ── Hydration-enabled pages ──────────────────────────────────────────
       case GET -> Root =>
         val result = Home(Home.Props(userName = "Melt", count = 1))
         Ok(
@@ -77,12 +76,6 @@ object Server extends IOApp.Simple:
           htmlContentType
         )
 
-      // ── Todos: SSR + Hydration + JSON API ──────────────────────────────
-      // GET renders the page with hydration. After hydration the client
-      // manages its own Var[List[Todo]] reactively. Mutations fire
-      // optimistic UI updates AND a fire-and-forget POST to the JSON
-      // API below, so the server's Ref stays in sync and a page refresh
-      // always returns the latest state.
       case GET -> Root / "todos" =>
         for
           items <- todoStore.get
@@ -93,7 +86,6 @@ object Server extends IOApp.Simple:
           resp <- Ok(html, htmlContentType)
         yield resp
 
-      // ── JSON API for client-side mutations ─────────────────────────────
       case req @ POST -> Root / "api" / "todos" / "add" =>
         for
           body <- req.as[String]
@@ -113,8 +105,6 @@ object Server extends IOApp.Simple:
       case POST -> Root / "api" / "todos" / "delete" / id =>
         todoStore.update(_.filterNot(_.id == id)) *> Ok()
     }
-
-  // ── Small response helpers ─────────────────────────────────────────────
 
   private val htmlContentType: `Content-Type` =
     `Content-Type`(MediaType.text.html, Charset.`UTF-8`)

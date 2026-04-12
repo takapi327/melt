@@ -30,7 +30,7 @@ import scala.io.Source
   *
   * `ViteManifest` is immutable and thread-safe. Load it once at
   * application startup via `ViteManifest.load(path)` and share the
-  * instance across all requests (see `docs/meltc-ssr-design.md` §12.3.3).
+  * instance across all requests (see `docs/meltc-ssr-design.md`).
   */
 final class ViteManifest private (
   private val entries:   immutable.Map[String, ViteManifest.Entry],
@@ -63,7 +63,6 @@ final class ViteManifest private (
         case Some(entry) =>
           val next = visited + key
           val deps = entry.imports.flatMap(k => resolve(k, next))
-          // Dedupe preserving first-seen order.
           (deps :+ entry.file).distinct
         case None => Nil
 
@@ -137,26 +136,12 @@ object ViteManifest:
           case (key, JsonValue.Obj(entryFields)) =>
             Some(key -> parseEntry(entryFields))
           case (key, _) =>
-            // Ignore non-object entries — Vite occasionally emits
-            // alternate shapes that we don't model.
             None
         }.toMap
 
-        // Vite uses source-file paths or plain input-key names as
-        // manifest keys, depending on whether the input was an absolute
-        // path or a plain name. `chunksFor(moduleId)` looks up
-        // `scalajs:home.js`. We bridge by adding alias entries for
-        // every `isEntry = true` entry whose key doesn't already use
-        // the `<uriPrefix>:` format.
-        //
-        // Handled key patterns (all map to `scalajs:home.js`):
-        //   - `"client/target/.../home.js"` → basename "home.js"
-        //   - `"home"` → append ".js"
-        //   - `"scalajs:home.js"` → already correct, skip
         val aliases = rawEntries.iterator.flatMap {
           case (key, entry) if entry.isEntry && !key.startsWith(s"$uriPrefix:") =>
             val basename = key.split('/').last
-            // If the key has no extension (e.g. "home"), append ".js"
             val withExt  = if basename.contains('.') then basename else s"$basename.js"
             val aliasKey = s"$uriPrefix:$withExt"
             if rawEntries.contains(aliasKey) then None
@@ -187,14 +172,6 @@ object ViteManifest:
       case Some(JsonValue.Bool(b)) => b
       case _                       => false
     Entry(file, imports, css, isEntry)
-
-  // ── Minimal JSON parser ────────────────────────────────────────────────
-  //
-  // Vite manifests are small (tens of KB at most) and structurally
-  // constrained, so we hand-roll a parser that covers the exact shape
-  // we need. This avoids adding a JSON library dependency to
-  // melt-runtime.jvm, which the design doc (§2.3) wants to stay
-  // external-dependency-free.
 
   private sealed trait JsonValue:
     def kind: String

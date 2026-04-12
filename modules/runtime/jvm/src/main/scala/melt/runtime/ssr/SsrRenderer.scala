@@ -36,16 +36,9 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   private val cssSet         = mutable.LinkedHashSet.empty[CssEntry]
   private val usedComponents = mutable.LinkedHashSet.empty[String]
 
-  // §12.3.11 Props serialisation — per-component JSON payload keyed by
-  // moduleID. Written into the final result so Template.render can emit
-  // <script type="application/json" data-melt-props="..."> blocks for
-  // the SPA hydration entry to consume.
   private val hydrationPropsMap: mutable.LinkedHashMap[String, String] =
     mutable.LinkedHashMap.empty
 
-  // §12.3.9 head dedup — the last call wins for title and for each
-  // meta-tag name. These are NOT written into headBuf directly; they are
-  // assembled into the final head string in result().
   private var titleContent: Option[String]                        = None
   private val metaTagMap:   mutable.LinkedHashMap[String, String] =
     mutable.LinkedHashMap.empty
@@ -96,7 +89,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     *
     * `scopeId` is always a compile-time string literal emitted by
     * `SsrCodeGen` — this contract is enforced on the compiler side and not
-    * re-checked here (see `§12.3.12`).
+    * re-checked here.
     */
   object css:
     def add(scopeId: String, code: String): Unit =
@@ -127,7 +120,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
 
   /** Merges a child component's [[RenderResult]] into this renderer's state.
     *
-    * Dedup semantics (§12.3.9):
+    * Dedup semantics:
     *   - `title`: child's title wins if present (last-call-wins)
     *   - `metaTags`: each name is replaced by the child's value
     *
@@ -173,8 +166,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
 
   /** Runs `body` inside an error boundary — if it throws, `fallback` is
     * invoked with the exception and its return value is pushed into the
-    * body buffer at the point where the failing region would have gone
-    * (§12.3.7).
+    * body buffer at the point where the failing region would have gone.
     *
     * Svelte 5 exposes `<svelte:boundary>` for the same purpose. Melt's
     * Phase C implementation is intentionally simple: the body lambda
@@ -215,19 +207,13 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
         val html =
           try fallback(t)
           catch
-            case _: Throwable => "" // never let the fallback itself blow up
-        // If the output is already over the size limit (which is likely
-        // if body failed with MeltRenderException), the fallback would
-        // itself blow up on trackSize. Write directly to the buffer to
-        // keep the fallback visible without re-arming the guard. We
-        // still nudge outputBytes so subsequent push() calls remain
-        // consistent.
+            case _: Throwable => ""
         if html.nonEmpty then
           bodyBuf ++= html
           outputBytes += html.length.toLong * 2L
 
   /** Emits a spread attribute `Map` to the body buffer, applying all
-    * Phase A + Phase B security rules (§12.1.2 + §12.1.4):
+    * Phase A + Phase B security rules:
     *
     *   - Drop keys whose name fails [[AttrNameValidator]]
     *   - Drop keys matching `on*` (event handlers must never be inlined
@@ -254,19 +240,17 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
           MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
         else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
         else if name.startsWith("$$") then
-          // Reserved internal prop — silently skip. Svelte 5 parity.
           ()
         else
           val unwrapped = unwrapOption(rawValue)
           unwrapped match
             case null =>
-              () // drop silently
+              ()
             case f if isFunction(f) =>
               MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
             case false =>
-              () // HTML: false boolean attr → omit entirely
+              ()
             case true =>
-              // HTML boolean attr → emit bare (no `="..."`)
               push(s" $name")
             case v if UrlAttributes.isUrlAttribute(tag, name) =>
               push(s""" $name="${ Escape.url(v) }"""")
@@ -342,10 +326,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
       hydrationProps = hydrationPropsMap.toMap
     )
 
-  // ── Internal helpers ───────────────────────────────────────────────────
-
-  /** Tracks output size (UTF-16 char × 2 approximation — see design doc
-    * §12.2.2 for the rationale and caveats) and raises
+  /** Tracks output size (UTF-16 char × 2 approximation) and raises
     * [[MeltRenderException]] if the limit is exceeded.
     */
   private def trackSize(s: String): Unit =
