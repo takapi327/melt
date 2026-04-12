@@ -34,3 +34,4 @@ yarn-error.log
 # Generated
 out/
 *.jar
+dist/

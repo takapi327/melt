@@ -17,37 +17,37 @@ class CounterSpec extends MeltSuite:
   // ── Initial render ───────────────────────────────────────────────────────
 
   test("renders heading") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.text("h1"), "Melt Counter")
   }
 
   test("renders initial count of zero") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.text("p"), "Count: 0")
   }
 
   test("renders initial doubled value") {
-    val c  = mount(Counter.create())
+    val c  = mount(Counter())
     val el = c.getByText("Doubled: 0")
     assertEquals(el.textContent, "Doubled: 0")
   }
 
   test("exists returns true for present elements") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assert(c.exists("h1"), "h1 should exist")
     assert(c.exists("button"), "button should exist")
     assert(!c.exists(".nonexistent"), ".nonexistent should not exist")
   }
 
   test("findAll returns all matching elements") {
-    val c       = mount(Counter.create())
+    val c       = mount(Counter())
     val buttons = c.findAll("button")
     // Counter has 3 own buttons (+1, -1, Reset All) + 2 per StepControl × 2 = 7 total
     assertEquals(buttons.length, 7)
   }
 
   test("attr returns element attribute") {
-    val c           = mount(Counter.create())
+    val c           = mount(Counter())
     val placeholder = c.attr("input", "placeholder")
     assertEquals(placeholder, Some("Your name"))
   }
@@ -55,20 +55,20 @@ class CounterSpec extends MeltSuite:
   // ── Increment / decrement ────────────────────────────────────────────────
 
   test("clicking +1 button increments count") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.click("button")
     assertEquals(c.text("p"), "Count: 1")
   }
 
   test("clicking +1 twice gives count 2") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.click("button")
     c.click("button")
     assertEquals(c.text("p"), "Count: 2")
   }
 
   test("clicking -1 button decrements count") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     // Increment first so we can decrement
     c.click("button")
     c.getByText("-1")
@@ -81,7 +81,7 @@ class CounterSpec extends MeltSuite:
   // ── Reset ────────────────────────────────────────────────────────────────
 
   test("Reset All button resets count to zero") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.click("button")
     c.click("button")
     c.getByText("Reset All")
@@ -94,7 +94,7 @@ class CounterSpec extends MeltSuite:
   // ── Reactive bind:value ──────────────────────────────────────────────────
 
   test("typing in input updates greeting") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.input("input", "Melt")
     // Find the "Hello, ..." paragraph by text content
     val greeting = c.getByText("Hello, Melt!", exact = false)
@@ -104,7 +104,7 @@ class CounterSpec extends MeltSuite:
   // ── Unmount ──────────────────────────────────────────────────────────────
 
   test("unmount removes component from DOM") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assert(c.exists("h1"), "h1 should exist before unmount")
     c.unmount()
     // After unmount the container is detached; queries fall through to not found
@@ -114,40 +114,40 @@ class CounterSpec extends MeltSuite:
   // ── getByText ────────────────────────────────────────────────────────────
 
   test("getByText finds element by exact text") {
-    val c  = mount(Counter.create())
+    val c  = mount(Counter())
     val el = c.getByText("Melt Counter")
     assertEquals(el.tagName.toLowerCase, "h1")
   }
 
   test("queryByText returns Some for existing text") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assert(c.queryByText("Melt Counter").isDefined)
   }
 
   test("queryByText returns None for missing text") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.queryByText("Does not exist"), None)
   }
 
   test("findAllByText with exact = false does substring match") {
-    val c       = mount(Counter.create())
+    val c       = mount(Counter())
     val results = c.findAllByText("Count", exact = false)
     assert(results.nonEmpty, "should find elements containing 'Count'")
   }
 
   test("getByText with Regex finds element") {
-    val c  = mount(Counter.create())
+    val c  = mount(Counter())
     val el = c.getByText("Melt Counter".r)
     assertEquals(el.tagName.toLowerCase, "h1")
   }
 
   test("queryByText with Regex returns None when no match") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.queryByText("xyz123".r), None)
   }
 
   test("getByText throws NoSuchElementException when not found") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     intercept[NoSuchElementException] {
       c.getByText("Not present")
     }
@@ -156,29 +156,29 @@ class CounterSpec extends MeltSuite:
   // ── getByPlaceholderText ─────────────────────────────────────────────────
 
   test("getByPlaceholderText finds input by exact placeholder") {
-    val c  = mount(Counter.create())
+    val c  = mount(Counter())
     val el = c.getByPlaceholderText("Your name")
     assertEquals(el.tagName.toLowerCase, "input")
   }
 
   test("queryByPlaceholderText returns Some for existing placeholder") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assert(c.queryByPlaceholderText("Your name").isDefined, "should find input")
   }
 
   test("queryByPlaceholderText returns None for missing placeholder") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.queryByPlaceholderText("Nonexistent"), None)
   }
 
   test("findAllByPlaceholderText with exact = false does substring match") {
-    val c       = mount(Counter.create())
+    val c       = mount(Counter())
     val results = c.findAllByPlaceholderText("name", exact = false)
     assertEquals(results.length, 1)
   }
 
   test("getByPlaceholderText throws when element is not found") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     intercept[NoSuchElementException] {
       c.getByPlaceholderText("Does not exist")
     }
@@ -187,37 +187,37 @@ class CounterSpec extends MeltSuite:
   // ── getByRole ────────────────────────────────────────────────────────────
 
   test("getAllByRole returns all buttons") {
-    val c       = mount(Counter.create())
+    val c       = mount(Counter())
     val buttons = c.getAllByRole("button")
     // 3 own buttons (+1, -1, Reset All) + 2 per StepControl × 2 = 7 total
     assertEquals(buttons.length, 7)
   }
 
   test("getAllByRole returns the heading") {
-    val c        = mount(Counter.create())
+    val c        = mount(Counter())
     val headings = c.getAllByRole("heading")
     assertEquals(headings.length, 1)
     assertEquals(headings.head.textContent, "Melt Counter")
   }
 
   test("queryByRole returns Some for existing role") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assert(c.queryByRole("heading").isDefined)
   }
 
   test("queryByRole returns None for absent role") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.queryByRole("dialog"), None)
   }
 
   test("getAllByRole returns textbox for input") {
-    val c      = mount(Counter.create())
+    val c      = mount(Counter())
     val inputs = c.getAllByRole("textbox")
     assertEquals(inputs.length, 1)
   }
 
   test("getAllByRole finds input as textbox") {
-    val c      = mount(Counter.create())
+    val c      = mount(Counter())
     val inputs = c.getAllByRole("textbox")
     // The counter's <input> has no type (defaults to text → textbox)
     assertEquals(inputs.length, 1)
@@ -225,21 +225,21 @@ class CounterSpec extends MeltSuite:
 
   test("getAllByRole returns empty for color/file input (no role)") {
     // color and file inputs have no ARIA role — verified via getAllByRole
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     // Counter has no color/file inputs; list role should be empty too
     val dialogs = c.getAllByRole("dialog")
     assertEquals(dialogs.length, 0)
   }
 
   test("getByRole throws when no element matches") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     intercept[NoSuchElementException] {
       c.getByRole("dialog")
     }
   }
 
   test("getByRole throws when multiple elements match") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     intercept[IllegalArgumentException] {
       c.getByRole("button") // Counter has 3 buttons
     }
@@ -248,27 +248,27 @@ class CounterSpec extends MeltSuite:
   // ── getByLabelText ───────────────────────────────────────────────────────
 
   test("getByLabelText finds element via aria-label") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     // The input has no label in the Counter, so we test queryByLabelText returns None
     assertEquals(c.queryByLabelText("Your name"), None)
   }
 
   test("queryByLabelText returns None when label does not exist") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     assertEquals(c.queryByLabelText("Nonexistent label"), None)
   }
 
   // ── waitFor ──────────────────────────────────────────────────────────────
 
   test("waitFor succeeds when assertion already holds") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     waitFor { () =>
       assertEquals(c.text("h1"), "Melt Counter")
     }
   }
 
   test("waitFor succeeds after a reactive state change") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.click("button") // +1
     waitFor { () =>
       assertEquals(c.text("p"), "Count: 1")
@@ -276,7 +276,7 @@ class CounterSpec extends MeltSuite:
   }
 
   test("waitFor times out when assertion never holds") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     // waitFor should produce a failed Future; .failed converts it to a successful Future[Throwable]
     // so this test passes iff waitFor fails, and fails iff waitFor unexpectedly succeeds.
     waitFor(() => assertEquals(c.text("h1"), "Wrong text"), timeout = 100).failed
@@ -286,7 +286,7 @@ class CounterSpec extends MeltSuite:
   // ── debug() ──────────────────────────────────────────────────────────────
 
   test("debug prints component DOM without throwing") {
-    val c = mount(Counter.create())
+    val c = mount(Counter())
     c.debug()               // full DOM
     c.debug("h1")           // specific element
     c.debug(".nonexistent") // missing element — prints message, does not throw

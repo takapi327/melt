@@ -1,0 +1,42 @@
+<script lang="scala" props="Props">
+  case class Todo(id: String, text: String, done: Boolean = false)
+  case class Props(items: List[Todo] = Nil)
+
+  val todos = Var(props.items)
+  val newText = Var("")
+
+  def toggleTodo(id: String): Unit =
+    todos.update(_.map(t => if t.id == id then t.copy(done = !t.done) else t))
+
+  def deleteTodo(id: String): Unit =
+    todos.update(_.filterNot(_.id == id))
+</script>
+
+<div>
+  <h1>Todos</h1>
+
+  <div>
+    <input type="text" bind:value={newText} placeholder="What needs to be done?" />
+    <button onclick={_ => { val text = newText.now().trim; if text.nonEmpty then { newText.set(""); Api.addTodo(text, todos) } }}>Add</button>
+  </div>
+
+  <ul>
+    {todos.now().map((t: Todo) =>
+      <li class={if t.done then "done" else "pending"}>
+        <button onclick={(_: org.scalajs.dom.Event) => { toggleTodo(t.id); Api.post(s"/api/todos/toggle/${t.id}") }}>{if t.done then "✓" else "○"}</button>
+        <span>{t.text}</span>
+        <button onclick={(_: org.scalajs.dom.Event) => { deleteTodo(t.id); Api.post(s"/api/todos/delete/${t.id}") }}>×</button>
+      </li>
+    )}
+  </ul>
+
+  <p>Total: {todos.now().length} / Done: {todos.now().count(_.done)}</p>
+</div>
+
+<style>
+  ul { list-style: none; padding: 0; }
+  li { padding: .25rem 0; display: flex; align-items: center; gap: .5rem; }
+  .done span { text-decoration: line-through; color: #888; }
+  button { cursor: pointer; }
+  input { padding: .25rem .5rem; }
+</style>

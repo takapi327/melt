@@ -1,0 +1,17 @@
+<script lang="scala" props="Props">
+  case class Props(isActive: Boolean = false, count: Int = 0)
+</script>
+
+<div>
+  <h1>Status</h1>
+  {if props.isActive then
+    <p class="active">Active ({props.count})</p>
+  else
+    <p class="inactive">Inactive</p>
+  }
+  {props.count match
+    case 0 => <span>zero</span>
+    case 1 => <span>one</span>
+    case _ => <span>many</span>
+  }
+</div>
