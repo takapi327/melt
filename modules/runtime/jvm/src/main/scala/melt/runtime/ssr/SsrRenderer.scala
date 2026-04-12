@@ -206,8 +206,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
       case t: Throwable =>
         val html =
           try fallback(t)
-          catch
-            case _: Throwable => ""
+          catch case _: Throwable => ""
         if html.nonEmpty then
           bodyBuf ++= html
           outputBytes += html.length.toLong * 2L
@@ -239,8 +238,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
         if !AttrNameValidator.isValid(name) then
           MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
         else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
-        else if name.startsWith("$$") then
-          ()
+        else if name.startsWith("$$") then ()
         else
           val unwrapped = unwrapOption(rawValue)
           unwrapped match

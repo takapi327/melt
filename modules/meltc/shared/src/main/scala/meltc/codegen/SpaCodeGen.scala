@@ -21,7 +21,6 @@ import meltc.ast.InlineTemplatePart
   */
 object SpaCodeGen extends CodeGen:
 
-
   /** Generates a scope ID from the component name (deterministic hash). */
   def scopeIdFor(objectName: String): String =
     val hash = objectName.foldLeft(17)((acc, c) => acc * 31 + c.toInt)
@@ -236,7 +235,6 @@ object SpaCodeGen extends CodeGen:
                 |
                 |""".stripMargin
 
-
   private def emitNode(
     buf:       StringBuilder,
     node:      TemplateNode,
@@ -248,7 +246,7 @@ object SpaCodeGen extends CodeGen:
   ): String =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
-        val v = ctr.nextEl()
+        val v       = ctr.nextEl()
         val childNs =
           if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
           else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
@@ -434,7 +432,6 @@ object SpaCodeGen extends CodeGen:
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         v
 
-
   private def emitAttr(
     buf:      StringBuilder,
     v:        String,
@@ -519,7 +516,6 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }$expr.apply($v)\n"""
       case Attr.Directive(_, _, _, _) | Attr.Shorthand(_) =>
 
-
   /** Builds the Props constructor argument string from component attributes and children. */
   private def buildPropsArgs(
     attrs:    List[Attr],
@@ -541,7 +537,7 @@ object SpaCodeGen extends CodeGen:
         val propName = s"on${ event.charAt(0).toUpper }${ event.substring(1) }"
         args += s"$propName = $expr"
       case Attr.BooleanAttr("styled") =>
-      case Attr.BooleanAttr(name) =>
+      case Attr.BooleanAttr(name)     =>
         args += s"$name = true"
       case _ =>
     }
@@ -582,7 +578,6 @@ object SpaCodeGen extends CodeGen:
 
     buf ++= s"${ indent }}\n"
     varName
-
 
   /** Splits script code into (propsDefinition, bodyCode).
     * The props definition (e.g. `case class Props(...)`) goes at object level;
@@ -736,7 +731,6 @@ object SpaCodeGen extends CodeGen:
       i += 1
     (i - 1, buf.toVector)
 
-
   private enum ExprKind:
     case ListMap
     case KeyedMap
@@ -796,7 +790,6 @@ object SpaCodeGen extends CodeGen:
         if depth < 0 then return i
       i += 1
     i
-
 
   private val SvgNs  = "http://www.w3.org/2000/svg"
   private val MathNs = "http://www.w3.org/1998/Math/MathML"
@@ -910,7 +903,6 @@ object SpaCodeGen extends CodeGen:
     "scoped",
     "seamless"
   )
-
 
   private def escapeString(s: String): String =
     s.replace("\\", "\\\\")

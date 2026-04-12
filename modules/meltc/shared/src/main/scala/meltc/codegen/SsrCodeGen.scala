@@ -41,7 +41,6 @@ import meltc.ast.*
   */
 object SsrCodeGen extends CodeGen:
 
-
   def scopeIdFor(objectName: String): String =
     SpaCodeGen.scopeIdFor(objectName)
 
@@ -114,7 +113,6 @@ object SsrCodeGen extends CodeGen:
     buf ++= "}\n"
 
     buf.toString
-
 
   private def emitNode(
     node:           TemplateNode,
@@ -201,7 +199,6 @@ object SsrCodeGen extends CodeGen:
       case Attr.Static("value", v)  => s""""${ escapeString(v) }""""
       case Attr.Dynamic("value", e) => e
     }
-
 
   private def hasBindValue(attrs: List[Attr]): Boolean =
     attrs.exists {
@@ -372,8 +369,7 @@ object SsrCodeGen extends CodeGen:
     }
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
-    if HtmlVoidElements.isVoid(tag) then
-      buf ++= s"""${ pad }renderer.push(">")\n"""
+    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
       buf ++= s"""${ pad }renderer.push(">")\n"""
       innerHtmlExpr match
@@ -413,7 +409,7 @@ object SsrCodeGen extends CodeGen:
     indent:  Int,
     scopeId: String
   ): Unit =
-    val pad = " " * indent
+    val pad         = " " * indent
     val staticClass = attrs.collectFirst {
       case Attr.Static("class", v) => v
     }
@@ -484,7 +480,7 @@ object SsrCodeGen extends CodeGen:
     buf:    StringBuilder,
     indent: Int
   ): Unit =
-    val pad = " " * indent
+    val pad  = " " * indent
     val args = attrs.flatMap {
       case Attr.Shorthand(n)  => Some(s"$n = $n")
       case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
@@ -495,7 +491,6 @@ object SsrCodeGen extends CodeGen:
 
     if args.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
     else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
-
 
   /** Emits a `TemplateNode.Expression`.
     *
@@ -735,7 +730,6 @@ object SsrCodeGen extends CodeGen:
 
       case _ =>
         ()
-
 
   private def renderParams(propsType: Option[String]): String =
     propsType match
