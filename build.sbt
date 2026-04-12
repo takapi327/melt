@@ -280,8 +280,7 @@ lazy val `http4s-ssr-components` = crossProject(JVMPlatform, JSPlatform)
     meltcCompilerClasspath := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
-  .jvmConfigure(_.dependsOn(runtime.jvm))
-  .jsConfigure(_.dependsOn(runtime.js))
+  .dependsOn(runtime)
   .jsSettings(
     // Enable hydration-entry emission on the JS side so each
     // component gets an `@JSExportTopLevel("hydrate", moduleID = …)`.
