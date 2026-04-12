@@ -31,9 +31,21 @@ class SecurityCheckerSpec extends munit.FunSuite:
     assert(ws.exists(m => m.contains("<iframe>") && m.contains("dynamic `src`")), ws)
   }
 
-  test("iframe srcdoc gets its own warning") {
-    val ws = warnings("""<iframe srcdoc={html}></iframe>""")
-    assert(ws.exists(_.contains("srcdoc")), ws)
+  test("iframe srcdoc with dynamic value is a compile error (S-5)") {
+    val result = MeltCompiler.compile("""<iframe srcdoc={html}></iframe>""", "App.melt", "App", "", CompileMode.SSR)
+    assert(result.errors.exists(_.message.contains("srcdoc")), result.errors)
+    assert(result.scalaCode.isEmpty, "should not generate code when srcdoc error present")
+  }
+
+  test("iframe srcdoc error fires in SPA mode too (S-5)") {
+    val result = MeltCompiler.compile("""<iframe srcdoc={html}></iframe>""", "App.melt", "App", "", CompileMode.SPA)
+    assert(result.errors.exists(_.message.contains("srcdoc")), result.errors)
+  }
+
+  test("iframe with static srcdoc is not flagged (S-5)") {
+    val result =
+      MeltCompiler.compile("""<iframe srcdoc="<p>safe</p>"></iframe>""", "App.melt", "App", "", CompileMode.SSR)
+    assert(result.errors.isEmpty, result.errors)
   }
 
   test("object with dynamic data is flagged") {

@@ -24,8 +24,15 @@ import meltc.ast.MeltFile
   */
 trait CodeGen:
 
-  /** Generates a deterministic CSS scope id from the component name. */
-  def scopeIdFor(objectName: String): String
+  /** Generates a deterministic CSS scope id from the component name and file path.
+    *
+    * @param objectName Scala object name (e.g. `"Counter"`)
+    * @param filePath   source file path (e.g. `"src/components/Counter.melt"`).
+    *                   Including the file path structurally prevents collisions
+    *                   between same-named components in different directories.
+    *                   Defaults to empty string for backwards compatibility.
+    */
+  def scopeIdFor(objectName: String, filePath: String = ""): String
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string.
     *

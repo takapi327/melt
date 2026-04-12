@@ -199,6 +199,80 @@ class SsrRendererSpec extends FunSuite:
     finally MeltWarnings.resetHandler()
   }
 
+  // ── S-1: isFunction covers Function6-Function22 and FunctionXXL ──────
+
+  test("spreadAttrs drops Function6-valued entry (S-1)") {
+    MeltWarnings.mute()
+    try
+      val r  = SsrRenderer()
+      val fn = (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) => a + b + c + d + e + f
+      r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
+      val body = r.result().body
+      assert(body.contains("""id="ok""""), body)
+      assert(!body.contains("cb"), body)
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("spreadAttrs drops Function22-valued entry (S-1)") {
+    MeltWarnings.mute()
+    try
+      val r = SsrRenderer()
+      val fn: (
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int,
+        Int
+      ) => Int =
+        (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r2, s, t, u, v) => a + b
+      r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
+      val body = r.result().body
+      assert(body.contains("""id="ok""""), body)
+      assert(!body.contains("cb"), body)
+    finally MeltWarnings.resetHandler()
+  }
+
+  // ── S-1: isTuple covers Tuple and Named Tuple values ─────────────────
+
+  test("spreadAttrs drops Tuple-valued entry with a warning (S-1)") {
+    MeltWarnings.mute()
+    try
+      val r = SsrRenderer()
+      r.spreadAttrs("div", Map("pair" -> ("Alice", 30), "id" -> "ok"))
+      val body = r.result().body
+      assert(body.contains("""id="ok""""), body)
+      assert(!body.contains("pair"), body)
+      assert(!body.contains("Alice"), body)
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("spreadAttrs Tuple drop warning contains attribute name (S-1)") {
+    var warned = ""
+    MeltWarnings.setHandler(msg => if msg.contains("Tuple") then warned = msg)
+    try
+      val r = SsrRenderer()
+      r.spreadAttrs("div", Map("meta" -> ("Alice", 30)))
+      assert(warned.contains("meta"), s"got: $warned")
+    finally MeltWarnings.resetHandler()
+  }
+
   test("spreadAttrs drops keys starting with $$ ($$slots reserved)") {
     val r = SsrRenderer()
     r.spreadAttrs("div", Map("$$slots" -> "default", "id" -> "x"))

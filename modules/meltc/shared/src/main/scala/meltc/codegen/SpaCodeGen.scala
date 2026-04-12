@@ -21,10 +21,18 @@ import meltc.ast.InlineTemplatePart
   */
 object SpaCodeGen extends CodeGen:
 
-  /** Generates a scope ID from the component name (deterministic hash). */
-  def scopeIdFor(objectName: String): String =
-    val hash = objectName.foldLeft(17)((acc, c) => acc * 31 + c.toInt)
-    f"melt-${ (hash & 0x7fffffff) % 0xffffff }%06x"
+  /** Generates a scope ID from the component name and file path (deterministic DJB2 hash).
+    *
+    * Uses a DJB2-variant hash (same family as Svelte 5) over the combined
+    * `filePath:objectName` key so that same-named components in different
+    * directories get distinct scope IDs. The 32-bit output space (~4.3 billion)
+    * gives a 50% collision probability only after ~77,000 components.
+    */
+  def scopeIdFor(objectName: String, filePath: String = ""): String =
+    val key  = if filePath.nonEmpty then s"$filePath:$objectName" else objectName
+    var hash = 5381L
+    for c <- key do hash = ((hash << 5) - hash) ^ c.toLong
+    f"melt-${ hash & 0xffffffffL }%08x"
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string. */
   def generate(

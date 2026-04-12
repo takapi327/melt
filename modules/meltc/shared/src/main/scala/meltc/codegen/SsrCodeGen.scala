@@ -41,8 +41,8 @@ import meltc.ast.*
   */
 object SsrCodeGen extends CodeGen:
 
-  def scopeIdFor(objectName: String): String =
-    SpaCodeGen.scopeIdFor(objectName)
+  def scopeIdFor(objectName: String, filePath: String = ""): String =
+    SpaCodeGen.scopeIdFor(objectName, filePath)
 
   def generate(
     ast:        MeltFile,
