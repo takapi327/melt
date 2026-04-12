@@ -6,9 +6,11 @@
 
 package melt.runtime
 
+/** A memoized reactive value that only propagates when the computed value changes. */
+trait Memo[A] extends Signal[A]
+
 /** JVM no-op `memo`. Computes exactly once against the initial value and
-  * returns a frozen [[Signal]] — SSR never re-emits, so no equality check is
-  * needed.
+  * returns a frozen [[Signal]].
   */
 def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] = Signal.pure(f(dep.now()))
 

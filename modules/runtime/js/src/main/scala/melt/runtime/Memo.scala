@@ -8,6 +8,9 @@ package melt.runtime
 
 import melt.runtime.impl.JsSignal
 
+/** A memoized reactive value that only propagates when the computed value changes. */
+trait Memo[A] extends Signal[A]
+
 /** Creates a memoized [[Signal]] that only propagates when the computed value changes.
   *
   * Unlike `Signal.map`, which always emits downstream, `memo` checks referential
