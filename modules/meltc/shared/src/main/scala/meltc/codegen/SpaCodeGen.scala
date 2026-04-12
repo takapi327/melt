@@ -30,8 +30,7 @@ object SpaCodeGen extends CodeGen:
     */
   def scopeIdFor(objectName: String, filePath: String = ""): String =
     val key  = if filePath.nonEmpty then s"$filePath:$objectName" else objectName
-    var hash = 5381L
-    for c <- key do hash = ((hash << 5) - hash) ^ c.toLong
+    val hash = key.foldLeft(5381L)((h, c) => ((h << 5) - h) ^ c.toLong)
     f"melt-${ hash & 0xffffffffL }%08x"
 
   /** Compiles a [[meltc.ast.MeltFile]] into a Scala source string. */
@@ -466,7 +465,7 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
       case Attr.Directive("on", event, Some(expr), mods) =>
         if mods.contains("preventDefault") then
-          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => { _: dom.Event => ().asInstanceOf[Unit]; ($expr).asInstanceOf[Any] }))\n"""
+          buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); ($expr).asInstanceOf[Any] }))\n"""
         else buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => ($expr).asInstanceOf[Any]))\n"""
       case Attr.Directive("bind", "value", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
@@ -542,8 +541,7 @@ object SpaCodeGen extends CodeGen:
       case Attr.Shorthand(varName) =>
         args += s"$varName = $varName"
       case Attr.EventHandler(event, expr) =>
-        val propName = s"on${ event.charAt(0).toUpper }${ event.substring(1) }"
-        args += s"$propName = $expr"
+        args += s"on${ event.capitalize } = $expr"
       case Attr.BooleanAttr("styled") =>
       case Attr.BooleanAttr(name)     =>
         args += s"$name = true"

@@ -175,13 +175,11 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart(tag, attrs, buf, indent, scopeId)
 
-    if tag.equalsIgnoreCase("option") && selectBindExpr.isDefined then
-      val bindExpr = selectBindExpr.get
-      optionValueExpr(attrs) match
-        case Some(valueExpr) =>
-          buf ++= s"""${ pad }if ($bindExpr == $valueExpr) renderer.push(" selected")\n"""
-        case None =>
-          ()
+    if tag.equalsIgnoreCase("option") then
+      for
+        bindExpr  <- selectBindExpr
+        valueExpr <- optionValueExpr(attrs)
+      do buf ++= s"""${ pad }if ($bindExpr == $valueExpr) renderer.push(" selected")\n"""
 
     if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
@@ -240,7 +238,7 @@ object SsrCodeGen extends CodeGen:
     val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "value", Some(e), _) => e
-    }.get
+    }.getOrElse(sys.error("emitTextareaBindValue called without bind:value — compiler bug"))
 
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "value", _, _) => true
@@ -271,7 +269,7 @@ object SsrCodeGen extends CodeGen:
     val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "value", Some(e), _) => e
-    }.get
+    }.getOrElse(sys.error("emitSelectBindValue called without bind:value — compiler bug"))
 
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "value", _, _) => true
@@ -303,7 +301,7 @@ object SsrCodeGen extends CodeGen:
     val pad      = " " * indent
     val bindExpr = attrs.collectFirst {
       case Attr.Directive("bind", "group", Some(e), _) => e
-    }.get
+    }.getOrElse(sys.error("emitInputBindGroup called without bind:group — compiler bug"))
 
     val typeAttr = attrs.collectFirst {
       case Attr.Static("type", t) => t.toLowerCase
