@@ -59,8 +59,8 @@ object SimpleJson:
           case Some(Num(n)) => Some(n)
           case _            => None
 
-      def getInt(key: String): Option[Int]   = getDouble(key).map(_.toInt)
-      def getLong(key: String): Option[Long] = getDouble(key).map(_.toLong)
+      def getInt(key:   String): Option[Int]   = getDouble(key).map(_.toInt)
+      def getLong(key:  String): Option[Long]  = getDouble(key).map(_.toLong)
       def getFloat(key: String): Option[Float] = getDouble(key).map(_.toFloat)
 
       def getBool(key: String): Option[Boolean] =
@@ -96,8 +96,7 @@ object SimpleJson:
     val p = new Parser(src)
     val v = p.parseValue()
     p.skipWs()
-    if p.pos != src.length then
-      throw new IllegalArgumentException(s"unexpected trailing input at offset ${ p.pos }")
+    if p.pos != src.length then throw new IllegalArgumentException(s"unexpected trailing input at offset ${ p.pos }")
     v
 
   // ── Encode ─────────────────────────────────────────────────────────────
@@ -117,13 +116,13 @@ object SimpleJson:
     while i < s.length do
       val c = s.charAt(i)
       c match
-        case '"'  => buf ++= "\\\""
-        case '\\' => buf ++= "\\\\"
-        case '\b' => buf ++= "\\b"
-        case '\f' => buf ++= "\\f"
-        case '\n' => buf ++= "\\n"
-        case '\r' => buf ++= "\\r"
-        case '\t' => buf ++= "\\t"
+        case '"'                                    => buf ++= "\\\""
+        case '\\'                                   => buf ++= "\\\\"
+        case '\b'                                   => buf ++= "\\b"
+        case '\f'                                   => buf ++= "\\f"
+        case '\n'                                   => buf ++= "\\n"
+        case '\r'                                   => buf ++= "\\r"
+        case '\t'                                   => buf ++= "\\t"
         case '/' if i > 0 && s.charAt(i - 1) == '<' =>
           // Break the `</` sequence so an HTML parser can't terminate
           // the enclosing <script type="application/json"> block.
@@ -141,10 +140,8 @@ object SimpleJson:
     * representation for them.
     */
   def encNumber(d: Double): String =
-    if d.isNaN || d.isInfinite then
-      throw new IllegalArgumentException(s"cannot encode non-finite number: $d")
-    else if d == d.toLong.toDouble && !d.toString.contains("E") then
-      d.toLong.toString
+    if d.isNaN || d.isInfinite then throw new IllegalArgumentException(s"cannot encode non-finite number: $d")
+    else if d == d.toLong.toDouble && !d.toString.contains("E") then d.toLong.toString
     else d.toString
 
   // ── Parser implementation ──────────────────────────────────────────────

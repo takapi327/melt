@@ -314,7 +314,9 @@ class TemplateSpec extends FunSuite:
     )
     val html = templateWithAll.render(result, manifest)
     assert(
-      html.contains("""<script type="application/json" data-melt-props="home">{"userName":"Melt","count":1}</script>"""),
+      html.contains(
+        """<script type="application/json" data-melt-props="home">{"userName":"Melt","count":1}</script>"""
+      ),
       html
     )
     // The Props tag must appear before the hydration bootstrap import
@@ -347,8 +349,8 @@ class TemplateSpec extends FunSuite:
       head           = "",
       components     = Set("home"),
       hydrationProps = Map(
-        "home"   -> """{"a":1}""",
-        "ghost"  -> """{"b":2}"""
+        "home"  -> """{"a":1}""",
+        "ghost" -> """{"b":2}"""
       )
     )
     val manifest = ViteManifest.fromString(

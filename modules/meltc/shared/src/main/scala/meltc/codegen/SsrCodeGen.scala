@@ -66,8 +66,7 @@ object SsrCodeGen extends CodeGen:
     // type — most components don't, and emitting the import anyway
     // would pollute generated sources. We decide based on the parsed
     // script's `props` attribute.
-    if ast.script.flatMap(_.propsType).isDefined then
-      buf ++= "import melt.runtime.json.PropsCodec\n"
+    if ast.script.flatMap(_.propsType).isDefined then buf ++= "import melt.runtime.json.PropsCodec\n"
     buf ++= "import melt.runtime.ssr.*\n\n"
 
     buf ++= s"object $objectName {\n\n"

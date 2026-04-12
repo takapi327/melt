@@ -32,13 +32,13 @@ object MeltCompiler:
     objectName: String,
     pkg:        String,
     mode:       CompileMode = CompileMode.SPA,
-    hydration:  Boolean     = false
+    hydration:  Boolean = false
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
       case Right(result) =>
-        val ast     = result.ast
+        val ast = result.ast
         val codegen: CodeGen = mode match
           case CompileMode.SPA => SpaCodeGen
           case CompileMode.SSR => SsrCodeGen
@@ -47,11 +47,10 @@ object MeltCompiler:
         // ── Semantic checks (§12.1.2, §12.1.3, §12.1.6) ────────────────
         val semanticErrors =
           AttrNameChecker.check(ast, filename) ++
-          TagNameChecker.check(ast, filename) ++
-          RawTextInterpolationChecker.check(ast, filename)
+            TagNameChecker.check(ast, filename) ++
+            RawTextInterpolationChecker.check(ast, filename)
 
-        if semanticErrors.nonEmpty then
-          CompileResult(None, None, semanticErrors, Nil)
+        if semanticErrors.nonEmpty then CompileResult(None, None, semanticErrors, Nil)
         else
           val code           = codegen.generate(ast, objectName, pkg, scopeId, hydration)
           val parserWarnings = result.warnings.map {

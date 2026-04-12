@@ -218,17 +218,15 @@ object SpaCodeGen extends CodeGen:
     // emit nothing. For components with Props we emit a decode +
     // fallback chain that results in a final `val _props: Type | Null`.
     val resolveProps: String = propsType match
-      case None => ""
+      case None      => ""
       case Some(tpe) =>
         val fallback =
-          if propsDefaults then
-            s"""            dom.console.warn(
+          if propsDefaults then s"""            dom.console.warn(
                |              "[melt] hydrate($moduleId): no <script data-melt-props=\\\"$moduleId\\\"> " +
                |              "payload found, falling back to $tpe() defaults."
                |            )
                |            $tpe()""".stripMargin
-          else
-            s"""            dom.console.warn(
+          else s"""            dom.console.warn(
                |              "[melt] hydrate($moduleId) skipped: no <script data-melt-props=\\\"$moduleId\\\"> " +
                |              "payload found and $tpe has required fields."
                |            )
@@ -253,7 +251,7 @@ object SpaCodeGen extends CodeGen:
     val (guardOpen, guardClose) = propsType match
       case Some(_) if !propsDefaults =>
         ("    if _props != null then\n", "")
-      case _                          =>
+      case _ =>
         ("", "")
 
     val loopIndent =

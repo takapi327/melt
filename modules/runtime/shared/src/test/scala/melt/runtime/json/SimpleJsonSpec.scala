@@ -6,9 +6,9 @@
 
 package melt.runtime.json
 
-import melt.runtime.json.SimpleJson.JsonValue
-
 import munit.FunSuite
+
+import melt.runtime.json.SimpleJson.JsonValue
 
 /** Unit tests for the hand-rolled JSON parser / encoder used by
   * [[PropsCodec]]. Focuses on the corner cases relevant to Props

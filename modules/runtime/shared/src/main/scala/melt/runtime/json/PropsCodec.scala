@@ -49,7 +49,7 @@ import scala.deriving.Mirror
   */
 trait PropsCodec[A]:
   def encode(value: A, buf: StringBuilder): Unit
-  def decode(json: SimpleJson.JsonValue): A
+  def decode(json:  SimpleJson.JsonValue):  A
 
   /** Convenience wrapper that materialises the encoded form as a string. */
   final def encodeToString(value: A): String =
@@ -62,38 +62,38 @@ object PropsCodec:
   // ── Primitive instances ────────────────────────────────────────────────
 
   given PropsCodec[String] with
-    def encode(v: String, buf: StringBuilder): Unit = buf ++= SimpleJson.encString(v)
-    def decode(j: SimpleJson.JsonValue): String = j match
+    def encode(v: String, buf: StringBuilder): Unit   = buf ++= SimpleJson.encString(v)
+    def decode(j: SimpleJson.JsonValue):       String = j match
       case SimpleJson.JsonValue.Str(s) => s
       case other                       => typeMismatch("String", other)
 
   given PropsCodec[Int] with
     def encode(v: Int, buf: StringBuilder): Unit = buf.append(v)
-    def decode(j: SimpleJson.JsonValue): Int = j match
+    def decode(j: SimpleJson.JsonValue):    Int  = j match
       case SimpleJson.JsonValue.Num(n) => n.toInt
       case other                       => typeMismatch("Int", other)
 
   given PropsCodec[Long] with
     def encode(v: Long, buf: StringBuilder): Unit = buf.append(v)
-    def decode(j: SimpleJson.JsonValue): Long = j match
+    def decode(j: SimpleJson.JsonValue):     Long = j match
       case SimpleJson.JsonValue.Num(n) => n.toLong
       case other                       => typeMismatch("Long", other)
 
   given PropsCodec[Double] with
-    def encode(v: Double, buf: StringBuilder): Unit = buf ++= SimpleJson.encNumber(v)
-    def decode(j: SimpleJson.JsonValue): Double = j match
+    def encode(v: Double, buf: StringBuilder): Unit   = buf ++= SimpleJson.encNumber(v)
+    def decode(j: SimpleJson.JsonValue):       Double = j match
       case SimpleJson.JsonValue.Num(n) => n
       case other                       => typeMismatch("Double", other)
 
   given PropsCodec[Float] with
-    def encode(v: Float, buf: StringBuilder): Unit = buf ++= SimpleJson.encNumber(v.toDouble)
-    def decode(j: SimpleJson.JsonValue): Float = j match
+    def encode(v: Float, buf: StringBuilder): Unit  = buf ++= SimpleJson.encNumber(v.toDouble)
+    def decode(j: SimpleJson.JsonValue):      Float = j match
       case SimpleJson.JsonValue.Num(n) => n.toFloat
       case other                       => typeMismatch("Float", other)
 
   given PropsCodec[Boolean] with
-    def encode(v: Boolean, buf: StringBuilder): Unit = buf.append(v)
-    def decode(j: SimpleJson.JsonValue): Boolean = j match
+    def encode(v: Boolean, buf: StringBuilder): Unit    = buf.append(v)
+    def decode(j: SimpleJson.JsonValue):        Boolean = j match
       case SimpleJson.JsonValue.Bool(b) => b
       case other                        => typeMismatch("Boolean", other)
 
@@ -168,9 +168,9 @@ object PropsCodec:
     */
   inline given derived[A <: Product](using m: Mirror.ProductOf[A]): PropsCodec[A] =
     new PropsCodec[A]:
-      private val labels:    List[String]      = summonLabels[m.MirroredElemLabels]
-      private val codecs:    List[PropsCodec[?]] = summonCodecs[m.MirroredElemTypes]
-      private val labelsArr: Array[String]      = labels.toArray
+      private val labels:    List[String]         = summonLabels[m.MirroredElemLabels]
+      private val codecs:    List[PropsCodec[?]]  = summonCodecs[m.MirroredElemTypes]
+      private val labelsArr: Array[String]        = labels.toArray
       private val codecsArr: Array[PropsCodec[?]] = codecs.toArray
 
       def encode(value: A, buf: StringBuilder): Unit =

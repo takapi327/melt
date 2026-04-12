@@ -84,7 +84,7 @@ class PropsCodecSpec extends FunSuite:
       title = "Today",
       items = List(
         Todo("1", "Write Props serialisation", done = true),
-        Todo("2", "Ship it", done = false)
+        Todo("2", "Ship it", done                   = false)
       )
     )
     val codec   = summon[PropsCodec[TodoList]]
@@ -106,7 +106,7 @@ class PropsCodecSpec extends FunSuite:
 
   test("decoding a mismatched shape raises a clear error"):
     val codec = summon[PropsCodec[Primitive]]
-    val ex = intercept[IllegalArgumentException] {
+    val ex    = intercept[IllegalArgumentException] {
       codec.decode(SimpleJson.parse("""{"s":42,"i":1,"l":2,"d":3,"f":4,"b":true}"""))
     }
     assert(ex.getMessage.contains("expected String"), ex.getMessage)
