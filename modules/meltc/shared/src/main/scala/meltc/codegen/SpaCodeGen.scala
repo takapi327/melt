@@ -343,12 +343,18 @@ object SpaCodeGen extends CodeGen:
         classifyExpr(code) match
           case ExprKind.ListMap =>
             // {source.map(renderFn)} → anchor + Bind.list
+            // When the source ends with `.now()` (e.g. `todos.now().map(fn)`),
+            // strip it so we pass the `Var` itself to `Bind.list`, which
+            // subscribes and reactively rebuilds on every update. Without
+            // stripping, `Bind.list` would receive the plain `List` snapshot
+            // and render only once (static overload).
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
-            val dotMap = code.lastIndexOf(".map(")
-            val source = code.substring(0, dotMap).trim
-            val fnBody = code.substring(dotMap + 5, code.length - 1).trim // remove trailing ')'
+            val dotMap    = code.lastIndexOf(".map(")
+            val rawSource = code.substring(0, dotMap).trim
+            val source    = if rawSource.endsWith(".now()") then rawSource.dropRight(6) else rawSource
+            val fnBody    = code.substring(dotMap + 5, code.length - 1).trim // remove trailing ')'
             buf ++= s"${ indent }Bind.list($source, $fnBody, $anchor)\n"
             ""
 
@@ -536,6 +542,16 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }Bind.attr($v, "$name", $expr)\n"""
       case Attr.EventHandler(event, expr) =>
         buf ++= s"""${ indent }$v.addEventListener("$event", $expr)\n"""
+      // `on:click={expr}` is parsed as Directive("on", "click", expr)
+      // because the colon triggers the directive branch in the parser.
+      // We wrap in `((_: dom.Event) => ...)` so that both zero-arg
+      // `() => doSomething()` and one-arg `(e) => ...` lambdas resolve
+      // to the `js.Function1[Event, _]` that addEventListener expects.
+      case Attr.Directive("on", event, Some(expr), mods) =>
+        if mods.contains("preventDefault") then
+          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => { _: dom.Event => ().asInstanceOf[Unit]; ($expr).asInstanceOf[Any] }))\n"""
+        else
+          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => ($expr).asInstanceOf[Any]))\n"""
       case Attr.Directive("bind", "value", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive("bind", "value-int", Some(expr), _) =>

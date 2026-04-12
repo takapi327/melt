@@ -537,8 +537,10 @@ object MeltcPlugin extends AutoPlugin {
     * reads this as `rollupOptions.input` so adding or removing a `.melt`
     * component automatically updates the Vite build.
     *
-    * The keys use the `scalajs:<moduleID>.js` format that both the Vite
-    * plugin and `ViteManifest` expect.
+    * Keys are plain moduleIDs (e.g. `"home"`, `"todos"`). Colons are
+    * NOT used because Rollup treats colon-containing keys as non-entry
+    * chunks and strips their exports — causing `hydrate is not a
+    * function` errors in the browser.
     */
   private def generateViteInputs(
     streams: TaskStreams,
@@ -549,11 +551,11 @@ object MeltcPlugin extends AutoPlugin {
     val log = streams.log
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
-    // Build a JSON object: { "scalajs:home.js": "/abs/path/to/home.js", ... }
+    // Build a JSON object: { "home": "/abs/path/to/home.js", ... }
     val entries = sortedModules.map { m =>
       val absPath = (distDir / m.jsFileName).getAbsolutePath
         .replace("\\", "/")  // normalise for JSON
-      s"""  "scalajs:${ m.moduleID }.js": "$absPath""""
+      s"""  "${ m.moduleID }": "$absPath""""
     }
     val json = entries.mkString("{\n", ",\n", "\n}\n")
 

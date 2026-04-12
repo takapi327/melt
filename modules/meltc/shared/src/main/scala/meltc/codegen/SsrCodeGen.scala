@@ -540,10 +540,11 @@ object SsrCodeGen extends CodeGen:
         kind match
           case "bind" =>
             // Phase A: bind:value={v} on a normal input → emit as a plain
-            // value attribute. Rich <textarea> / <select> handling arrives
-            // in Phase B (§12.3.6).
+            // value attribute. The expression is always a `Var`, so we
+            // call `.now()` to read the current snapshot for SSR.
+            // Rich <textarea> / <select> handling arrives in Phase B (§12.3.6).
             expr.foreach { e =>
-              buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e) + \"\\\"\")\n"""
+              buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e.now()) + \"\\\"\")\n"""
             }
           case "class" =>
             // class:active={flag} → conditionally append class name.

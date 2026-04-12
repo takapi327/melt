@@ -142,18 +142,23 @@ object ViteManifest:
             None
         }.toMap
 
-        // Vite uses source-file paths as manifest keys when inputs are
-        // absolute paths (e.g. `client/target/.../home.js`). However,
-        // `chunksFor(moduleId)` looks up `scalajs:home.js`. We bridge
-        // this by adding alias entries: for every `isEntry = true`
-        // entry whose key doesn't already start with `<uriPrefix>:`,
-        // we derive the moduleID from the trailing filename and
-        // register an alias under `<uriPrefix>:<moduleID>`.
+        // Vite uses source-file paths or plain input-key names as
+        // manifest keys, depending on whether the input was an absolute
+        // path or a plain name. `chunksFor(moduleId)` looks up
+        // `scalajs:home.js`. We bridge by adding alias entries for
+        // every `isEntry = true` entry whose key doesn't already use
+        // the `<uriPrefix>:` format.
+        //
+        // Handled key patterns (all map to `scalajs:home.js`):
+        //   - `"client/target/.../home.js"` → basename "home.js"
+        //   - `"home"` → append ".js"
+        //   - `"scalajs:home.js"` → already correct, skip
         val aliases = rawEntries.iterator.flatMap {
           case (key, entry) if entry.isEntry && !key.startsWith(s"$uriPrefix:") =>
-            // Extract "home.js" from "client/target/.../home.js"
             val basename = key.split('/').last
-            val aliasKey = s"$uriPrefix:$basename"
+            // If the key has no extension (e.g. "home"), append ".js"
+            val withExt = if basename.contains('.') then basename else s"$basename.js"
+            val aliasKey = s"$uriPrefix:$withExt"
             if rawEntries.contains(aliasKey) then None
             else Some(aliasKey -> entry)
           case _ => None
