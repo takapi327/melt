@@ -10,7 +10,11 @@ import sbt._
 import sbt.Keys._
 
 import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, scalaJSLinkerOutputDirectory }
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{
+  fastLinkJS,
+  fullLinkJS,
+  scalaJSLinkerOutputDirectory
+}
 
 /** sbt-meltc plugin
   *
@@ -202,6 +206,46 @@ object MeltcPlugin extends AutoPlugin {
       */
     val meltcAssetManifestGenerate =
       taskKey[Seq[File]]("Generate AssetManifest.scala from the client's fastLinkJS Report")
+
+    // ── Vite integration (Tier 2) ──────────────────────────────────────
+
+    /** When `true`, the asset manifest is generated from a real Vite
+      * `manifest.json` (produced by `vite build`) instead of being
+      * synthesised from `fastLinkJS` public modules. This switches the
+      * generated `AssetManifest` to use hashed filenames and changes
+      * `clientDistDir` to point at the Vite `dist/` directory.
+      *
+      * Default: `false` (reads `sys.env("MELT_PROD")` as a fallback).
+      */
+    val meltcProd =
+      settingKey[Boolean]("Enable production mode (Vite manifest)")
+
+    /** Filesystem path to the Vite `manifest.json` output. Only used
+      * when [[meltcProd]] is `true`.
+      *
+      * Default: `examples/http4s-ssr/dist/.vite/manifest.json` (relative
+      * to `baseDirectory`). Override for non-standard Vite `outDir`.
+      */
+    val meltcViteManifestPath =
+      settingKey[File]("Path to the Vite manifest.json file")
+
+    /** Filesystem path to the Vite `dist/` output directory. Only used
+      * when [[meltcProd]] is `true`. Becomes `clientDistDir` in the
+      * generated `AssetManifest`.
+      *
+      * Default: sibling of `meltcViteManifestPath` (`dist/`).
+      */
+    val meltcViteDistDir =
+      settingKey[File]("Path to the Vite dist directory")
+
+    /** Generates a `vite-inputs.json` file from the client's
+      * `fullLinkJS` output. This JSON file is read by `vite.config.js`
+      * as `rollupOptions.input` so that adding or removing a `.melt`
+      * component automatically updates the Vite build without editing
+      * any config files.
+      */
+    val meltcViteInputGenerate =
+      taskKey[File]("Generate vite-inputs.json from the client's fullLinkJS Report")
   }
 
   import autoImport._
@@ -265,9 +309,43 @@ object MeltcPlugin extends AutoPlugin {
     meltcAssetManifestPackage := "generated",
     meltcAssetManifestObject  := "AssetManifest",
 
-    meltcAssetManifestGenerate := Def.taskDyn {
+    // ── Vite integration defaults (Tier 2) ────────────────────────────
+    meltcProd := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
+    meltcViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
+    meltcViteDistDir      := baseDirectory.value / ".." / "dist",
+
+    meltcViteInputGenerate := Def.taskDyn {
       meltcAssetManifestClient.value match {
         case Some(clientProject) =>
+          Def.task {
+            generateViteInputs(
+              streams = streams.value,
+              report  = (clientProject / Compile / fullLinkJS).value.data,
+              distDir = (clientProject / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
+              outFile = (clientProject / baseDirectory).value / "target" / "vite-inputs.json"
+            )
+          }
+        case None =>
+          Def.task(file(""))
+      }
+    }.value,
+
+    meltcAssetManifestGenerate := Def.taskDyn {
+      meltcAssetManifestClient.value match {
+        case Some(clientProject) if meltcProd.value =>
+          // Prod mode: read the real Vite manifest.json.
+          Def.task {
+            generateAssetManifestFromVite(
+              streams       = streams.value,
+              outDir        = (Compile / sourceManaged).value / "generated",
+              pkgName       = meltcAssetManifestPackage.value,
+              objectName    = meltcAssetManifestObject.value,
+              manifestPath  = meltcViteManifestPath.value,
+              distDir       = meltcViteDistDir.value
+            )
+          }
+        case Some(clientProject) =>
+          // Dev mode: synthesise from fastLinkJS public modules.
           Def.task {
             generateAssetManifest(
               streams    = streams.value,
@@ -448,6 +526,101 @@ object MeltcPlugin extends AutoPlugin {
     IO.write(outFile, code)
     log.info(
       s"[sbt-meltc] regenerated ${ outFile.getName } with ${ sortedModules.size } public modules"
+    )
+    Seq(outFile)
+  }
+
+  // ── Vite integration helpers (Tier 2) ────────────────────────────────
+
+  /** Writes a `vite-inputs.json` file that maps each Scala.js public
+    * module's moduleID to its absolute filesystem path. `vite.config.js`
+    * reads this as `rollupOptions.input` so adding or removing a `.melt`
+    * component automatically updates the Vite build.
+    *
+    * The keys use the `scalajs:<moduleID>.js` format that both the Vite
+    * plugin and `ViteManifest` expect.
+    */
+  private def generateViteInputs(
+    streams: TaskStreams,
+    report:  Report,
+    distDir: File,
+    outFile: File
+  ): File = {
+    val log = streams.log
+    val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
+
+    // Build a JSON object: { "scalajs:home.js": "/abs/path/to/home.js", ... }
+    val entries = sortedModules.map { m =>
+      val absPath = (distDir / m.jsFileName).getAbsolutePath
+        .replace("\\", "/")  // normalise for JSON
+      s"""  "scalajs:${ m.moduleID }.js": "$absPath""""
+    }
+    val json = entries.mkString("{\n", ",\n", "\n}\n")
+
+    IO.write(outFile, json)
+    log.info(
+      s"[sbt-meltc] wrote ${ outFile.getName } with ${ sortedModules.size } entries"
+    )
+    outFile
+  }
+
+  /** Writes a `generated.AssetManifest` Scala source that loads the
+    * Vite-produced `manifest.json` at startup. Used in production mode
+    * when `meltcProd := true` (or `MELT_PROD=true`).
+    *
+    * Unlike the dev-mode generator which embeds entries inline, this
+    * version calls `ViteManifest.load(path)` so the Scala source stays
+    * tiny and the hashed filenames come from the actual Vite output.
+    */
+  private def generateAssetManifestFromVite(
+    streams:      TaskStreams,
+    outDir:       File,
+    pkgName:      String,
+    objectName:   String,
+    manifestPath: File,
+    distDir:      File
+  ): Seq[File] = {
+    val log = streams.log
+
+    if (!manifestPath.exists()) {
+      log.error(
+        s"[sbt-meltc] Vite manifest not found at ${ manifestPath.getAbsolutePath }. " +
+        "Run `npx vite build` in the example directory first."
+      )
+      return Seq.empty
+    }
+
+    IO.createDirectory(outDir)
+    val outFile = outDir / s"$objectName.scala"
+
+    val manifestPathLit = manifestPath.getAbsolutePath.replace("\\", "\\\\")
+    val distPathLit     = distDir.getAbsolutePath.replace("\\", "\\\\")
+
+    val code =
+      s"""package $pkgName
+         |
+         |import java.io.File
+         |import melt.runtime.ssr.ViteManifest
+         |
+         |/** Auto-generated by sbt-meltc (prod mode) — do not edit.
+         |  *
+         |  * Loads the Vite-produced `manifest.json` at application startup.
+         |  * All chunk filenames are content-hashed by Vite, enabling
+         |  * `Cache-Control: immutable` on production deployments.
+         |  *
+         |  * Regenerated when `MELT_PROD=true sbt compile` is run.
+         |  */
+         |object $objectName {
+         |  val manifest: ViteManifest =
+         |    ViteManifest.load("$manifestPathLit")
+         |
+         |  val clientDistDir: File = new File("$distPathLit")
+         |}
+         |""".stripMargin
+
+    IO.write(outFile, code)
+    log.info(
+      s"[sbt-meltc] regenerated ${ outFile.getName } (prod mode, Vite manifest)"
     )
     Seq(outFile)
   }

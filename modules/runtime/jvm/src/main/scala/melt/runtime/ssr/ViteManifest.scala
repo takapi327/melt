@@ -133,7 +133,7 @@ object ViteManifest:
 
     topVal match
       case JsonValue.Obj(fields) =>
-        val entries = fields.iterator.flatMap {
+        val rawEntries = fields.iterator.flatMap {
           case (key, JsonValue.Obj(entryFields)) =>
             Some(key -> parseEntry(entryFields))
           case (key, _) =>
@@ -141,7 +141,25 @@ object ViteManifest:
             // alternate shapes that we don't model.
             None
         }.toMap
-        new ViteManifest(entries.to(immutable.Map), uriPrefix)
+
+        // Vite uses source-file paths as manifest keys when inputs are
+        // absolute paths (e.g. `client/target/.../home.js`). However,
+        // `chunksFor(moduleId)` looks up `scalajs:home.js`. We bridge
+        // this by adding alias entries: for every `isEntry = true`
+        // entry whose key doesn't already start with `<uriPrefix>:`,
+        // we derive the moduleID from the trailing filename and
+        // register an alias under `<uriPrefix>:<moduleID>`.
+        val aliases = rawEntries.iterator.flatMap {
+          case (key, entry) if entry.isEntry && !key.startsWith(s"$uriPrefix:") =>
+            // Extract "home.js" from "client/target/.../home.js"
+            val basename = key.split('/').last
+            val aliasKey = s"$uriPrefix:$basename"
+            if rawEntries.contains(aliasKey) then None
+            else Some(aliasKey -> entry)
+          case _ => None
+        }.toMap
+
+        new ViteManifest((rawEntries ++ aliases).to(immutable.Map), uriPrefix)
 
       case other =>
         throw new IllegalArgumentException(
