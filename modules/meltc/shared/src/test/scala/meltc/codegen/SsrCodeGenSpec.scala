@@ -136,6 +136,55 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("age = props.age"), code)
   }
 
+  // ── §12.3.11 Props serialisation ───────────────────────────────────────
+
+  test("components without props do not emit a PropsCodec val") {
+    val code = compile("""<div>hi</div>""")
+    assert(!code.contains("_propsCodec"), code)
+    assert(!code.contains("trackHydrationProps"), code)
+    assert(!code.contains("import melt.runtime.json.PropsCodec"), code)
+  }
+
+  test("components with props emit a derived PropsCodec val") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(name: String = "world", count: Int = 0)
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("import melt.runtime.json.PropsCodec"), code)
+    assert(code.contains("private val _propsCodec: PropsCodec[Props] = PropsCodec.derived"), code)
+  }
+
+  test("apply(props) tracks the serialised props on the renderer") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(name: String = "x")
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compile(src, name = "Greeting")
+    // The moduleID is kebab-case of the object name, and the JSON
+    // payload comes from the derived codec.
+    assert(
+      code.contains("""renderer.trackHydrationProps("greeting", _propsCodec.encodeToString(props))"""),
+      code
+    )
+  }
+
+  test("custom Props type name (not literally 'Props') is supported") {
+    // `props="HomeProps"` — the user can name their type whatever
+    // they want. meltc only knows the name, and the Scala inliner
+    // takes care of the rest.
+    val src =
+      """<script lang="scala" props="HomeProps">
+        |case class HomeProps(user: String = "guest")
+        |</script>
+        |<div>{props.user}</div>""".stripMargin
+    val code = compile(src, name = "Home")
+    assert(code.contains("private val _propsCodec: PropsCodec[HomeProps] = PropsCodec.derived"), code)
+    assert(code.contains("_propsCodec.encodeToString(props)"), code)
+  }
+
   // ── CSS ────────────────────────────────────────────────────────────────
 
   test("style section is scoped and registered") {

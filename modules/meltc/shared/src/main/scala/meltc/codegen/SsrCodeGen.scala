@@ -62,6 +62,12 @@ object SsrCodeGen extends CodeGen:
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
     buf ++= "import melt.runtime.*\n"
+    // `PropsCodec` is only needed when the component declares a Props
+    // type — most components don't, and emitting the import anyway
+    // would pollute generated sources. We decide based on the parsed
+    // script's `props` attribute.
+    if ast.script.flatMap(_.propsType).isDefined then
+      buf ++= "import melt.runtime.json.PropsCodec\n"
     buf ++= "import melt.runtime.ssr.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
@@ -97,6 +103,22 @@ object SsrCodeGen extends CodeGen:
       buf ++= "\n"
     }
 
+    // ── Props codec (§12.3.11) ──────────────────────────────────────────
+    // Emit a `PropsCodec[Props]` derived via Scala 3's Mirror so that
+    // the SSR path can serialise the incoming Props to JSON once per
+    // render. The SPA hydration entry picks this JSON up from the DOM
+    // and decodes it with a symmetric `PropsCodec` on the client side,
+    // avoiding the "fallback to defaults" gap that caused visible
+    // hydration flicker (e.g. "Hello, Melt!" → "Hello, world!").
+    //
+    // Derivation happens at Scala compile time — meltc knows only the
+    // type *name* here. Any field type that has a `PropsCodec` given
+    // in scope works (primitives, Option/List, nested case classes
+    // defined anywhere the component can see).
+    propsType.foreach { tpe =>
+      buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+    }
+
     // ── apply() method ──────────────────────────────────────────────────
     // Components expose a single `apply` entry point so that user code can
     // call them like functions: `Counter(Counter.Props(0))` or `App()` when
@@ -105,6 +127,10 @@ object SsrCodeGen extends CodeGen:
     buf ++= "    val renderer = SsrRenderer()\n"
     val moduleId = kebabCase(objectName)
     buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
+    // §12.3.11 — record the serialised Props so that Template.render
+    // can embed them in the SSR output for the SPA hydration entry.
+    if propsType.isDefined then
+      buf ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
     if hasCss then buf ++= "    renderer.css.add(_scopeId, _css)\n"
     buf ++= "\n"
 

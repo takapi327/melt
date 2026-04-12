@@ -23,6 +23,15 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
     result.scalaCode.getOrElse(fail("No generated code"))
 
+  /** Same as [[compile]] but with the hydration flag enabled so that
+    * `@JSExportTopLevel("hydrate", moduleID = ...)` entries are emitted.
+    */
+  private def compileHydrate(src: String, name: String = "App", pkg: String = ""): String =
+    val result =
+      MeltCompiler.compile(src, s"$name.melt", name, pkg, hydration = true)
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
+    result.scalaCode.getOrElse(fail("No generated code"))
+
   // ── scopeIdFor ────────────────────────────────────────────────────────────
 
   test("scopeIdFor produces deterministic melt-xxxxxx string") {
@@ -1169,4 +1178,89 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val scopeId = SpaCodeGen.scopeIdFor("MyApp")
     assert(code.contains(s"Bind.dynamicElement(tag,"), code)
     assert(code.contains(s""""$scopeId""""), code)
+  }
+
+  // ── §12.3.11 Props serialisation / hydration ───────────────────────────
+
+  test("hydration entry imports SimpleJson and PropsCodec") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(name: String = "x")
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compileHydrate(src)
+    assert(code.contains("import melt.runtime.json.{ PropsCodec, SimpleJson }"), code)
+  }
+
+  test("hydration entry emits derived PropsCodec val for components with Props") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(user: String = "guest", count: Int = 0)
+        |</script>
+        |<div>{props.user}</div>""".stripMargin
+    val code = compileHydrate(src, name = "Home")
+    assert(code.contains("private val _propsCodec: PropsCodec[Props] = PropsCodec.derived"), code)
+  }
+
+  test("hydration entry reads Props JSON from data-melt-props script tag") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(user: String = "guest")
+        |</script>
+        |<div>{props.user}</div>""".stripMargin
+    val code = compileHydrate(src, name = "Home")
+    assert(
+      code.contains("""dom.document.querySelector("script[data-melt-props=\"home\"]")"""),
+      code
+    )
+    assert(code.contains("_propsCodec.decode(SimpleJson.parse"), code)
+    assert(code.contains("Mount(host, apply(_props))"), code)
+  }
+
+  test("hydration entry falls back to defaults when Props JSON is missing") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(user: String = "guest")
+        |</script>
+        |<div>{props.user}</div>""".stripMargin
+    val code = compileHydrate(src, name = "Home")
+    // The fallback path constructs Props() for all-defaults components
+    // so that pages served outside of Template.render still hydrate.
+    assert(code.contains("Props()"), code)
+  }
+
+  test("hydration entry supports user-named Props type (arbitrary case class name)") {
+    val src =
+      """<script lang="scala" props="MyFancyProps">
+        |case class MyFancyProps(name: String = "x")
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compileHydrate(src, name = "Fancy")
+    assert(
+      code.contains("private val _propsCodec: PropsCodec[MyFancyProps] = PropsCodec.derived"),
+      code
+    )
+    assert(code.contains("val _props: MyFancyProps"), code)
+  }
+
+  test("components without Props do not import PropsCodec / SimpleJson") {
+    val code = compileHydrate("<div>hi</div>", name = "Plain")
+    // The import line is still emitted (it's in the top-of-file
+    // boilerplate) but no _propsCodec / _props / SimpleJson usage
+    // should appear in the body.
+    assert(!code.contains("_propsCodec"), code)
+    assert(!code.contains("SimpleJson.parse"), code)
+    assert(code.contains("Mount(host, apply())"), code)
+  }
+
+  test("hydration entry is omitted when hydration flag is disabled") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(name: String = "x")
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compile(src)
+    assert(!code.contains("@JSExportTopLevel(\"hydrate\""), code)
+    assert(!code.contains("_meltHydrateEntry"), code)
+    assert(!code.contains("_propsCodec"), code)
   }

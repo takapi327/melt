@@ -201,8 +201,30 @@ final class Template private (private val raw: String):
       }
       .mkString("\n")
 
+    // §12.3.11 Props serialisation — emit one inline JSON blob per
+    // tracked component that has recorded hydration Props. The SPA
+    // hydration entry locates these tags via
+    // `document.querySelector("script[data-melt-props=...]")` and
+    // decodes the JSON back into the component's Props case class
+    // using `melt.runtime.json.PropsCodec`.
+    //
+    // The JSON payload is already escaped by `PropsCodec` (which
+    // delegates to `SimpleJson.encString`) — in particular the `</`
+    // sequence is broken up with a `\/` so this block cannot be
+    // terminated prematurely by an HTML parser. The `data-melt-props`
+    // attribute value is HTML-attr-escaped for safety even though
+    // module IDs are restricted by the compiler to a safe alphabet.
+    val propsBlobs = result.components.toList.distinct
+      .flatMap { moduleId =>
+        result.hydrationProps.get(moduleId).map { json =>
+          val attr = Escape.attr(moduleId)
+          s"""<script type="application/json" data-melt-props="$attr">$json</script>"""
+        }
+      }
+      .mkString("\n")
+
     val extraHead = List(stylesheets, preloads).filter(_.nonEmpty).mkString("\n")
-    val extraBody = bootstrap
+    val extraBody = List(propsBlobs, bootstrap).filter(_.nonEmpty).mkString("\n")
 
     renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody)
 

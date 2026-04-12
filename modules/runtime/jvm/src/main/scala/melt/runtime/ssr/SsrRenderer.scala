@@ -36,6 +36,13 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   private val cssSet         = mutable.LinkedHashSet.empty[CssEntry]
   private val usedComponents = mutable.LinkedHashSet.empty[String]
 
+  // §12.3.11 Props serialisation — per-component JSON payload keyed by
+  // moduleID. Written into the final result so Template.render can emit
+  // <script type="application/json" data-melt-props="..."> blocks for
+  // the SPA hydration entry to consume.
+  private val hydrationPropsMap: mutable.LinkedHashMap[String, String] =
+    mutable.LinkedHashMap.empty
+
   // §12.3.9 head dedup — the last call wins for title and for each
   // meta-tag name. These are NOT written into headBuf directly; they are
   // assembled into the final head string in result().
@@ -105,6 +112,19 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   def trackComponent(name: String): Unit =
     usedComponents += name
 
+  /** Records the JSON-encoded Props for a component instance. Called
+    * by `meltc`-generated SSR code immediately after `trackComponent`
+    * when the component declares a `props="..."` attribute.
+    *
+    * The last call wins if the same `moduleID` is tracked more than
+    * once in a single render (matches the existing component dedup
+    * semantics). Multi-instance support is a future extension that
+    * will keyed instances by DOM position.
+    */
+  def trackHydrationProps(moduleId: String, json: String): Unit =
+    trackSize(json)
+    hydrationPropsMap.update(moduleId, json)
+
   /** Merges a child component's [[RenderResult]] into this renderer's state.
     *
     * Dedup semantics (§12.3.9):
@@ -131,6 +151,10 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
         cssSet += entry
     }
     usedComponents ++= child.components
+    child.hydrationProps.foreach {
+      case (moduleId, json) =>
+        hydrationPropsMap.update(moduleId, json)
+    }
 
   /** Increments the component nesting counter and throws
     * [[MeltRenderException]] if the configured limit is exceeded.
@@ -309,12 +333,13 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
       .filter(_.nonEmpty)
 
     RenderResult(
-      body       = bodyBuf.toString,
-      head       = headParts.mkString("\n"),
-      title      = titleContent,
-      metaTags   = metaTagMap.toMap,
-      css        = cssSet.toSet,
-      components = usedComponents.toSet
+      body           = bodyBuf.toString,
+      head           = headParts.mkString("\n"),
+      title          = titleContent,
+      metaTags       = metaTagMap.toMap,
+      css            = cssSet.toSet,
+      components     = usedComponents.toSet,
+      hydrationProps = hydrationPropsMap.toMap
     )
 
   // ── Internal helpers ───────────────────────────────────────────────────

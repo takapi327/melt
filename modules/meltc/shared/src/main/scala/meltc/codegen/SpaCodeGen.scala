@@ -45,6 +45,12 @@ object SpaCodeGen extends CodeGen:
     buf ++= "import org.scalajs.dom\n"
     buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     buf ++= "import melt.runtime.*\n"
+    // Props JSON plumbing is only pulled in when a hydration entry is
+    // being emitted for a component that has Props — otherwise the
+    // import is dead weight and pollutes non-hydrating generated
+    // sources.
+    if hydration && ast.script.flatMap(_.propsType).isDefined then
+      buf ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     buf ++= "import melt.runtime.transition.*\n"
     buf ++= "import melt.runtime.animate.*\n\n"
 
@@ -70,6 +76,17 @@ object SpaCodeGen extends CodeGen:
               buf += '\n'
           case None => // no props definition to emit at object level
     }
+
+    // ── Props codec (§12.3.11) ──────────────────────────────────────────
+    // Mirror-derived codec for decoding the Props JSON embedded by the
+    // SSR side. Same mechanism as SsrCodeGen — meltc only knows the
+    // type name, Scala's inline derivation takes care of the fields.
+    // Only emitted when hydration is enabled so non-hydrating components
+    // stay free of the `melt.runtime.json` import burden at runtime.
+    if hydration then
+      propsType.foreach { tpe =>
+        buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+      }
 
     // ── apply() ──────────────────────────────────────────────────────────────
     // Generated components expose a single `apply` entry point so that
@@ -143,7 +160,7 @@ object SpaCodeGen extends CodeGen:
     propsType:  Option[String],
     ast:        meltc.ast.MeltFile
   ): Unit =
-    // ── Hydration entry (§C5) ────────────────────────────────────────────────
+    // ── Hydration entry (§C5 + §12.3.11) ────────────────────────────────
     // Each generated component exports a top-level `hydrate` function
     // through Scala.js's `@JSExportTopLevel` with a `moduleID` set to
     // the component's kebab-case name. When a Vite-bundled chunk for
@@ -156,13 +173,20 @@ object SpaCodeGen extends CodeGen:
     // marker pair is removed and replaced with a freshly-built DOM
     // sub-tree via `Mount`. True hydration (attaching to existing
     // nodes without reconstructing them) is a Phase D / follow-up
-    // effort; replace-on-mount is the minimum viable hydration that
-    // still gives users working interactivity for Phase C.
+    // effort.
     //
-    // Because the hydrated component is (re)constructed via `apply()`
-    // with no arguments, components with Props must provide defaults
-    // for every field. Props-serialization (so the server can hand
-    // props to the client) is a Phase D feature.
+    // Props are recovered from the SSR output via an inline
+    // `<script type="application/json" data-melt-props="$moduleId">`
+    // tag emitted by `Template.render`. The JSON payload is decoded
+    // with the same `PropsCodec[Props]` instance used on the server,
+    // giving the client the exact values the server rendered with.
+    //
+    // Fallback rules when the JSON tag is missing (legacy pages, or
+    // hand-built templates that don't go through `Template.render`):
+    //
+    //   - No `Props` declared → call `apply()` (always safe)
+    //   - All `Props` fields have defaults → call `apply(Props())`
+    //   - Otherwise → log a warning and skip hydration
     val moduleId      = kebabCase(objectName)
     val propsDefaults =
       propsType match
@@ -175,66 +199,108 @@ object SpaCodeGen extends CodeGen:
             }
             .getOrElse(true)
 
-    if propsDefaults then
-      buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via Vite +
-                  |    * `@scala-js/vite-plugin-scalajs`. Locates the
-                  |    * `<!--[melt:$moduleId-->` / `<!--]melt:$moduleId-->`
-                  |    * comment markers in the document and mounts a fresh
-                  |    * component at each pair (replace-on-mount).
-                  |    */
-                  |  @JSExportTopLevel("hydrate", moduleID = "$moduleId")
-                  |  def _meltHydrateEntry(): Unit =
-                  |    val startMarker = "[melt:$moduleId"
-                  |    val endMarker   = "]melt:$moduleId"
-                  |    val walker      = dom.document.createTreeWalker(
-                  |      dom.document.body,
-                  |      dom.NodeFilter.SHOW_COMMENT,
-                  |      null,
-                  |      false
-                  |    )
-                  |    val starts = scala.collection.mutable.ListBuffer.empty[dom.Node]
-                  |    val ends   = scala.collection.mutable.ListBuffer.empty[dom.Node]
-                  |    var cur: dom.Node = walker.nextNode()
-                  |    while cur != null do
-                  |      val text = cur.asInstanceOf[dom.Comment].data
-                  |      if text.startsWith(startMarker) then starts += cur
-                  |      else if text.startsWith(endMarker) then ends += cur
-                  |      cur = walker.nextNode()
-                  |    starts.zip(ends).foreach { case (startNode, endNode) =>
-                  |      val parent = startNode.parentNode
-                  |      // Remove SSR-emitted nodes between the markers, then
-                  |      // mount a fresh component into the now-empty gap.
-                  |      var n = startNode.nextSibling
-                  |      while n != null && !(n eq endNode) do
-                  |        val next = n.nextSibling
-                  |        parent.removeChild(n)
-                  |        n = next
-                  |      val host = dom.document.createElement("div")
-                  |      parent.insertBefore(host, endNode)
-                  |      ${ hydrationApplyCall(propsType) }
-                  |    }
-                  |
-                  |""".stripMargin
-    else
-      // Props has fields without default values — we cannot construct
-      // `Props()` at hydration time without a serialisation layer. Emit
-      // a stub entry that warns once and does nothing, so the Vite
-      // bundle still builds and the developer gets a clear diagnostic
-      // in the browser console. Props serialisation is a Phase D task.
-      buf ++= s"""  /** Hydration entry stub — `$objectName.Props` has required
-                  |    * fields that cannot be constructed without explicit
-                  |    * arguments. Real hydration will be enabled when props
-                  |    * serialisation lands in Phase D.
-                  |    */
-                  |  @JSExportTopLevel("hydrate", moduleID = "$moduleId")
-                  |  def _meltHydrateEntry(): Unit =
-                  |    dom.console.warn(
-                  |      "[melt] hydrate($moduleId) skipped: $objectName.Props " +
-                  |      "has required fields. Props serialisation (Phase D) is " +
-                  |      "required before this component can hydrate automatically."
-                  |    )
-                  |
-                  |""".stripMargin
+    // Compute the per-iteration mount expression. Three cases:
+    //
+    //   1. No Props              → `Mount(host, apply())`
+    //   2. Props with JSON       → `Mount(host, apply(_props))`
+    //   3. Props without JSON    → resolved lazily in `resolveProps`
+    //
+    // When Props is declared, the JSON lookup + decode is performed
+    // once up-front and stored in `_props`, which is either the
+    // decoded value, the user's default-constructor value, or — if
+    // neither is available — `null` (in which case hydration is
+    // skipped with a console warning).
+    val mountExpr: String = propsType match
+      case None    => "Mount(host, apply())"
+      case Some(_) => "Mount(host, apply(_props))"
+
+    // The `_props` resolution block. For components without Props we
+    // emit nothing. For components with Props we emit a decode +
+    // fallback chain that results in a final `val _props: Type | Null`.
+    val resolveProps: String = propsType match
+      case None => ""
+      case Some(tpe) =>
+        val fallback =
+          if propsDefaults then
+            s"""            dom.console.warn(
+               |              "[melt] hydrate($moduleId): no <script data-melt-props=\\\"$moduleId\\\"> " +
+               |              "payload found, falling back to $tpe() defaults."
+               |            )
+               |            $tpe()""".stripMargin
+          else
+            s"""            dom.console.warn(
+               |              "[melt] hydrate($moduleId) skipped: no <script data-melt-props=\\\"$moduleId\\\"> " +
+               |              "payload found and $tpe has required fields."
+               |            )
+               |            null""".stripMargin
+        s"""
+           |    val _props: $tpe =
+           |      val _tag = dom.document.querySelector("script[data-melt-props=\\\"$moduleId\\\"]")
+           |      if _tag != null then
+           |        try _propsCodec.decode(SimpleJson.parse(_tag.textContent))
+           |        catch
+           |          case t: Throwable =>
+           |            dom.console.warn(
+           |              "[melt] hydrate($moduleId): failed to decode Props payload (" + t.getMessage + ")"
+           |            )
+           |            ${ if propsDefaults then s"$tpe()" else "null" }
+           |      else
+           |$fallback
+           |""".stripMargin
+
+    // Skip-guard wrapping the mount loop when Props is required and
+    // cannot be defaulted — keeps the loop itself simple and readable.
+    val (guardOpen, guardClose) = propsType match
+      case Some(_) if !propsDefaults =>
+        ("    if _props != null then\n", "")
+      case _                          =>
+        ("", "")
+
+    val loopIndent =
+      if propsType.isDefined && !propsDefaults then "      " else "    "
+
+    val loopBody =
+      s"""${ loopIndent }starts.zip(ends).foreach { case (startNode, endNode) =>
+         |${ loopIndent }  val parent = startNode.parentNode
+         |${ loopIndent }  var n = startNode.nextSibling
+         |${ loopIndent }  while n != null && !(n eq endNode) do
+         |${ loopIndent }    val next = n.nextSibling
+         |${ loopIndent }    parent.removeChild(n)
+         |${ loopIndent }    n = next
+         |${ loopIndent }  val host = dom.document.createElement("div")
+         |${ loopIndent }  parent.insertBefore(host, endNode)
+         |${ loopIndent }  $mountExpr
+         |${ loopIndent }}""".stripMargin
+
+    buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via the
+                |    * sbt/Scala.js asset pipeline. Locates the
+                |    * `<!--[melt:$moduleId-->` / `<!--]melt:$moduleId-->`
+                |    * comment markers in the document and mounts a fresh
+                |    * component at each pair, using Props decoded from
+                |    * the inline `<script data-melt-props="$moduleId">`
+                |    * payload when present.
+                |    */
+                |  @JSExportTopLevel("hydrate", moduleID = "$moduleId")
+                |  def _meltHydrateEntry(): Unit =
+                |    val startMarker = "[melt:$moduleId"
+                |    val endMarker   = "]melt:$moduleId"
+                |    val walker      = dom.document.createTreeWalker(
+                |      dom.document.body,
+                |      dom.NodeFilter.SHOW_COMMENT,
+                |      null,
+                |      false
+                |    )
+                |    val starts = scala.collection.mutable.ListBuffer.empty[dom.Node]
+                |    val ends   = scala.collection.mutable.ListBuffer.empty[dom.Node]
+                |    var cur: dom.Node = walker.nextNode()
+                |    while cur != null do
+                |      val text = cur.asInstanceOf[dom.Comment].data
+                |      if text.startsWith(startMarker) then starts += cur
+                |      else if text.startsWith(endMarker) then ends += cur
+                |      cur = walker.nextNode()
+                |$resolveProps$guardOpen$loopBody$guardClose
+                |
+                |""".stripMargin
 
   // ── Node emission ──────────────────────────────────────────────────────────
 

@@ -29,14 +29,23 @@ package melt.runtime.ssr
   * @param css        Unique CSS entries collected during rendering
   * @param components Component `moduleID`s used during rendering
   *                   (for future Hydration chunk resolution in Phase C)
+  * @param hydrationProps
+  *                   JSON-encoded Props per `moduleID`, as emitted by
+  *                   `PropsCodec` during SSR. Templates inject these
+  *                   as `<script type="application/json"
+  *                   data-melt-props="...">` tags so the SPA hydration
+  *                   entry can decode them back into the component's
+  *                   `Props` type and call `apply(decoded)` instead of
+  *                   falling back to defaults.
   */
 final case class RenderResult(
-  body:       String,
-  head:       String,
-  title:      Option[String]      = None,
-  metaTags:   Map[String, String] = Map.empty,
-  css:        Set[CssEntry]       = Set.empty,
-  components: Set[String]         = Set.empty
+  body:           String,
+  head:           String,
+  title:          Option[String]      = None,
+  metaTags:       Map[String, String] = Map.empty,
+  css:            Set[CssEntry]       = Set.empty,
+  components:     Set[String]         = Set.empty,
+  hydrationProps: Map[String, String] = Map.empty
 )
 
 object RenderResult:

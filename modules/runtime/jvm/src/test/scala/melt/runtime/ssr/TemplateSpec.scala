@@ -298,3 +298,63 @@ class TemplateSpec extends FunSuite:
     val html   = t.render(result, ViteManifest.empty)
     assertEquals(html, "<title>FromComponent</title>")
   }
+
+  // ── §12.3.11 Props serialisation ───────────────────────────────────────
+
+  test("hydration overload emits data-melt-props script tag for each component") {
+    val result = RenderResult(
+      body           = "<main/>",
+      head           = "",
+      css            = Set.empty,
+      components     = Set("home"),
+      hydrationProps = Map("home" -> """{"userName":"Melt","count":1}""")
+    )
+    val manifest = ViteManifest.fromString(
+      """{ "scalajs:home.js": { "file": "assets/home.js" } }"""
+    )
+    val html = templateWithAll.render(result, manifest)
+    assert(
+      html.contains("""<script type="application/json" data-melt-props="home">{"userName":"Melt","count":1}</script>"""),
+      html
+    )
+    // The Props tag must appear before the hydration bootstrap import
+    // so that the component's hydrate() function can read it
+    // synchronously from the DOM.
+    val propsIdx     = html.indexOf("data-melt-props")
+    val bootstrapIdx = html.indexOf("m => m.hydrate()")
+    assert(propsIdx >= 0 && bootstrapIdx > propsIdx, s"props tag must precede bootstrap\n$html")
+  }
+
+  test("hydration overload omits Props tag when none was tracked") {
+    val result = RenderResult(
+      body       = "",
+      head       = "",
+      components = Set("counter")
+    )
+    val manifest = ViteManifest.fromString(
+      """{ "scalajs:counter.js": { "file": "assets/counter.js" } }"""
+    )
+    val html = templateWithAll.render(result, manifest)
+    assert(!html.contains("data-melt-props"), html)
+  }
+
+  test("hydration overload only emits Props tags for tracked components") {
+    // A component that appears in hydrationProps but NOT in
+    // `components` must not be emitted — the canonical source of
+    // truth for "which components should hydrate" is `components`.
+    val result = RenderResult(
+      body           = "",
+      head           = "",
+      components     = Set("home"),
+      hydrationProps = Map(
+        "home"   -> """{"a":1}""",
+        "ghost"  -> """{"b":2}"""
+      )
+    )
+    val manifest = ViteManifest.fromString(
+      """{ "scalajs:home.js": { "file": "assets/home.js" } }"""
+    )
+    val html = templateWithAll.render(result, manifest)
+    assert(html.contains("""data-melt-props="home""""), html)
+    assert(!html.contains("""data-melt-props="ghost""""), html)
+  }
