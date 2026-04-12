@@ -24,7 +24,7 @@ import { defineConfig } from "vite";
 // ("home", "about", …) and each value is the absolute path to the
 // corresponding .js file in the fullLinkJS output directory.
 const inputsPath = new URL(
-  "client/target/vite-inputs.json",
+  "components/js/target/vite-inputs.json",
   import.meta.url
 );
 let rollupInput;
@@ -33,7 +33,7 @@ try {
 } catch (e) {
   console.error(
     `[melt] Could not read ${inputsPath.pathname}.\n` +
-    `       Run  sbt http4s-ssr-client/fullLinkJS  first.\n`,
+    `       Run  sbt http4s-ssr-server/meltcViteInputGenerate  first.\n`,
     e.message
   );
   process.exit(1);
