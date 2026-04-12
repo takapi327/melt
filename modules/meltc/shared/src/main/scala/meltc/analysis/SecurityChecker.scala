@@ -40,12 +40,52 @@ import meltc.ast.*
   */
 object SecurityChecker:
 
+  /** Returns security issues that are severe enough to be **compile errors**.
+    *
+    * Currently covers:
+    *   - `<iframe srcdoc={...}>` — arbitrary HTML injection without TrustedHtml
+    */
+  def checkErrors(ast: MeltFile, source: String = ""): List[(String, Int)] =
+    val errs      = mutable.ListBuffer.empty[(String, Int)]
+    val lineIndex = buildLineIndex(source)
+    val tagCount  = mutable.Map.empty[String, Int]
+    ast.template.foreach(collectErrors(_, errs, source, lineIndex, tagCount))
+    errs.toList
+
   def check(ast: MeltFile, source: String = ""): List[(String, Int)] =
     val w         = mutable.ListBuffer.empty[(String, Int)]
     val lineIndex = buildLineIndex(source)
     val tagCount  = mutable.Map.empty[String, Int]
     ast.template.foreach(checkNode(_, w, source, lineIndex, tagCount))
     w.toList
+
+  private def collectErrors(
+    node:      TemplateNode,
+    errs:      mutable.ListBuffer[(String, Int)],
+    source:    String,
+    lineIndex: Array[Int],
+    tagCount:  mutable.Map[String, Int]
+  ): Unit = node match
+    case TemplateNode.Element(tag, attrs, children) =>
+      val nth  = tagCount.getOrElse(tag, 0)
+      tagCount(tag) = nth + 1
+      val line = findNthTagLine(tag, source, lineIndex, nth)
+      if tag.toLowerCase == "iframe" && hasDynamicAttr(attrs, "srcdoc") then
+        errs += (("<iframe srcdoc={...}> embeds arbitrary HTML at runtime. " +
+          "Wrap the value in TrustedHtml to document that it has been sanitised, " +
+          "then use bind:innerHTML to emit raw HTML safely.") -> line)
+      children.foreach(collectErrors(_, errs, source, lineIndex, tagCount))
+    case TemplateNode.Component(_, _, children) =>
+      children.foreach(collectErrors(_, errs, source, lineIndex, tagCount))
+    case TemplateNode.Head(children) =>
+      children.foreach(collectErrors(_, errs, source, lineIndex, tagCount))
+    case TemplateNode.InlineTemplate(parts) =>
+      parts.foreach {
+        case InlineTemplatePart.Html(nodes) =>
+          nodes.foreach(collectErrors(_, errs, source, lineIndex, tagCount))
+        case _ => ()
+      }
+    case _ => ()
 
   private def checkNode(
     node:      TemplateNode,
@@ -89,9 +129,7 @@ object SecurityChecker:
           w += (("<iframe> has a dynamic `src` — ensure the URL is validated " +
             "(Escape.url already blocks javascript:/data: schemes, but " +
             "consider a CSP frame-src allow-list).") -> line)
-        if hasDynamicAttr(attrs, "srcdoc") then
-          w += (("<iframe srcdoc={...}> embeds arbitrary HTML at runtime; wrap " +
-            "the value in TrustedHtml to document that it has been sanitised.") -> line)
+        // srcdoc with dynamic value is a compile *error* (handled by checkErrors)
 
       case "object" =>
         if hasDynamicAttr(attrs, "data") then
