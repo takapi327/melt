@@ -70,10 +70,18 @@ private[parser] object HtmlEntities:
     buf.toString
 
   private def decodeRef(ref: String): Option[String] =
-    if ref.startsWith("#x") || ref.startsWith("#X") then
-      try Some(Integer.parseInt(ref.substring(2), 16).toChar.toString)
-      catch case _: NumberFormatException => None
-    else if ref.startsWith("#") then
-      try Some(Integer.parseInt(ref.substring(1)).toChar.toString)
-      catch case _: NumberFormatException => None
-    else NamedEntities.get(ref)
+    val cp: Option[Int] =
+      if ref.startsWith("#x") || ref.startsWith("#X") then
+        try Some(Integer.parseInt(ref.substring(2), 16))
+        catch case _: NumberFormatException => None
+      else if ref.startsWith("#") then
+        try Some(Integer.parseInt(ref.substring(1)))
+        catch case _: NumberFormatException => None
+      else None
+
+    cp match
+      case Some(n) if n > 0x10ffff               => None // above Unicode maximum
+      case Some(n) if n >= 0xd800 && n <= 0xdfff => None // surrogate pairs
+      case Some(n) if n == 0xfffe || n == 0xffff => None // non-characters
+      case Some(n)                               => Some(new String(Character.toChars(n)))
+      case None                                  => NamedEntities.get(ref)
