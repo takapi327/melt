@@ -52,10 +52,12 @@ export default defineConfig({
     rollupOptions: {
       input: rollupInput,
 
+      // Preserve named exports from entry modules. Without this,
+      // Rollup strips the `export { hydrate }` from each component's
+      // entry chunk, causing "hydrate is not a function" errors.
+      preserveEntrySignatures: "exports-only",
+
       output: {
-        // Keep the "scalajs:" prefix convention so ViteManifest's
-        // uriPrefix-based lookup continues to work unchanged.
-        // Vite uses the input keys as manifest entry names.
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",

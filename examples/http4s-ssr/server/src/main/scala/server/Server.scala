@@ -17,12 +17,12 @@ import generated.AssetManifest
 import org.http4s.*
 import org.http4s.dsl.io.*
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.headers.{ `Content-Type`, Location }
+import org.http4s.headers.`Content-Type`
 import org.http4s.server.staticcontent.*
 import org.http4s.server.Router
 
 /** Phase C SSR + Hydration sample — a tiny http4s server that
-  * demonstrates the three current-generation patterns:
+  * demonstrates modern SSR patterns:
   *
   *   1. '''Static SSR pages''' — Home, About. Server renders HTML once
   *      per request; the page has hydration markers and a bootstrap
@@ -30,13 +30,12 @@ import org.http4s.server.Router
   *      module loads.
   *   2. '''Dynamic SSR with conditional branches''' — Status. Server
   *      uses a path parameter to drive `if/else` and `match` rendering.
-  *   3. '''Stateful SSR CRUD''' — Todos. In-memory `Ref[IO, List[Todo]]`
-  *      is updated by `POST /todos/{add,toggle/:id,delete/:id}` routes;
-  *      each mutation responds with a `303 See Other` back to `/todos`
-  *      so the next GET re-renders the latest state. This path DOES
-  *      NOT use the hydration overload of `Template.render` — form-
-  *      based CRUD reloads the page on every action, so no client JS
-  *      is needed.
+  *   3. '''SSR + Client-side interactivity''' — Todos. Server renders
+  *      the initial list via SSR with Props serialisation. After
+  *      hydration, the client takes over with reactive `Var[List[Todo]]`
+  *      state. Add / toggle / delete operations update the local Var
+  *      instantly (no page reload). The pattern demonstrates the full
+  *      SSR → hydration → client-side reactivity lifecycle.
   *
   * == Running ==
   *
@@ -49,32 +48,9 @@ import org.http4s.server.Router
   * {{{
   *   sbt "~http4s-ssr-server/reStart"
   * }}}
-  *
-  * `sbt-revolver`'s `~reStart` watches every `.melt` and `.scala`
-  * file in the project. When you save, sbt regenerates the client
-  * chunks, rebuilds `AssetManifest`, and restarts the server in
-  * well under a second. Just reload the page in your browser.
-  *
-  * == How the manifest / chunks are wired ==
-  *
-  * `generated.AssetManifest` is a Scala source generated from the
-  * client project's `Compile / fastLinkJS` output by a
-  * `sourceGenerators` task in `build.sbt`. It exposes:
-  *
-  *   - `AssetManifest.manifest`      — a `ViteManifest` covering every
-  *     `@JSExportTopLevel("hydrate", moduleID = …)` entry, built
-  *     automatically from `Report.PublicModule` so adding or removing
-  *     a `.melt` file re-flows through the pipeline with zero manual
-  *     edits to this file.
-  *   - `AssetManifest.clientDistDir` — the absolute path to the
-  *     fastopt output directory, used by `http4s`'s `fileService` to
-  *     serve `/assets`.
   */
 object Server extends IOApp.Simple:
 
-  /** Loaded once at application startup — `Template` is immutable and
-    * thread-safe, so we can share it across all requests.
-    */
   private val template: Template = Template.fromResource("/index.html")
 
   private def routes(todoStore: Ref[IO, List[Todos.Todo]]): HttpRoutes[IO] =
@@ -95,39 +71,47 @@ object Server extends IOApp.Simple:
         )
 
       case GET -> Root / "status" / IntVar(n) =>
-        // FQN to disambiguate from org.http4s.Status.
         val result = components.Status(components.Status.Props(isActive = n > 0, count = n))
         Ok(
           renderWithHydration(result, title = s"Status $n · Melt SSR"),
           htmlContentType
         )
 
-      // ── SSR-only stateful TODO app (no client JS) ───────────────────────
+      // ── Todos: SSR + Hydration + JSON API ──────────────────────────────
+      // GET renders the page with hydration. After hydration the client
+      // manages its own Var[List[Todo]] reactively. Mutations fire
+      // optimistic UI updates AND a fire-and-forget POST to the JSON
+      // API below, so the server's Ref stays in sync and a page refresh
+      // always returns the latest state.
       case GET -> Root / "todos" =>
         for
           items <- todoStore.get
-          html = template.render(Todos(Todos.Props(items = items)), title = "Todos · Melt SSR")
+          html = renderWithHydration(
+                   Todos(Todos.Props(items = items)),
+                   title = "Todos · Melt SSR"
+                 )
           resp <- Ok(html, htmlContentType)
         yield resp
 
-      case req @ POST -> Root / "todos" / "add" =>
+      // ── JSON API for client-side mutations ─────────────────────────────
+      case req @ POST -> Root / "api" / "todos" / "add" =>
         for
-          form <- req.as[UrlForm]
-          text = form.getFirst("text").map(_.trim).getOrElse("")
-          _ <-
+          body <- req.as[String]
+          text = parseTextField(body)
+          resp <-
             if text.nonEmpty then
               val todo = Todos.Todo(id = UUID.randomUUID().toString, text = text)
-              todoStore.update(todo :: _)
-            else IO.unit
-          resp <- redirectToTodos
+              todoStore.update(todo :: _) *>
+                Created(s"""{"id":"${todo.id}"}""", jsonContentType)
+            else BadRequest()
         yield resp
 
-      case POST -> Root / "todos" / "toggle" / id =>
+      case POST -> Root / "api" / "todos" / "toggle" / id =>
         todoStore.update(_.map(t => if t.id == id then t.copy(done = !t.done) else t)) *>
-          redirectToTodos
+          Ok()
 
-      case POST -> Root / "todos" / "delete" / id =>
-        todoStore.update(_.filterNot(_.id == id)) *> redirectToTodos
+      case POST -> Root / "api" / "todos" / "delete" / id =>
+        todoStore.update(_.filterNot(_.id == id)) *> Ok()
     }
 
   // ── Small response helpers ─────────────────────────────────────────────
@@ -135,14 +119,9 @@ object Server extends IOApp.Simple:
   private val htmlContentType: `Content-Type` =
     `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
 
-  private val redirectToTodos: IO[Response[IO]] =
-    SeeOther(Location(Uri.unsafeFromString("/todos")))
+  private val jsonContentType: `Content-Type` =
+    `Content-Type`(MediaType.application.json, Charset.`UTF-8`)
 
-  /** Shorthand for the full Hydration-enabled `Template.render`
-    * overload. All hydration pages share the same manifest / lang /
-    * basePath / vars arguments, so we thread them through a single
-    * helper to keep the route bodies one-liner friendly.
-    */
   private def renderWithHydration(result: melt.runtime.ssr.RenderResult, title: String): String =
     template.render(
       result,
@@ -153,17 +132,31 @@ object Server extends IOApp.Simple:
       vars     = Map.empty
     )
 
-  /** Serves every path under `/assets` from the Scala.js client's
-    * `fastLinkJS` output directory. The absolute path is embedded at
-    * build time into `AssetManifest.clientDistDir` by the sbt
-    * sourceGenerator.
+  /** Extracts the "text" field from a minimal JSON body like
+    * `{"text":"Buy milk"}`. Hand-rolled to avoid adding a JSON
+    * library dependency to the example server.
     */
+  private def parseTextField(json: String): String =
+    val key = """"text":""""
+    val idx = json.indexOf(key)
+    if idx < 0 then ""
+    else
+      val start = idx + key.length
+      val end   = json.indexOf('"', start)
+      if end < 0 then "" else json.substring(start, end).trim
+
   private val assetRoutes: HttpRoutes[IO] =
     fileService[IO](FileService.Config(AssetManifest.clientDistDir.getAbsolutePath))
 
   def run: IO[Unit] =
     for
-      todoStore <- Ref.of[IO, List[Todos.Todo]](Nil)
+      todoStore <- Ref.of[IO, List[Todos.Todo]](
+                     List(
+                       Todos.Todo(UUID.randomUUID().toString, "Learn Melt SSR"),
+                       Todos.Todo(UUID.randomUUID().toString, "Add hydration", done = true),
+                       Todos.Todo(UUID.randomUUID().toString, "Ship it")
+                     )
+                   )
       httpApp = Router(
                   "/"       -> routes(todoStore),
                   "/assets" -> assetRoutes
