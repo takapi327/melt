@@ -236,9 +236,11 @@ object SsrCodeGen extends CodeGen:
     scopeId:  String
   ): Unit =
     val pad      = " " * indent
-    val bindExpr = attrs.collectFirst {
-      case Attr.Directive("bind", "value", Some(e), _) => e
-    }.getOrElse(sys.error("emitTextareaBindValue called without bind:value — compiler bug"))
+    val bindExpr = attrs
+      .collectFirst {
+        case Attr.Directive("bind", "value", Some(e), _) => e
+      }
+      .getOrElse(sys.error("emitTextareaBindValue called without bind:value — compiler bug"))
 
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "value", _, _) => true
@@ -267,9 +269,11 @@ object SsrCodeGen extends CodeGen:
     scopeId:  String
   ): Unit =
     val pad      = " " * indent
-    val bindExpr = attrs.collectFirst {
-      case Attr.Directive("bind", "value", Some(e), _) => e
-    }.getOrElse(sys.error("emitSelectBindValue called without bind:value — compiler bug"))
+    val bindExpr = attrs
+      .collectFirst {
+        case Attr.Directive("bind", "value", Some(e), _) => e
+      }
+      .getOrElse(sys.error("emitSelectBindValue called without bind:value — compiler bug"))
 
     val restAttrs = attrs.filterNot {
       case Attr.Directive("bind", "value", _, _) => true
@@ -299,9 +303,11 @@ object SsrCodeGen extends CodeGen:
     scopeId: String
   ): Unit =
     val pad      = " " * indent
-    val bindExpr = attrs.collectFirst {
-      case Attr.Directive("bind", "group", Some(e), _) => e
-    }.getOrElse(sys.error("emitInputBindGroup called without bind:group — compiler bug"))
+    val bindExpr = attrs
+      .collectFirst {
+        case Attr.Directive("bind", "group", Some(e), _) => e
+      }
+      .getOrElse(sys.error("emitInputBindGroup called without bind:group — compiler bug"))
 
     val typeAttr = attrs.collectFirst {
       case Attr.Static("type", t) => t.toLowerCase
