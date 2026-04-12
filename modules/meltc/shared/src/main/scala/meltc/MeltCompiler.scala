@@ -42,7 +42,7 @@ object MeltCompiler:
         val codegen: CodeGen = mode match
           case CompileMode.SPA => SpaCodeGen
           case CompileMode.SSR => SsrCodeGen
-        val scopeId = codegen.scopeIdFor(objectName)
+        val scopeId = codegen.scopeIdFor(objectName, filename)
 
         // ── Semantic checks (§12.1.2, §12.1.3, §12.1.6) ────────────────
         val semanticErrors =
@@ -50,7 +50,13 @@ object MeltCompiler:
             TagNameChecker.check(ast, filename) ++
             RawTextInterpolationChecker.check(ast, filename)
 
-        if semanticErrors.nonEmpty then CompileResult(None, None, semanticErrors, Nil)
+        val securityErrors = SecurityChecker.checkErrors(ast, source).map {
+          case (msg, line) =>
+            CompileError(msg, line, 0, filename)
+        }
+
+        val allErrors = semanticErrors ++ securityErrors
+        if allErrors.nonEmpty then CompileResult(None, None, allErrors, Nil)
         else
           val code           = codegen.generate(ast, objectName, pkg, scopeId, hydration)
           val parserWarnings = result.warnings.map {
