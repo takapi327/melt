@@ -230,3 +230,25 @@ class EscapeSpec extends FunSuite:
     // The output must be safe for use inside an HTML attribute value.
     assertEquals(Escape.cssValue("red\"><script>"), "red&quot;&gt;&lt;script&gt;")
   }
+
+  // ── S-3: Escape.attr newline / tab escaping ────────────────────────────
+
+  test("Escape.attr escapes newline to &#10;") {
+    assertEquals(Escape.attr("line1\nline2"), "line1&#10;line2")
+  }
+
+  test("Escape.attr escapes carriage return to &#13;") {
+    assertEquals(Escape.attr("line1\rline2"), "line1&#13;line2")
+  }
+
+  test("Escape.attr escapes tab to &#9;") {
+    assertEquals(Escape.attr("col1\tcol2"), "col1&#9;col2")
+  }
+
+  test("Escape.attr escapes CRLF sequence") {
+    assertEquals(Escape.attr("a\r\nb"), "a&#13;&#10;b")
+  }
+
+  test("Escape.cssValue also escapes newline (via escapeAttrInner)") {
+    assertEquals(Escape.cssValue("10px\n"), "10px&#10;")
+  }

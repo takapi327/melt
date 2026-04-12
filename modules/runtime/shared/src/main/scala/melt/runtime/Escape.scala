@@ -12,8 +12,10 @@ package melt.runtime
   *
   *   - `null`, `None` → empty string
   *   - `Some(x)`      → recursively processes `x`
-  *   - `TrustedHtml`  → value extracted and returned as-is (html) or
-  *                      attribute-escaped ([[attr]])
+  *   - `TrustedHtml`  → value extracted and HTML-escaped ([[html]]) or
+  *                      attribute-escaped ([[attr]]); to emit raw HTML
+  *                      without escaping use `bind:innerHTML={expr}` in
+  *                      the template (generates `renderer.push(expr.value)`)
   *   - `TrustedUrl`   → value extracted and attribute-escaped
   *                      ([[url]] only — bypasses protocol checks)
   *   - everything else → `toString` then escape
@@ -131,11 +133,14 @@ object Escape:
     var i   = 0
     while i < s.length do
       s.charAt(i) match
-        case '&' => buf ++= "&amp;"
-        case '<' => buf ++= "&lt;"
-        case '>' => buf ++= "&gt;"
-        case '"' => buf ++= "&quot;"
-        case c   => buf += c
+        case '&'  => buf ++= "&amp;"
+        case '<'  => buf ++= "&lt;"
+        case '>'  => buf ++= "&gt;"
+        case '"'  => buf ++= "&quot;"
+        case '\n' => buf ++= "&#10;"
+        case '\r' => buf ++= "&#13;"
+        case '\t' => buf ++= "&#9;"
+        case c    => buf += c
       i += 1
     buf.toString
 

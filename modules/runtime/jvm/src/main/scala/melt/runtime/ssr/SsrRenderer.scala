@@ -246,6 +246,12 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
               ()
             case f if isFunction(f) =>
               MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
+            case t if isTuple(t) =>
+              MeltWarnings.warn(
+                s"Dropped Tuple/Named Tuple spread attribute '$name': " +
+                "field names are erased at runtime and cannot be expanded into individual attributes. " +
+                "Use individual prop bindings instead."
+              )
             case false =>
               ()
             case true =>
@@ -274,7 +280,29 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     case _: scala.Function3[?, ?, ?, ?]       => true
     case _: scala.Function4[?, ?, ?, ?, ?]    => true
     case _: scala.Function5[?, ?, ?, ?, ?, ?] => true
-    case _                                    => false
+    case _: scala.Function6[?, ?, ?, ?, ?, ?, ?]                                               => true
+    case _: scala.Function7[?, ?, ?, ?, ?, ?, ?, ?]                                            => true
+    case _: scala.Function8[?, ?, ?, ?, ?, ?, ?, ?, ?]                                         => true
+    case _: scala.Function9[?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                      => true
+    case _: scala.Function10[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                  => true
+    case _: scala.Function11[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                               => true
+    case _: scala.Function12[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                            => true
+    case _: scala.Function13[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                         => true
+    case _: scala.Function14[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                      => true
+    case _: scala.Function15[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                   => true
+    case _: scala.Function16[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                => true
+    case _: scala.Function17[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]             => true
+    case _: scala.Function18[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]          => true
+    case _: scala.Function19[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]       => true
+    case _: scala.Function20[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]    => true
+    case _: scala.Function21[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?] => true
+    case _: scala.Function22[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?] => true
+    case _: scala.runtime.FunctionXXL => true // arity 23+ (Scala 3)
+    case _                             => false
+
+  private def isTuple(value: Any): Boolean = value match
+    case _: scala.Tuple => true
+    case _              => false
 
   /** Finalises the renderer into an immutable [[RenderResult]].
     *
