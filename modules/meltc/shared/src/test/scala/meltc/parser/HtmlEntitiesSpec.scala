@@ -95,3 +95,43 @@ class HtmlEntitiesSpec extends munit.FunSuite:
   test("incomplete entity reference is left as-is") {
     assertEquals(HtmlEntities.decode("&amp"), "&amp")
   }
+
+  // ── S-4: Codepoint validation ───────────────────────────────────────────
+
+  test("surrogate codepoint &#xD800; is rejected (left as-is)") {
+    assertEquals(HtmlEntities.decode("&#xD800;"), "&#xD800;")
+  }
+
+  test("surrogate codepoint &#xDFFF; is rejected (left as-is)") {
+    assertEquals(HtmlEntities.decode("&#xDFFF;"), "&#xDFFF;")
+  }
+
+  test("surrogate decimal &#55296; is rejected (left as-is)") {
+    // 55296 == 0xD800
+    assertEquals(HtmlEntities.decode("&#55296;"), "&#55296;")
+  }
+
+  test("non-character &#xFFFE; is rejected (left as-is)") {
+    assertEquals(HtmlEntities.decode("&#xFFFE;"), "&#xFFFE;")
+  }
+
+  test("non-character &#xFFFF; is rejected (left as-is)") {
+    assertEquals(HtmlEntities.decode("&#xFFFF;"), "&#xFFFF;")
+  }
+
+  test("codepoint above Unicode max &#x110000; is rejected (left as-is)") {
+    assertEquals(HtmlEntities.decode("&#x110000;"), "&#x110000;")
+  }
+
+  test("valid supplementary codepoint &#x1F600; decodes correctly") {
+    // U+1F600 GRINNING FACE — requires a surrogate pair in UTF-16
+    assertEquals(HtmlEntities.decode("&#x1F600;"), "\uD83D\uDE00")
+  }
+
+  test("last valid BMP codepoint &#xD7FF; decodes correctly") {
+    assertEquals(HtmlEntities.decode("&#xD7FF;"), "\uD7FF")
+  }
+
+  test("first valid codepoint after surrogates &#xE000; decodes correctly") {
+    assertEquals(HtmlEntities.decode("&#xE000;"), "\uE000")
+  }

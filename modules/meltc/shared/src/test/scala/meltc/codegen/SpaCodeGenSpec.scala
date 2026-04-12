@@ -34,10 +34,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── scopeIdFor ────────────────────────────────────────────────────────────
 
-  test("scopeIdFor produces deterministic melt-xxxxxx string") {
+  test("scopeIdFor produces deterministic melt-xxxxxxxx string") {
     val id = SpaCodeGen.scopeIdFor("App")
     assert(id.startsWith("melt-"), id)
-    assertEquals(id.length, 11)                    // "melt-" (5) + 6 hex digits
+    assertEquals(id.length, 13)                    // "melt-" (5) + 8 hex digits
     assertEquals(id, SpaCodeGen.scopeIdFor("App")) // deterministic
   }
 
@@ -308,13 +308,31 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("scopeIdFor always produces valid hex (no negative values)") {
     val ids = (0 to 500).map(i => SpaCodeGen.scopeIdFor(s"Component$i"))
     ids.foreach { id =>
-      assert(id.matches("melt-[0-9a-f]{6}"), s"Invalid scope ID: $id")
+      assert(id.matches("melt-[0-9a-f]{8}"), s"Invalid scope ID: $id")
     }
   }
 
   test("scopeIdFor produces valid hex for empty string") {
     val id = SpaCodeGen.scopeIdFor("")
-    assert(id.matches("melt-[0-9a-f]{6}"), s"Bad scopeId: $id")
+    assert(id.matches("melt-[0-9a-f]{8}"), s"Bad scopeId: $id")
+  }
+
+  // ── S-2: scopeIdFor uses file path to prevent same-name collisions ────
+
+  test("scopeIdFor with same name but different file paths produces different IDs (S-2)") {
+    val id1 = SpaCodeGen.scopeIdFor("Button", "src/ui/Button.melt")
+    val id2 = SpaCodeGen.scopeIdFor("Button", "src/form/Button.melt")
+    assertNotEquals(id1, id2)
+  }
+
+  test("scopeIdFor with file path is deterministic (S-2)") {
+    val id = SpaCodeGen.scopeIdFor("Counter", "src/Counter.melt")
+    assertEquals(id, SpaCodeGen.scopeIdFor("Counter", "src/Counter.melt"))
+  }
+
+  test("scopeIdFor produces 8 hex digits with file path (S-2)") {
+    val id = SpaCodeGen.scopeIdFor("App", "src/App.melt")
+    assert(id.matches("melt-[0-9a-f]{8}"), s"Invalid scope ID: $id")
   }
 
   // ── CSS scoping in generated code ──────────────────────────────────────
@@ -326,7 +344,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |h1 { color: red; }
         |</style>""".stripMargin
     val code    = compile(src, name = "App")
-    val scopeId = SpaCodeGen.scopeIdFor("App")
+    val scopeId = SpaCodeGen.scopeIdFor("App", "App.melt")
     assert(code.contains(s"h1.$scopeId"), s"CSS should contain scoped selector, got:\n$code")
   }
 
@@ -337,7 +355,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |p { color: blue; }
         |</style>""".stripMargin
     val result  = MeltCompiler.compile(src, "Test.melt", "Test", "")
-    val scopeId = SpaCodeGen.scopeIdFor("Test")
+    val scopeId = SpaCodeGen.scopeIdFor("Test", "Test.melt")
     result.scopedCss.foreach { css =>
       assert(css.contains(s"p.$scopeId"), s"scopedCss should contain scoped selector, got: $css")
     }
@@ -482,7 +500,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |div { padding: 1em; }
         |</style>""".stripMargin
     val result  = MeltCompiler.compile(src, "Full.melt", "Full", "pkg")
-    val scopeId = SpaCodeGen.scopeIdFor("Full")
+    val scopeId = SpaCodeGen.scopeIdFor("Full", "Full.melt")
     assert(result.isSuccess, s"Errors: ${ result.errors.map(_.message) }")
 
     // scopedCss contains scoped selectors
@@ -1175,7 +1193,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("<melt:element> scopeId is passed to Bind.dynamicElement") {
     val code    = compile("<melt:element this={tag}>text</melt:element>", name = "MyApp")
-    val scopeId = SpaCodeGen.scopeIdFor("MyApp")
+    val scopeId = SpaCodeGen.scopeIdFor("MyApp", "MyApp.melt")
     assert(code.contains(s"Bind.dynamicElement(tag,"), code)
     assert(code.contains(s""""$scopeId""""), code)
   }
