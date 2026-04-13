@@ -343,6 +343,47 @@ lazy val `reactive-scope` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, `melt-testkit` % Test)
 
+// ── Example: http4s SPA (API + Scala.js client) ─────────────────────────────
+//
+// Unlike http4s-ssr, the server does NOT render HTML. It only provides:
+//
+//   - A static `index.html` shell that loads the Scala.js bundle
+//   - JSON API endpoints (todos, users) backed by in-memory state
+//   - Static file serving for the Scala.js linker output
+//
+// All rendering and interactivity happens client-side via Melt components.
+//
+//   sbt "~http4s-spa-server/reStart"
+
+lazy val `http4s-spa-client` = project
+  .in(file("examples/http4s-spa/client"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "http4s-spa-client",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
+lazy val `http4s-spa-server` = project
+  .in(file("examples/http4s-spa/server"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name           := "http4s-spa-server",
+    publish / skip := true,
+    libraryDependencies ++= Seq(
+      "org.http4s" %% "http4s-ember-server" % "0.23.33",
+      "org.http4s" %% "http4s-dsl"          % "0.23.33"
+    ),
+    meltcAssetManifestClient := Some(`http4s-spa-client`),
+    meltcProd                := false
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
+  .dependsOn(runtime.jvm)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -365,7 +406,9 @@ lazy val root = project
     `special-elements`,
     `dynamic-element`,
     `layout-effect`,
-    `reactive-scope`
+    `reactive-scope`,
+    `http4s-spa-client`,
+    `http4s-spa-server`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
