@@ -363,7 +363,7 @@ lazy val `http4s-spa-client` = project
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+    meltcCompilerClasspath := (meltc.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
