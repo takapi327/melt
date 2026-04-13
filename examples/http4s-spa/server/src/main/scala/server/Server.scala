@@ -99,7 +99,9 @@ object Server extends IOApp.Simple:
     s"""{"id":"${ t.id }","text":"${ escapeJson(t.text) }","done":${ t.done }}"""
 
   private def userToJson(u: User): String =
-    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(u.role) }"}"""
+    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(
+        u.role
+      ) }"}"""
 
   private def escapeJson(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")

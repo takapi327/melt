@@ -8,7 +8,7 @@ package components
 
 import scala.scalajs.js
 
-import melt.runtime.{ Var, append }
+import melt.runtime.{ append, Var }
 
 /** Client-side fetch helper for communicating with the http4s API. */
 object Api:
@@ -19,7 +19,7 @@ object Api:
       .fetch("/api/todos")
       .`then`((resp: js.Dynamic) => resp.json())
       .`then` { (data: js.Dynamic) =>
-        val arr = data.asInstanceOf[js.Array[js.Dynamic]]
+        val arr  = data.asInstanceOf[js.Array[js.Dynamic]]
         val list = arr.toList.map { d =>
           Todo(
             id   = d.id.asInstanceOf[String],
@@ -74,7 +74,7 @@ object Api:
       .fetch("/api/users")
       .`then`((resp: js.Dynamic) => resp.json())
       .`then` { (data: js.Dynamic) =>
-        val arr = data.asInstanceOf[js.Array[js.Dynamic]]
+        val arr  = data.asInstanceOf[js.Array[js.Dynamic]]
         val list = arr.toList.map { d =>
           User(
             id    = d.id.asInstanceOf[Double].toInt,
