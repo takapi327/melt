@@ -215,10 +215,10 @@ val current: Int = count.now()
 count.set(5)
 count.update(_ + 1)
 
-// 算術拡張メソッド（Int / Long / Double）
-count += 1
-count -= 1
-count *= 2
+// 算術拡張メソッド
+count += 1   // Int / Long / Double / String
+count -= 1   // Int / Long / Double
+count *= 2   // Int のみ
 
 // コレクション拡張（Var[List[A]]）
 items.append(newItem)
@@ -244,7 +244,7 @@ unsubscribe() // 購読解除
 
 ```scala
 val doubled: Signal[Int] = count.map(_ * 2)
-val combined = Signal.combine(a, b) { (x, y) => x + y }
+val frozen: Signal[Int] = Signal.pure(42)
 
 doubled.now()
 doubled.subscribe(n => println(n))
@@ -273,12 +273,12 @@ val expensiveResult = memo(count) { n =>
 ### ライフサイクル
 
 ```scala
-onMount {
+onMount { () =>
   // コンポーネント DOM 挿入後に実行
   fetchData()
 }
 
-onCleanup {
+onCleanup { () =>
   // コンポーネント破棄時に実行
   subscription.cancel()
 }
@@ -287,11 +287,14 @@ onCleanup {
 ### コンテキスト API
 
 ```scala
-// 提供側
-provide(ThemeKey, currentTheme)
+// コンテキスト定義
+val ThemeCtx = Context.create("light")
 
-// 消費側
-val theme = consume(ThemeKey)
+// 提供側（親コンポーネント）
+ThemeCtx.provide("dark")
+
+// 消費側（子コンポーネント）
+val theme = ThemeCtx.inject()  // "dark"
 ```
 
 ### バッチ更新
@@ -313,7 +316,7 @@ Escape.html("<script>alert(1)</script>")  // "&lt;script&gt;..."
 // 属性エスケープ（改行・タブ含む）
 Escape.attr(userInput)
 
-// URL 検証（javascript:, vbscript:, data:text/html 等をブロック）
+// URL 検証（javascript:, vbscript:, file: をブロック、data: は data:image/* 以外すべてブロック）
 Escape.url(hrefValue)  // 危険な URL は空文字列を返し警告を出す
 
 // CSS 値エスケープ（expression(), @import 等をブロック）
@@ -322,56 +325,6 @@ Escape.cssValue(styleValue)
 // 信頼済み値（エスケープをバイパス）
 val safe = TrustedHtml("<strong>validated</strong>")
 val url  = TrustedUrl.unsafe("javascript:trustedCode()")
-```
-
-### SSR ユーティリティ
-
-```scala
-// SsrRenderer — HTML 文字列生成
-val renderer = SsrRenderer()
-renderer.push("<div>")
-renderer.push(Escape.html(userInput))
-renderer.push("</div>")
-
-val result: RenderResult = renderer.result()
-result.body  // HTML 文字列
-result.head  // <head> コンテンツ
-
-// spread 属性（関数・Tuple 値は自動ドロップ・警告）
-renderer.spreadAttrs("div", attrsMap)
-```
-
----
-
-## コンパイラ API
-
-### `MeltCompiler.compile`
-
-```scala
-import meltc.{ MeltCompiler, CompileMode }
-
-val result = MeltCompiler.compile(
-  source     = meltSource,     // .melt ファイルの内容
-  filename   = "App.melt",     // エラー表示・CSS スコープ ID 生成に使用
-  objectName = "App",          // 生成される Scala オブジェクト名
-  pkg        = "components",   // パッケージ名
-  mode       = CompileMode.SPA // SPA または SSR
-)
-
-result.isSuccess        // Boolean
-result.scalaCode        // Option[String] — 生成された Scala ソース
-result.scopedCss        // Option[String] — スコープ付き CSS
-result.errors           // List[CompileError]
-result.warnings         // List[CompileWarning]
-```
-
-### CSS スコープ ID
-
-```scala
-// ファイルパスとオブジェクト名から DJB2 ハッシュで生成
-// 同名でも異なるディレクトリなら衝突しない（32-bit, ~43億通り）
-SpaCodeGen.scopeIdFor("Button", "src/ui/Button.melt")   // "melt-a1b2c3d4"
-SpaCodeGen.scopeIdFor("Button", "src/form/Button.melt") // 別の ID
 ```
 
 ---
@@ -388,6 +341,7 @@ SpaCodeGen.scopeIdFor("Button", "src/form/Button.melt") // 別の ID
 | `<iframe src={...}>` | 警告 | URL バリデーション推奨 |
 | `<object data={...}>` / `<embed src={...}>` | 警告 | プラグイン実行リスク |
 | `<form action={...}>` | 警告 | 動的フォームターゲット |
+| `<button formaction={...}>` | 警告 | 動的フォームターゲット |
 | `<meta http-equiv="refresh" content={...}>` | 警告 | オープンリダイレクト |
 | `<a target="_blank">` without `rel="noopener"` | 警告 | タブナッビング |
 
@@ -395,7 +349,7 @@ SpaCodeGen.scopeIdFor("Button", "src/form/Button.melt") // 別の ID
 
 - `Escape.html` — `&`, `<`, `>` をエスケープ
 - `Escape.attr` — `&`, `<`, `>`, `"`, `\n`, `\r`, `\t` をエスケープ
-- `Escape.url` — `javascript:`, `vbscript:`, `file:`, `data:text/html`, `data:image/svg+xml` をブロック
+- `Escape.url` — `javascript:`, `vbscript:`, `file:` をブロック。`data:` URL は `data:image/*`（SVG 除く）のみ許可し、それ以外はすべてブロック
 - `Escape.cssValue` — `expression(`, `@import`, `javascript:` 等をブロック
 - `HtmlEntities.decode` — サロゲートペア（0xD800〜0xDFFF）・Unicode 範囲外・非文字（0xFFFE, 0xFFFF）を拒否
 
@@ -453,14 +407,14 @@ sbt fullLinkJS   # 本番用
 libraryDependencies += "io.github.takapi327" %% "melt-runtime" % "0.1.0-SNAPSHOT"
 
 // build.sbt の meltc 設定
-meltcMode := CompileMode.SSR
+meltcMode := "ssr"
 ```
 
 ```scala
 // サーバー側（http4s など）
 import components.Home
 
-val html = Home.render(Home.Props(userName = "Alice", count = 42))
+val html = Home(Home.Props(userName = "Alice", count = 42))
 Ok(html.body)
 ```
 
@@ -517,7 +471,7 @@ Java 17 / 21 / 25（Corretto）で CI テストを実施しています。
 
 ## 未実装機能（既知の制限）
 
-詳細は [docs/issues/](docs/issues/) を参照してください。
+以下は主な未実装機能の一覧です。
 
 | ID | 機能 | 備考 |
 |----|------|------|
