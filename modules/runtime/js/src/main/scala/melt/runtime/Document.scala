@@ -77,10 +77,8 @@ object Document:
   def bindActiveElement(v: Var[Option[dom.Element]]): Unit =
     v.set(Option(dom.document.activeElement))
     val listener: scalajs.js.Function1[dom.Event, Unit] = e =>
-      if e.`type` == "focusout" && e.asInstanceOf[dom.FocusEvent].relatedTarget != null then
-        () // 別要素へのフォーカス移動 — 更新しない
-      else
-        v.set(Option(dom.document.activeElement))
+      if e.`type` == "focusout" && e.asInstanceOf[dom.FocusEvent].relatedTarget != null then () // 別要素へのフォーカス移動 — 更新しない
+      else v.set(Option(dom.document.activeElement))
     dom.document.addEventListener("focusin", listener)
     dom.document.addEventListener("focusout", listener)
     Cleanup.register(() => {
