@@ -342,6 +342,13 @@ object SpaCodeGen extends CodeGen:
                 buf ++= s"${ indent }Bind.show(() => { $code }, $anchor)\n"
             ""
 
+          case ExprKind.DomResult =>
+            // Expression that directly creates and returns a dom.Element (e.g. Await(...) { ... }).
+            // We assign it to a typed variable; the caller is responsible for appending it.
+            val v = ctr.nextEl()
+            buf ++= s"${ indent }val $v: dom.Element = {\n${ indent }  ${ code.trim }\n${ indent }}\n"
+            v
+
           case ExprKind.PlainText =>
             parentVar match
               case Some(parent) =>
@@ -453,6 +460,57 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"${ indent }  ()\n"
         buf ++= s"${ indent }})\n"
         ""
+
+      case TemplateNode.Boundary(attrs, children, pending, failed) =>
+        val idx   = ctr.nextChildIdx()
+        val inner = indent + "  "
+
+        // ── pending lambda ──────────────────────────────────────────────────
+        val pendingProp: String = pending match
+          case None => ""
+          case Some(PendingBlock(pChildren)) =>
+            val pVar = s"_bPending$idx"
+            buf ++= s"${ indent }val $pVar: (() => dom.Element) = () => {\n"
+            emitBoundaryBody(buf, pChildren, inner, ctr)
+            buf ++= s"${ indent }}\n"
+            s", pending = Some($pVar)"
+
+        // ── fallback lambda ─────────────────────────────────────────────────
+        val fallbackProp: String = failed match
+          case None => ""
+          case Some(FailedBlock(errorVar, resetVar, fChildren)) =>
+            val fVar = s"_bFallback$idx"
+            buf ++= s"${ indent }val $fVar: (Throwable, () => Unit) => dom.Element = ($errorVar, $resetVar) => {\n"
+            emitBoundaryBody(buf, fChildren, inner, ctr)
+            buf ++= s"${ indent }}\n"
+            s", fallback = $fVar"
+
+        // ── onError prop ────────────────────────────────────────────────────
+        val onErrorProp: String = attrs.collectFirst {
+          case Attr.EventHandler("error", expr) => s", onError = $expr"
+        }.getOrElse("")
+
+        // ── children lambda ─────────────────────────────────────────────────
+        val cVar = s"_bChildren$idx"
+        buf ++= s"${ indent }val $cVar: (() => dom.Element) = () => {\n"
+        emitBoundaryBody(buf, children, inner, ctr)
+        buf ++= s"${ indent }}\n"
+
+        // ── Boundary.create call ────────────────────────────────────────────
+        val fragVar = s"_bFrag$idx"
+        buf ++= s"${ indent }val $fragVar = Boundary.create(Boundary.Props(children = $cVar$pendingProp$fallbackProp$onErrorProp))\n"
+
+        // ── append or wrap ──────────────────────────────────────────────────
+        parentVar match
+          case Some(parent) =>
+            buf ++= s"${ indent }$parent.appendChild($fragVar)\n"
+            ""
+          case None =>
+            val wVar = s"_bWrap$idx"
+            buf ++= s"${ indent }val $wVar = dom.document.createElement(\"div\")\n"
+            buf ++= s"""${ indent }$wVar.setAttribute("style", "display: contents")\n"""
+            buf ++= s"${ indent }$wVar.appendChild($fragVar)\n"
+            wVar
 
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
@@ -633,6 +691,31 @@ object SpaCodeGen extends CodeGen:
     buf ++= s"${ indent }}\n"
     varName
 
+  /** Emits the body of a boundary lambda (pending / fallback / children).
+    * Writes to `buf` and leaves the cursor at the end of the last statement.
+    * Does NOT emit the surrounding `val x = () => {` / `}` — callers do that.
+    */
+  private def emitBoundaryBody(
+    buf:      StringBuilder,
+    children: List[TemplateNode],
+    inner:    String,
+    ctr:      Counter
+  ): Unit =
+    children match
+      case Nil =>
+        buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
+      case single :: Nil =>
+        val cv = emitNode(buf, single, inner, ctr, isRoot = false, parentVar = None)
+        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
+        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
+      case multiple =>
+        buf ++= s"${ inner }val _bFrag = dom.document.createElement(\"div\")\n"
+        multiple.foreach { child =>
+          val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_bFrag"))
+          if cv.nonEmpty then buf ++= s"${ inner }_bFrag.appendChild($cv)\n"
+        }
+        buf ++= s"${ inner }_bFrag\n"
+
   /** Splits script code into (propsDefinition, bodyCode).
     * The props definition (e.g. `case class Props(...)`) goes at object level;
     * everything else goes inside `create()`.
@@ -789,6 +872,7 @@ object SpaCodeGen extends CodeGen:
     case ListMap
     case KeyedMap
     case DomExpr
+    case DomResult
     case PlainText
 
   /** Classifies a template expression to determine rendering strategy.
@@ -806,6 +890,14 @@ object SpaCodeGen extends CodeGen:
       code.contains(": dom.Element") ||
       code.count(_ == '\n') > 1
 
+  /** Returns true when the code directly creates a DOM element (e.g. via `Await` or an explicit
+    * `createElement` call) without being a list-map or conditional expression.
+    * Used to classify expressions such as `{Await(future) { case ... }}` that are expanded
+    * from [[TemplateNode.InlineTemplate]] and produce a `dom.Element` rather than a plain value.
+    */
+  private def returnsDomElementDirectly(code: String): Boolean =
+    code.contains("createElement") || code.contains("createElementNS")
+
   private def classifyExpr(code: String): ExprKind =
     val trimmed = code.trim
     if trimmed.contains(".keyed(") && trimmed.contains(".map(") then ExprKind.KeyedMap
@@ -816,6 +908,7 @@ object SpaCodeGen extends CodeGen:
     else if (trimmed.startsWith("if ") || trimmed.startsWith("if(")) && containsDomConstruction(trimmed) then
       ExprKind.DomExpr
     else if trimmed.contains(" match") && containsDomConstruction(trimmed) then ExprKind.DomExpr
+    else if returnsDomElementDirectly(trimmed) then ExprKind.DomResult
     else ExprKind.PlainText
 
   /** Attempts to extract a reactive source (Var or Signal identifier) from a conditional

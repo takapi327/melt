@@ -149,7 +149,7 @@ object SsrCodeGen extends CodeGen:
       case TemplateNode.Head(children) =>
         children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
 
-      case TemplateNode.Window(_) | TemplateNode.Body(_) =>
+      case TemplateNode.Window(_) | TemplateNode.Body(_) | TemplateNode.Document(_) =>
         ()
 
       case TemplateNode.InlineTemplate(parts) =>
@@ -157,6 +157,9 @@ object SsrCodeGen extends CodeGen:
 
       case TemplateNode.DynamicElement(_, _, _) =>
         buf ++= s"${ pad }// TODO(SSR Phase C): DynamicElement\n"
+
+      case TemplateNode.Boundary(_, children, _, _) =>
+        children.foreach(c => emitNode(c, buf, indent, scopeId))
 
   /** Generic element emission — the normal open/close path used when no
     * special `bind:` directive is in play. Kept as a separate method so
