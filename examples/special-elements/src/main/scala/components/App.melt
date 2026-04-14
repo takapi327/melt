@@ -1,7 +1,7 @@
 <script lang="scala">
 // ── State ───────────────────────────────────────────────────────────────────
 val pageTitle   = Var("Special Elements Demo")
-val description = Var("Melt special elements: melt:head, melt:window, melt:body")
+val description = Var("Melt special elements: melt:head, melt:window, melt:body, melt:document")
 
 val windowWidth  = Var(0.0)
 val windowHeight = Var(0.0)
@@ -10,6 +10,32 @@ val isOnline     = Var(true)
 
 val bodyHovered  = Var(false)
 val shortcutLog  = Var(List.empty[String])
+
+// ── melt:document state ──────────────────────────────────────────────────────
+val visibilityState   = Var("visible")
+val activeElement     = Var(Option.empty[dom.Element])
+val visibilityLog     = Var(List.empty[String])
+val selectedText      = Var("")
+
+def activeElementLabel(el: Option[dom.Element]): String =
+  el match
+    case None    => "none"
+    case Some(e) =>
+      val cls = e.getAttribute("class")
+      if cls == null || cls.isEmpty then e.tagName.toLowerCase
+      else s"${e.tagName.toLowerCase}.$cls"
+
+def selectedTextLabel(t: String): String =
+  if t.isEmpty then "(none)" else s""""$t""""
+
+def handleVisibilityChange(e: dom.Event): Unit =
+  val state = dom.document.visibilityState
+  val label = if state == "visible" then "Tab became visible" else "Tab hidden"
+  visibilityLog.update(log => s"[$state] $label" :: log.take(9))
+
+def handleSelectionChange(e: dom.Event): Unit =
+  val sel = dom.window.getSelection()
+  if sel != null then selectedText.set(sel.toString)
 
 // ── Keyboard handler ────────────────────────────────────────────────────────
 // Window.on expects dom.Event => Unit; cast to KeyboardEvent inside
@@ -45,13 +71,21 @@ effect(scrollY) { y =>
   bind:innerHeight={windowHeight}
   bind:scrollY={scrollY}
   bind:online={isOnline}
-/>
+></melt:window>
 
 <!-- ── melt:body — body-level mouse detection ────────────────────────────── -->
 <melt:body
   onmouseenter={_ => bodyHovered.set(true)}
   onmouseleave={_ => bodyHovered.set(false)}
-/>
+></melt:body>
+
+<!-- ── melt:document — document-level events & bindings ─────────────────── -->
+<melt:document
+  onvisibilitychange={handleVisibilityChange}
+  onselectionchange={handleSelectionChange}
+  bind:visibilityState={visibilityState}
+  bind:activeElement={activeElement}
+></melt:document>
 
 <!-- ── UI ────────────────────────────────────────────────────────────────── -->
 <div class="demo">
@@ -59,8 +93,9 @@ effect(scrollY) { y =>
     <h1>Melt Special Elements</h1>
     <p class="subtitle">
       Demonstrating <code>&lt;melt:head&gt;</code>,
-      <code>&lt;melt:window&gt;</code>, and
-      <code>&lt;melt:body&gt;</code>
+      <code>&lt;melt:window&gt;</code>,
+      <code>&lt;melt:body&gt;</code>, and
+      <code>&lt;melt:document&gt;</code>
     </p>
   </header>
 
@@ -135,6 +170,40 @@ effect(scrollY) { y =>
           <div class="status-badge on">Cursor is inside the page</div>
         else
           <div class="status-badge off">Cursor has left the page</div>}
+      </div>
+    </section>
+
+    <!-- ── melt:document panel ──────────────────────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title"><span class="tag">&lt;melt:document&gt;</span></h2>
+      <p class="hint">
+        Document-level events and property bindings.
+        Switch tabs to trigger <code>visibilitychange</code>, click elements
+        to track <code>activeElement</code>, or select text.
+      </p>
+      <div class="info-row">
+        <span class="label">visibilityState</span>
+        <code class="value">{visibilityState}</code>
+      </div>
+      <div class="info-row">
+        <span class="label">activeElement</span>
+        <code class="value">{activeElement.map(activeElementLabel)}</code>
+      </div>
+      <div class="info-row">
+        <span class="label">selectedText</span>
+        <code class="value">{selectedText.map(selectedTextLabel)}</code>
+      </div>
+      <div class="visibility-log">
+        {if visibilityLog.now().isEmpty then
+          <p class="empty">Switch browser tabs to see visibility events…</p>
+        else
+          <span></span>}
+        <ul>
+          {visibilityLog.map((entry: String) => <li>{entry}</li>)}
+        </ul>
+      </div>
+      <div class="btn-row">
+        <button onclick={_ => visibilityLog.set(List.empty)}>Clear log</button>
       </div>
     </section>
 
@@ -227,6 +296,20 @@ button:hover { background: #f0f0f0; }
 }
 .status-badge.on  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .status-badge.off { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+.visibility-log {
+  min-height: 60px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0.4em 0.6em;
+  background: #fafafa;
+  font-family: monospace;
+  font-size: 0.8em;
+}
+.visibility-log ul { padding-left: 1.2em; list-style: disc; }
+.visibility-log li { margin: 0.1em 0; color: #333; }
 
 .scroll-spacer {
   margin-top: 3em;
