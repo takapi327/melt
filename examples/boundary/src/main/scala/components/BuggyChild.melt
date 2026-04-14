@@ -1,0 +1,7 @@
+<script lang="scala">
+// This component always throws during rendering.
+// Used to demonstrate that <melt:boundary> catches the exception.
+throw new RuntimeException("BuggyChild: rendering failed intentionally!")
+</script>
+
+<p>This text is never rendered.</p>
