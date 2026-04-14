@@ -256,6 +256,19 @@ lazy val `layout-effect` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
+// ── Example: select / textarea bind:value (H-2) ───────────────────────────────
+lazy val `select-textarea-bind` = project
+  .in(file("examples/select-textarea-bind"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "select-textarea-bind",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
 // ── Example: http4s SSR + Hydration (Phase C) ──────────────────────────────
 //
 // Composed of two sub-projects:
@@ -365,6 +378,7 @@ lazy val root = project
     `special-elements`,
     `dynamic-element`,
     `layout-effect`,
+    `select-textarea-bind`,
     `reactive-scope`
   )
   .settings(BuildSettings.commonSettings)

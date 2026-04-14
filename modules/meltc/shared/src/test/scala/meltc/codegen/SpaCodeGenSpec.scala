@@ -1282,3 +1282,52 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("_meltHydrateEntry"), code)
     assert(!code.contains("_propsCodec"), code)
   }
+
+  // ── bind:value for textarea / select ─────────────────────────────────────
+
+  test("bind:value on textarea emits Bind.textareaValue with TextArea cast") {
+    val code = compile("""<textarea bind:value={content}></textarea>""")
+    assert(code.contains("Bind.textareaValue("), code)
+    assert(code.contains("dom.html.TextArea"), code)
+    assert(!code.contains("dom.html.Input"), code)
+    assert(!code.contains("Bind.inputValue("), code)
+  }
+
+  test("bind:value on select emits Bind.selectValue after option children") {
+    val code = compile(
+      """<select bind:value={choice}>
+        |  <option value="a">A</option>
+        |  <option value="b">B</option>
+        |</select>""".stripMargin
+    )
+    assert(code.contains("Bind.selectValue("), code)
+    assert(code.contains("dom.html.Select"), code)
+    assert(!code.contains("dom.html.Input"), code)
+    assert(!code.contains("Bind.inputValue("), code)
+    // selectValue must be emitted after the option appendChild calls
+    val selectCall = code.indexOf("Bind.selectValue(")
+    val lastAppend = code.lastIndexOf(".appendChild(")
+    assert(selectCall > lastAppend, s"Bind.selectValue must come after appendChild:\n$code")
+  }
+
+  test("bind:value on select multiple emits Bind.selectMultipleValue") {
+    val code = compile(
+      """<select multiple bind:value={choices}>
+        |  <option value="a">A</option>
+        |  <option value="b">B</option>
+        |</select>""".stripMargin
+    )
+    assert(code.contains("Bind.selectMultipleValue("), code)
+    assert(!code.contains("Bind.selectValue("), code)
+    // must be after children
+    val selectCall = code.indexOf("Bind.selectMultipleValue(")
+    val lastAppend = code.lastIndexOf(".appendChild(")
+    assert(selectCall > lastAppend, s"Bind.selectMultipleValue must come after appendChild:\n$code")
+  }
+
+  test("bind:value on input still emits Bind.inputValue") {
+    val code = compile("""<input bind:value={name} />""")
+    assert(code.contains("Bind.inputValue("), code)
+    assert(!code.contains("Bind.textareaValue("), code)
+    assert(!code.contains("Bind.selectValue("), code)
+  }
