@@ -357,8 +357,9 @@ private[parser] final class TemplateParser(src: String):
   private def makeNode(tag: String, attrs: List[Attr], children: List[TemplateNode]): TemplateNode =
     tag match
       case "melt:head"    => TemplateNode.Head(children)
-      case "melt:window"  => TemplateNode.Window(attrs)
-      case "melt:body"    => TemplateNode.Body(attrs)
+      case "melt:window"   => TemplateNode.Window(attrs)
+      case "melt:body"     => TemplateNode.Body(attrs)
+      case "melt:document" => TemplateNode.Document(attrs)
       case "melt:element" =>
         val tagExpr = attrs
           .collectFirst {

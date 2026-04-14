@@ -1146,6 +1146,50 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""Body.on("mouseleave")(leave)"""), code)
   }
 
+  // ── <melt:document> ───────────────────────────────────────────────────────
+
+  test("<melt:document> with event handler emits Document.on") {
+    val code = compile("<melt:document onvisibilitychange={handleVisibility} />")
+    assert(code.contains("""Document.on("visibilitychange")(handleVisibility)"""), code)
+  }
+
+  test("<melt:document> with multiple event handlers emits all Document.on calls") {
+    val code = compile("<melt:document onvisibilitychange={onVis} onselectionchange={onSel} />")
+    assert(code.contains("""Document.on("visibilitychange")(onVis)"""), code)
+    assert(code.contains("""Document.on("selectionchange")(onSel)"""), code)
+  }
+
+  test("<melt:document> does not emit createElement") {
+    val code = compile("<melt:document onvisibilitychange={fn} />")
+    assert(!code.contains("""createElement("melt:document")"""), code)
+  }
+
+  test("<melt:document> bind:visibilityState emits Document.bindVisibilityState") {
+    val code = compile("<melt:document bind:visibilityState={state} />")
+    assert(code.contains("Document.bindVisibilityState(state)"), code)
+  }
+
+  test("<melt:document> bind:fullscreenElement emits Document.bindFullscreenElement") {
+    val code = compile("<melt:document bind:fullscreenElement={el} />")
+    assert(code.contains("Document.bindFullscreenElement(el)"), code)
+  }
+
+  test("<melt:document> bind:pointerLockElement emits Document.bindPointerLockElement") {
+    val code = compile("<melt:document bind:pointerLockElement={el} />")
+    assert(code.contains("Document.bindPointerLockElement(el)"), code)
+  }
+
+  test("<melt:document> bind:activeElement emits Document.bindActiveElement") {
+    val code = compile("<melt:document bind:activeElement={focused} />")
+    assert(code.contains("Document.bindActiveElement(focused)"), code)
+  }
+
+  test("<melt:document> with event handler and bind directive emits both") {
+    val code = compile("<melt:document onvisibilitychange={onVis} bind:visibilityState={state} />")
+    assert(code.contains("""Document.on("visibilitychange")(onVis)"""), code)
+    assert(code.contains("Document.bindVisibilityState(state)"), code)
+  }
+
   // ── <melt:element> ────────────────────────────────────────────────────────
 
   test("<melt:element this={tag}> emits Bind.dynamicElement with anchor comment") {

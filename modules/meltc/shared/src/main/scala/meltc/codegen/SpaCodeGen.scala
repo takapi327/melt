@@ -416,6 +416,22 @@ object SpaCodeGen extends CodeGen:
         }
         ""
 
+      case TemplateNode.Document(attrs) =>
+        attrs.foreach {
+          case Attr.EventHandler(event, expr) =>
+            buf ++= s"""${ indent }Document.on("$event")($expr)\n"""
+          case Attr.Directive("bind", prop, Some(expr), _) =>
+            val method = prop match
+              case "visibilityState"    => "bindVisibilityState"
+              case "fullscreenElement"  => "bindFullscreenElement"
+              case "pointerLockElement" => "bindPointerLockElement"
+              case "activeElement"      => "bindActiveElement"
+              case other                => s"bind${ other.capitalize }"
+            buf ++= s"${ indent }Document.$method($expr)\n"
+          case _ =>
+        }
+        ""
+
       case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
         attrs.foreach {
           case Attr.Directive("animate", _, _, _) =>
