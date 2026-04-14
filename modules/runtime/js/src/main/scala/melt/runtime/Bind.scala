@@ -182,6 +182,112 @@ object Bind:
     Cleanup.register(cancelSub)
     Cleanup.register(() => input.removeEventListener("change", listener))
 
+  /** Two-way string binding for `<textarea>`. */
+  def textareaValue(textarea: dom.html.TextArea, v: Var[String]): Unit =
+    var lastVarValue = v.now()
+    textarea.value = lastVarValue
+    val cancelSub = v.subscribe { s =>
+      if lastVarValue != s then
+        lastVarValue = s
+        textarea.value = s
+    }
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(textarea.value)
+    textarea.addEventListener("input", listener)
+    val resetHandler = () =>
+      val dv = textarea.defaultValue
+      textarea.value = dv
+      v.set(dv)
+    FormReset.register(textarea, resetHandler)
+    Cleanup.register(cancelSub)
+    Cleanup.register(() => textarea.removeEventListener("input", listener))
+    Cleanup.register(() => FormReset.unregister(textarea))
+
+  /** Two-way string binding for `<select>` (single selection).
+    *
+    * Must be called *after* `<option>` children are appended to the DOM so that
+    * the initial `select.value` assignment can find a matching option.
+    */
+  def selectValue(select: dom.html.Select, v: Var[String]): Unit =
+    def options: IndexedSeq[dom.html.Option] =
+      (0 until select.options.length).map(i => select.options(i).asInstanceOf[dom.html.Option])
+
+    def applyValue(s: String): Unit =
+      select.value = s
+      if select.value != s then select.selectedIndex = -1
+
+    applyValue(v.now())
+
+    val cancelSub = v.subscribe(s => if select.value != s then applyValue(s))
+
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
+      Option(select.querySelector(":checked"))
+        .foreach(el => v.set(el.asInstanceOf[dom.html.Option].value))
+    select.addEventListener("change", listener)
+
+    val observer = new dom.MutationObserver((_, _) => applyValue(v.now()))
+    observer.observe(
+      select,
+      scalajs.js.Dynamic
+        .literal(childList = true, subtree = true, attributes = true,
+          attributeFilter = scalajs.js.Array("value"))
+        .asInstanceOf[dom.MutationObserverInit]
+    )
+
+    val resetHandler = () =>
+      val defaultVal = options.find(_.defaultSelected).map(_.value).getOrElse("")
+      applyValue(defaultVal)
+      v.set(defaultVal)
+    FormReset.register(select, resetHandler)
+
+    Cleanup.register(cancelSub)
+    Cleanup.register(() => select.removeEventListener("change", listener))
+    Cleanup.register(() => observer.disconnect())
+    Cleanup.register(() => FormReset.unregister(select))
+
+  /** Two-way List[String] binding for `<select multiple>`.
+    *
+    * Must be called *after* `<option>` children are appended to the DOM.
+    */
+  def selectMultipleValue(select: dom.html.Select, v: Var[List[String]]): Unit =
+    def options: IndexedSeq[dom.html.Option] =
+      (0 until select.options.length).map(i => select.options(i).asInstanceOf[dom.html.Option])
+
+    def applyValue(vals: List[String]): Unit =
+      options.foreach(opt => opt.selected = vals.contains(opt.value))
+
+    applyValue(v.now())
+
+    val cancelSub = v.subscribe(applyValue)
+
+    val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
+      val checked = select.querySelectorAll(":checked")
+      v.set(
+        (0 until checked.length)
+          .map(i => checked(i).asInstanceOf[dom.html.Option].value)
+          .toList
+      )
+    select.addEventListener("change", listener)
+
+    val observer = new dom.MutationObserver((_, _) => applyValue(v.now()))
+    observer.observe(
+      select,
+      scalajs.js.Dynamic
+        .literal(childList = true, subtree = true, attributes = true,
+          attributeFilter = scalajs.js.Array("value"))
+        .asInstanceOf[dom.MutationObserverInit]
+    )
+
+    val resetHandler = () =>
+      val defaults = options.filter(_.defaultSelected).map(_.value).toList
+      applyValue(defaults)
+      v.set(defaults)
+    FormReset.register(select, resetHandler)
+
+    Cleanup.register(cancelSub)
+    Cleanup.register(() => select.removeEventListener("change", listener))
+    Cleanup.register(() => observer.disconnect())
+    Cleanup.register(() => FormReset.unregister(select))
+
   // ── Class toggle (class:name={expr}) ───────────────────────────────────
 
   def classToggle(el: dom.Element, className: String, v: Var[Boolean]): Unit =

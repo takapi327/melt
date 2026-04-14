@@ -263,10 +263,36 @@ object SpaCodeGen extends CodeGen:
           buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "$tag")\n"""
         else buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
-        attrs.foreach(emitAttr(buf, v, _, indent, attrs))
+        // For <select bind:value>, the Bind call must come *after* <option> children are
+        // appended so that the initial select.value assignment finds a matching option.
+        // Collect the expression here and emit it below, after the children loop.
+        val deferredSelectBind: Option[(String, Boolean)] =
+          if tag.equalsIgnoreCase("select") then
+            val isMultiple = attrs.exists {
+              case Attr.BooleanAttr("multiple")  => true
+              case Attr.Static("multiple", _)    => true
+              case _                             => false
+            }
+            attrs.collectFirst {
+              case Attr.Directive("bind", "value", Some(expr), _) => (expr, isMultiple)
+            }
+          else None
+        attrs.foreach { attr =>
+          attr match
+            case Attr.Directive("bind", "value", _, _) if deferredSelectBind.isDefined =>
+              () // emitted after children
+            case _ =>
+              emitAttr(buf, v, attr, tag, indent, attrs)
+        }
         children.foreach { child =>
           val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
+        }
+        deferredSelectBind.foreach { case (expr, isMultiple) =>
+          if isMultiple then
+            buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], $expr)\n"
+          else
+            buf ++= s"${ indent }Bind.selectValue($v.asInstanceOf[dom.html.Select], $expr)\n"
         }
         v
 
@@ -400,7 +426,7 @@ object SpaCodeGen extends CodeGen:
         val anchor   = ctr.nextTxt()
         val elVar    = "_dynEl"
         val setupBuf = new StringBuilder
-        attrs.foreach(emitAttr(setupBuf, elVar, _, s"$indent  ", attrs))
+        attrs.foreach(emitAttr(setupBuf, elVar, _, "", s"$indent  ", attrs))
         children.foreach { child =>
           val cv = emitNode(setupBuf, child, s"$indent  ", ctr, isRoot = false, parentVar = Some(elVar))
           if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
@@ -443,6 +469,7 @@ object SpaCodeGen extends CodeGen:
     buf:      StringBuilder,
     v:        String,
     attr:     Attr,
+    tag:      String,
     indent:   String,
     allAttrs: List[Attr] = Nil
   ): Unit =
@@ -468,7 +495,13 @@ object SpaCodeGen extends CodeGen:
           buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); ($expr).asInstanceOf[Any] }))\n"""
         else buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => ($expr).asInstanceOf[Any]))\n"""
       case Attr.Directive("bind", "value", Some(expr), _) =>
-        buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
+        tag.toLowerCase match
+          case "textarea" =>
+            buf ++= s"""${ indent }Bind.textareaValue($v.asInstanceOf[dom.html.TextArea], $expr)\n"""
+          case "select" =>
+            () // handled after children in emitNode (deferredSelectBind)
+          case _ =>
+            buf ++= s"""${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive("bind", "value-int", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.inputInt($v.asInstanceOf[dom.html.Input], $expr)\n"""
       case Attr.Directive("bind", "value-double", Some(expr), _) =>
