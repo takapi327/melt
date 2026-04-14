@@ -188,7 +188,7 @@ object Bind:
     textarea.value = lastVarValue
     val cancelSub = v.subscribe { s =>
       if lastVarValue != s then
-        lastVarValue = s
+        lastVarValue   = s
         textarea.value = s
     }
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(textarea.value)
@@ -212,7 +212,7 @@ object Bind:
       (0 until select.options.length).map(i => select.options(i).asInstanceOf[dom.html.Option])
 
     def applyValue(s: String): Unit =
-      select.value = s
+      select.value                                   = s
       if select.value != s then select.selectedIndex = -1
 
     applyValue(v.now())
@@ -228,8 +228,7 @@ object Bind:
     observer.observe(
       select,
       scalajs.js.Dynamic
-        .literal(childList = true, subtree = true, attributes = true,
-          attributeFilter = scalajs.js.Array("value"))
+        .literal(childList = true, subtree = true, attributes = true, attributeFilter = scalajs.js.Array("value"))
         .asInstanceOf[dom.MutationObserverInit]
     )
 
@@ -272,8 +271,7 @@ object Bind:
     observer.observe(
       select,
       scalajs.js.Dynamic
-        .literal(childList = true, subtree = true, attributes = true,
-          attributeFilter = scalajs.js.Array("value"))
+        .literal(childList = true, subtree = true, attributes = true, attributeFilter = scalajs.js.Array("value"))
         .asInstanceOf[dom.MutationObserverInit]
     )
 

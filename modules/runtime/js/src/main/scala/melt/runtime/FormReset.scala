@@ -25,7 +25,7 @@ import org.scalajs.dom
   */
 private[runtime] object FormReset:
 
-  private val handlers = scalajs.js.Dictionary.empty[() => Unit]
+  private val handlers  = scalajs.js.Dictionary.empty[() => Unit]
   private var installed = false
   private var counter   = 0
 
@@ -52,8 +52,7 @@ private[runtime] object FormReset:
             (0 until form.elements.length).foreach { i =>
               val el  = form.elements(i).asInstanceOf[scalajs.js.Dynamic]
               val key = el.__meltResetKey
-              if !scalajs.js.isUndefined(key) then
-                handlers.get(key.asInstanceOf[String]).foreach(_())
+              if !scalajs.js.isUndefined(key) then handlers.get(key.asInstanceOf[String]).foreach(_())
             }
           }
       dom.document.addEventListener("reset", listener, true) // capture phase

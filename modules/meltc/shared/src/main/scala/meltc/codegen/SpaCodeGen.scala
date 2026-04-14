@@ -269,9 +269,9 @@ object SpaCodeGen extends CodeGen:
         val deferredSelectBind: Option[(String, Boolean)] =
           if tag.equalsIgnoreCase("select") then
             val isMultiple = attrs.exists {
-              case Attr.BooleanAttr("multiple")  => true
-              case Attr.Static("multiple", _)    => true
-              case _                             => false
+              case Attr.BooleanAttr("multiple") => true
+              case Attr.Static("multiple", _)   => true
+              case _                            => false
             }
             attrs.collectFirst {
               case Attr.Directive("bind", "value", Some(expr), _) => (expr, isMultiple)
@@ -288,11 +288,10 @@ object SpaCodeGen extends CodeGen:
           val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
           if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
         }
-        deferredSelectBind.foreach { case (expr, isMultiple) =>
-          if isMultiple then
-            buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], $expr)\n"
-          else
-            buf ++= s"${ indent }Bind.selectValue($v.asInstanceOf[dom.html.Select], $expr)\n"
+        deferredSelectBind.foreach {
+          case (expr, isMultiple) =>
+            if isMultiple then buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], $expr)\n"
+            else buf ++= s"${ indent }Bind.selectValue($v.asInstanceOf[dom.html.Select], $expr)\n"
         }
         v
 
