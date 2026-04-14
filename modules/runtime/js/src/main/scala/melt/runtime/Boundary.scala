@@ -67,8 +67,7 @@ object Boundary:
           insertBefore(pendingEl)
           insertBefore(childEl)
           ctx.onAllResolved = () =>
-            if generation == myGen then
-              Option(pendingEl.parentNode).foreach(_.removeChild(pendingEl))
+            if generation == myGen then Option(pendingEl.parentNode).foreach(_.removeChild(pendingEl))
         else
           // No pending UI (or no pending futures): show children immediately.
           insertBefore(childEl)
