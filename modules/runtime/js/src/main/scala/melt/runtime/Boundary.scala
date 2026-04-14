@@ -58,14 +58,17 @@ object Boundary:
         childCleanups = Cleanup.popScope()
 
         if ctx.hasPending && props.pending.isDefined then
-          // Show pending UI while futures resolve; hold childEl in memory.
+          // Show pending UI while futures resolve.
+          // childEl (the Await placeholder) is inserted into the DOM immediately so that
+          // Await's onComplete callback can always call replaceWith/replaceChild on it
+          // regardless of callback ordering.  The pending UI is removed once all futures
+          // have settled.
           val pendingEl = props.pending.get()
           insertBefore(pendingEl)
+          insertBefore(childEl)
           ctx.onAllResolved = () =>
             if generation == myGen then
-              // Swap pending → real content (Await has already updated childEl in-place).
               Option(pendingEl.parentNode).foreach(_.removeChild(pendingEl))
-              insertBefore(childEl)
         else
           // No pending UI (or no pending futures): show children immediately.
           insertBefore(childEl)
