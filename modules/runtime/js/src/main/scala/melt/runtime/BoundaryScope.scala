@@ -7,6 +7,7 @@
 package melt.runtime
 
 import scala.concurrent.Future
+
 /** Context for propagating pending-Future state from [[Await]] to [[Boundary]].
   *
   * While [[Boundary.create]] renders its children it installs a context via
@@ -39,7 +40,7 @@ object BoundaryScope:
   * (Case X design decision), so the boundary only needs to know when ALL futures are done.
   */
 class AsyncBoundaryCtx:
-  private var _count            = 0
+  private var _count = 0
   var onAllResolved: () => Unit = () => ()
 
   def register(f: Future[Any]): Unit =

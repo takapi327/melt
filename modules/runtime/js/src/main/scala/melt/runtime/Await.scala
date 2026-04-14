@@ -6,9 +6,10 @@
 
 package melt.runtime
 
-import org.scalajs.dom
 import scala.concurrent.Future
 import scala.util.Try
+
+import org.scalajs.dom
 
 /** Renders the result of a `Future` into a Melt template.
   *

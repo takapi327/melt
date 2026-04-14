@@ -467,7 +467,7 @@ object SpaCodeGen extends CodeGen:
 
         // ── pending lambda ──────────────────────────────────────────────────
         val pendingProp: String = pending match
-          case None => ""
+          case None                          => ""
           case Some(PendingBlock(pChildren)) =>
             val pVar = s"_bPending$idx"
             buf ++= s"${ indent }val $pVar: (() => dom.Element) = () => {\n"
@@ -477,7 +477,7 @@ object SpaCodeGen extends CodeGen:
 
         // ── fallback lambda ─────────────────────────────────────────────────
         val fallbackProp: String = failed match
-          case None => ""
+          case None                                             => ""
           case Some(FailedBlock(errorVar, resetVar, fChildren)) =>
             val fVar = s"_bFallback$idx"
             buf ++= s"${ indent }val $fVar: (Throwable, () => Unit) => dom.Element = ($errorVar, $resetVar) => {\n"
@@ -486,9 +486,11 @@ object SpaCodeGen extends CodeGen:
             s", fallback = $fVar"
 
         // ── onError prop ────────────────────────────────────────────────────
-        val onErrorProp: String = attrs.collectFirst {
-          case Attr.EventHandler("error", expr) => s", onError = $expr"
-        }.getOrElse("")
+        val onErrorProp: String = attrs
+          .collectFirst {
+            case Attr.EventHandler("error", expr) => s", onError = $expr"
+          }
+          .getOrElse("")
 
         // ── children lambda ─────────────────────────────────────────────────
         val cVar = s"_bChildren$idx"

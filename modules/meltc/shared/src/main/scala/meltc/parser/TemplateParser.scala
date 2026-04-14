@@ -407,8 +407,8 @@ private[parser] final class TemplateParser(src: String):
         }
         val mainChildren = children.filterNot {
           case TemplateNode.Element("melt:pending", _, _) => true
-          case TemplateNode.Element("melt:failed",  _, _) => true
-          case _                                           => false
+          case TemplateNode.Element("melt:failed", _, _)  => true
+          case _                                          => false
         }
         TemplateNode.Boundary(attrs, mainChildren, pendingOpt, failedOpt)
 
