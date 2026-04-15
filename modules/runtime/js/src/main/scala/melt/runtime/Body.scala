@@ -24,7 +24,8 @@ import org.scalajs.dom
 object Body:
 
   /** Registers a `document.body` event listener with automatic cleanup. */
-  def on(event: String)(handler: dom.Event => Unit): Unit =
-    val listener: scalajs.js.Function1[dom.Event, Unit] = handler(_)
+  def on(event: String)(handler: melt.runtime.dom.Event => Unit): Unit =
+    val listener: scalajs.js.Function1[dom.Event, Unit] =
+      (e: dom.Event) => handler(melt.runtime.dom.Conversions.wrap(e))
     dom.document.body.addEventListener(event, listener)
     Cleanup.register(() => dom.document.body.removeEventListener(event, listener))

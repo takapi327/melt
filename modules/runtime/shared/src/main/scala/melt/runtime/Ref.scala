@@ -6,17 +6,15 @@
 
 package melt.runtime
 
-import org.scalajs.dom
-
 /** A mutable reference to a DOM element, used with `bind:this`.
   *
   * {{{
-  * val canvasRef = Ref.empty[dom.html.Canvas]
+  * val canvasRef = Ref.empty[Element]
   * // later, after mount:
-  * canvasRef.foreach(c => c.getContext("2d"))
+  * canvasRef.foreach(el => ...)
   * }}}
   */
-final class Ref[A <: dom.Element]:
+final class Ref[A]:
   private var _el: Option[A] = None
 
   def get: Option[A] = _el
@@ -26,4 +24,4 @@ final class Ref[A <: dom.Element]:
   def foreach(f: A => Unit): Unit = _el.foreach(f)
 
 object Ref:
-  def empty[A <: dom.Element]: Ref[A] = new Ref[A]
+  def empty[A]: Ref[A] = new Ref[A]

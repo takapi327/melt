@@ -12,8 +12,9 @@ import org.scalajs.dom
 object Window:
 
   /** Registers a window event listener with automatic cleanup. */
-  def on(event: String)(handler: dom.Event => Unit): Unit =
-    val listener: scalajs.js.Function1[dom.Event, Unit] = handler(_)
+  def on(event: String)(handler: melt.runtime.dom.Event => Unit): Unit =
+    val listener: scalajs.js.Function1[dom.Event, Unit] =
+      (e: dom.Event) => handler(melt.runtime.dom.Conversions.wrap(e))
     dom.window.addEventListener(event, listener)
     Cleanup.register(() => dom.window.removeEventListener(event, listener))
 

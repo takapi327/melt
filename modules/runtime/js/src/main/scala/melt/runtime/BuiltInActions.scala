@@ -7,57 +7,31 @@
 package melt.runtime
 
 import org.scalajs.dom
-
-/** A reusable element action attached via `use:actionName={param}`.
-  *
-  * An action receives an element and an optional parameter, performs setup,
-  * and returns a cleanup function.
-  *
-  * {{{
-  * val tooltip = Action[String] { (el, text) =>
-  *   el.setAttribute("title", text)
-  *   () => el.removeAttribute("title")
-  * }
-  * // In template: <div use:tooltip={"Help text"}>...</div>
-  * }}}
-  */
-trait Action[P]:
-  def apply(el: dom.Element, param: P): () => Unit
-
-object Action:
-  /** Creates an action from a setup function that returns a cleanup function. */
-  def apply[P](f: (dom.Element, P) => (() => Unit)): Action[P] =
-    new Action[P]:
-      def apply(el: dom.Element, param: P): () => Unit = f(el, param)
-
-  /** Creates a parameterless action. */
-  def simple(f: dom.Element => (() => Unit)): Action[Unit] =
-    new Action[Unit]:
-      def apply(el: dom.Element, param: Unit): () => Unit = f(el)
-
-// ── Built-in actions ──────────────────────────────────────────────────────
+import melt.runtime.dom.Conversions
 
 /** Focuses the element on mount. */
 val autoFocus: Action[Unit] = Action.simple { el =>
-  el.asInstanceOf[dom.html.Element].focus()
+  Conversions.unwrap(el).asInstanceOf[dom.html.Element].focus()
   () => ()
 }
 
 /** Calls the handler when a click occurs outside the element. */
 val clickOutside: Action[() => Unit] = Action[(() => Unit)] { (el, handler) =>
+  val rawEl = Conversions.unwrap(el)
   val listener: scalajs.js.Function1[dom.Event, Unit] =
-    (e: dom.Event) => if !el.contains(e.target.asInstanceOf[dom.Node]) then handler()
+    (e: dom.Event) => if !rawEl.contains(e.target.asInstanceOf[dom.Node]) then handler()
   dom.document.addEventListener("click", listener)
   () => dom.document.removeEventListener("click", listener)
 }
 
 /** Traps focus within the element (Tab/Shift+Tab wrapping). */
 val trapFocus: Action[Unit] = Action.simple { el =>
-  val htmlEl = el.asInstanceOf[dom.html.Element]
+  val rawEl = Conversions.unwrap(el)
+  val htmlEl = rawEl.asInstanceOf[dom.html.Element]
   val listener: scalajs.js.Function1[dom.Event, Unit] = (e: dom.Event) =>
     val ke = e.asInstanceOf[dom.KeyboardEvent]
     if ke.key == "Tab" then
-      val focusable = el.querySelectorAll(
+      val focusable = rawEl.querySelectorAll(
         "a[href], button, textarea, input, select, [tabindex]:not([tabindex=\"-1\"])"
       )
       if focusable.length > 0 then
