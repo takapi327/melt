@@ -12,9 +12,8 @@ val bodyHovered  = Var(false)
 val shortcutLog  = Var(List.empty[String])
 
 // ── Keyboard handler ────────────────────────────────────────────────────────
-// Window.on expects dom.Event => Unit; cast to KeyboardEvent inside
-def handleKeydown(e: dom.Event): Unit =
-  val ke = e.asInstanceOf[dom.KeyboardEvent]
+def handleKeydown(e: Event): Unit =
+  val ke = e.asInstanceOf[KeyboardEvent]
   if ke.key == "Escape" then
     shortcutLog.update(log => s"[Escape] scroll to top" :: log.take(9))
     dom.window.scrollTo(0, 0)
@@ -40,7 +39,7 @@ effect(scrollY) { y =>
 
 <!-- ── melt:window — window events & property bindings ───────────────────── -->
 <melt:window
-  onkeydown={(e: dom.Event) => handleKeydown(e)}
+  onkeydown={(e: Event) => handleKeydown(e)}
   bind:innerWidth={windowWidth}
   bind:innerHeight={windowHeight}
   bind:scrollY={scrollY}

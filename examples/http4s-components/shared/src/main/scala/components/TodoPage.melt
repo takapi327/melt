@@ -25,11 +25,11 @@
   <ul>
     {todos.now().map((t: Todo) =>
       <li class:done={t.done}>
-        <button class="toggle" onclick={(_: org.scalajs.dom.Event) => { toggleTodo(t.id); Api.toggleTodo(t.id) }}>
+        <button class="toggle" onclick={_ => { toggleTodo(t.id); Api.toggleTodo(t.id) }}>
           {if t.done then "✓" else "○"}
         </button>
         <span class="todo-text">{t.text}</span>
-        <button class="delete" onclick={(_: org.scalajs.dom.Event) => { deleteTodo(t.id); Api.deleteTodo(t.id) }}>×</button>
+        <button class="delete" onclick={_ => { deleteTodo(t.id); Api.deleteTodo(t.id) }}>×</button>
       </li>
     )}
   </ul>
