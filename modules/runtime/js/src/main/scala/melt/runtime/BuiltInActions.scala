@@ -7,6 +7,7 @@
 package melt.runtime
 
 import org.scalajs.dom
+
 import melt.runtime.dom.Conversions
 
 /** Focuses the element on mount. */
@@ -26,7 +27,7 @@ val clickOutside: Action[() => Unit] = Action[(() => Unit)] { (el, handler) =>
 
 /** Traps focus within the element (Tab/Shift+Tab wrapping). */
 val trapFocus: Action[Unit] = Action.simple { el =>
-  val rawEl = Conversions.unwrap(el)
+  val rawEl  = Conversions.unwrap(el)
   val htmlEl = rawEl.asInstanceOf[dom.html.Element]
   val listener: scalajs.js.Function1[dom.Event, Unit] = (e: dom.Event) =>
     val ke = e.asInstanceOf[dom.KeyboardEvent]

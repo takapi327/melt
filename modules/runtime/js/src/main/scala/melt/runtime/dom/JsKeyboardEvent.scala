@@ -10,10 +10,10 @@ import org.scalajs.dom as jsdom
 
 /** JS implementation wrapping `org.scalajs.dom.KeyboardEvent`. */
 class JsKeyboardEvent(override val underlying: jsdom.KeyboardEvent) extends JsEvent(underlying) with KeyboardEvent:
-  def key: String      = underlying.key
-  def code: String     = underlying.code
+  def key:      String  = underlying.key
+  def code:     String  = underlying.code
   def shiftKey: Boolean = underlying.shiftKey
-  def ctrlKey: Boolean  = underlying.ctrlKey
-  def altKey: Boolean   = underlying.altKey
-  def metaKey: Boolean  = underlying.metaKey
-  def repeat: Boolean   = underlying.repeat
+  def ctrlKey:  Boolean = underlying.ctrlKey
+  def altKey:   Boolean = underlying.altKey
+  def metaKey:  Boolean = underlying.metaKey
+  def repeat:   Boolean = underlying.repeat

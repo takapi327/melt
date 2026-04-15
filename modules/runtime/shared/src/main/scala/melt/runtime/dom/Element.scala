@@ -8,7 +8,7 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM Element. */
 trait Element extends Node with EventTarget:
-  def tagName: String
-  def getAttribute(name: String): Option[String]
-  def setAttribute(name: String, value: String): Unit
-  def removeAttribute(name: String): Unit
+  def tagName:                                      String
+  def getAttribute(name:    String):                Option[String]
+  def setAttribute(name:    String, value: String): Unit
+  def removeAttribute(name: String):                Unit

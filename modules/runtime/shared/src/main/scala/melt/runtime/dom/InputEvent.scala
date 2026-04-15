@@ -8,5 +8,5 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM InputEvent. */
 trait InputEvent extends Event:
-  def data: Option[String]
+  def data:      Option[String]
   def inputType: String

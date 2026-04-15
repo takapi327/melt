@@ -8,8 +8,8 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM Event. */
 trait Event:
-  def `type`: String
-  def preventDefault(): Unit
+  def `type`:            String
+  def preventDefault():  Unit
   def stopPropagation(): Unit
-  def target: Option[EventTarget]
-  def currentTarget: Option[EventTarget]
+  def target:            Option[EventTarget]
+  def currentTarget:     Option[EventTarget]

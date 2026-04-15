@@ -10,8 +10,8 @@ import org.scalajs.dom as jsdom
 
 /** JS implementation wrapping `org.scalajs.dom.Event`. */
 class JsEvent(val underlying: jsdom.Event) extends Event:
-  def `type`: String                    = underlying.`type`
-  def preventDefault(): Unit            = underlying.preventDefault()
-  def stopPropagation(): Unit           = underlying.stopPropagation()
-  def target: Option[EventTarget]       = Option(underlying.target).map(JsEventTarget(_))
-  def currentTarget: Option[EventTarget] = Option(underlying.currentTarget).map(JsEventTarget(_))
+  def `type`:            String              = underlying.`type`
+  def preventDefault():  Unit                = underlying.preventDefault()
+  def stopPropagation(): Unit                = underlying.stopPropagation()
+  def target:            Option[EventTarget] = Option(underlying.target).map(JsEventTarget(_))
+  def currentTarget:     Option[EventTarget] = Option(underlying.currentTarget).map(JsEventTarget(_))

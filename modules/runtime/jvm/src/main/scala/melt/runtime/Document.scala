@@ -11,7 +11,7 @@ package melt.runtime
   * SSR has no live document — title and event listeners are silently ignored.
   */
 object Document:
-  def title(t: Signal[String]): Unit = ()
-  def title(t: Var[String]): Unit    = ()
-  def title(t: String): Unit         = ()
+  def title(t:  Signal[String]):                                  Unit = ()
+  def title(t:  Var[String]):                                     Unit = ()
+  def title(t:  String):                                          Unit = ()
   def on(event: String)(handler: melt.runtime.dom.Event => Unit): Unit = ()

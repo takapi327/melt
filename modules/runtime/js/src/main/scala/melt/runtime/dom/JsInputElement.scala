@@ -10,12 +10,12 @@ import org.scalajs.dom as jsdom
 
 /** JS implementation wrapping `org.scalajs.dom.html.Input`. */
 class JsInputElement(val underlying: jsdom.html.Input) extends InputElement:
-  def textContent: String                        = underlying.textContent
-  def tagName: String                            = underlying.tagName
-  def getAttribute(name: String): Option[String] = Option(underlying.getAttribute(name))
-  def setAttribute(name: String, value: String): Unit = underlying.setAttribute(name, value)
-  def removeAttribute(name: String): Unit        = underlying.removeAttribute(name)
-  def value: String                              = underlying.value
-  def value_=(v: String): Unit                   = underlying.value = v
-  def checked: Boolean                           = underlying.checked
-  def checked_=(v: Boolean): Unit                = underlying.checked = v
+  def textContent:                                  String         = underlying.textContent
+  def tagName:                                      String         = underlying.tagName
+  def getAttribute(name:    String):                Option[String] = Option(underlying.getAttribute(name))
+  def setAttribute(name:    String, value: String): Unit           = underlying.setAttribute(name, value)
+  def removeAttribute(name: String):                Unit           = underlying.removeAttribute(name)
+  def value:                                        String         = underlying.value
+  def value_=(v:            String):                Unit           = underlying.value   = v
+  def checked:                                      Boolean        = underlying.checked
+  def checked_=(v:          Boolean):               Unit           = underlying.checked = v

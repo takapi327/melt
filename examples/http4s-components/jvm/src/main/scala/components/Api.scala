@@ -14,8 +14,8 @@ import melt.runtime.Var
   * compatibility so that shared `.melt` components can reference Api methods.
   */
 object Api:
-  def fetchAll(todos: Var[List[Todo]], users: Var[List[User]], loaded: Var[Boolean]): Unit = ()
-  def addTodo(text: String, todos: Var[List[Todo]]): Unit = ()
-  def toggleTodo(id: String): Unit = ()
-  def deleteTodo(id: String): Unit = ()
-  def fetchUsers(users: Var[List[User]]): Unit = ()
+  def fetchAll(todos:   Var[List[Todo]], users: Var[List[User]], loaded: Var[Boolean]): Unit = ()
+  def addTodo(text:     String, todos:          Var[List[Todo]]):                       Unit = ()
+  def toggleTodo(id:    String):                                                        Unit = ()
+  def deleteTodo(id:    String):                                                        Unit = ()
+  def fetchUsers(users: Var[List[User]]):                                               Unit = ()

@@ -13,14 +13,8 @@ import melt.runtime.dom.Element
   * SSR does not execute actions — these stubs exist for type compatibility
   * in shared code.
   */
-val autoFocus: Action[Unit] = Action.simple { _ =>
-  () => ()
-}
+val autoFocus: Action[Unit] = Action.simple { _ => () => () }
 
-val clickOutside: Action[() => Unit] = Action[(() => Unit)] { (_, _) =>
-  () => ()
-}
+val clickOutside: Action[() => Unit] = Action[(() => Unit)] { (_, _) => () => () }
 
-val trapFocus: Action[Unit] = Action.simple { _ =>
-  () => ()
-}
+val trapFocus: Action[Unit] = Action.simple { _ => () => () }

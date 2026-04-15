@@ -8,14 +8,14 @@ package melt.runtime
 
 // Re-export DOM types so that `import melt.runtime.*` makes them available.
 export melt.runtime.dom.{
-  EventTarget,
-  Event,
-  MouseEvent,
-  KeyboardEvent,
-  InputEvent,
-  FocusEvent,
-  SubmitEvent,
-  Node,
   Element,
-  InputElement
+  Event,
+  EventTarget,
+  FocusEvent,
+  InputElement,
+  InputEvent,
+  KeyboardEvent,
+  MouseEvent,
+  Node,
+  SubmitEvent
 }

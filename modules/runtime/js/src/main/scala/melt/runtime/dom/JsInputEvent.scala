@@ -10,5 +10,5 @@ import org.scalajs.dom as jsdom
 
 /** JS implementation wrapping `org.scalajs.dom.InputEvent`. */
 class JsInputEvent(override val underlying: jsdom.InputEvent) extends JsEvent(underlying) with InputEvent:
-  def data: Option[String] = Option(underlying.data)
-  def inputType: String    = underlying.inputType
+  def data:      Option[String] = Option(underlying.data)
+  def inputType: String         = underlying.inputType

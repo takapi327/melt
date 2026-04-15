@@ -15,16 +15,16 @@ class NoOpNode extends Node:
   def textContent: String = ""
 
 class NoOpElement extends Element:
-  def textContent: String                             = ""
-  def tagName: String                                 = ""
-  def getAttribute(name: String): Option[String]      = None
-  def setAttribute(name: String, value: String): Unit = ()
-  def removeAttribute(name: String): Unit             = ()
+  def textContent:                                  String         = ""
+  def tagName:                                      String         = ""
+  def getAttribute(name:    String):                Option[String] = None
+  def setAttribute(name:    String, value: String): Unit           = ()
+  def removeAttribute(name: String):                Unit           = ()
 
 class NoOpInputElement extends NoOpElement with InputElement:
-  private var _value:   String  = ""
-  private var _checked: Boolean = false
-  def value: String              = _value
-  def value_=(v: String): Unit   = _value = v
-  def checked: Boolean           = _checked
-  def checked_=(v: Boolean): Unit = _checked = v
+  private var _value:        String  = ""
+  private var _checked:      Boolean = false
+  def value:                 String  = _value
+  def value_=(v:   String):  Unit    = _value   = v
+  def checked:               Boolean = _checked
+  def checked_=(v: Boolean): Unit    = _checked = v

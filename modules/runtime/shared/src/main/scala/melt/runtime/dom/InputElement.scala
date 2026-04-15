@@ -8,7 +8,7 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM HTMLInputElement. */
 trait InputElement extends Element:
-  def value: String
-  def value_=(v: String): Unit
-  def checked: Boolean
+  def value:                 String
+  def value_=(v:   String):  Unit
+  def checked:               Boolean
   def checked_=(v: Boolean): Unit

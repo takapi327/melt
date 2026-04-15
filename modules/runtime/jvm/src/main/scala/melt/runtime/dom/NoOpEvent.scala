@@ -12,33 +12,33 @@ package melt.runtime.dom
   * They exist only for type compatibility in shared code.
   */
 class NoOpEvent extends Event:
-  def `type`: String                     = ""
-  def preventDefault(): Unit             = ()
-  def stopPropagation(): Unit            = ()
-  def target: Option[EventTarget]        = None
-  def currentTarget: Option[EventTarget] = None
+  def `type`:            String              = ""
+  def preventDefault():  Unit                = ()
+  def stopPropagation(): Unit                = ()
+  def target:            Option[EventTarget] = None
+  def currentTarget:     Option[EventTarget] = None
 
 class NoOpMouseEvent extends NoOpEvent with MouseEvent:
-  def clientX: Double   = 0.0
-  def clientY: Double   = 0.0
-  def button: Int       = 0
+  def clientX:  Double  = 0.0
+  def clientY:  Double  = 0.0
+  def button:   Int     = 0
   def shiftKey: Boolean = false
-  def ctrlKey: Boolean  = false
-  def altKey: Boolean   = false
-  def metaKey: Boolean  = false
+  def ctrlKey:  Boolean = false
+  def altKey:   Boolean = false
+  def metaKey:  Boolean = false
 
 class NoOpKeyboardEvent extends NoOpEvent with KeyboardEvent:
-  def key: String       = ""
-  def code: String      = ""
+  def key:      String  = ""
+  def code:     String  = ""
   def shiftKey: Boolean = false
-  def ctrlKey: Boolean  = false
-  def altKey: Boolean   = false
-  def metaKey: Boolean  = false
-  def repeat: Boolean   = false
+  def ctrlKey:  Boolean = false
+  def altKey:   Boolean = false
+  def metaKey:  Boolean = false
+  def repeat:   Boolean = false
 
 class NoOpInputEvent extends NoOpEvent with InputEvent:
-  def data: Option[String] = None
-  def inputType: String    = ""
+  def data:      Option[String] = None
+  def inputType: String         = ""
 
 class NoOpFocusEvent extends NoOpEvent with FocusEvent:
   def relatedTarget: Option[EventTarget] = None

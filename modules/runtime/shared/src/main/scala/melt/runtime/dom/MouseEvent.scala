@@ -8,10 +8,10 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM MouseEvent. */
 trait MouseEvent extends Event:
-  def clientX: Double
-  def clientY: Double
-  def button: Int
+  def clientX:  Double
+  def clientY:  Double
+  def button:   Int
   def shiftKey: Boolean
-  def ctrlKey: Boolean
-  def altKey: Boolean
-  def metaKey: Boolean
+  def ctrlKey:  Boolean
+  def altKey:   Boolean
+  def metaKey:  Boolean

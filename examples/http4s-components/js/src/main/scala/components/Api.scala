@@ -62,7 +62,7 @@ object Api:
       .fetch("/api/users")
       .`then`((resp: js.Dynamic) => resp.json())
       .`then` { (data: js.Dynamic) =>
-        val arr = data.asInstanceOf[js.Array[js.Dynamic]]
+        val arr  = data.asInstanceOf[js.Array[js.Dynamic]]
         val list = arr.toList.map { d =>
           User(
             id    = d.id.asInstanceOf[Double].toInt,
@@ -76,7 +76,8 @@ object Api:
 
   /** Fetches todos and users, then sets `loaded` to true. */
   def fetchAll(todos: Var[List[Todo]], users: Var[List[User]], loaded: Var[Boolean]): Unit =
-    val p1 = js.Dynamic.global.fetch("/api/todos")
+    val p1 = js.Dynamic.global
+      .fetch("/api/todos")
       .`then`((r: js.Dynamic) => r.json())
       .`then` { (data: js.Dynamic) =>
         val list = data.asInstanceOf[js.Array[js.Dynamic]].toList.map { d =>
@@ -84,13 +85,20 @@ object Api:
         }
         todos.set(list)
       }
-    val p2 = js.Dynamic.global.fetch("/api/users")
+    val p2 = js.Dynamic.global
+      .fetch("/api/users")
       .`then`((r: js.Dynamic) => r.json())
       .`then` { (data: js.Dynamic) =>
         val list = data.asInstanceOf[js.Array[js.Dynamic]].toList.map { d =>
-          User(d.id.asInstanceOf[Double].toInt, d.name.asInstanceOf[String], d.email.asInstanceOf[String], d.role.asInstanceOf[String])
+          User(
+            d.id.asInstanceOf[Double].toInt,
+            d.name.asInstanceOf[String],
+            d.email.asInstanceOf[String],
+            d.role.asInstanceOf[String]
+          )
         }
         users.set(list)
       }
-    js.Dynamic.global.Promise.all(js.Array(p1, p2))
+    js.Dynamic.global.Promise
+      .all(js.Array(p1, p2))
       .`then` { (_: js.Dynamic) => loaded.set(true) }

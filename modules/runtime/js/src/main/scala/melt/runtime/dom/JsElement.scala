@@ -10,8 +10,8 @@ import org.scalajs.dom as jsdom
 
 /** JS implementation wrapping `org.scalajs.dom.Element`. */
 class JsElement(val underlying: jsdom.Element) extends Element:
-  def textContent: String                        = underlying.textContent
-  def tagName: String                            = underlying.tagName
-  def getAttribute(name: String): Option[String] = Option(underlying.getAttribute(name))
-  def setAttribute(name: String, value: String): Unit = underlying.setAttribute(name, value)
-  def removeAttribute(name: String): Unit        = underlying.removeAttribute(name)
+  def textContent:                                  String         = underlying.textContent
+  def tagName:                                      String         = underlying.tagName
+  def getAttribute(name:    String):                Option[String] = Option(underlying.getAttribute(name))
+  def setAttribute(name:    String, value: String): Unit           = underlying.setAttribute(name, value)
+  def removeAttribute(name: String):                Unit           = underlying.removeAttribute(name)

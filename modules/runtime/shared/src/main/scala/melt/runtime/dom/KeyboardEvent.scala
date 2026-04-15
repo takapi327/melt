@@ -8,10 +8,10 @@ package melt.runtime.dom
 
 /** Platform-independent abstraction of a DOM KeyboardEvent. */
 trait KeyboardEvent extends Event:
-  def key: String
-  def code: String
+  def key:      String
+  def code:     String
   def shiftKey: Boolean
-  def ctrlKey: Boolean
-  def altKey: Boolean
-  def metaKey: Boolean
-  def repeat: Boolean
+  def ctrlKey:  Boolean
+  def altKey:   Boolean
+  def metaKey:  Boolean
+  def repeat:   Boolean
