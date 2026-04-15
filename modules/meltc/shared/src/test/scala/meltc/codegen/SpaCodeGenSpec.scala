@@ -1369,6 +1369,95 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(selectCall > lastAppend, s"Bind.selectMultipleValue must come after appendChild:\n$code")
   }
 
+  // ── melt:boundary ────────────────────────────────────────────────────────
+
+  test("melt:boundary — minimal (children only) emits Boundary.create with children lambda") {
+    val src  = "<melt:boundary><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("Boundary.create(Boundary.Props(children = _bChildren0))"), code)
+    assert(code.contains("_bChildren0: (() => dom.Element) = () =>"), code)
+    assert(code.contains("""createElement("p")"""), code)
+  }
+
+  test("melt:boundary as root element wraps in display:contents div") {
+    val src  = "<melt:boundary><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("_bWrap0"), code)
+    assert(code.contains("""setAttribute("style", "display: contents")"""), code)
+    assert(code.contains("_bWrap0.appendChild(_bFrag0)"), code)
+    assert(code.contains("val _result = _bWrap0"), code)
+  }
+
+  test("melt:boundary as child emits appendChild and returns empty string") {
+    val src  = "<div><melt:boundary><p>Inner</p></melt:boundary></div>"
+    val code = compile(src)
+    // Fragment is appended to parent div; no wrapper div
+    assert(code.contains("_el0.appendChild(_bFrag0)"), code)
+    assert(!code.contains("display: contents"), code)
+  }
+
+  test("melt:boundary with melt:pending emits pending lambda and Some(...)") {
+    val src =
+      """<melt:boundary>
+        |  <p>Content</p>
+        |  <melt:pending><span>Loading…</span></melt:pending>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bPending0: (() => dom.Element) = () =>"), code)
+    assert(code.contains("""createElement("span")"""), code)
+    assert(code.contains("pending = Some(_bPending0)"), code)
+  }
+
+  test("melt:boundary with melt:failed emits fallback lambda with (error, reset) params") {
+    val src =
+      """<melt:boundary>
+        |  <p>Content</p>
+        |  <melt:failed (error, reset)>
+        |    <p>Error</p>
+        |    <button onclick={_ => reset()}>Retry</button>
+        |  </melt:failed>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bFallback0: (Throwable, () => Unit) => dom.Element = (error, reset) =>"), code)
+    assert(code.contains("fallback = _bFallback0"), code)
+    assert(code.contains("""addEventListener("click", _ => reset())"""), code)
+  }
+
+  test("melt:boundary with onerror attr emits onError prop") {
+    val src  = "<melt:boundary onerror={handleError}><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("onError = handleError"), code)
+  }
+
+  test("melt:boundary full combination emits all props") {
+    val src =
+      """<melt:boundary onerror={handleError}>
+        |  <p>Content</p>
+        |  <melt:pending><span>Loading…</span></melt:pending>
+        |  <melt:failed (error, reset)><p>Error: {error.getMessage()}</p></melt:failed>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bChildren0"), code)
+    assert(code.contains("_bPending0"), code)
+    assert(code.contains("_bFallback0"), code)
+    assert(code.contains("onError = handleError"), code)
+    assert(code.contains("pending = Some(_bPending0)"), code)
+    assert(code.contains("fallback = _bFallback0"), code)
+  }
+
+  test("melt:boundary melt:pending children excluded from main children lambda") {
+    val src =
+      """<melt:boundary>
+        |  <p>Main</p>
+        |  <melt:pending><span>Pending</span></melt:pending>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    // Main children lambda contains "p" element (from <p>Main</p>)
+    // Pending lambda contains "span" element (from <span>Pending</span>)
+    assert(code.contains("""createElement("p")"""), code)
+    assert(code.contains("""createElement("span")"""), code)
+  }
+
   test("bind:value on input still emits Bind.inputValue") {
     val code = compile("""<input bind:value={name} />""")
     assert(code.contains("Bind.inputValue("), code)

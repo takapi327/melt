@@ -342,6 +342,19 @@ lazy val `http4s-ssr-server` = project
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(`http4s-ssr-components`.jvm)
 
+// ── Example: Boundary (H-5 — melt:boundary / melt:pending / melt:failed / Await) ──
+lazy val boundary = project
+  .in(file("examples/boundary"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "boundary",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
 // ── Example: ReactiveScope (Phase 0 — resource management) ───────────────────
 lazy val `reactive-scope` = project
   .in(file("examples/reactive-scope"))
@@ -379,7 +392,8 @@ lazy val root = project
     `dynamic-element`,
     `layout-effect`,
     `select-textarea-bind`,
-    `reactive-scope`
+    `reactive-scope`,
+    boundary
   )
   .settings(BuildSettings.commonSettings)
   .settings(
