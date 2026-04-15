@@ -1,14 +1,17 @@
 <script lang="scala">
 val activeTab = Var("todos")
+val loaded    = Var(false)
+val todos     = Var(List.empty[Todo])
+val users     = Var(List.empty[User])
 
-val tabTitle = activeTab.map {
-  case "todos"   => "Todos"
-  case "counter" => "Counter"
-  case "users"   => "Users"
+Document.title(activeTab.map {
+  case "todos"   => "Todos · Melt SPA"
+  case "counter" => "Counter · Melt SPA"
+  case "users"   => "Users · Melt SPA"
   case _         => "Melt SPA"
-}
+})
 
-Document.title(tabTitle.map(t => s"$t · Melt SPA"))
+Api.fetchAll(todos, users, loaded)
 </script>
 
 <div class="app">
@@ -21,14 +24,20 @@ Document.title(tabTitle.map(t => s"$t · Melt SPA"))
     </nav>
   </header>
   <main>
-    {if activeTab.now() == "todos" then
-      <TodoPage />
-    else if activeTab.now() == "counter" then
-      <CounterPage />
-    else if activeTab.now() == "users" then
-      <UserPage />
+    {if loaded.now() then
+      <div>
+        {if activeTab.now() == "todos" then
+          <TodoPage items={todos.now()} />
+        else if activeTab.now() == "counter" then
+          <CounterPage />
+        else if activeTab.now() == "users" then
+          <UserPage items={users.now()} />
+        else
+          <p>Not found</p>
+        }
+      </div>
     else
-      <p>Not found</p>
+      <p class="loading">Loading...</p>
     }
   </main>
 </div>
@@ -57,4 +66,5 @@ nav button.active {
   margin-bottom: -2px;
 }
 main { min-height: 400px; }
+.loading { color: #888; font-style: italic; }
 </style>

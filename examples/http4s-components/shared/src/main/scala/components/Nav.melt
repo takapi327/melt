@@ -1,0 +1,25 @@
+<script lang="scala">
+</script>
+
+<nav class="main-nav">
+  <a href="/">Todos</a>
+  <a href="/counter">Counter</a>
+  <a href="/users">Users</a>
+</nav>
+
+<style>
+.main-nav {
+  display: flex;
+  gap: 1.5em;
+  margin-bottom: 1.5em;
+  padding-bottom: 0.75em;
+  border-bottom: 2px solid #ff3e00;
+}
+.main-nav a {
+  color: #ff3e00;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.main-nav a:hover { text-decoration: underline; }
+</style>

@@ -18,28 +18,23 @@ import org.http4s.headers.`Content-Type`
 import org.http4s.server.staticcontent.*
 import org.http4s.server.Router
 
-/** http4s SPA example — a JSON API backend served alongside a Scala.js
-  * single-page application.
+/** Pure SPA server — no server-side rendering.
   *
-  * Unlike the SSR example, no HTML is rendered on the server. The server
-  * only provides:
+  * Serves a static HTML shell, Scala.js assets, and JSON API endpoints.
+  * All rendering happens client-side via Melt components.
   *
-  *   1. A static `index.html` shell that loads the Scala.js bundle
-  *   2. JSON API endpoints for todos and users
-  *   3. Static file serving for the Scala.js output
-  *
-  * All rendering and interactivity happens client-side via Melt components.
-  *
-  * == Running ==
-  *
-  * {{{
-  *   sbt "~http4s-spa-server/reStart"
-  * }}}
+  * {{{ sbt "~http4s-spa-server/reStart" }}}
   */
 object Server extends IOApp.Simple:
 
   case class Todo(id: String, text: String, done: Boolean = false)
   case class User(id: Int, name: String, email: String, role: String)
+
+  private val htmlContentType: `Content-Type` =
+    `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
+
+  private val jsonContentType: `Content-Type` =
+    `Content-Type`(MediaType.application.json, Charset.`UTF-8`)
 
   private val users = List(
     User(1, "Alice", "alice@example.com", "Admin"),
@@ -49,19 +44,13 @@ object Server extends IOApp.Simple:
     User(5, "Eve", "eve@example.com", "Manager")
   )
 
-  private val htmlContentType: `Content-Type` =
-    `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
-
-  private val jsonContentType: `Content-Type` =
-    `Content-Type`(MediaType.application.json, Charset.`UTF-8`)
-
   private def routes(todoStore: Ref[IO, List[Todo]]): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
 
       case req @ GET -> Root =>
         StaticFile.fromResource("/index.html", Some(req)).getOrElseF(NotFound())
 
-      // ── Todo API ──────────────────────────────────────────────────────────
+      // ── Todo API ──────────────────────────────────────────────────────
 
       case GET -> Root / "api" / "todos" =>
         for
@@ -89,7 +78,7 @@ object Server extends IOApp.Simple:
       case DELETE -> Root / "api" / "todos" / id =>
         todoStore.update(_.filterNot(_.id == id)) *> Ok()
 
-      // ── User API ──────────────────────────────────────────────────────────
+      // ── User API ──────────────────────────────────────────────────────
 
       case GET -> Root / "api" / "users" =>
         Ok(users.map(userToJson).mkString("[", ",", "]"), jsonContentType)
@@ -106,10 +95,6 @@ object Server extends IOApp.Simple:
   private def escapeJson(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
 
-  /** Extracts the "text" field from a minimal JSON body like
-    * `{"text":"Buy milk"}`. Hand-rolled to avoid adding a JSON
-    * library dependency to the example.
-    */
   private def parseTextField(json: String): String =
     val key = """"text":""""
     val idx = json.indexOf(key)

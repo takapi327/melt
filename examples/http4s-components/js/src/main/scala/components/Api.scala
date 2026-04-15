@@ -10,28 +10,20 @@ import scala.scalajs.js
 
 import melt.runtime.{ append, Var }
 
-/** Client-side fetch helper for communicating with the http4s API. */
+/** JS-only fetch helper used by `.melt` event handlers to communicate
+  * with the server without page reloads.
+  */
 object Api:
 
-  /** GET /api/todos — fetches the full todo list and replaces the Var. */
-  def fetchTodos(todos: Var[List[Todo]]): Unit =
-    js.Dynamic.global
-      .fetch("/api/todos")
-      .`then`((resp: js.Dynamic) => resp.json())
-      .`then` { (data: js.Dynamic) =>
-        val arr  = data.asInstanceOf[js.Array[js.Dynamic]]
-        val list = arr.toList.map { d =>
-          Todo(
-            id   = d.id.asInstanceOf[String],
-            text = d.text.asInstanceOf[String],
-            done = d.done.asInstanceOf[Boolean]
-          )
-        }
-        todos.set(list)
-      }
+  /** Fire-and-forget POST. */
+  def post(url: String): Unit =
+    js.Dynamic.global.fetch(
+      url,
+      js.Dynamic.literal(method = "POST")
+    )
 
-  /** POST /api/todos — creates a todo on the server, then appends it
-    * to the local Var with the server-assigned ID.
+  /** POST /api/todos — sends JSON body, reads server response to get
+    * the assigned ID, then appends the new Todo to the Var.
     */
   def addTodo(text: String, todos: Var[List[Todo]]): Unit =
     val body = js.JSON.stringify(js.Dynamic.literal(text = text))
@@ -50,9 +42,7 @@ object Api:
         todos.append(Todo(id = id, text = text))
       }
 
-  /** POST /api/todos/:id/toggle — fire-and-forget; the client has
-    * already applied the optimistic update to its local Var.
-    */
+  /** POST /api/todos/:id/toggle — fire-and-forget. */
   def toggleTodo(id: String): Unit =
     js.Dynamic.global.fetch(
       s"/api/todos/$id/toggle",
@@ -66,15 +56,13 @@ object Api:
       js.Dynamic.literal(method = "DELETE")
     )
 
-  /** GET /api/users — fetches the user list and updates the Var.
-    * Sets `loading` to false when complete.
-    */
-  def fetchUsers(users: Var[List[User]], loading: Var[Boolean]): Unit =
+  /** GET /api/users — fetches the user list and replaces the Var. */
+  def fetchUsers(users: Var[List[User]]): Unit =
     js.Dynamic.global
       .fetch("/api/users")
       .`then`((resp: js.Dynamic) => resp.json())
       .`then` { (data: js.Dynamic) =>
-        val arr  = data.asInstanceOf[js.Array[js.Dynamic]]
+        val arr = data.asInstanceOf[js.Array[js.Dynamic]]
         val list = arr.toList.map { d =>
           User(
             id    = d.id.asInstanceOf[Double].toInt,
@@ -84,5 +72,25 @@ object Api:
           )
         }
         users.set(list)
-        loading.set(false)
       }
+
+  /** Fetches todos and users, then sets `loaded` to true. */
+  def fetchAll(todos: Var[List[Todo]], users: Var[List[User]], loaded: Var[Boolean]): Unit =
+    val p1 = js.Dynamic.global.fetch("/api/todos")
+      .`then`((r: js.Dynamic) => r.json())
+      .`then` { (data: js.Dynamic) =>
+        val list = data.asInstanceOf[js.Array[js.Dynamic]].toList.map { d =>
+          Todo(d.id.asInstanceOf[String], d.text.asInstanceOf[String], d.done.asInstanceOf[Boolean])
+        }
+        todos.set(list)
+      }
+    val p2 = js.Dynamic.global.fetch("/api/users")
+      .`then`((r: js.Dynamic) => r.json())
+      .`then` { (data: js.Dynamic) =>
+        val list = data.asInstanceOf[js.Array[js.Dynamic]].toList.map { d =>
+          User(d.id.asInstanceOf[Double].toInt, d.name.asInstanceOf[String], d.email.asInstanceOf[String], d.role.asInstanceOf[String])
+        }
+        users.set(list)
+      }
+    js.Dynamic.global.Promise.all(js.Array(p1, p2))
+      .`then` { (_: js.Dynamic) => loaded.set(true) }

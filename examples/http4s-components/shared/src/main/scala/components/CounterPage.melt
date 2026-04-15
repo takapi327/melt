@@ -3,24 +3,12 @@ val count   = Var(0)
 val doubled = count.map(_ * 2)
 val isEven  = memo(count)(_ % 2 == 0)
 
-// effect — logs count changes to the browser console
-effect(count) { n =>
-  dom.console.log(s"[CounterPage] count = $n")
-}
-
-// Elapsed seconds timer with cleanup
-val elapsed = Var(0)
-import scala.scalajs.js.timers.*
-val timerId = setInterval(1000.0) { elapsed += 1 }
-onCleanup { () => clearInterval(timerId) }
-
-// batch — reset all values at once (single DOM update)
-def resetAll(): Unit = batch {
+def resetAll(): Unit =
   count.set(0)
-}
 </script>
 
 <div class="counter-page">
+  <Nav />
   <h2>Counter</h2>
 
   <div class="display">
@@ -36,10 +24,6 @@ def resetAll(): Unit = batch {
       <span class="label">Even?</span>
       <span class="value">{isEven}</span>
     </div>
-    <div class="stat">
-      <span class="label">Elapsed</span>
-      <span class="value">{elapsed}s</span>
-    </div>
   </div>
 
   <div class="controls">
@@ -50,14 +34,6 @@ def resetAll(): Unit = batch {
     <button class="btn-reset" onclick={_ => resetAll()}>Reset</button>
   </div>
 
-  <div class="step-section">
-    <p class="section-label">Shared Var — bidirectional binding</p>
-    <p class="hint">Both controls share the same Var[Int]. Changes in either propagate everywhere.</p>
-    <div class="step-row">
-      <StepControl count={count} step={1} />
-      <StepControl count={count} step={10} />
-    </div>
-  </div>
 </div>
 
 <style>
@@ -89,11 +65,4 @@ def resetAll(): Unit = batch {
 .controls button:hover { background: #cc3200; }
 .btn-reset { background: #666 !important; }
 .btn-reset:hover { background: #444 !important; }
-.step-section {
-  border-top: 1px solid #eee;
-  padding-top: 1em;
-}
-.section-label { font-weight: 600; color: #ff3e00; margin: 0 0 0.25em; }
-.hint { color: #888; font-size: 0.85rem; margin: 0 0 0.75em; }
-.step-row { display: flex; gap: 1em; flex-wrap: wrap; }
 </style>

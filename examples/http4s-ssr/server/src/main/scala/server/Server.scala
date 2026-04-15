@@ -21,96 +21,94 @@ import org.http4s.headers.`Content-Type`
 import org.http4s.server.staticcontent.*
 import org.http4s.server.Router
 
-/** Phase C SSR + Hydration sample — a tiny http4s server that
-  * demonstrates modern SSR patterns:
+/** SSR + Hydration server.
   *
-  *   1. '''Static SSR pages''' — Home, About. Server renders HTML once
-  *      per request; the page has hydration markers and a bootstrap
-  *      script that calls each chunk's `hydrate()` export after the
-  *      module loads.
-  *   2. '''Dynamic SSR with conditional branches''' — Status. Server
-  *      uses a path parameter to drive `if/else` and `match` rendering.
-  *   3. '''SSR + Client-side interactivity''' — Todos. Server renders
-  *      the initial list via SSR with Props serialisation. After
-  *      hydration, the client takes over with reactive `Var[List[Todo]]`
-  *      state. Add / toggle / delete operations update the local Var
-  *      instantly (no page reload). The pattern demonstrates the full
-  *      SSR → hydration → client-side reactivity lifecycle.
+  * Renders initial HTML on the JVM via shared Melt components, then the
+  * client hydrates for interactivity. Uses the same components as http4s-spa.
   *
-  * == Running ==
-  *
-  * One-shot:
-  * {{{
-  *   sbt "http4s-ssr-server/run"
-  * }}}
-  *
-  * Dev mode with auto-reload on source changes (recommended):
-  * {{{
-  *   sbt "~http4s-ssr-server/reStart"
-  * }}}
+  * {{{ sbt "~http4s-ssr-server/reStart" }}}
   */
 object Server extends IOApp.Simple:
 
   private val template: Template = Template.fromResource("/index.html")
-
-  private def routes(todoStore: Ref[IO, List[Todos.Todo]]): HttpRoutes[IO] =
-    HttpRoutes.of[IO] {
-
-      case GET -> Root =>
-        val result = Home(Home.Props(userName = "Melt", count = 1))
-        Ok(
-          renderWithHydration(result, title = "Home · Melt SSR"),
-          htmlContentType
-        )
-
-      case GET -> Root / "about" =>
-        Ok(
-          renderWithHydration(About(), title = "About · Melt SSR"),
-          htmlContentType
-        )
-
-      case GET -> Root / "status" / IntVar(n) =>
-        val result = components.Status(components.Status.Props(isActive = n > 0, count = n))
-        Ok(
-          renderWithHydration(result, title = s"Status $n · Melt SSR"),
-          htmlContentType
-        )
-
-      case GET -> Root / "todos" =>
-        for
-          items <- todoStore.get
-          html = renderWithHydration(
-                   Todos(Todos.Props(items = items)),
-                   title = "Todos · Melt SSR"
-                 )
-          resp <- Ok(html, htmlContentType)
-        yield resp
-
-      case req @ POST -> Root / "api" / "todos" / "add" =>
-        for
-          body <- req.as[String]
-          text = parseTextField(body)
-          resp <-
-            if text.nonEmpty then
-              val todo = Todos.Todo(id = UUID.randomUUID().toString, text = text)
-              todoStore.update(todo :: _) *>
-                Created(s"""{"id":"${ todo.id }"}""", jsonContentType)
-            else BadRequest()
-        yield resp
-
-      case POST -> Root / "api" / "todos" / "toggle" / id =>
-        todoStore.update(_.map(t => if t.id == id then t.copy(done = !t.done) else t)) *>
-          Ok()
-
-      case POST -> Root / "api" / "todos" / "delete" / id =>
-        todoStore.update(_.filterNot(_.id == id)) *> Ok()
-    }
 
   private val htmlContentType: `Content-Type` =
     `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
 
   private val jsonContentType: `Content-Type` =
     `Content-Type`(MediaType.application.json, Charset.`UTF-8`)
+
+  private val users = List(
+    User(1, "Alice", "alice@example.com", "Admin"),
+    User(2, "Bob", "bob@example.com", "Developer"),
+    User(3, "Charlie", "charlie@example.com", "Designer"),
+    User(4, "Diana", "diana@example.com", "Developer"),
+    User(5, "Eve", "eve@example.com", "Manager")
+  )
+
+  private def routes(todoStore: Ref[IO, List[Todo]]): HttpRoutes[IO] =
+    HttpRoutes.of[IO] {
+
+      // ── SSR pages ─────────────────────────────────────────────────────
+
+      case GET -> Root =>
+        for
+          items <- todoStore.get
+          html = renderWithHydration(
+                   TodoPage(TodoPage.Props(items = items)),
+                   title = "Todos · Melt SSR"
+                 )
+          resp <- Ok(html, htmlContentType)
+        yield resp
+
+      case GET -> Root / "counter" =>
+        Ok(
+          renderWithHydration(CounterPage(), title = "Counter · Melt SSR"),
+          htmlContentType
+        )
+
+      case GET -> Root / "users" =>
+        Ok(
+          renderWithHydration(
+            UserPage(UserPage.Props(items = users)),
+            title = "Users · Melt SSR"
+          ),
+          htmlContentType
+        )
+
+      // ── Todo API ──────────────────────────────────────────────────────
+
+      case GET -> Root / "api" / "todos" =>
+        for
+          todos <- todoStore.get
+          json = todos.map(todoToJson).mkString("[", ",", "]")
+          resp <- Ok(json, jsonContentType)
+        yield resp
+
+      case req @ POST -> Root / "api" / "todos" =>
+        for
+          body <- req.as[String]
+          text = parseTextField(body)
+          resp <-
+            if text.nonEmpty then
+              val todo = Todo(id = UUID.randomUUID().toString, text = text)
+              todoStore.update(_ :+ todo) *>
+                Created(todoToJson(todo), jsonContentType)
+            else BadRequest()
+        yield resp
+
+      case POST -> Root / "api" / "todos" / id / "toggle" =>
+        todoStore.update(_.map(t => if t.id == id then t.copy(done = !t.done) else t)) *>
+          Ok()
+
+      case DELETE -> Root / "api" / "todos" / id =>
+        todoStore.update(_.filterNot(_.id == id)) *> Ok()
+
+      // ── User API ──────────────────────────────────────────────────────
+
+      case GET -> Root / "api" / "users" =>
+        Ok(users.map(userToJson).mkString("[", ",", "]"), jsonContentType)
+    }
 
   private def renderWithHydration(result: melt.runtime.ssr.RenderResult, title: String): String =
     template.render(
@@ -122,10 +120,17 @@ object Server extends IOApp.Simple:
       vars     = Map.empty
     )
 
-  /** Extracts the "text" field from a minimal JSON body like
-    * `{"text":"Buy milk"}`. Hand-rolled to avoid adding a JSON
-    * library dependency to the example server.
-    */
+  private def todoToJson(t: Todo): String =
+    s"""{"id":"${ t.id }","text":"${ escapeJson(t.text) }","done":${ t.done }}"""
+
+  private def userToJson(u: User): String =
+    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(
+        u.role
+      ) }"}"""
+
+  private def escapeJson(s: String): String =
+    s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+
   private def parseTextField(json: String): String =
     val key = """"text":""""
     val idx = json.indexOf(key)
@@ -140,11 +145,11 @@ object Server extends IOApp.Simple:
 
   def run: IO[Unit] =
     for
-      todoStore <- Ref.of[IO, List[Todos.Todo]](
+      todoStore <- Ref.of[IO, List[Todo]](
                      List(
-                       Todos.Todo(UUID.randomUUID().toString, "Learn Melt SSR"),
-                       Todos.Todo(UUID.randomUUID().toString, "Add hydration", done = true),
-                       Todos.Todo(UUID.randomUUID().toString, "Ship it")
+                       Todo(UUID.randomUUID().toString, "Learn Melt SSR"),
+                       Todo(UUID.randomUUID().toString, "Build a component", done = true),
+                       Todo(UUID.randomUUID().toString, "Deploy to production")
                      )
                    )
       httpApp = Router(
@@ -154,7 +159,7 @@ object Server extends IOApp.Simple:
       _ <- EmberServerBuilder
              .default[IO]
              .withHost(host"0.0.0.0")
-             .withPort(port"8080")
+             .withPort(port"9090")
              .withHttpApp(httpApp)
              .build
              .useForever
