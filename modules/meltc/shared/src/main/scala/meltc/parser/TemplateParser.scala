@@ -6,7 +6,7 @@
 
 package meltc.parser
 
-import meltc.ast.{ Attr, TemplateNode }
+import meltc.ast.*
 
 /** Parses an HTML template string into a list of [[TemplateNode]] values.
   *
@@ -356,10 +356,11 @@ private[parser] final class TemplateParser(src: String):
 
   private def makeNode(tag: String, attrs: List[Attr], children: List[TemplateNode]): TemplateNode =
     tag match
-      case "melt:head"    => TemplateNode.Head(children)
-      case "melt:window"  => TemplateNode.Window(attrs)
-      case "melt:body"    => TemplateNode.Body(attrs)
-      case "melt:element" =>
+      case "melt:head"     => TemplateNode.Head(children)
+      case "melt:window"   => TemplateNode.Window(attrs)
+      case "melt:body"     => TemplateNode.Body(attrs)
+      case "melt:document" => TemplateNode.Document(attrs)
+      case "melt:element"  =>
         val tagExpr = attrs
           .collectFirst {
             case Attr.Dynamic("this", expr) => expr
@@ -388,6 +389,29 @@ private[parser] final class TemplateParser(src: String):
           case _                       => true
         }
         TemplateNode.DynamicElement(tagExpr, restAttrs, children)
+      case "melt:boundary" =>
+        // Separate <melt:pending> and <melt:failed> from main children
+        val pendingOpt = children.collectFirst {
+          case TemplateNode.Element("melt:pending", _, pChildren) =>
+            PendingBlock(pChildren)
+        }
+        val failedOpt = children.collectFirst {
+          case TemplateNode.Element("melt:failed", fAttrs, fChildren) =>
+            // <melt:failed (error, reset)> is parsed as BooleanAttr("(error,") + BooleanAttr("reset)")
+            val attrNames = fAttrs.collect { case Attr.BooleanAttr(n) => n }
+            val combined  = attrNames.mkString(" ").replace("(", "").replace(")", "")
+            val params    = combined.split(",").map(_.trim).filter(_.nonEmpty)
+            val errorVar  = params.lift(0).getOrElse("error")
+            val resetVar  = params.lift(1).getOrElse("reset")
+            FailedBlock(errorVar, resetVar, fChildren)
+        }
+        val mainChildren = children.filterNot {
+          case TemplateNode.Element("melt:pending", _, _) => true
+          case TemplateNode.Element("melt:failed", _, _)  => true
+          case _                                          => false
+        }
+        TemplateNode.Boundary(attrs, mainChildren, pendingOpt, failedOpt)
+
       case _ =>
         if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
         else TemplateNode.Element(tag, attrs, children)

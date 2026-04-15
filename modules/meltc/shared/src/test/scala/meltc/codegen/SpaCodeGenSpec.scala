@@ -1146,6 +1146,50 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""Body.on("mouseleave")(leave)"""), code)
   }
 
+  // ── <melt:document> ───────────────────────────────────────────────────────
+
+  test("<melt:document> with event handler emits Document.on") {
+    val code = compile("<melt:document onvisibilitychange={handleVisibility} />")
+    assert(code.contains("""Document.on("visibilitychange")(handleVisibility)"""), code)
+  }
+
+  test("<melt:document> with multiple event handlers emits all Document.on calls") {
+    val code = compile("<melt:document onvisibilitychange={onVis} onselectionchange={onSel} />")
+    assert(code.contains("""Document.on("visibilitychange")(onVis)"""), code)
+    assert(code.contains("""Document.on("selectionchange")(onSel)"""), code)
+  }
+
+  test("<melt:document> does not emit createElement") {
+    val code = compile("<melt:document onvisibilitychange={fn} />")
+    assert(!code.contains("""createElement("melt:document")"""), code)
+  }
+
+  test("<melt:document> bind:visibilityState emits Document.bindVisibilityState") {
+    val code = compile("<melt:document bind:visibilityState={state} />")
+    assert(code.contains("Document.bindVisibilityState(state)"), code)
+  }
+
+  test("<melt:document> bind:fullscreenElement emits Document.bindFullscreenElement") {
+    val code = compile("<melt:document bind:fullscreenElement={el} />")
+    assert(code.contains("Document.bindFullscreenElement(el)"), code)
+  }
+
+  test("<melt:document> bind:pointerLockElement emits Document.bindPointerLockElement") {
+    val code = compile("<melt:document bind:pointerLockElement={el} />")
+    assert(code.contains("Document.bindPointerLockElement(el)"), code)
+  }
+
+  test("<melt:document> bind:activeElement emits Document.bindActiveElement") {
+    val code = compile("<melt:document bind:activeElement={focused} />")
+    assert(code.contains("Document.bindActiveElement(focused)"), code)
+  }
+
+  test("<melt:document> with event handler and bind directive emits both") {
+    val code = compile("<melt:document onvisibilitychange={onVis} bind:visibilityState={state} />")
+    assert(code.contains("""Document.on("visibilitychange")(onVis)"""), code)
+    assert(code.contains("Document.bindVisibilityState(state)"), code)
+  }
+
   // ── <melt:element> ────────────────────────────────────────────────────────
 
   test("<melt:element this={tag}> emits Bind.dynamicElement with anchor comment") {
@@ -1281,4 +1325,142 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("@JSExportTopLevel(\"hydrate\""), code)
     assert(!code.contains("_meltHydrateEntry"), code)
     assert(!code.contains("_propsCodec"), code)
+  }
+
+  // ── bind:value for textarea / select ─────────────────────────────────────
+
+  test("bind:value on textarea emits Bind.textareaValue with TextArea cast") {
+    val code = compile("""<textarea bind:value={content}></textarea>""")
+    assert(code.contains("Bind.textareaValue("), code)
+    assert(code.contains("dom.html.TextArea"), code)
+    assert(!code.contains("dom.html.Input"), code)
+    assert(!code.contains("Bind.inputValue("), code)
+  }
+
+  test("bind:value on select emits Bind.selectValue after option children") {
+    val code = compile(
+      """<select bind:value={choice}>
+        |  <option value="a">A</option>
+        |  <option value="b">B</option>
+        |</select>""".stripMargin
+    )
+    assert(code.contains("Bind.selectValue("), code)
+    assert(code.contains("dom.html.Select"), code)
+    assert(!code.contains("dom.html.Input"), code)
+    assert(!code.contains("Bind.inputValue("), code)
+    // selectValue must be emitted after the option appendChild calls
+    val selectCall = code.indexOf("Bind.selectValue(")
+    val lastAppend = code.lastIndexOf(".appendChild(")
+    assert(selectCall > lastAppend, s"Bind.selectValue must come after appendChild:\n$code")
+  }
+
+  test("bind:value on select multiple emits Bind.selectMultipleValue") {
+    val code = compile(
+      """<select multiple bind:value={choices}>
+        |  <option value="a">A</option>
+        |  <option value="b">B</option>
+        |</select>""".stripMargin
+    )
+    assert(code.contains("Bind.selectMultipleValue("), code)
+    assert(!code.contains("Bind.selectValue("), code)
+    // must be after children
+    val selectCall = code.indexOf("Bind.selectMultipleValue(")
+    val lastAppend = code.lastIndexOf(".appendChild(")
+    assert(selectCall > lastAppend, s"Bind.selectMultipleValue must come after appendChild:\n$code")
+  }
+
+  // ── melt:boundary ────────────────────────────────────────────────────────
+
+  test("melt:boundary — minimal (children only) emits Boundary.create with children lambda") {
+    val src  = "<melt:boundary><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("Boundary.create(Boundary.Props(children = _bChildren0))"), code)
+    assert(code.contains("_bChildren0: (() => dom.Element) = () =>"), code)
+    assert(code.contains("""createElement("p")"""), code)
+  }
+
+  test("melt:boundary as root element wraps in display:contents div") {
+    val src  = "<melt:boundary><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("_bWrap0"), code)
+    assert(code.contains("""setAttribute("style", "display: contents")"""), code)
+    assert(code.contains("_bWrap0.appendChild(_bFrag0)"), code)
+    assert(code.contains("val _result = _bWrap0"), code)
+  }
+
+  test("melt:boundary as child emits appendChild and returns empty string") {
+    val src  = "<div><melt:boundary><p>Inner</p></melt:boundary></div>"
+    val code = compile(src)
+    // Fragment is appended to parent div; no wrapper div
+    assert(code.contains("_el0.appendChild(_bFrag0)"), code)
+    assert(!code.contains("display: contents"), code)
+  }
+
+  test("melt:boundary with melt:pending emits pending lambda and Some(...)") {
+    val src =
+      """<melt:boundary>
+        |  <p>Content</p>
+        |  <melt:pending><span>Loading…</span></melt:pending>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bPending0: (() => dom.Element) = () =>"), code)
+    assert(code.contains("""createElement("span")"""), code)
+    assert(code.contains("pending = Some(_bPending0)"), code)
+  }
+
+  test("melt:boundary with melt:failed emits fallback lambda with (error, reset) params") {
+    val src =
+      """<melt:boundary>
+        |  <p>Content</p>
+        |  <melt:failed (error, reset)>
+        |    <p>Error</p>
+        |    <button onclick={_ => reset()}>Retry</button>
+        |  </melt:failed>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bFallback0: (Throwable, () => Unit) => dom.Element = (error, reset) =>"), code)
+    assert(code.contains("fallback = _bFallback0"), code)
+    assert(code.contains("""addEventListener("click", _ => reset())"""), code)
+  }
+
+  test("melt:boundary with onerror attr emits onError prop") {
+    val src  = "<melt:boundary onerror={handleError}><p>Content</p></melt:boundary>"
+    val code = compile(src)
+    assert(code.contains("onError = handleError"), code)
+  }
+
+  test("melt:boundary full combination emits all props") {
+    val src =
+      """<melt:boundary onerror={handleError}>
+        |  <p>Content</p>
+        |  <melt:pending><span>Loading…</span></melt:pending>
+        |  <melt:failed (error, reset)><p>Error: {error.getMessage()}</p></melt:failed>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_bChildren0"), code)
+    assert(code.contains("_bPending0"), code)
+    assert(code.contains("_bFallback0"), code)
+    assert(code.contains("onError = handleError"), code)
+    assert(code.contains("pending = Some(_bPending0)"), code)
+    assert(code.contains("fallback = _bFallback0"), code)
+  }
+
+  test("melt:boundary melt:pending children excluded from main children lambda") {
+    val src =
+      """<melt:boundary>
+        |  <p>Main</p>
+        |  <melt:pending><span>Pending</span></melt:pending>
+        |</melt:boundary>""".stripMargin
+    val code = compile(src)
+    // Main children lambda contains "p" element (from <p>Main</p>)
+    // Pending lambda contains "span" element (from <span>Pending</span>)
+    assert(code.contains("""createElement("p")"""), code)
+    assert(code.contains("""createElement("span")"""), code)
+  }
+
+  test("bind:value on input still emits Bind.inputValue") {
+    val code = compile("""<input bind:value={name} />""")
+    assert(code.contains("Bind.inputValue("), code)
+    assert(!code.contains("Bind.textareaValue("), code)
+    assert(!code.contains("Bind.selectValue("), code)
   }

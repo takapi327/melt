@@ -58,6 +58,9 @@ enum TemplateNode:
   /** A `<melt:body>` element — attaches event listeners and actions to `document.body`. */
   case Body(attrs: List[Attr])
 
+  /** A `<melt:document>` element — attaches event listeners and reactive bindings to `document`. */
+  case Document(attrs: List[Attr])
+
   /** A `<melt:element this={tagExpr}>` — an HTML element whose tag name is determined at runtime.
     *
     * @param tagExpr the raw Scala expression for the tag name (e.g. `"headingTag"`, `"\"div\""`)
@@ -65,6 +68,31 @@ enum TemplateNode:
     * @param children child nodes (same as [[Element]])
     */
   case DynamicElement(tagExpr: String, attrs: List[Attr], children: List[TemplateNode])
+
+  /** A `<melt:boundary>` block — catches synchronous rendering errors and manages async pending state.
+    *
+    * @param attrs    element attributes, typically `onerror={handler}`
+    * @param children the main content nodes rendered inside the boundary
+    * @param pending  optional [[PendingBlock]] shown while `Await` futures are unresolved
+    * @param failed   optional [[FailedBlock]] shown when a synchronous rendering error is caught
+    */
+  case Boundary(
+    attrs:    List[Attr],
+    children: List[TemplateNode],
+    pending:  Option[PendingBlock],
+    failed:   Option[FailedBlock]
+  )
+
+/** The `<melt:pending>` block inside a `<melt:boundary>` — shown while `Await` futures are pending. */
+case class PendingBlock(children: List[TemplateNode])
+
+/** The `<melt:failed (error, reset)>` block inside a `<melt:boundary>` — shown on synchronous error.
+  *
+  * @param errorVar the Scala identifier bound to the caught [[Throwable]] (default: `"error"`)
+  * @param resetVar the Scala identifier bound to the reset callback (default: `"reset"`)
+  * @param children the fallback UI nodes
+  */
+case class FailedBlock(errorVar: String, resetVar: String, children: List[TemplateNode])
 
 /** A part of an [[TemplateNode.InlineTemplate]] expression. */
 enum InlineTemplatePart:

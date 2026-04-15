@@ -1,0 +1,170 @@
+<script lang="scala">
+// ── Error log (shared across all panels) ─────────────────────────────────────
+val errorLog = Var(List.empty[String])
+
+def logError(e: Throwable): Unit =
+  val msg = s"[${new scala.scalajs.js.Date().toLocaleTimeString()}] ${e.getMessage}"
+  errorLog.update(log => msg :: log.take(9))
+
+// ── Async panel state ─────────────────────────────────────────────────────────
+val asyncKey = Var(0) // increment to re-mount the async panel
+</script>
+
+<div class="demo">
+  <header class="hero">
+    <h1>Melt <code>&lt;melt:boundary&gt;</code> Demo</h1>
+    <p class="subtitle">
+      Error catching, async pending state, and <code>onerror</code> callbacks.
+    </p>
+  </header>
+
+  <div class="panels">
+
+    <!-- ── Panel 1: Synchronous error catching ─────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title">Synchronous Error Boundary</h2>
+      <p class="hint">
+        <code>&lt;BuggyChild /&gt;</code> always throws during rendering.
+        The boundary catches the exception and shows the fallback UI.
+        Clicking <strong>Retry</strong> re-runs <code>render()</code> — it
+        throws again, demonstrating the retry cycle.
+      </p>
+      <div class="boundary-box">
+        <melt:boundary onerror={logError}>
+          <BuggyChild />
+          <melt:failed (error, reset)>
+            <div class="fallback">
+              <p class="error-title">Component crashed</p>
+              <p class="error-msg">{error.getMessage()}</p>
+              <button class="btn" onclick={_ => reset()}>Retry</button>
+            </div>
+          </melt:failed>
+        </melt:boundary>
+      </div>
+    </section>
+
+    <!-- ── Panel 2: Async pending with Await ──────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title">Async Pending (<code>Await</code>)</h2>
+      <p class="hint">
+        <code>Await(future)</code> returns a placeholder immediately.
+        <code>&lt;melt:pending&gt;</code> is shown while the Future is unresolved.
+        When it settles, the pending UI is swapped for the real content.
+      </p>
+
+      {if asyncKey.now() >= 0 then <AsyncRows /> else <span></span>}
+
+      <div class="btn-row">
+        <button class="btn" onclick={_ => asyncKey.update(_ + 1)}>Reload</button>
+      </div>
+    </section>
+
+    <!-- ── Panel 3: onerror callback ──────────────────────────────────── -->
+    <section class="panel">
+      <h2 class="panel-title"><code>onerror</code> Callback</h2>
+      <p class="hint">
+        The <code>onerror</code> attribute wires a Scala function that is called
+        whenever the boundary catches a synchronous rendering exception.
+        Errors from all panels are logged here in real time.
+      </p>
+      <div class="log-box">
+        {if errorLog.now().isEmpty then
+          <p class="empty">No errors caught yet — trigger one from Panel 1.</p>
+        else
+          <span></span>}
+        <ul>
+          {errorLog.map((entry: String) => <li>{entry}</li>)}
+        </ul>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick={_ => errorLog.set(List.empty)}>Clear log</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; color: #222; background: #f0f2f5; }
+
+.demo { max-width: 960px; margin: 0 auto; padding: 1.5em 1em 4em; }
+
+.hero { text-align: center; padding: 2em 1em 1.5em; }
+.hero h1 { font-size: 2em; color: #ff3e00; }
+.subtitle { margin-top: 0.6em; color: #555; font-size: 0.95em; }
+
+.panels { display: flex; flex-wrap: wrap; gap: 1.2em; margin-top: 1em; }
+
+.panel {
+  flex: 1 1 280px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+.panel-title { font-size: 1em; font-weight: 700; color: #333; }
+.hint { color: #777; font-size: 0.82em; line-height: 1.55; }
+
+/* Boundary output box */
+.boundary-box {
+  background: #fafafa;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  padding: 0.7em 1em;
+  min-height: 48px;
+}
+
+/* Fallback (error) UI */
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+.error-title { font-weight: 600; color: #c0392b; }
+.error-msg   { font-family: monospace; font-size: 0.82em; color: #555; }
+
+/* Async */
+.async-row { display: flex; flex-direction: column; gap: 0.35em; }
+.label { font-size: 0.82em; color: #666; font-weight: 600; }
+.pending { color: #e67e22; font-size: 0.88em; }
+.result { font-size: 0.9em; }
+.result.ok  { color: #27ae60; }
+.result.err { color: #c0392b; font-family: monospace; }
+
+/* Retry / action button */
+.btn {
+  display: inline-block;
+  padding: 0.35em 0.9em;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.15s;
+}
+.btn:hover { background: #f0f0f0; }
+.btn-row { display: flex; gap: 0.5em; }
+
+/* Error log */
+.log-box {
+  min-height: 80px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0.5em 0.7em;
+  background: #fafafa;
+  font-family: monospace;
+  font-size: 0.8em;
+}
+.log-box ul { padding-left: 1.2em; list-style: disc; }
+.log-box li { margin: 0.15em 0; color: #333; }
+.empty { color: #aaa; }
+
+code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.88em; }
+</style>

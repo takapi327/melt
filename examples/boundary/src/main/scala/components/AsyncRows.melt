@@ -1,0 +1,53 @@
+<script lang="scala">
+import scala.concurrent.{ Future, Promise }
+import scala.scalajs.js.timers.*
+import scala.util.{ Failure, Success }
+
+def fetchSuccess(delayMs: Double, value: String): Future[String] =
+  val p = Promise[String]()
+  setTimeout(delayMs) { p.success(value) }
+  p.future
+
+def fetchFailure(delayMs: Double): Future[String] =
+  val p = Promise[String]()
+  setTimeout(delayMs) { p.failure(new RuntimeException("Network error: request timed out")) }
+  p.future
+</script>
+
+<div>
+  <!-- Success case: resolves after 2 s -->
+  <div class="async-row">
+    <span class="label">Fetch (success, 2 s)</span>
+    <div class="boundary-box">
+      <melt:boundary>
+        {Await(fetchSuccess(2000.0, "Alice")) {
+          case Success(name) =>
+            <p class="result ok">Hello, {name}! (loaded)</p>
+          case Failure(e) =>
+            <p class="result err">Error: {e.getMessage()}</p>
+        }}
+        <melt:pending>
+          <p class="pending">⏳ Loading…</p>
+        </melt:pending>
+      </melt:boundary>
+    </div>
+  </div>
+
+  <!-- Failure case: rejects after 1.5 s -->
+  <div class="async-row">
+    <span class="label">Fetch (failure, 1.5 s)</span>
+    <div class="boundary-box">
+      <melt:boundary>
+        {Await(fetchFailure(1500.0)) {
+          case Success(name) =>
+            <p class="result ok">Hello, {name}!</p>
+          case Failure(e) =>
+            <p class="result err">Error: {e.getMessage()}</p>
+        }}
+        <melt:pending>
+          <p class="pending">⏳ Loading…</p>
+        </melt:pending>
+      </melt:boundary>
+    </div>
+  </div>
+</div>
