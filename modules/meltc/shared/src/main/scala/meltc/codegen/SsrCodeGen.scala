@@ -55,6 +55,7 @@ object SsrCodeGen extends CodeGen:
     val buf = new StringBuilder
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
+    buf ++= "import scala.language.implicitConversions\n"
     buf ++= "import melt.runtime.*\n"
     if ast.script.flatMap(_.propsType).isDefined then buf ++= "import melt.runtime.json.PropsCodec\n"
     buf ++= "import melt.runtime.ssr.*\n\n"
@@ -467,11 +468,11 @@ object SsrCodeGen extends CodeGen:
         kind match
           case "bind" =>
             expr.foreach { e =>
-              buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e.now()) + \"\\\"\")\n"""
+              buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e) + \"\\\"\")\n"""
             }
           case "class" =>
             expr.foreach { e =>
-              buf ++= s"""${ pad }if ($e.now()) then renderer.push(" $name")\n"""
+              buf ++= s"""${ pad }if ($e) then renderer.push(" $name")\n"""
             }
           case "style" =>
             expr.foreach { e =>
