@@ -465,7 +465,8 @@ Java 17 / 21 / 25（Corretto）で CI テストを実施しています。
 | [layout-effect](examples/layout-effect) | DOM 計測・レイアウトエフェクト |
 | [reactive-scope](examples/reactive-scope) | リソース管理パターン |
 | [dynamic-element](examples/dynamic-element) | 動的タグ名 |
-| [http4s-spa](examples/http4s-spa) | SSR + Hydration + API（http4s） |
+| [http4s-spa](examples/http4s-spa) | SPA + API（http4s） |
+| [http4s-ssr](examples/http4s-ssr) | SSR + Hydration + API（http4s） |
 
 ---
 
