@@ -224,7 +224,7 @@ object ReactiveScope:
         val (_, node) = Owner.withNew { f(value) }
         innerNode = Some(node)
 
-      run(dep.now())
+      run(dep.value)
       val cancel = dep.subscribePost(run)
       ((), () => { cancel(); innerNode.foreach(_.destroy()) })
     }
@@ -242,7 +242,7 @@ object ReactiveScope:
         val (_, node) = Owner.withNew { f(value) }
         innerNode = Some(node)
 
-      run(dep.now())
+      run(dep.value)
       val cancel = dep.subscribePost(run)
       ((), () => { cancel(); innerNode.foreach(_.destroy()) })
     }

@@ -37,7 +37,7 @@ private final class JsVar[A](private var _current: A) extends Var[A]:
   private val _bind = mutable.ListBuffer.empty[A => Unit]
   private val _post = mutable.ListBuffer.empty[A => Unit]
 
-  def now(): A = _current
+  def value: A = _current
 
   private lazy val _batchFlush: () => Unit = () =>
     _pre.toList.foreach(_(_current))
@@ -82,12 +82,12 @@ private final class JsVar[A](private var _current: A) extends Var[A]:
 
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner = f(_current)
-    val s     = JsSignal.create[B](inner.now())
+    val s     = JsSignal.create[B](inner.value)
     var cancelInner: () => Unit = inner.subscribe(b => s.emit(b))
     val cancel:      () => Unit = subscribe { a =>
       cancelInner()
       inner = f(a)
-      s.emit(inner.now())
+      s.emit(inner.value)
       cancelInner = inner.subscribe(b => s.emit(b))
     }
     Cleanup.register(() => { cancelInner(); cancel(); () })

@@ -23,14 +23,14 @@ object Bind:
   // ── Text bindings ──────────────────────────────────────────────────────
 
   def text(v: Var[?], parent: dom.Node): dom.Text =
-    val node = dom.document.createTextNode(v.now().toString)
+    val node = dom.document.createTextNode(v.value.toString)
     parent.appendChild(node)
     val cancel = v.subscribe(a => node.textContent = a.toString)
     Cleanup.register(cancel)
     node
 
   def text(signal: Signal[?], parent: dom.Node): dom.Text =
-    val node = dom.document.createTextNode(signal.now().toString)
+    val node = dom.document.createTextNode(signal.value.toString)
     parent.appendChild(node)
     val cancel = signal.subscribe(a => node.textContent = a.toString)
     Cleanup.register(cancel)
@@ -73,12 +73,12 @@ object Bind:
     )
 
   def attr(el: dom.Element, name: String, v: Var[?]): Unit =
-    el.setAttribute(name, v.now().toString)
+    el.setAttribute(name, v.value.toString)
     val cancel = v.subscribe(a => el.setAttribute(name, a.toString))
     Cleanup.register(cancel)
 
   def attr(el: dom.Element, name: String, signal: Signal[?]): Unit =
-    el.setAttribute(name, signal.now().toString)
+    el.setAttribute(name, signal.value.toString)
     val cancel = signal.subscribe(a => el.setAttribute(name, a.toString))
     Cleanup.register(cancel)
 
@@ -104,7 +104,7 @@ object Bind:
     def apply(v: Option[A]): Unit = v match
       case Some(a) => el.setAttribute(name, a.toString)
       case None    => el.removeAttribute(name)
-    apply(signal.now())
+    apply(signal.value)
     val cancel = signal.subscribe(apply)
     Cleanup.register(cancel)
 
@@ -116,7 +116,7 @@ object Bind:
   def booleanAttr(el: dom.Element, name: String, signal: Signal[Boolean]): Unit =
     def apply(b: Boolean): Unit =
       if b then el.setAttribute(name, "") else el.removeAttribute(name)
-    apply(signal.now())
+    apply(signal.value)
     val cancel = signal.subscribe(apply)
     Cleanup.register(cancel)
 
@@ -128,7 +128,7 @@ object Bind:
 
   /** Two-way string binding for `<input>`. */
   def inputValue(input: dom.html.Input, v: Var[String]): Unit =
-    input.value = v.now()
+    input.value = v.value
     val cancelSub = v.subscribe(s => if input.value != s then input.value = s)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(input.value)
     input.addEventListener("input", listener)
@@ -137,7 +137,7 @@ object Bind:
 
   /** Two-way Int binding for `<input type="number">`. */
   def inputInt(input: dom.html.Input, v: Var[Int]): Unit =
-    input.value = v.now().toString
+    input.value = v.value.toString
     val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toIntOption.foreach(v.set)
     input.addEventListener("input", listener)
@@ -146,7 +146,7 @@ object Bind:
 
   /** Two-way Double binding for `<input type="number">`. */
   def inputDouble(input: dom.html.Input, v: Var[Double]): Unit =
-    input.value = v.now().toString
+    input.value = v.value.toString
     val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toDoubleOption.foreach(v.set)
     input.addEventListener("input", listener)
@@ -155,7 +155,7 @@ object Bind:
 
   /** Two-way checkbox binding. */
   def inputChecked(input: dom.html.Input, v: Var[Boolean]): Unit =
-    input.checked = v.now()
+    input.checked = v.value
     val cancelSub = v.subscribe(b => if input.checked != b then input.checked = b)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(input.checked)
     input.addEventListener("change", listener)
@@ -164,7 +164,7 @@ object Bind:
 
   /** Two-way radio group binding. */
   def radioGroup(input: dom.html.Input, v: Var[String], value: String): Unit =
-    input.checked = v.now() == value
+    input.checked = v.value == value
     val cancelSub = v.subscribe(s => input.checked = s == value)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => if input.checked then v.set(value)
     input.addEventListener("change", listener)
@@ -173,10 +173,10 @@ object Bind:
 
   /** Two-way checkbox group binding (list of selected values). */
   def checkboxGroup(input: dom.html.Input, v: Var[List[String]], value: String): Unit =
-    input.checked = v.now().contains(value)
+    input.checked = v.value.contains(value)
     val cancelSub = v.subscribe(list => input.checked = list.contains(value))
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
-      if input.checked then { if !v.now().contains(value) then v.update(_ :+ value) }
+      if input.checked then { if !v.value.contains(value) then v.update(_ :+ value) }
       else v.update(_.filterNot(_ == value))
     input.addEventListener("change", listener)
     Cleanup.register(cancelSub)
@@ -184,7 +184,7 @@ object Bind:
 
   /** Two-way string binding for `<textarea>`. */
   def textareaValue(textarea: dom.html.TextArea, v: Var[String]): Unit =
-    var lastVarValue = v.now()
+    var lastVarValue = v.value
     textarea.value = lastVarValue
     val cancelSub = v.subscribe { s =>
       if lastVarValue != s then
@@ -215,7 +215,7 @@ object Bind:
       select.value                                   = s
       if select.value != s then select.selectedIndex = -1
 
-    applyValue(v.now())
+    applyValue(v.value)
 
     val cancelSub = v.subscribe(s => if select.value != s then applyValue(s))
 
@@ -224,7 +224,7 @@ object Bind:
         .foreach(el => v.set(el.asInstanceOf[dom.html.Option].value))
     select.addEventListener("change", listener)
 
-    val observer = new dom.MutationObserver((_, _) => applyValue(v.now()))
+    val observer = new dom.MutationObserver((_, _) => applyValue(v.value))
     observer.observe(
       select,
       scalajs.js.Dynamic
@@ -254,7 +254,7 @@ object Bind:
     def applyValue(vals: List[String]): Unit =
       options.foreach(opt => opt.selected = vals.contains(opt.value))
 
-    applyValue(v.now())
+    applyValue(v.value)
 
     val cancelSub = v.subscribe(applyValue)
 
@@ -267,7 +267,7 @@ object Bind:
       )
     select.addEventListener("change", listener)
 
-    val observer = new dom.MutationObserver((_, _) => applyValue(v.now()))
+    val observer = new dom.MutationObserver((_, _) => applyValue(v.value))
     observer.observe(
       select,
       scalajs.js.Dynamic
@@ -294,7 +294,7 @@ object Bind:
   def classToggle(el: dom.Element, className: String, signal: Signal[Boolean]): Unit =
     def apply(b: Boolean): Unit =
       if b then el.classList.add(className) else el.classList.remove(className)
-    apply(signal.now())
+    apply(signal.value)
     val cancel = signal.subscribe(apply)
     Cleanup.register(cancel)
 
@@ -304,12 +304,12 @@ object Bind:
   // ── Style binding (style:property={expr}) ──────────────────────────────
 
   def style(el: dom.Element, property: String, v: Var[?]): Unit =
-    el.asInstanceOf[dom.html.Element].style.setProperty(property, v.now().toString)
+    el.asInstanceOf[dom.html.Element].style.setProperty(property, v.value.toString)
     val cancel = v.subscribe(a => el.asInstanceOf[dom.html.Element].style.setProperty(property, a.toString))
     Cleanup.register(cancel)
 
   def style(el: dom.Element, property: String, signal: Signal[?]): Unit =
-    el.asInstanceOf[dom.html.Element].style.setProperty(property, signal.now().toString)
+    el.asInstanceOf[dom.html.Element].style.setProperty(property, signal.value.toString)
     val cancel =
       signal.subscribe(a => el.asInstanceOf[dom.html.Element].style.setProperty(property, a.toString))
     Cleanup.register(cancel)
@@ -336,7 +336,7 @@ object Bind:
     */
   def show(v: Var[?], render: Any => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
-    var current: dom.Node = render(v.now())
+    var current: dom.Node = render(v.value)
     parent.insertBefore(current, anchor)
     current match
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
@@ -372,7 +372,7 @@ object Bind:
     */
   def show(signal: Signal[?], render: Any => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
-    var current: dom.Node = render(signal.now())
+    var current: dom.Node = render(signal.value)
     parent.insertBefore(current, anchor)
     current match
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
@@ -442,7 +442,7 @@ object Bind:
         nodes += node
       }
 
-    rebuild(source.now())
+    rebuild(source.value)
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
@@ -464,7 +464,7 @@ object Bind:
         nodes += node
       }
 
-    rebuild(source.now())
+    rebuild(source.value)
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
@@ -515,7 +515,7 @@ object Bind:
         val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
         playAnimations(survivors, before)
 
-    rebuild(source.now())
+    rebuild(source.value)
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
@@ -557,7 +557,7 @@ object Bind:
         val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
         playAnimations(survivors, before)
 
-    rebuild(source.now())
+    rebuild(source.value)
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
@@ -630,12 +630,12 @@ object Bind:
     * }}}
     */
   def html(el: dom.Element, content: Var[TrustedHtml]): Unit =
-    el.innerHTML = content.now().value
+    el.innerHTML = content.value.value
     val cancel = content.subscribe(s => el.innerHTML = s.value)
     Cleanup.register(cancel)
 
   def html(el: dom.Element, content: Signal[TrustedHtml]): Unit =
-    el.innerHTML = content.now().value
+    el.innerHTML = content.value.value
     val cancel = content.subscribe(s => el.innerHTML = s.value)
     Cleanup.register(cancel)
 
@@ -653,7 +653,7 @@ object Bind:
   /** Applies an action with a reactive Var parameter. Re-applies on change. */
   def action[P](el: dom.Element, act: Action[P], param: Var[P]): Unit =
     val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
-    var prevCleanup: () => Unit = act(wrapped, param.now())
+    var prevCleanup: () => Unit = act(wrapped, param.value)
     val cancel = param.subscribe { p =>
       prevCleanup()
       prevCleanup = act(wrapped, p)
@@ -663,7 +663,7 @@ object Bind:
   /** Applies an action with a reactive Signal parameter. */
   def action[P](el: dom.Element, act: Action[P], param: Signal[P]): Unit =
     val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
-    var prevCleanup: () => Unit = act(wrapped, param.now())
+    var prevCleanup: () => Unit = act(wrapped, param.value)
     val cancel = param.subscribe { p =>
       prevCleanup()
       prevCleanup = act(wrapped, p)
@@ -707,7 +707,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementSignalNullable")
   def dynamicElement(
@@ -716,7 +716,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit = mountDynamicCore(
-    Option(tag.now()),
+    Option(tag.value),
     f => tag.subscribe(t => f(Option(t))),
     anchor,
     scopeId,
@@ -730,7 +730,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVar")
   def dynamicElement(
@@ -739,7 +739,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, htmlCreateElement)
 
   @scala.annotation.targetName("dynamicElementVarNullable")
   def dynamicElement(
@@ -748,7 +748,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit = mountDynamicCore(
-    Option(tag.now()),
+    Option(tag.value),
     f => tag.subscribe(t => f(Option(t))),
     anchor,
     scopeId,
@@ -762,7 +762,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, htmlCreateElement)
 
   // ── SVG overloads ────────────────────────────────────────────────────────
 
@@ -792,7 +792,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgSignalNullable")
   def dynamicElement(
@@ -801,7 +801,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
+    mountDynamicCore(Option(tag.value), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgSignalOption")
   def dynamicElement(
@@ -809,7 +809,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, svgCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgVar")
   def dynamicElement(
@@ -818,7 +818,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgVarNullable")
   def dynamicElement(
@@ -827,7 +827,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Option(tag.now()), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
+    mountDynamicCore(Option(tag.value), f => tag.subscribe(t => f(Option(t))), anchor, scopeId, setup, svgCreateElement)
 
   @scala.annotation.targetName("dynamicElementSvgVarOption")
   def dynamicElement(
@@ -835,7 +835,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, svgCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, svgCreateElement)
 
   // ── MathML overloads ────────────────────────────────────────────────────
 
@@ -865,7 +865,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
 
   @scala.annotation.targetName("dynamicElementMathSignalNullable")
   def dynamicElement(
@@ -874,7 +874,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit = mountDynamicCore(
-    Option(tag.now()),
+    Option(tag.value),
     f => tag.subscribe(t => f(Option(t))),
     anchor,
     scopeId,
@@ -888,7 +888,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, mathCreateElement)
 
   @scala.annotation.targetName("dynamicElementMathVar")
   def dynamicElement(
@@ -897,7 +897,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit =
-    mountDynamicCore(Some(tag.now()), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
+    mountDynamicCore(Some(tag.value), f => tag.subscribe(v => f(Some(v))), anchor, scopeId, setup, mathCreateElement)
 
   @scala.annotation.targetName("dynamicElementMathVarNullable")
   def dynamicElement(
@@ -906,7 +906,7 @@ object Bind:
     scopeId: String,
     setup:   dom.Element => Unit
   ): Unit = mountDynamicCore(
-    Option(tag.now()),
+    Option(tag.value),
     f => tag.subscribe(t => f(Option(t))),
     anchor,
     scopeId,
@@ -920,7 +920,7 @@ object Bind:
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
-  ): Unit = mountDynamicCore(tag.now(), tag.subscribe, anchor, scopeId, setup, mathCreateElement)
+  ): Unit = mountDynamicCore(tag.value, tag.subscribe, anchor, scopeId, setup, mathCreateElement)
 
   // ── Private helpers ──────────────────────────────────────────────────────
 

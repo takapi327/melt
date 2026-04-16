@@ -13,7 +13,7 @@ object Document:
 
   /** Reactively sets the document title from a Signal. */
   def title(t: Signal[String]): Unit =
-    dom.document.title = t.now()
+    dom.document.title = t.value
     val cancel = t.subscribe(s => dom.document.title = s)
     Cleanup.register(cancel)
 
