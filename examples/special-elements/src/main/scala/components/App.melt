@@ -28,19 +28,18 @@ def activeElementLabel(el: Option[dom.Element]): String =
 def selectedTextLabel(t: String): String =
   if t.isEmpty then "(none)" else s""""$t""""
 
-def handleVisibilityChange(e: dom.Event): Unit =
+def handleVisibilityChange(e: Event): Unit =
   val state = dom.document.visibilityState
   val label = if state == "visible" then "Tab became visible" else "Tab hidden"
   visibilityLog.update(log => s"[$state] $label" :: log.take(9))
 
-def handleSelectionChange(e: dom.Event): Unit =
+def handleSelectionChange(e: Event): Unit =
   val sel = dom.window.getSelection()
   if sel != null then selectedText.set(sel.toString)
 
 // ── Keyboard handler ────────────────────────────────────────────────────────
-// Window.on expects dom.Event => Unit; cast to KeyboardEvent inside
-def handleKeydown(e: dom.Event): Unit =
-  val ke = e.asInstanceOf[dom.KeyboardEvent]
+def handleKeydown(e: Event): Unit =
+  val ke = e.asInstanceOf[KeyboardEvent]
   if ke.key == "Escape" then
     shortcutLog.update(log => s"[Escape] scroll to top" :: log.take(9))
     dom.window.scrollTo(0, 0)
@@ -66,7 +65,7 @@ effect(scrollY) { y =>
 
 <!-- ── melt:window — window events & property bindings ───────────────────── -->
 <melt:window
-  onkeydown={(e: dom.Event) => handleKeydown(e)}
+  onkeydown={(e: Event) => handleKeydown(e)}
   bind:innerWidth={windowWidth}
   bind:innerHeight={windowHeight}
   bind:scrollY={scrollY}

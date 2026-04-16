@@ -471,7 +471,7 @@ object SsrCodeGen extends CodeGen:
             }
           case "class" =>
             expr.foreach { e =>
-              buf ++= s"""${ pad }if ($e) then renderer.push(" $name")\n"""
+              buf ++= s"""${ pad }if ($e.now()) then renderer.push(" $name")\n"""
             }
           case "style" =>
             expr.foreach { e =>

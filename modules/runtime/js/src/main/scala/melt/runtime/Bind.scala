@@ -646,24 +646,27 @@ object Bind:
 
   /** Applies an action to an element with a static parameter. */
   def action[P](el: dom.Element, act: Action[P], param: P): Unit =
-    val cleanup = act(el, param)
+    val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
+    val cleanup = act(wrapped, param)
     Cleanup.register(cleanup)
 
   /** Applies an action with a reactive Var parameter. Re-applies on change. */
   def action[P](el: dom.Element, act: Action[P], param: Var[P]): Unit =
-    var prevCleanup: () => Unit = act(el, param.now())
+    val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
+    var prevCleanup: () => Unit = act(wrapped, param.now())
     val cancel = param.subscribe { p =>
       prevCleanup()
-      prevCleanup = act(el, p)
+      prevCleanup = act(wrapped, p)
     }
     Cleanup.register(() => { prevCleanup(); cancel() })
 
   /** Applies an action with a reactive Signal parameter. */
   def action[P](el: dom.Element, act: Action[P], param: Signal[P]): Unit =
-    var prevCleanup: () => Unit = act(el, param.now())
+    val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
+    var prevCleanup: () => Unit = act(wrapped, param.now())
     val cancel = param.subscribe { p =>
       prevCleanup()
-      prevCleanup = act(el, p)
+      prevCleanup = act(wrapped, p)
     }
     Cleanup.register(() => { prevCleanup(); cancel() })
 
