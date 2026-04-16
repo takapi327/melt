@@ -28,12 +28,12 @@ def activeElementLabel(el: Option[dom.Element]): String =
 def selectedTextLabel(t: String): String =
   if t.isEmpty then "(none)" else s""""$t""""
 
-def handleVisibilityChange(e: dom.Event): Unit =
+def handleVisibilityChange(e: Event): Unit =
   val state = dom.document.visibilityState
   val label = if state == "visible" then "Tab became visible" else "Tab hidden"
   visibilityLog.update(log => s"[$state] $label" :: log.take(9))
 
-def handleSelectionChange(e: dom.Event): Unit =
+def handleSelectionChange(e: Event): Unit =
   val sel = dom.window.getSelection()
   if sel != null then selectedText.set(sel.toString)
 

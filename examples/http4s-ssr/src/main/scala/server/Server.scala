@@ -26,7 +26,7 @@ import org.http4s.server.Router
   * Renders initial HTML on the JVM via shared Melt components, then the
   * client hydrates for interactivity. Uses the same components as http4s-spa.
   *
-  * {{{ sbt "~http4s-ssr-server/reStart" }}}
+  * {{{ sbt "~http4s-ssr/reStart" }}}
   */
 object Server extends IOApp.Simple:
 
@@ -49,32 +49,28 @@ object Server extends IOApp.Simple:
   private def routes(todoStore: Ref[IO, List[Todo]]): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
 
-      // ── SSR pages ─────────────────────────────────────────────────────
+      // ── SSR pages (all rendered via App component) ─────────────────
 
       case GET -> Root =>
         for
           items <- todoStore.get
-          html = renderWithHydration(
-                   TodoPage(TodoPage.Props(items = items)),
-                   title = "Todos · Melt SSR"
-                 )
+          html = renderApp(items, tab = "todos")
           resp <- Ok(html, htmlContentType)
         yield resp
 
       case GET -> Root / "counter" =>
-        Ok(
-          renderWithHydration(CounterPage(), title = "Counter · Melt SSR"),
-          htmlContentType
-        )
+        for
+          items <- todoStore.get
+          html = renderApp(items, tab = "counter")
+          resp <- Ok(html, htmlContentType)
+        yield resp
 
       case GET -> Root / "users" =>
-        Ok(
-          renderWithHydration(
-            UserPage(UserPage.Props(items = users)),
-            title = "Users · Melt SSR"
-          ),
-          htmlContentType
-        )
+        for
+          items <- todoStore.get
+          html = renderApp(items, tab = "users")
+          resp <- Ok(html, htmlContentType)
+        yield resp
 
       // ── Todo API ──────────────────────────────────────────────────────
 
@@ -110,7 +106,17 @@ object Server extends IOApp.Simple:
         Ok(users.map(userToJson).mkString("[", ",", "]"), jsonContentType)
     }
 
-  private def renderWithHydration(result: melt.runtime.ssr.RenderResult, title: String): String =
+  private def renderApp(todos: List[Todo], tab: String): String =
+    val title = tab match
+      case "todos"   => "Todos · Melt"
+      case "counter" => "Counter · Melt"
+      case "users"   => "Users · Melt"
+      case _         => "Melt"
+    val result = App(App.Props(
+      initialTodos = todos,
+      initialUsers = users,
+      initialTab   = tab
+    ))
     template.render(
       result,
       AssetManifest.manifest,

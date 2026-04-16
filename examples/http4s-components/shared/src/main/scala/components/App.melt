@@ -1,17 +1,23 @@
-<script lang="scala">
-val activeTab = Var("todos")
-val loaded    = Var(false)
-val todos     = Var(List.empty[Todo])
-val users     = Var(List.empty[User])
+<script lang="scala" props="Props">
+  case class Props(
+    initialTodos: List[Todo] = Nil,
+    initialUsers: List[User] = Nil,
+    initialTab:   String     = "todos"
+  )
 
-Document.title(activeTab.map {
-  case "todos"   => "Todos · Melt SPA"
-  case "counter" => "Counter · Melt SPA"
-  case "users"   => "Users · Melt SPA"
-  case _         => "Melt SPA"
-})
+  val activeTab = Var(props.initialTab)
+  val loaded    = Var(props.initialTodos.nonEmpty || props.initialUsers.nonEmpty)
+  val todos     = Var(props.initialTodos)
+  val users     = Var(props.initialUsers)
 
-Api.fetchAll(todos, users, loaded)
+  Document.title(activeTab.map {
+    case "todos"   => "Todos · Melt"
+    case "counter" => "Counter · Melt"
+    case "users"   => "Users · Melt"
+    case _         => "Melt"
+  })
+
+  if !loaded.now() then Api.fetchAll(todos, users, loaded)
 </script>
 
 <div class="app">

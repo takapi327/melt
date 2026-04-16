@@ -11,4 +11,4 @@ import components.App
 object Main:
   def main(args: Array[String]): Unit =
     val target = dom.document.getElementById("app")
-    App.mount(target)
+    App.mount(target, App.Props())
