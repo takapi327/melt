@@ -18,7 +18,7 @@ import melt.runtime.impl.SignalFactory
 trait Signal[A]:
 
   /** Returns the current value. */
-  def now(): A
+  def value: A
 
   /** Subscribes to future value changes. Returns an unsubscribe function. */
   def subscribe(f: A => Unit): () => Unit
@@ -51,3 +51,13 @@ trait Signal[A]:
 object Signal:
   /** Returns a frozen signal always holding `value`. */
   def pure[A](value: A): Signal[A] = SignalFactory.pure(value)
+
+  /** Implicit conversion that allows a `Signal[A]` to be used directly as an
+    * `A`. Equivalent to calling `.value`.
+    *
+    * {{{
+    * val count: Signal[Int] = ???
+    * val doubled: Int = count * 2   // no .now() needed
+    * }}}
+    */
+  given [A]: Conversion[Signal[A], A] = _.value

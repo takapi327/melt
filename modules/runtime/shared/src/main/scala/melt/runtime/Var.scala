@@ -29,7 +29,7 @@ import melt.runtime.impl.VarFactory
   * {{{
   * val count   = Var(0)         // JVM → JvmVar; JS → JsVar
   * val doubled = count.map(_ * 2)
-  * count += 1                   // JS: doubled.now() == 2; JVM: still 0 (no-op)
+  * count += 1                   // JS: doubled.value == 2; JVM: still 0 (no-op)
   * }}}
   *
   * == Design note: trait + companion placement ==
@@ -44,7 +44,7 @@ import melt.runtime.impl.VarFactory
 trait Var[A]:
 
   /** Returns the current value without registering a reactive dependency. */
-  def now(): A
+  def value: A
 
   /** Replaces the current value and notifies all subscribers (JS only;
     * no-op on JVM).
@@ -94,3 +94,13 @@ trait Var[A]:
   */
 object Var:
   def apply[A](initial: A): Var[A] = VarFactory.create(initial)
+
+  /** Implicit conversion that allows a `Var[A]` to be used directly as an
+    * `A`. Equivalent to calling `.value`.
+    *
+    * {{{
+    * val count = Var(0)
+    * val doubled: Int = count * 2   // no .now() needed
+    * }}}
+    */
+  given [A]: Conversion[Var[A], A] = _.value
