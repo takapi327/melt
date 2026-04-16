@@ -112,11 +112,13 @@ object Server extends IOApp.Simple:
       case "counter" => "Counter · Melt"
       case "users"   => "Users · Melt"
       case _         => "Melt"
-    val result = App(App.Props(
-      initialTodos = todos,
-      initialUsers = users,
-      initialTab   = tab
-    ))
+    val result = App(
+      App.Props(
+        initialTodos = todos,
+        initialUsers = users,
+        initialTab   = tab
+      )
+    )
     template.render(
       result,
       AssetManifest.manifest,

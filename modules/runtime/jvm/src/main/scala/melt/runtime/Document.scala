@@ -11,11 +11,11 @@ package melt.runtime
   * SSR has no live document — title and event listeners are silently ignored.
   */
 object Document:
-  def title(t:  Signal[String]):                                  Unit = ()
-  def title(t:  Var[String]):                                     Unit = ()
-  def title(t:  String):                                          Unit = ()
-  def on(event: String)(handler: melt.runtime.dom.Event => Unit): Unit = ()
-  def bindVisibilityState(v:    Var[String]):                                   Unit = ()
-  def bindFullscreenElement(v:  Var[Option[melt.runtime.dom.Element]]):         Unit = ()
-  def bindPointerLockElement(v: Var[Option[melt.runtime.dom.Element]]):        Unit = ()
-  def bindActiveElement(v:      Var[Option[melt.runtime.dom.Element]]):         Unit = ()
+  def title(t:                  Signal[String]):                                  Unit = ()
+  def title(t:                  Var[String]):                                     Unit = ()
+  def title(t:                  String):                                          Unit = ()
+  def on(event:                 String)(handler: melt.runtime.dom.Event => Unit): Unit = ()
+  def bindVisibilityState(v:    Var[String]):                                     Unit = ()
+  def bindFullscreenElement(v:  Var[Option[melt.runtime.dom.Element]]):           Unit = ()
+  def bindPointerLockElement(v: Var[Option[melt.runtime.dom.Element]]):           Unit = ()
+  def bindActiveElement(v:      Var[Option[melt.runtime.dom.Element]]):           Unit = ()
