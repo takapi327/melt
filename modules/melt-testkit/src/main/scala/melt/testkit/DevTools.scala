@@ -75,7 +75,7 @@ object DevTools:
     *
     * {{{
     * val count = Var(0)
-    * DevTools.trackSignal("count", count.now().toString)
+    * DevTools.trackSignal("count", count.value.toString)
     * }}}
     */
   def trackSignal(label: String, description: String): Unit =
