@@ -7,7 +7,7 @@
   <h2>Users</h2>
 
   <div class="user-grid">
-    {users.now().map((u: User) =>
+    {users.value.map((u: User) =>
       <div class="user-card">
         <div class="avatar">{u.name.take(1)}</div>
         <div class="info">

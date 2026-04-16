@@ -32,7 +32,7 @@ effect(messages) { msgs =>
 
 // ── Input helpers ───────────────────────────────────────────────────────────
 def send(): Unit =
-  val text = input.now().trim
+  val text = input.value.trim
   if text.nonEmpty then
     messages.append(text)
     input.set("")

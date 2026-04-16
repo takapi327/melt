@@ -5,7 +5,7 @@ val text = Var("")
 
 <div class="todo-input">
   <input bind:value={text} placeholder="What needs to be done?" />
-  <button onclick={_ => { if text.now().nonEmpty then { props.onAdd(text.now()); text.set("") } }}>Add</button>
+  <button onclick={_ => { if text.value.nonEmpty then { props.onAdd(text.value); text.set("") } }}>Add</button>
 </div>
 
 <style>

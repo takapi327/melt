@@ -59,9 +59,9 @@ val svgFill:  Var[String] = Var("#ff3e00")
       </div>
 
       <div class="btn-row">
-        <button onclick={_ => if level.now() > 1 then level.update(_ - 1)}>↑ Shallower</button>
+        <button onclick={_ => if level.value > 1 then level.update(_ - 1)}>↑ Shallower</button>
         <code class="level-badge">h{level}</code>
-        <button onclick={_ => if level.now() < 6 then level.update(_ + 1)}>↓ Deeper</button>
+        <button onclick={_ => if level.value < 6 then level.update(_ + 1)}>↓ Deeper</button>
       </div>
 
       <p class="code-note hint">
@@ -88,7 +88,7 @@ val svgFill:  Var[String] = Var("#ff3e00")
 
       <div class="btn-row">
         <button onclick={_ =>
-          if wrapperTag.now().isDefined then wrapperTag.set(None)
+          if wrapperTag.value.isDefined then wrapperTag.set(None)
           else wrapperTag.set(Some[HtmlTag]("section"))
         }>
           {wrapperTag.map(opt => if opt.isDefined then "Hide (→ None)" else "Show (→ Some(\"section\"))")}

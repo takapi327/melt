@@ -19,11 +19,11 @@
 
   <div class="add-form">
     <input bind:value={newText} placeholder="What needs to be done?" />
-    <button class="btn-add" onclick={_ => { val text = newText.now().trim; if text.nonEmpty then { newText.set(""); Api.addTodo(text, todos) } }}>Add</button>
+    <button class="btn-add" onclick={_ => { val text = newText.value.trim; if text.nonEmpty then { newText.set(""); Api.addTodo(text, todos) } }}>Add</button>
   </div>
 
   <ul>
-    {todos.now().map((t: Todo) =>
+    {todos.value.map((t: Todo) =>
       <li class:done={t.done}>
         <button class="toggle" onclick={_ => { toggleTodo(t.id); Api.toggleTodo(t.id) }}>
           {if t.done then "✓" else "○"}
