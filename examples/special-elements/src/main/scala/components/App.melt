@@ -165,7 +165,7 @@ effect(scrollY) { y =>
         <code>window</code> in Firefox.
       </p>
       <div class="body-status">
-        {if bodyHovered.value then
+        {if bodyHovered then
           <div class="status-badge on">Cursor is inside the page</div>
         else
           <div class="status-badge off">Cursor has left the page</div>}

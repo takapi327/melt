@@ -17,7 +17,7 @@
     case _         => "Melt"
   })
 
-  if !loaded.value then Api.fetchAll(todos, users, loaded)
+  if !loaded then Api.fetchAll(todos, users, loaded)
 </script>
 
 <div class="app">
@@ -30,7 +30,7 @@
     </nav>
   </header>
   <main>
-    {if loaded.value then
+    {if loaded then
       <div>
         {if activeTab.value == "todos" then
           <TodoPage items={todos.value} />

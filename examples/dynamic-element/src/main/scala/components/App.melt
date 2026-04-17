@@ -59,9 +59,9 @@ val svgFill:  Var[String] = Var("#ff3e00")
       </div>
 
       <div class="btn-row">
-        <button onclick={_ => if level.value > 1 then level.update(_ - 1)}>↑ Shallower</button>
+        <button onclick={_ => if level > 1 then level.update(_ - 1)}>↑ Shallower</button>
         <code class="level-badge">h{level}</code>
-        <button onclick={_ => if level.value < 6 then level.update(_ + 1)}>↓ Deeper</button>
+        <button onclick={_ => if level < 6 then level.update(_ + 1)}>↓ Deeper</button>
       </div>
 
       <p class="code-note hint">

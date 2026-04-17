@@ -112,7 +112,7 @@ def shuffle2(): Unit =
       <button onclick={_ => showEvents.update(!_)}>Toggle</button>
       <span class="status">Event: {eventStatus}</span>
     </div>
-    {if showEvents.value then
+    {if showEvents then
       <div
         transition:fade={TransitionParams(duration = 500)}
         onintrostart={_ => eventStatus.set("introstart")}
@@ -138,10 +138,10 @@ def shuffle2(): Unit =
       <button onclick={_ => outerVisible.update(!_)}>Toggle Outer</button>
       <button onclick={_ => innerVisible.update(!_)}>Toggle Inner</button>
     </div>
-    {if outerVisible.value then
+    {if outerVisible then
       <div class="nested-outer">
         <b>Outer is visible</b>
-        {if innerVisible.value then
+        {if innerVisible then
           <div transition:fade|global class="box global-box">
             I have <code>transition:fade|global</code> — I animate when Outer toggles too!
           </div>
@@ -164,16 +164,16 @@ def shuffle2(): Unit =
       <button onclick={_ => showFade.update(!_)}>Toggle all</button>
     </div>
     <div class="easing-row">
-      {if showFade.value then
+      {if showFade then
         <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.backInOut)} class="ebox">backInOut</div>
       else <div></div>}
-      {if showFade.value then
+      {if showFade then
         <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.expoOut)} class="ebox">expoOut</div>
       else <div></div>}
-      {if showFade.value then
+      {if showFade then
         <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.elasticOut)} class="ebox">elasticOut</div>
       else <div></div>}
-      {if showFade.value then
+      {if showFade then
         <div transition:fly={TransitionParams(y = 40, duration = 600, easing = Easing.bounceOut)} class="ebox">bounceOut</div>
       else <div></div>}
     </div>
@@ -189,17 +189,17 @@ def shuffle2(): Unit =
       <button onclick={_ => showFlyOp.update(!_)}>Toggle</button>
     </div>
     <div class="row">
-      {if showFlyOp.value then
+      {if showFlyOp then
         <div transition:fly={TransitionParams(y = 60, opacity = 0.5, duration = 500)} class="box fly-box">
           fly: opacity=0.5
         </div>
       else <div></div>}
-      {if showFlyOp.value then
+      {if showFlyOp then
         <div transition:blur={TransitionParams(amount = 8, opacity = 0.3, duration = 500)} class="box blur-box">
           blur: opacity=0.3
         </div>
       else <div></div>}
-      {if showFlyOp.value then
+      {if showFlyOp then
         <div transition:scale={TransitionParams(start = 0.5, opacity = 0.4, duration = 500)} class="box scale-box">
           scale: opacity=0.4
         </div>
@@ -215,10 +215,10 @@ def shuffle2(): Unit =
       <button onclick={_ => showSlideX.update(!_)}>Toggle X</button>
     </div>
     <div class="row">
-      {if showSlideY.value then
+      {if showSlideY then
         <div transition:slide class="box slide-box">slide (axis=y, default)</div>
       else <div></div>}
-      {if showSlideX.value then
+      {if showSlideX then
         <div transition:slide={TransitionParams(axis = "x", duration = 400)} class="box slide-box-x">slide (axis=x)</div>
       else <div></div>}
     </div>
@@ -236,7 +236,7 @@ def shuffle2(): Unit =
       <div>
         <p class="draw-label">duration = 800ms (fixed) — both finish at the same time</p>
         <button onclick={_ => showDraw.update(!_)}>Toggle</button>
-        {if showDraw.value then
+        {if showDraw then
           <svg class="draw-svg" viewBox="0 0 300 110">
             <text x="10" y="25" font-size="11" fill="#888">short path</text>
             <path transition:draw={TransitionParams(duration = 800, easing = Easing.linear)}
@@ -252,7 +252,7 @@ def shuffle2(): Unit =
       <div>
         <p class="draw-label">speed = Some(0.5) (auto) — drawing speed stays consistent</p>
         <button onclick={_ => showDrawSpeed.update(!_)}>Toggle</button>
-        {if showDrawSpeed.value then
+        {if showDrawSpeed then
           <svg class="draw-svg" viewBox="0 0 300 110">
             <text x="10" y="25" font-size="11" fill="#888">short path (~160ms)</text>
             <path transition:draw={TransitionParams(speed = Some(0.5), easing = Easing.linear)}
@@ -278,7 +278,7 @@ def shuffle2(): Unit =
     <div class="controls">
       <button onclick={_ => showReversal.update(!_)}>Toggle rapidly!</button>
     </div>
-    {if showReversal.value then
+    {if showReversal then
       <div transition:fly={TransitionParams(y = 80, duration = 800)} class="box reversal-box">
         Toggle me fast to see smooth reversal
       </div>
@@ -334,7 +334,7 @@ def shuffle2(): Unit =
     <div class="controls">
       <button onclick={_ => showFly.update(!_)}>Toggle</button>
     </div>
-    {if showFly.value then
+    {if showFly then
       <div transition:fly={TransitionParams(y = 60, duration = 600)} class="box fly-box">
         This animates — unless you have reduced motion enabled!
       </div>
@@ -345,7 +345,7 @@ def shuffle2(): Unit =
   <section class="demo">
     <h2>transition:fade</h2>
     <button onclick={_ => showFade.update(!_)}>Toggle</button>
-    {if showFade.value then
+    {if showFade then
       <div transition:fade class="box fade-box">Fade in / out</div>
     else <div></div>}
   </section>
@@ -353,7 +353,7 @@ def shuffle2(): Unit =
   <section class="demo">
     <h2>transition:scale (start=0.3)</h2>
     <button onclick={_ => showScale.update(!_)}>Toggle</button>
-    {if showScale.value then
+    {if showScale then
       <div transition:scale={TransitionParams(start = 0.3, duration = 400)} class="box scale-box">Scale in / out</div>
     else <div></div>}
   </section>
@@ -362,7 +362,7 @@ def shuffle2(): Unit =
   <section class="demo">
     <h2>in:fly out:fade</h2>
     <button onclick={_ => showMixed.update(!_)}>Toggle</button>
-    {if showMixed.value then
+    {if showMixed then
       <div in:fly={TransitionParams(x = -120, duration = 400)} out:fade={TransitionParams(duration = 300)} class="box mixed-box">
         Flies in from left, fades out
       </div>

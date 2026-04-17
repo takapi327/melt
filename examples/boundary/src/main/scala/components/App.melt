@@ -52,7 +52,7 @@ val asyncKey = Var(0) // increment to re-mount the async panel
         When it settles, the pending UI is swapped for the real content.
       </p>
 
-      {if asyncKey.value >= 0 then <AsyncRows /> else <span></span>}
+      {if asyncKey >= 0 then <AsyncRows /> else <span></span>}
 
       <div class="btn-row">
         <button class="btn" onclick={_ => asyncKey.update(_ + 1)}>Reload</button>
