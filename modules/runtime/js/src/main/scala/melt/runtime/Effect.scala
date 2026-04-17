@@ -30,7 +30,7 @@ def effect[A](dep: Var[A])(f: A => Unit): Unit =
     val (_, node) = Owner.withNew { f(value) }
     innerNode = Some(node)
 
-  run(dep.now())
+  run(dep.value)
   val cancel = dep.subscribePost(run)
   Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
 
@@ -42,7 +42,7 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
     val (_, node) = Owner.withNew { f(value) }
     innerNode = Some(node)
 
-  run(dep.now())
+  run(dep.value)
   val cancel = dep.subscribePost(run)
   Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
 
@@ -56,7 +56,7 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
 
   def run(): Unit =
     innerNode.foreach(_.destroy())
-    val (_, node) = Owner.withNew { f(depA.now(), depB.now()) }
+    val (_, node) = Owner.withNew { f(depA.value, depB.value) }
     innerNode = Some(node)
 
   lazy val scheduleRun: () => Unit = () => run()
@@ -112,11 +112,11 @@ def layoutEffect[A](dep: Signal[A])(f: A => Unit): Unit =
   * Uses a scheduled run pattern to run at most once per `batch`.
   */
 def layoutEffect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
-  lazy val scheduleRun: () => Unit = () => f(depA.now(), depB.now())
+  lazy val scheduleRun: () => Unit = () => f(depA.value, depB.value)
 
   def trigger(): Unit =
     if Batch.isBatching || Batch.isFlushing then Batch.enqueue(scheduleRun)
-    else f(depA.now(), depB.now())
+    else f(depA.value, depB.value)
 
   val cancelA = depA.subscribePre(_ => trigger())
   val cancelB = depB.subscribePre(_ => trigger())

@@ -30,7 +30,7 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
   private val _bind = mutable.ListBuffer.empty[A => Unit]
   private val _post = mutable.ListBuffer.empty[A => Unit]
 
-  def now(): A = _current
+  def value: A = _current
 
   def subscribe(f: A => Unit): () => Unit =
     _bind += f
@@ -52,12 +52,12 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
 
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner   = f(_current)
-    val derived = JsSignal.create[B](inner.now())
+    val derived = JsSignal.create[B](inner.value)
     var cancelInner: () => Unit = inner.subscribe(b => derived.emit(b))
     val cancelOuter = subscribe { a =>
       cancelInner()
       inner = f(a)
-      derived.emit(inner.now())
+      derived.emit(inner.value)
       cancelInner = inner.subscribe(b => derived.emit(b))
     }
     Cleanup.register(() => { cancelInner(); cancelOuter(); () })

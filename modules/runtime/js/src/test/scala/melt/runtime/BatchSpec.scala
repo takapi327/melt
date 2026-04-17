@@ -27,7 +27,7 @@ class BatchSpec extends munit.FunSuite:
     val v = Var(0)
     batch {
       v.set(42)
-      assertEquals(v.now(), 42)
+      assertEquals(v.value, 42)
     }
   }
 
@@ -65,7 +65,7 @@ class BatchSpec extends munit.FunSuite:
     }
     assertEquals(updates, 1, "should notify only once")
     assertEquals(lastVal, 4, "should notify with final value")
-    assertEquals(a.now(), 4)
+    assertEquals(a.value, 4)
   }
 
   test("derived signal sees final value after batch") {
@@ -77,6 +77,6 @@ class BatchSpec extends munit.FunSuite:
       a.set(3)
       a.set(4)
     }
-    assertEquals(doubled.now(), 8)
+    assertEquals(doubled.value, 8)
     Cleanup.popScope()
   }

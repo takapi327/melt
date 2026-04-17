@@ -17,7 +17,7 @@
     case _         => "Melt"
   })
 
-  if !loaded.now() then Api.fetchAll(todos, users, loaded)
+  if !loaded then Api.fetchAll(todos, users, loaded)
 </script>
 
 <div class="app">
@@ -30,14 +30,14 @@
     </nav>
   </header>
   <main>
-    {if loaded.now() then
+    {if loaded then
       <div>
-        {if activeTab.now() == "todos" then
-          <TodoPage items={todos.now()} />
-        else if activeTab.now() == "counter" then
+        {if activeTab.value == "todos" then
+          <TodoPage items={todos.value} />
+        else if activeTab.value == "counter" then
           <CounterPage />
-        else if activeTab.now() == "users" then
-          <UserPage items={users.now()} />
+        else if activeTab.value == "users" then
+          <UserPage items={users.value} />
         else
           <p>Not found</p>
         }

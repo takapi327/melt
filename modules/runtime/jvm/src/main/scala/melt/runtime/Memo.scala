@@ -12,6 +12,6 @@ trait Memo[A] extends Signal[A]
 /** JVM no-op `memo`. Computes exactly once against the initial value and
   * returns a frozen [[Signal]].
   */
-def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] = Signal.pure(f(dep.now()))
+def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] = Signal.pure(f(dep.value))
 
-def memo[A, B](dep: Var[A])(f: A => B): Signal[B] = Signal.pure(f(dep.now()))
+def memo[A, B](dep: Var[A])(f: A => B): Signal[B] = Signal.pure(f(dep.value))

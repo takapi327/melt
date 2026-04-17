@@ -8,9 +8,9 @@ package melt.runtime
 
 /** Reads a reactive value without registering a dependency.
   * Since Melt uses explicit dependency specification (not auto-tracking),
-  * this is equivalent to calling `.now()`. Provided for API compatibility
+  * this is equivalent to calling `.value`. Provided for API compatibility
   * with frameworks that use automatic dependency tracking.
   */
-def untrack[A](v: Var[A]):    A = v.now()
-def untrack[A](s: Signal[A]): A = s.now()
+def untrack[A](v: Var[A]):    A = v.value
+def untrack[A](s: Signal[A]): A = s.value
 def untrack[A](f: => A):      A = f

@@ -24,7 +24,7 @@ private[runtime] object VarFactory:
   * that could ever mutate the value.
   */
 private final class JvmVar[A](initial: A) extends Var[A]:
-  def now():                   A          = initial
+  def value:                   A          = initial
   def set(value:   A):         Unit       = ()
   def update(f:    A => A):    Unit       = ()
   def subscribe(f: A => Unit): () => Unit = () => ()

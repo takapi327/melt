@@ -17,11 +17,11 @@ class MemoSpec extends munit.FunSuite:
 
     v.set(2) // still even — no propagation
     assertEquals(updates, 0)
-    assertEquals(isEven.now(), true)
+    assertEquals(isEven.value, true)
 
     v.set(3) // now odd — propagation
     assertEquals(updates, 1)
-    assertEquals(isEven.now(), false)
+    assertEquals(isEven.value, false)
 
     v.set(5) // still odd — no propagation
     assertEquals(updates, 1)
@@ -32,12 +32,12 @@ class MemoSpec extends munit.FunSuite:
     Cleanup.pushScope()
     val v       = Var(1)
     val clamped = memo(v)(n => Math.min(n, 10))
-    assertEquals(clamped.now(), 1)
+    assertEquals(clamped.value, 1)
     v.set(5)
-    assertEquals(clamped.now(), 5)
+    assertEquals(clamped.value, 5)
     v.set(15)
-    assertEquals(clamped.now(), 10)
+    assertEquals(clamped.value, 10)
     v.set(20)
-    assertEquals(clamped.now(), 10) // unchanged — no downstream propagation
+    assertEquals(clamped.value, 10) // unchanged — no downstream propagation
     Cleanup.popScope()
   }

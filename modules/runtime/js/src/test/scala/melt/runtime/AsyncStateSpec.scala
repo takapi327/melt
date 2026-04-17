@@ -15,9 +15,9 @@ class AsyncStateSpec extends munit.FunSuite:
   test("AsyncState.create starts in loading state") {
     Cleanup.pushScope()
     val state = AsyncState.create[Future, List[String]](Future.successful(List("Alice", "Bob")))
-    val isLoading: Boolean = state.loading.now()
+    val isLoading: Boolean = state.loading.value
     assert(isLoading, "should be loading initially")
-    val v: Option[List[String]] = state.value.now()
+    val v: Option[List[String]] = state.value.value
     assertEquals(v, None)
     Cleanup.popScope()
   }
@@ -25,7 +25,7 @@ class AsyncStateSpec extends munit.FunSuite:
   test("AsyncState.create on failure starts loading") {
     Cleanup.pushScope()
     val state = AsyncState.create[Future, String](Future.failed[String](new RuntimeException("fail")))
-    val isLoading: Boolean = state.loading.now()
+    val isLoading: Boolean = state.loading.value
     assert(isLoading, "should be loading initially")
     Cleanup.popScope()
   }
@@ -33,11 +33,11 @@ class AsyncStateSpec extends munit.FunSuite:
   test("AsyncState setSuccess updates value and clears loading") {
     val state = new AsyncState[String]
     state.setLoading()
-    assert(state.loading.now(), "should be loading")
+    assert(state.loading.value, "should be loading")
     state.setSuccess("done")
-    assert(!state.loading.now(), "should not be loading after success")
-    assertEquals(state.value.now(), Some("done"))
-    assertEquals(state.error.now(), None)
+    assert(!state.loading.value, "should not be loading after success")
+    assertEquals(state.value.value, Some("done"))
+    assertEquals(state.error.value, None)
   }
 
   test("AsyncState setFailure updates error and clears loading") {
@@ -45,16 +45,16 @@ class AsyncStateSpec extends munit.FunSuite:
     state.setLoading()
     val err = new RuntimeException("boom")
     state.setFailure(err)
-    assert(!state.loading.now(), "should not be loading after failure")
-    assertEquals(state.value.now(), None)
-    assertEquals(state.error.now(), Some(err))
+    assert(!state.loading.value, "should not be loading after failure")
+    assertEquals(state.value.value, None)
+    assertEquals(state.error.value, Some(err))
   }
 
   test("AsyncState.derived creates state from Var dependency") {
     Cleanup.pushScope()
     val userId = Var(1)
     val user   = AsyncState.derived[Future, Int, String](userId)(id => Future.successful(s"User-$id"))
-    val isLoading: Boolean = user.loading.now()
+    val isLoading: Boolean = user.loading.value
     assert(isLoading, "should be loading initially")
     Cleanup.popScope()
   }

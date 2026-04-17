@@ -94,13 +94,13 @@ class TypeSafetySpec extends MeltSuite:
     val cleanups = Cleanup.popScope()
 
     count.set(5)
-    assertEquals(doubled.now(), 10)
+    assertEquals(doubled.value, 10)
 
     // After runAll cleanups the subscription should be released
     Cleanup.runAll(cleanups)
     count.set(99)
     // After cleanup, doubled should no longer track count changes
-    assertEquals(doubled.now(), 10, "after cleanup, derived signal should not update")
+    assertEquals(doubled.value, 10, "after cleanup, derived signal should not update")
   }
 
   // ── SAFE: Var[A] type safety ───────────────────────────────────────────
@@ -108,7 +108,7 @@ class TypeSafetySpec extends MeltSuite:
   test("SAFE: Var[A].set only accepts values of type A") {
     val count: Var[Int] = Var(0)
     count.set(42)
-    assertEquals(count.now(), 42)
+    assertEquals(count.value, 42)
     // count.set("hello")   // compile error — correctly rejected
     // count.set(3.14)      // compile error — correctly rejected
   }
@@ -116,7 +116,7 @@ class TypeSafetySpec extends MeltSuite:
   test("SAFE: Var[A].update preserves type") {
     val name: Var[String] = Var("Alice")
     name.update(_.toUpperCase)
-    assertEquals(name.now(), "ALICE")
+    assertEquals(name.value, "ALICE")
     // name.update(_ + 1)   // compile error — Int arithmetic on String
   }
 
@@ -125,9 +125,9 @@ class TypeSafetySpec extends MeltSuite:
     val count   = Var(0)
     val doubled = count.map(_ * 2) // Signal[Int]
     count.set(3)
-    assertEquals(doubled.now(), 6)
+    assertEquals(doubled.value, 6)
     Cleanup.popScope()
-    // doubled.now() is Int — type-safe, not Any
+    // doubled.value is Int — type-safe, not Any
   }
 
   test("SAFE: Signal[A].map produces Signal[B] with correct type") {
@@ -135,7 +135,7 @@ class TypeSafetySpec extends MeltSuite:
     val count = Var(0)
     val label: Signal[String] = count.signal.map(n => s"Count: $n")
     count.set(7)
-    assertEquals(label.now(), "Count: 7")
+    assertEquals(label.value, "Count: 7")
     Cleanup.popScope()
   }
 
@@ -249,20 +249,20 @@ class TypeSafetySpec extends MeltSuite:
 
   /** SAFE: Bind.text(value: Any) is now Bind.text(value: String).
     *
-    * Previously Any was accepted so Bind.text(count.now()) where count is
+    * Previously Any was accepted so Bind.text(count.value) where count is
     * Var[Int] silently selected the static overload — the DOM never updated.
-    * Now the static overload only accepts String, so non-String .now() calls
+    * Now the static overload only accepts String, so non-String .value calls
     * are rejected at compile time.
     *
     * {{{
     * val count = Var(0)
-    * Bind.text(count.now(), parent)   // compile error — Int does not conform to String
+    * Bind.text(count.value, parent)   // compile error — Int does not conform to String
     * }}}
     *
-    * RISK: Var[String].now() still returns String, so Bind.text(label.now(), parent)
+    * RISK: Var[String].value still returns String, so Bind.text(label.value, parent)
     * compiles but is silently static. This is a residual risk for String Vars.
     */
-  test("SAFE: Bind.text with non-String .now() is now a compile error") {
+  test("SAFE: Bind.text with non-String .value is now a compile error") {
     val parent = containerEl()
     val count  = Var(0)
 
@@ -273,23 +273,23 @@ class TypeSafetySpec extends MeltSuite:
 
     count.set(99)
     assertEquals(parent.textContent, "99", "reactive binding should reflect new value")
-    // count.now() returns Int — now rejected at compile time:
-    // Bind.text(count.now(), parent)   // compile error — Int does not conform to String
+    // count.value returns Int — now rejected at compile time:
+    // Bind.text(count.value, parent)   // compile error — Int does not conform to String
   }
 
-  test("RISK: Bind.text(String) with Var[String].now() is silently static") {
+  test("RISK: Bind.text(String) with Var[String].value is silently static") {
     val parent = containerEl()
     val label  = Var("hello")
 
     Cleanup.pushScope()
-    Bind.text(label.now(), parent) // String overload — bound ONCE, never updates
+    Bind.text(label.value, parent) // String overload — bound ONCE, never updates
     Cleanup.popScope()
 
     label.set("world")
     assertEquals(
       parent.textContent,
       "hello",
-      "RISK: Var[String].now() returns String which satisfies static overload — binding is silently non-reactive"
+      "RISK: Var[String].value returns String which satisfies static overload — binding is silently non-reactive"
     )
   }
 

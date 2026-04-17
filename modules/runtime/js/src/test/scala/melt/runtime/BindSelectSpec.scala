@@ -41,7 +41,7 @@ class BindSelectSpec extends munit.FunSuite:
     withOwner { Bind.textareaValue(textarea, v) }
     textarea.value = "typed"
     textarea.dispatchEvent(new dom.Event("input"))
-    assertEquals(v.now(), "typed")
+    assertEquals(v.value, "typed")
   }
 
   test("textareaValue — Var change updates textarea") {
@@ -84,7 +84,7 @@ class BindSelectSpec extends munit.FunSuite:
     withOwner { Bind.selectValue(select, v) }
     select.value = "b"
     select.dispatchEvent(new dom.Event("change"))
-    assertEquals(v.now(), "b")
+    assertEquals(v.value, "b")
   }
 
   test("selectValue — Var change selects matching option") {
@@ -124,8 +124,8 @@ class BindSelectSpec extends munit.FunSuite:
     withOwner { Bind.selectMultipleValue(select, v) }
     select.options(1).asInstanceOf[dom.html.Option].selected = true
     select.dispatchEvent(new dom.Event("change"))
-    assert(v.now().contains("a"), v.now().toString)
-    assert(v.now().contains("b"), v.now().toString)
+    assert(v.value.contains("a"), v.value.toString)
+    assert(v.value.contains("b"), v.value.toString)
   }
 
   test("selectMultipleValue — Var change updates selected options") {

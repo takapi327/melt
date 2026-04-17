@@ -22,10 +22,10 @@ trait Memo[A] extends Signal[A]
   * }}}
   */
 def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] =
-  val derived = JsSignal.create[B](f(dep.now()))
+  val derived = JsSignal.create[B](f(dep.value))
   val cancel  = dep.subscribe { a =>
     val newVal = f(a)
-    if newVal != derived.now() then derived.emit(newVal)
+    if newVal != derived.value then derived.emit(newVal)
   }
   Cleanup.register(cancel)
   derived

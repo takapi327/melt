@@ -142,7 +142,7 @@ effect(scrollY) { y =>
       </div>
       <p class="hint">Keyboard: <strong>Esc</strong> → scroll to top</p>
       <div class="shortcut-log">
-        {if shortcutLog.now().isEmpty then
+        {if shortcutLog.value.isEmpty then
           <p class="empty">No shortcuts pressed yet…</p>
         else
           <span></span>}
@@ -165,7 +165,7 @@ effect(scrollY) { y =>
         <code>window</code> in Firefox.
       </p>
       <div class="body-status">
-        {if bodyHovered.now() then
+        {if bodyHovered then
           <div class="status-badge on">Cursor is inside the page</div>
         else
           <div class="status-badge off">Cursor has left the page</div>}
@@ -193,7 +193,7 @@ effect(scrollY) { y =>
         <code class="value">{selectedText.map(selectedTextLabel)}</code>
       </div>
       <div class="visibility-log">
-        {if visibilityLog.now().isEmpty then
+        {if visibilityLog.value.isEmpty then
           <p class="empty">Switch browser tabs to see visibility events…</p>
         else
           <span></span>}

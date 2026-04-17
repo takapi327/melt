@@ -46,6 +46,7 @@ object SpaCodeGen extends CodeGen:
 
     if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
 
+    buf ++= "import scala.language.implicitConversions\n"
     buf ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
     buf ++= "import org.scalajs.dom\n"
     buf ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
@@ -311,8 +312,11 @@ object SpaCodeGen extends CodeGen:
             parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
             val dotMap    = code.lastIndexOf(".map(")
             val rawSource = code.substring(0, dotMap).trim
-            val source    = if rawSource.endsWith(".now()") then rawSource.dropRight(6) else rawSource
-            val fnBody    = code.substring(dotMap + 5, code.length - 1).trim
+            val source    =
+              if rawSource.endsWith(".value") then rawSource.dropRight(6)
+              else if rawSource.endsWith(".now()") then rawSource.dropRight(6)
+              else rawSource
+            val fnBody = code.substring(dotMap + 5, code.length - 1).trim
             buf ++= s"${ indent }Bind.list($source, $fnBody, $anchor)\n"
             ""
 
@@ -917,16 +921,23 @@ object SpaCodeGen extends CodeGen:
     * DOM expression so the reactive `Bind.show(source, render, anchor)` overload can be used.
     *
     * Recognized patterns:
-    *   - `if <ident>.now() then ...`       → `Some("<ident>")`
-    *   - `if !<ident>.now() then ...`      → `Some("<ident>")`
+    *   - `if <ident> then ...`             → `Some("<ident>")`
+    *   - `if !<ident> then ...`            → `Some("<ident>")`
+    *   - `if <ident>.now() then ...`       → `Some("<ident>")` (legacy)
+    *   - `if !<ident>.now() then ...`      → `Some("<ident>")` (legacy)
     *   - `<ident> match { ... }` (match on a Var/Signal via .now()) → extracted identifier
     *
     * Returns `None` if the expression cannot be mapped to a single reactive source.
     */
   private def extractReactiveSource(code: String): Option[String] =
     val trimmed = code.trim
-    val ifNowRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.now\(\)""".r
-    ifNowRe.findFirstMatchIn(trimmed).map(_.group(1))
+    // Match `ident.value`, `ident.now()` (legacy), and bare `ident` (implicit conversion)
+    val ifValueRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.(?:value|now\(\))""".r
+    val ifBareRe  = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\s+then\b""".r
+    ifValueRe
+      .findFirstMatchIn(trimmed)
+      .map(_.group(1))
+      .orElse(ifBareRe.findFirstMatchIn(trimmed).map(_.group(1)))
 
   /** Finds the position of the closing `)` matching the first `(` in `s` starting at `start`. */
   private def findBalancedParen(s: String, start: Int): Int =

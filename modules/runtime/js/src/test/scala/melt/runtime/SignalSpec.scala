@@ -13,9 +13,9 @@ class SignalSpec extends munit.FunSuite:
   test("now() returns the current value") {
     val v = Var(7)
     val s = v.signal
-    assertEquals(s.now(), 7)
+    assertEquals(s.value, 7)
     v.set(99)
-    assertEquals(s.now(), 99)
+    assertEquals(s.value, 99)
   }
 
   // ── subscribe ─────────────────────────────────────────────────────────────
@@ -46,17 +46,17 @@ class SignalSpec extends munit.FunSuite:
   test("map() on Signal reflects source changes") {
     val v       = Var(2)
     val doubled = v.signal.map(_ * 2)
-    assertEquals(doubled.now(), 4)
+    assertEquals(doubled.value, 4)
     v.set(5)
-    assertEquals(doubled.now(), 10)
+    assertEquals(doubled.value, 10)
   }
 
   test("chained map() propagates through multiple layers") {
     val v = Var(1)
     val s = v.signal.map(_ + 1).map(_ * 3)
-    assertEquals(s.now(), 6)
+    assertEquals(s.value, 6)
     v.set(2)
-    assertEquals(s.now(), 9)
+    assertEquals(s.value, 9)
   }
 
   // ── flatMap / dynamic switching ───────────────────────────────────────────
@@ -67,11 +67,11 @@ class SignalSpec extends munit.FunSuite:
     val b        = Var(200)
     val sources  = List(a.signal, b.signal)
     val result   = selector.signal.flatMap(i => sources(i))
-    assertEquals(result.now(), 100)
+    assertEquals(result.value, 100)
     selector.set(1)
-    assertEquals(result.now(), 200)
+    assertEquals(result.value, 200)
     b.set(999)
-    assertEquals(result.now(), 999)
+    assertEquals(result.value, 999)
   }
 
   test("flatMap() unsubscribes from the previous inner Signal") {
@@ -102,8 +102,8 @@ class SignalSpec extends munit.FunSuite:
       a <- x.signal
       b <- y.signal
     yield math.sqrt((a * a + b * b).toDouble)
-    assertEqualsDouble(hyp.now(), 5.0, 1e-9)
+    assertEqualsDouble(hyp.value, 5.0, 1e-9)
     x.set(5)
     y.set(12)
-    assertEqualsDouble(hyp.now(), 13.0, 1e-9)
+    assertEqualsDouble(hyp.value, 13.0, 1e-9)
   }
