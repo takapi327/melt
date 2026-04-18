@@ -162,6 +162,9 @@ object SsrCodeGen extends CodeGen:
       case TemplateNode.Boundary(_, children, _, _) =>
         children.foreach(c => emitNode(c, buf, indent, scopeId))
 
+      case TemplateNode.KeyBlock(_, children) =>
+        children.foreach(c => emitNode(c, buf, indent, scopeId))
+
   /** Generic element emission — the normal open/close path used when no
     * special `bind:` directive is in play. Kept as a separate method so
     * that the special cases above can fall through cleanly.

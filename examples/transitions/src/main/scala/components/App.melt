@@ -96,6 +96,12 @@ val items2 = Var(List(
 
 def shuffle2(): Unit =
   items2.update(list => scala.util.Random.shuffle(list))
+
+// ── melt:key demos ──────────────────────────────────────────────────────────
+val keyValue = Var(0)
+val profiles = List("Alice 🐱", "Bob 🐶", "Charlie 🦊", "Diana 🐻", "Eve 🐼")
+
+val keyForReset = Var(0)
 </script>
 
 <div class="page">
@@ -403,6 +409,43 @@ def shuffle2(): Unit =
     </div>
   </section>
 
+  <!-- ── melt:key: transition re-trigger ──────────────────────────────────── -->
+  <section class="demo">
+    <h2>melt:key — transition re-trigger</h2>
+    <p class="desc">
+      <code>&lt;melt:key this={"{"}keyValue{"}"}&gt;</code> destroys and re-creates the block
+      whenever the key changes. The <code>in:fly</code> transition replays on every click
+      because the element is brand new each time.
+    </p>
+    <div class="controls">
+      <button onclick={_ => keyValue += 1}>Next →</button>
+      <span class="status">key: {keyValue}</span>
+    </div>
+    <melt:key this={keyValue}>
+      <div in:fly={TransitionParams(y = 40, duration = 400)} class="box key-box">
+        {profiles(keyValue.value % profiles.size)} — version {keyValue}
+      </div>
+    </melt:key>
+  </section>
+
+  <!-- ── melt:key: state reset ─────────────────────────────────────────────── -->
+  <section class="demo">
+    <h2>melt:key — state reset</h2>
+    <p class="desc">
+      The inner counter (<code>innerCount</code>) increments independently.
+      Clicking <b>Reset scope</b> changes <code>keyForReset</code>,
+      which causes <code>melt:key</code> to destroy the old block and re-create it —
+      the inner counter resets to 0 because the <code>Var</code> subscription is re-registered.
+    </p>
+    <div class="controls">
+      <button onclick={_ => keyForReset += 1}>Reset scope</button>
+      <span class="status">scope: {keyForReset}</span>
+    </div>
+    <melt:key this={keyForReset}>
+      <InnerCounter />
+    </melt:key>
+  </section>
+
   <!-- ── FLIP List ─────────────────────────────────────────────────────────── -->
   <section class="demo">
     <h2>animate:flip (keyed list)</h2>
@@ -577,6 +620,30 @@ button:hover { background: #cc3200; }
   background: #e8f5e9;
   border-color: #a5d6a7;
   color: #2e7d32;
+}
+
+.key-box {
+  background: #e3f2fd;
+  color: #1565c0;
+  font-size: 1.1rem;
+  min-height: 3em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key-reset-box {
+  background: #f3e5f5;
+  border-radius: 6px;
+  padding: 1em;
+  color: #4a148c;
+}
+
+.key-reset-box p { margin: 0 0 0.6em; font-size: 1rem; font-weight: bold; }
+.key-reset-box button {
+  margin-right: 0.5em;
+  font-size: 0.85rem;
+  padding: 0.3em 0.8em;
 }
 
 /* Gap 11: side-by-side animate comparison */

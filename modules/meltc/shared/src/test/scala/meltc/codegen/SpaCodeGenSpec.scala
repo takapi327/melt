@@ -1506,3 +1506,133 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("Bind.textareaValue("), code)
     assert(!code.contains("Bind.selectValue("), code)
   }
+
+  // ── melt:key ─────────────────────────────────────────────────────────────
+
+  // G-2 / G-3: migrated to dual-anchor (start + end) with DocumentFragment
+
+  test("melt:key emits dual anchor comments and Bind.key call") {
+    val code = compile("<div><melt:key this={count}><span>hi</span></melt:key></div>")
+    assert(code.contains("""createComment("melt-key-start")"""), code)
+    assert(code.contains("""createComment("melt-key-end")"""), code)
+    assert(code.contains("Bind.key(count,"), code)
+  }
+
+  // G-2: render lambda returns dom.DocumentFragment
+  test("melt:key render lambda is typed as () => dom.DocumentFragment") {
+    val code = compile("<div><melt:key this={count}><p>content</p></melt:key></div>")
+    assert(code.contains("_keyRender0: (() => dom.DocumentFragment) = () =>"), code)
+  }
+
+  // G-2: single child also uses DocumentFragment
+  test("melt:key with single child uses DocumentFragment") {
+    val code = compile("<div><melt:key this={userId}><p>profile</p></melt:key></div>")
+    assert(code.contains("Bind.key(userId,"), code)
+    assert(code.contains("""createElement("p")"""), code)
+    assert(code.contains("createDocumentFragment()"), code)
+    assert(code.contains("_kFrag"), code)
+  }
+
+  // G-2: multiple children appended directly to DocumentFragment — no <div> wrapper
+  test("melt:key with multiple children uses DocumentFragment without div wrapper") {
+    val code = compile("<div><melt:key this={count}><p>a</p><span>b</span></melt:key></div>")
+    assert(code.contains("Bind.key(count,"), code)
+    assert(code.contains("_kFrag"), code)
+    assert(code.contains("createDocumentFragment()"), code)
+    assert(code.contains("""createElement("p")"""), code)
+    assert(code.contains("""createElement("span")"""), code)
+    // no _bFrag div wrapper should be emitted
+    assert(!code.contains("_bFrag"), code)
+  }
+
+  test("melt:key with component child emits component call inside render lambda") {
+    val code = compile("<div><melt:key this={userId}><UserProfile /></melt:key></div>")
+    assert(code.contains("Bind.key(userId,"), code)
+    assert(code.contains("UserProfile()"), code)
+  }
+
+  // G-2: both anchors must be appended to parent before Bind.key is called
+  test("melt:key both anchors are appended to parent before Bind.key call") {
+    val code       = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
+    val startIdx   = code.indexOf("""createComment("melt-key-start")""")
+    val endIdx     = code.indexOf("""createComment("melt-key-end")""")
+    val append1Idx = code.indexOf("_el0.appendChild(", startIdx)
+    val append2Idx = code.indexOf("_el0.appendChild(", append1Idx + 1)
+    val keyIdx     = code.indexOf("Bind.key(", startIdx)
+    assert(startIdx >= 0, s"melt-key-start anchor not found:\n$code")
+    assert(endIdx >= 0, s"melt-key-end anchor not found:\n$code")
+    assert(append1Idx > startIdx, s"first anchor should be appended to parent:\n$code")
+    assert(append2Idx > append1Idx, s"second anchor should be appended to parent:\n$code")
+    assert(keyIdx > append2Idx, s"Bind.key should come after both appendChilds:\n$code")
+  }
+
+  // G-2: Bind.key call must have four args: keyExpr, renderLambda, startAnchor, endAnchor
+  test("melt:key Bind.key call receives four arguments including both anchors") {
+    val code       = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
+    val keyCallIdx = code.indexOf("Bind.key(count,")
+    assert(keyCallIdx >= 0, s"Bind.key call not found:\n$code")
+    val lineEnd = code.indexOf("\n", keyCallIdx)
+    val keyLine = code.substring(keyCallIdx, lineEnd)
+    // two _txt references expected — one for startAnchor and one for endAnchor
+    val txtCount = "_txt".r.findAllIn(keyLine).size
+    assert(txtCount == 2, s"Expected 2 anchor args in Bind.key call, got $txtCount:\n$keyLine")
+  }
+
+  test("melt:key missing this attribute emits warning") {
+    val result = meltc.MeltCompiler.compile(
+      "<div><melt:key><span>hi</span></melt:key></div>",
+      "App.melt",
+      "App",
+      ""
+    )
+    assert(result.warnings.exists(_.message.contains("<melt:key>")), result.warnings.toString)
+  }
+
+  test("melt:key does not emit createElement for the key element itself") {
+    val code = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
+    assert(!code.contains("""createElement("melt:key")"""), code)
+  }
+
+  // G-5: reactive text expression child is emitted as Bind.text(v, _kFrag)
+  test("melt:key with reactive text expression uses Bind.text with _kFrag") {
+    val code = compile("<div><melt:key this={step}>{message}</melt:key></div>")
+    assert(code.contains("_kFrag"), code)
+    assert(code.contains("createDocumentFragment()"), code)
+    assert(code.contains("Bind.text(message, _kFrag)"), code)
+  }
+
+  // G-5: static text child is appended to the DocumentFragment
+  test("melt:key with static text child appends text node to _kFrag") {
+    val code = compile("<div><melt:key this={count}>Hello</melt:key></div>")
+    assert(code.contains("_kFrag"), code)
+    assert(code.contains("createDocumentFragment()"), code)
+    assert(code.contains("""createTextNode("Hello")"""), code)
+    assert(code.contains("_kFrag.appendChild("), code)
+  }
+
+  // G-3: each child element gets its own TransitionBridge registration
+  test("melt:key multiple children each get their own TransitionBridge calls") {
+    val code = compile(
+      """<div><melt:key this={page}>""" +
+        """<p out:fade={TransitionParams()}>A</p>""" +
+        """<span in:fly={TransitionParams()}>B</span>""" +
+        """</melt:key></div>"""
+    )
+    assert(code.contains("_keyRender0: (() => dom.DocumentFragment) = () =>"), code)
+    assert(code.contains("createDocumentFragment()"), code)
+    assert(code.contains("TransitionBridge.setOut("), code)
+    assert(code.contains("TransitionBridge.setIn("), code)
+    // both elements are appended to _kFrag
+    assert(code.contains("_kFrag.appendChild("), code)
+  }
+
+  // two melt:key blocks in the same component must use distinct variable names
+  test("two melt:key blocks in same component use distinct variable names") {
+    val code = compile(
+      "<div><melt:key this={a}><p>A</p></melt:key><melt:key this={b}><span>B</span></melt:key></div>"
+    )
+    assert(code.contains("_keyRender0"), code)
+    assert(code.contains("_keyRender1"), code)
+    assert(code.contains("melt-key-start"), code)
+    assert(code.contains("melt-key-end"), code)
+  }

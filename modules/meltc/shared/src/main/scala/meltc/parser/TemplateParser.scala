@@ -412,6 +412,17 @@ private[parser] final class TemplateParser(src: String):
         }
         TemplateNode.Boundary(attrs, mainChildren, pendingOpt, failedOpt)
 
+      case "melt:key" =>
+        val keyExpr = attrs
+          .collectFirst {
+            case Attr.Dynamic("this", expr) => expr
+          }
+          .getOrElse {
+            _warnings += (("<melt:key> requires a `this={expr}` attribute", pos))
+            "0"
+          }
+        TemplateNode.KeyBlock(keyExpr, children)
+
       case _ =>
         if tag.charAt(0).isUpper then TemplateNode.Component(tag, attrs, children)
         else TemplateNode.Element(tag, attrs, children)

@@ -1,0 +1,9 @@
+<script lang="scala">
+val count = Var(0)
+</script>
+
+<div class="inner-counter">
+  <p>Inner count: {count}</p>
+  <button onclick={_ => count += 1}>+1 (inner)</button>
+  <button onclick={_ => count.set(0)}>Reset inner</button>
+</div>
