@@ -6,7 +6,7 @@
 
 package meltc
 
-import meltc.analysis.{ A11yChecker, AttrNameChecker, RawTextInterpolationChecker, SecurityChecker, TagNameChecker }
+import meltc.analysis.{ A11yChecker, AttrNameChecker, BindingContextChecker, RawTextInterpolationChecker, SecurityChecker, TagNameChecker }
 import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
 import meltc.parser.MeltParser
 
@@ -48,7 +48,8 @@ object MeltCompiler:
         val semanticErrors =
           AttrNameChecker.check(ast, filename) ++
             TagNameChecker.check(ast, filename) ++
-            RawTextInterpolationChecker.check(ast, filename)
+            RawTextInterpolationChecker.check(ast, filename) ++
+            BindingContextChecker.check(ast, filename)
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
           case (msg, line) =>
