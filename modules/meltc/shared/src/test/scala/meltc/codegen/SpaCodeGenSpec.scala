@@ -1724,3 +1724,90 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("melt-key-start"), code)
     assert(code.contains("melt-key-end"), code)
   }
+
+  // ── M-8: Generic components ───────────────────────────────────────────────
+
+  test("generic component: single type param produces apply[T] and mount[T]") {
+    val src =
+      """<script lang="scala" props="Props[T]">
+        |case class Props[T](items: Seq[T], render: T => String)
+        |</script>
+        |<div>{props.items.map(props.render).mkString(", ")}</div>""".stripMargin
+    val code = compile(src, name = "ItemList")
+    assert(code.contains("def apply[T](props: Props[T]): dom.Element"), code)
+    assert(code.contains("def mount[T](target: dom.Element, props: Props[T])"), code)
+    assert(code.contains("case class Props[T]("), code)
+  }
+
+  test("generic component: multiple type params produces apply[K, V]") {
+    val src =
+      """<script lang="scala" props="Props[K, V]">
+        |case class Props[K, V](items: Map[K, V])
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src, name = "MapView")
+    assert(code.contains("def apply[K, V](props: Props[K, V]): dom.Element"), code)
+    assert(code.contains("def mount[K, V](target: dom.Element, props: Props[K, V])"), code)
+  }
+
+  test("generic component: type param with upper bound produces apply[T <: Ordered[T]]") {
+    val src =
+      """<script lang="scala" props="Props[T <: Ordered[T]]">
+        |case class Props[T <: Ordered[T]](items: Seq[T])
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src, name = "SortedList")
+    assert(code.contains("def apply[T <: Ordered[T]](props: Props[T <: Ordered[T]]): dom.Element"), code)
+    assert(code.contains("def mount[T <: Ordered[T]](target: dom.Element, props: Props[T <: Ordered[T]])"), code)
+  }
+
+  test("non-generic component: apply() and mount() have no type params") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(label: String)
+        |</script>
+        |<span>{props.label}</span>""".stripMargin
+    val code = compile(src, name = "Label")
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
+    assert(code.contains("def mount(target: dom.Element, props: Props)"), code)
+    assert(!code.contains("def apply["), code)
+  }
+
+  // ── M-8 part 2: custom Props type name ────────────────────────────────────
+
+  test("custom props type name: generates val/type Props alias for non-generic") {
+    val src =
+      """<script lang="scala" props="Todo">
+        |case class Todo(title: String, done: Boolean)
+        |</script>
+        |<li>{props.title}</li>""".stripMargin
+    val code = compile(src, name = "TodoItem")
+    // apply uses the actual type name
+    assert(code.contains("def apply(props: Todo): dom.Element"), code)
+    // value alias so call sites can use TodoItem.Props(...)
+    assert(code.contains("val Props = Todo"), code)
+    // type alias
+    assert(code.contains("type Props = Todo"), code)
+  }
+
+  test("custom generic props type name: generates val/type Props alias") {
+    val src =
+      """<script lang="scala" props="Todo[T]">
+        |case class Todo[T](items: Seq[T], render: T => String)
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src, name = "TodoList")
+    assert(code.contains("def apply[T](props: Todo[T]): dom.Element"), code)
+    assert(code.contains("val Props = Todo"), code)
+    assert(code.contains("type Props[T] = Todo[T]"), code)
+  }
+
+  test("props type named Props: no alias generated") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(value: Int)
+        |</script>
+        |<span>{props.value}</span>""".stripMargin
+    val code = compile(src, name = "Counter")
+    assert(!code.contains("val Props = Props"), code) // no redundant alias
+  }
