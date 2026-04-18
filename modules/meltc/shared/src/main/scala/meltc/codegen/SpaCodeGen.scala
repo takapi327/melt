@@ -821,15 +821,15 @@ object SpaCodeGen extends CodeGen:
     // Build type annotation and parameter list
     val (typeStr, paramStr) = params match
       case Nil =>
-        ("() => dom.Element", "()")
+        ("() => dom.Node", "()")
       case List(p) =>
         val tpe   = p.typeAnnotation.getOrElse("Any")
         val pDecl = p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)
-        (s"($tpe) => dom.Element", s"($pDecl)")
+        (s"($tpe) => dom.Node", s"($pDecl)")
       case ps =>
         val types = ps.map(_.typeAnnotation.getOrElse("Any")).mkString(", ")
         val decls = ps.map(p => p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)).mkString(", ")
-        (s"(($types)) => dom.Element", s"(($decls))")
+        (s"(($types)) => dom.Node", s"(($decls))")
 
     buf ++= s"${ indent }val $name: $typeStr = $paramStr => {\n"
 
@@ -845,7 +845,7 @@ object SpaCodeGen extends CodeGen:
         if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
         else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
-        buf ++= s"${ inner }val _frag = dom.document.createElement(\"div\")\n"
+        buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
         multiple.foreach { child =>
           val cv = emitNode(buf, child, inner, innerCtr, isRoot = false, parentVar = Some("_frag"))
           if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"

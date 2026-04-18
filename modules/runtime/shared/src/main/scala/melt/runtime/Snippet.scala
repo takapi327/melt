@@ -14,9 +14,9 @@ import org.scalajs.dom
   * Usage in Props:
   * {{{
   * case class Props(
-  *   renderItem: Snippet[Todo],   // Todo => dom.Element
-  *   children:   () => dom.Element
+  *   renderItem: Snippet[Todo],   // Todo => dom.Node
+  *   children:   () => dom.Node
   * )
   * }}}
   */
-type Snippet[A] = A => dom.Element
+type Snippet[A] = A => dom.Node

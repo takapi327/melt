@@ -1814,10 +1814,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── M-10: {#snippet} and {@render} ───────────────────────────────────────
 
-  test("{#snippet} without params generates () => dom.Element lambda") {
+  test("{#snippet} without params generates () => dom.Node lambda") {
     val src =
       """<script lang="scala" props="Props">
-        |case class Props(children: () => dom.Element)
+        |case class Props(children: () => dom.Node)
         |</script>
         |<div>
         |  {#snippet children()}
@@ -1826,11 +1826,11 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |  {@render props.children()}
         |</div>""".stripMargin
     val code = compile(src)
-    assert(code.contains("val children: () => dom.Element ="), code)
+    assert(code.contains("val children: () => dom.Node ="), code)
     assert(code.contains("createElement(\"p\")"), code)
   }
 
-  test("{#snippet} with typed param generates (T) => dom.Element lambda") {
+  test("{#snippet} with typed param generates (T) => dom.Node lambda") {
     val src =
       """<div>
         |  {#snippet renderItem(todo: Todo)}
@@ -1839,7 +1839,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |  {@render renderItem(myTodo)}
         |</div>""".stripMargin
     val code = compile(src)
-    assert(code.contains("val renderItem: (Todo) => dom.Element = (todo: Todo) =>"), code)
+    assert(code.contains("val renderItem: (Todo) => dom.Node = (todo: Todo) =>"), code)
   }
 
   test("{@render expr} appends the expression result") {
