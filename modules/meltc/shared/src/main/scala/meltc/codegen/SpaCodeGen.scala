@@ -518,6 +518,27 @@ object SpaCodeGen extends CodeGen:
             buf ++= s"${ indent }$wVar.appendChild($fragVar)\n"
             wVar
 
+      case TemplateNode.KeyBlock(keyExpr, children) =>
+        val idx        = ctr.nextChildIdx()
+        val inner      = indent + "  "
+        val kVar       = s"_keyRender$idx"
+        val startAnch  = ctr.nextTxt()
+        val endAnch    = ctr.nextTxt()
+
+        // G-2 / G-5: render lambda returns DocumentFragment (no div wrapper, text exprs work)
+        buf ++= s"${ indent }val $kVar: (() => dom.DocumentFragment) = () => {\n"
+        emitKeyBody(buf, children, inner, ctr)
+        buf ++= s"${ indent }}\n"
+
+        buf ++= s"""${ indent }val $startAnch = dom.document.createComment("melt-key-start")\n"""
+        buf ++= s"""${ indent }val $endAnch   = dom.document.createComment("melt-key-end")\n"""
+        parentVar.foreach { p =>
+          buf ++= s"${ indent }$p.appendChild($startAnch)\n"
+          buf ++= s"${ indent }$p.appendChild($endAnch)\n"
+        }
+        buf ++= s"${ indent }Bind.key($keyExpr, $kVar, $startAnch, $endAnch)\n"
+        ""
+
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
 
@@ -703,6 +724,30 @@ object SpaCodeGen extends CodeGen:
 
     buf ++= s"${ indent }}\n"
     varName
+
+  /** Emits the body of a key-block render lambda.
+    *
+    * Appends all children to a [[dom.DocumentFragment]] (`_kFrag`) so that:
+    *   - No wrapper `<div>` appears in the DOM (Svelte 5 fragment semantics).
+    *   - Text expressions use `Bind.text(v, _kFrag)` which is both reactive and
+    *     correctly typed (no `dom.Text` vs `dom.Element` mismatch).
+    *   - Each direct child element retains its own `in:` / `out:` transitions,
+    *     allowing [[melt.runtime.Bind.key]] to play them individually.
+    *
+    * Does NOT emit the surrounding `val x = () => {` / `}` — callers do that.
+    */
+  private def emitKeyBody(
+    buf:      StringBuilder,
+    children: List[TemplateNode],
+    inner:    String,
+    ctr:      Counter
+  ): Unit =
+    buf ++= s"${ inner }val _kFrag = dom.document.createDocumentFragment()\n"
+    children.foreach { child =>
+      val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_kFrag"))
+      if cv.nonEmpty then buf ++= s"${ inner }_kFrag.appendChild($cv)\n"
+    }
+    buf ++= s"${ inner }_kFrag\n"
 
   /** Emits the body of a boundary lambda (pending / fallback / children).
     * Writes to `buf` and leaves the cursor at the end of the last statement.
