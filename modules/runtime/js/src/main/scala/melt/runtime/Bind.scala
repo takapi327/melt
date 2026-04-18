@@ -317,6 +317,54 @@ object Bind:
   def style(el: dom.Element, property: String, value: Any): Unit =
     el.asInstanceOf[dom.html.Element].style.setProperty(property, value.toString)
 
+  // ── Element dimension bindings (bind:clientWidth etc.) ─────────────────
+
+  /** One-way binding: `element.clientWidth → Var[Double]` (read-only).
+    *
+    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Corresponds to `bind:clientWidth` in Svelte 5.
+    */
+  def clientWidth(el: dom.Element, v: Var[Double]): Unit =
+    v.set(el.clientWidth.toDouble)
+    val observer = new dom.ResizeObserver((_, _) => v.set(el.clientWidth.toDouble))
+    observer.observe(el)
+    Cleanup.register(() => observer.disconnect())
+
+  /** One-way binding: `element.clientHeight → Var[Double]` (read-only).
+    *
+    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Corresponds to `bind:clientHeight` in Svelte 5.
+    */
+  def clientHeight(el: dom.Element, v: Var[Double]): Unit =
+    v.set(el.clientHeight.toDouble)
+    val observer = new dom.ResizeObserver((_, _) => v.set(el.clientHeight.toDouble))
+    observer.observe(el)
+    Cleanup.register(() => observer.disconnect())
+
+  /** One-way binding: `element.offsetWidth → Var[Double]` (read-only).
+    *
+    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Corresponds to `bind:offsetWidth` in Svelte 5.
+    */
+  def offsetWidth(el: dom.Element, v: Var[Double]): Unit =
+    v.set(el.asInstanceOf[dom.html.Element].offsetWidth.toDouble)
+    val observer =
+      new dom.ResizeObserver((_, _) => v.set(el.asInstanceOf[dom.html.Element].offsetWidth.toDouble))
+    observer.observe(el)
+    Cleanup.register(() => observer.disconnect())
+
+  /** One-way binding: `element.offsetHeight → Var[Double]` (read-only).
+    *
+    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Corresponds to `bind:offsetHeight` in Svelte 5.
+    */
+  def offsetHeight(el: dom.Element, v: Var[Double]): Unit =
+    v.set(el.asInstanceOf[dom.html.Element].offsetHeight.toDouble)
+    val observer =
+      new dom.ResizeObserver((_, _) => v.set(el.asInstanceOf[dom.html.Element].offsetHeight.toDouble))
+    observer.observe(el)
+    Cleanup.register(() => observer.disconnect())
+
   // ── Conditional rendering (if/else, match) ─────────────────────────────
 
   /** Renders the result of `render()` before `anchor`.
