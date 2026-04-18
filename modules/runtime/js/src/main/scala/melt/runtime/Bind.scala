@@ -467,8 +467,7 @@ object Bind:
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.volume)
     // DOM → Var: only update if value actually changed to avoid feedback loops
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
-      if v.value != media.volume then v.set(media.volume)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => if v.value != media.volume then v.set(media.volume)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
     val cancel = v.signal.subscribe { vol =>
@@ -487,8 +486,7 @@ object Bind:
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.muted)
     // DOM → Var: only update if value actually changed to avoid feedback loops
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
-      if v.value != media.muted then v.set(media.muted)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => if v.value != media.muted then v.set(media.muted)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
     val cancel = v.signal.subscribe { muted =>
