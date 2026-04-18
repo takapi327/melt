@@ -403,6 +403,200 @@ object Bind:
     }
     Cleanup.register(cancel)
 
+  // ── Key-block rendering (<melt:key this={expr}>) ─────────────────────
+
+  /** Reactive key-block rendering for [[Var]].
+    *
+    * Destroys and re-creates the content block whenever the key value **changes**
+    * (equality-guarded — prevents remounting on same-value writes).
+    *
+    * Uses a dual-anchor pattern (`startAnchor` / `endAnchor` comment nodes) so
+    * no wrapper element appears in the DOM.  The render lambda returns a
+    * [[dom.DocumentFragment]]; its direct children are inserted between the two
+    * anchors, and each child [[dom.Element]] has its `in:` / `out:` transition
+    * played individually (Svelte 5 parity).
+    *
+    * The old reactive scope ([[OwnerNode]]) is kept alive until all outro
+    * animations complete so the leaving content stays reactive during CSS transitions.
+    */
+  def key(
+    source:      Var[?],
+    render:      () => dom.DocumentFragment,
+    startAnchor: dom.Comment,
+    endAnchor:   dom.Comment
+  ): Unit =
+    var currentNodes:   List[dom.Node]   = Nil
+    var elementNode:    Option[OwnerNode] = None
+    var lastKey:        Option[Any]       = None
+    var animatingNodes: Set[dom.Element]  = Set.empty
+
+    def nodesBetween(): List[dom.Node] =
+      val buf  = mutable.ListBuffer.empty[dom.Node]
+      var node = startAnchor.nextSibling
+      while node != null && (node ne endAnchor) do
+        buf += node
+        node = node.nextSibling
+      buf.toList
+
+    def removeNodes(nodes: List[dom.Node], owner: OwnerNode): Unit =
+      val elements = nodes.collect { case el: dom.Element => el }
+      val withOut  = elements.filter(TransitionBridge.hasOut)
+      elements.foreach(playGlobalTransitions(_, intro = false))
+      if withOut.isEmpty then
+        owner.destroy()
+        elements.foreach(Lifecycle.destroyTree)
+        nodes.foreach { n => Option(n.parentNode).foreach(_.removeChild(n)) }
+      else
+        val noAnim = nodes.filterNot(n => withOut.contains(n))
+        elements.filterNot(withOut.contains).foreach(Lifecycle.destroyTree)
+        noAnim.foreach { n => Option(n.parentNode).foreach(_.removeChild(n)) }
+        var remaining = withOut.size
+        withOut.foreach { el =>
+          animatingNodes += el
+          Lifecycle.destroyTree(el)
+          TransitionBridge.playOut(el, () => {
+            animatingNodes -= el
+            Option(el.parentNode).foreach(_.removeChild(el))
+            remaining -= 1
+            if remaining == 0 then owner.destroy()
+          })
+        }
+
+    def mount(): Unit =
+      lastKey = Some(source.value)
+      // Cancel in-progress outros on rapid key change.
+      animatingNodes.foreach { el => Option(el.parentNode).foreach(_.removeChild(el)) }
+      animatingNodes = Set.empty
+
+      val prevNodes = nodesBetween()
+      val prevOwner = elementNode
+      elementNode  = None
+      currentNodes = Nil
+
+      val (frag, node) = Owner.withNew { render() }
+      elementNode = Some(node)
+
+      // Snapshot direct children BEFORE insertBefore (they move out of the fragment).
+      val directChildren = (0 until frag.childNodes.length)
+        .map(i => frag.childNodes(i))
+        .toList
+
+      Option(endAnchor.parentNode).foreach(_.insertBefore(frag, endAnchor))
+      currentNodes = directChildren
+
+      directChildren.foreach {
+        case el: dom.Element if TransitionBridge.hasIn(el) =>
+          TransitionBridge.playIn(el)
+          playGlobalTransitions(el, intro = true)
+        case el: dom.Element =>
+          playGlobalTransitions(el, intro = true)
+        case _ =>
+      }
+
+      prevOwner.foreach(removeNodes(prevNodes, _))
+
+    mount()
+    val cancel = source.subscribe { newVal =>
+      if !lastKey.contains(newVal) then mount()
+    }
+    Cleanup.register(cancel)
+    Cleanup.register(() => {
+      val prevNodes = nodesBetween()
+      elementNode.foreach(removeNodes(prevNodes, _))
+      currentNodes = Nil
+      elementNode  = None
+    })
+
+  /** Reactive key-block rendering for [[Signal]].
+    *
+    * Identical to the [[Var]] overload but subscribes to a [[Signal]] source.
+    */
+  def key(
+    source:      Signal[?],
+    render:      () => dom.DocumentFragment,
+    startAnchor: dom.Comment,
+    endAnchor:   dom.Comment
+  ): Unit =
+    var currentNodes:   List[dom.Node]   = Nil
+    var elementNode:    Option[OwnerNode] = None
+    var lastKey:        Option[Any]       = None
+    var animatingNodes: Set[dom.Element]  = Set.empty
+
+    def nodesBetween(): List[dom.Node] =
+      val buf  = mutable.ListBuffer.empty[dom.Node]
+      var node = startAnchor.nextSibling
+      while node != null && (node ne endAnchor) do
+        buf += node
+        node = node.nextSibling
+      buf.toList
+
+    def removeNodes(nodes: List[dom.Node], owner: OwnerNode): Unit =
+      val elements = nodes.collect { case el: dom.Element => el }
+      val withOut  = elements.filter(TransitionBridge.hasOut)
+      elements.foreach(playGlobalTransitions(_, intro = false))
+      if withOut.isEmpty then
+        owner.destroy()
+        elements.foreach(Lifecycle.destroyTree)
+        nodes.foreach { n => Option(n.parentNode).foreach(_.removeChild(n)) }
+      else
+        val noAnim = nodes.filterNot(n => withOut.contains(n))
+        elements.filterNot(withOut.contains).foreach(Lifecycle.destroyTree)
+        noAnim.foreach { n => Option(n.parentNode).foreach(_.removeChild(n)) }
+        var remaining = withOut.size
+        withOut.foreach { el =>
+          animatingNodes += el
+          Lifecycle.destroyTree(el)
+          TransitionBridge.playOut(el, () => {
+            animatingNodes -= el
+            Option(el.parentNode).foreach(_.removeChild(el))
+            remaining -= 1
+            if remaining == 0 then owner.destroy()
+          })
+        }
+
+    def mount(): Unit =
+      lastKey = Some(source.value)
+      animatingNodes.foreach { el => Option(el.parentNode).foreach(_.removeChild(el)) }
+      animatingNodes = Set.empty
+
+      val prevNodes = nodesBetween()
+      val prevOwner = elementNode
+      elementNode  = None
+      currentNodes = Nil
+
+      val (frag, node) = Owner.withNew { render() }
+      elementNode = Some(node)
+
+      val directChildren = (0 until frag.childNodes.length)
+        .map(i => frag.childNodes(i))
+        .toList
+
+      Option(endAnchor.parentNode).foreach(_.insertBefore(frag, endAnchor))
+      currentNodes = directChildren
+
+      directChildren.foreach {
+        case el: dom.Element if TransitionBridge.hasIn(el) =>
+          TransitionBridge.playIn(el)
+          playGlobalTransitions(el, intro = true)
+        case el: dom.Element =>
+          playGlobalTransitions(el, intro = true)
+        case _ =>
+      }
+
+      prevOwner.foreach(removeNodes(prevNodes, _))
+
+    mount()
+    val cancel = source.subscribe { newVal =>
+      if !lastKey.contains(newVal) then mount()
+    }
+    Cleanup.register(cancel)
+    Cleanup.register(() => {
+      val prevNodes = nodesBetween()
+      elementNode.foreach(removeNodes(prevNodes, _))
+      currentNodes = Nil
+      elementNode  = None
+    })
+
   // ── List rendering ────────────────────────────────────────────────────
 
   /** Renders a plain (non-reactive) collection before `anchor`. Used
