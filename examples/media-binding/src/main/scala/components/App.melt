@@ -1,4 +1,7 @@
 <script lang="scala">
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+val progressRef = Ref.empty[dom.Element]
+
 // ── Playback state ───────────────────────────────────────────────────────────
 val currentTime  = Var(0.0)
 val duration     = Var(0.0)
@@ -19,6 +22,10 @@ def formatTime(secs: Double): String =
     val m = (secs / 60).toInt
     val s = (secs % 60).toInt
     f"$m%02d:$s%02d"
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+def rateClass(r: Double): Signal[String] =
+  playbackRate.map(pr => "rate-btn" + (if pr == r then " active" else ""))
 
 // ── Derived values ───────────────────────────────────────────────────────────
 val progressPct = currentTime.map(t =>
@@ -66,11 +73,13 @@ val readyStateLabel = readyState.map {
     ></video>
 
     <!-- Progress bar: clicking seeks via currentTime Var -->
-    <div class="progress-bar" onclick={(e: Event) => {
+    <div class="progress-bar" bind:this={progressRef} onclick={(e: dom.Event) => {
       val me = e.asInstanceOf[org.scalajs.dom.MouseEvent]
-      val rect = me.currentTarget.asInstanceOf[org.scalajs.dom.Element].getBoundingClientRect()
-      val pct = (me.clientX - rect.left) / rect.width
-      currentTime.set(duration.value * pct)
+      progressRef.foreach { el =>
+        val rect = el.getBoundingClientRect()
+        val pct  = (me.clientX - rect.left) / rect.width
+        currentTime.set(duration.value * pct)
+      }
     }}>
       <div class="progress-fill" style={s"width: ${progressPct.value}%"}></div>
     </div>
@@ -102,7 +111,7 @@ val readyStateLabel = readyState.map {
       <span class="rate-label">Speed:</span>
       {List(0.5, 1.0, 1.5, 2.0).map((r: Double) =>
         <button
-          class={s"rate-btn${if playbackRate.value == r then " active" else ""}"}
+          class={rateClass(r)}
           onclick={_ => playbackRate.set(r)}
         >{s"${r}x"}</button>
       )}
