@@ -1866,21 +1866,20 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── TrustedHtml expression ─────────────────────────────────────────────
 
-  test("{TrustedHtml.unsafe(...)} generates span wrapper with static innerHTML") {
+  test("{TrustedHtml.unsafe(...)} uses comment anchor and Bind.htmlAnchor (static)") {
     val src  = """<div>{TrustedHtml.unsafe("<b>Hello</b>")}</div>"""
     val code = compile(src)
-    assert(code.contains("""createElement("span")"""), code)
-    assert(code.contains("""innerHTML = (TrustedHtml.unsafe("<b>Hello</b>")).value"""), code)
-    assert(!code.contains("Bind.html"), code)
+    assert(code.contains("""createComment("melt-html")"""), code)
+    assert(code.contains("Bind.htmlAnchor(TrustedHtml.unsafe"), code)
+    assert(!code.contains("""createElement("span")"""), code)
   }
 
-  test("{TrustedHtml} if/else with reactive source uses Bind.html with mapped signal") {
+  test("{TrustedHtml} if/else with reactive source uses Bind.htmlAnchor with render lambda") {
     val src =
       """<div>
         |  {if flag then TrustedHtml.unsafe("<b>yes</b>") else TrustedHtml.unsafe("<em>no</em>")}
         |</div>""".stripMargin
     val code = compile(src)
-    assert(code.contains("""createElement("span")"""), code)
-    assert(code.contains("Bind.html("), code)
-    assert(code.contains("flag.map("), code)
+    assert(code.contains("""createComment("melt-html")"""), code)
+    assert(code.contains("Bind.htmlAnchor(flag,"), code)
   }

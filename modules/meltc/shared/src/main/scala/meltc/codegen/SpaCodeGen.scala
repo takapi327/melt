@@ -372,18 +372,18 @@ object SpaCodeGen extends CodeGen:
             v
 
           case ExprKind.TrustedHtmlExpr =>
-            // Wrap in a <span> so the HTML nodes have a stable container.
-            // If a reactive source is detected, use Bind.html(span, source.map(_ => expr))
-            // so the span's innerHTML updates whenever the source changes.
-            // For purely static TrustedHtml, set innerHTML once.
-            val v = ctr.nextEl()
-            buf ++= s"""${ indent }val $v = dom.document.createElement("span")\n"""
+            // Anchor-based raw HTML insertion — no wrapper element, matching Svelte 5's {@html}.
+            // A comment node acts as the anchor; Bind.htmlAnchor inserts parsed HTML nodes
+            // immediately before it and replaces them on reactive updates.
+            val anchor = ctr.nextTxt()
+            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt-html")\n"""
+            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
             extractReactiveSource(code) match
               case Some(source) =>
-                buf ++= s"${ indent }Bind.html($v, $source.map(_ => $code))\n"
+                buf ++= s"${ indent }Bind.htmlAnchor($source, _ => { $code }, $anchor)\n"
               case None =>
-                buf ++= s"${ indent }$v.innerHTML = ($code).value\n"
-            v
+                buf ++= s"${ indent }Bind.htmlAnchor($code, $anchor)\n"
+            ""
 
           case ExprKind.PlainText =>
             parentVar match

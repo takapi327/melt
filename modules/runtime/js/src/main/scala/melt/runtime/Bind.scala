@@ -1122,6 +1122,56 @@ object Bind:
   def html(el: dom.Element, content: TrustedHtml): Unit =
     el.innerHTML = content.value
 
+  // ── htmlAnchor: anchor-based raw HTML rendering (no wrapper element) ───
+
+  /** Parses a [[TrustedHtml]] string and returns a list of DOM nodes.
+    * Uses a temporary `<div>` to invoke the browser's HTML parser.
+    */
+  private def parseHtmlNodes(html: String): List[dom.Node] =
+    val tmp = dom.document.createElement("div")
+    tmp.innerHTML = html
+    val buf = scala.collection.mutable.ListBuffer[dom.Node]()
+    while tmp.firstChild != null do
+      val node = tmp.firstChild
+      tmp.removeChild(node)
+      buf += node
+    buf.toList
+
+  private def insertNodesBefore(nodes: List[dom.Node], anchor: dom.Node): Unit =
+    val parent = anchor.parentNode
+    nodes.foreach(parent.insertBefore(_, anchor))
+
+  private def removeNodes(nodes: List[dom.Node]): Unit =
+    nodes.foreach(n => Option(n.parentNode).foreach(_.removeChild(n)))
+
+  /** Inserts raw HTML nodes before `anchor`. Static (one-time) variant.
+    * Corresponds to Svelte 5's `{@html}` for non-reactive values.
+    */
+  def htmlAnchor(content: TrustedHtml, anchor: dom.Node): Unit =
+    insertNodesBefore(parseHtmlNodes(content.value), anchor)
+
+  /** Reactive [[Var]] variant — re-parses and re-inserts when the source changes. */
+  def htmlAnchor(v: Var[?], render: Any => TrustedHtml, anchor: dom.Node): Unit =
+    var current = parseHtmlNodes(render(v.value).value)
+    insertNodesBefore(current, anchor)
+    val cancel = v.subscribe { a =>
+      removeNodes(current)
+      current = parseHtmlNodes(render(a).value)
+      insertNodesBefore(current, anchor)
+    }
+    Cleanup.register(cancel)
+
+  /** Reactive [[Signal]] variant — re-parses and re-inserts when the signal changes. */
+  def htmlAnchor(signal: Signal[?], render: Any => TrustedHtml, anchor: dom.Node): Unit =
+    var current = parseHtmlNodes(render(signal.value).value)
+    insertNodesBefore(current, anchor)
+    val cancel = signal.subscribe { a =>
+      removeNodes(current)
+      current = parseHtmlNodes(render(a).value)
+      insertNodesBefore(current, anchor)
+    }
+    Cleanup.register(cancel)
+
   // ── Action binding (use: directive) ───────────────────────────────────
 
   /** Applies an action to an element with a static parameter. */
