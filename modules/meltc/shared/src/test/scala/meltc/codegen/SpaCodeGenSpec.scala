@@ -1568,13 +1568,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // G-2: Bind.key 呼び出しにはキー式 + レンダーラムダ + startAnchor + endAnchor の4引数
   test("melt:key Bind.key call receives four arguments including both anchors") {
-    val code      = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
+    val code       = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
     val keyCallIdx = code.indexOf("Bind.key(count,")
     assert(keyCallIdx >= 0, s"Bind.key call not found:\n$code")
-    val lineEnd   = code.indexOf("\n", keyCallIdx)
-    val keyLine   = code.substring(keyCallIdx, lineEnd)
+    val lineEnd = code.indexOf("\n", keyCallIdx)
+    val keyLine = code.substring(keyCallIdx, lineEnd)
     // _txt が2つ含まれる (startAnchor と endAnchor)
-    val txtCount  = "_txt".r.findAllIn(keyLine).size
+    val txtCount = "_txt".r.findAllIn(keyLine).size
     assert(txtCount == 2, s"Expected 2 anchor args in Bind.key call, got $txtCount:\n$keyLine")
   }
 

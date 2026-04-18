@@ -519,11 +519,11 @@ object SpaCodeGen extends CodeGen:
             wVar
 
       case TemplateNode.KeyBlock(keyExpr, children) =>
-        val idx        = ctr.nextChildIdx()
-        val inner      = indent + "  "
-        val kVar       = s"_keyRender$idx"
-        val startAnch  = ctr.nextTxt()
-        val endAnch    = ctr.nextTxt()
+        val idx       = ctr.nextChildIdx()
+        val inner     = indent + "  "
+        val kVar      = s"_keyRender$idx"
+        val startAnch = ctr.nextTxt()
+        val endAnch   = ctr.nextTxt()
 
         // G-2 / G-5: render lambda returns DocumentFragment (no div wrapper, text exprs work)
         buf ++= s"${ indent }val $kVar: (() => dom.DocumentFragment) = () => {\n"

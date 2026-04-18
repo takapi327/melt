@@ -425,7 +425,7 @@ object Bind:
     startAnchor: dom.Comment,
     endAnchor:   dom.Comment
   ): Unit =
-    var currentNodes:   List[dom.Node]   = Nil
+    var currentNodes:   List[dom.Node]    = Nil
     var elementNode:    Option[OwnerNode] = None
     var lastKey:        Option[Any]       = None
     var animatingNodes: Set[dom.Element]  = Set.empty
@@ -454,12 +454,15 @@ object Bind:
         withOut.foreach { el =>
           animatingNodes += el
           Lifecycle.destroyTree(el)
-          TransitionBridge.playOut(el, () => {
-            animatingNodes -= el
-            Option(el.parentNode).foreach(_.removeChild(el))
-            remaining -= 1
-            if remaining == 0 then owner.destroy()
-          })
+          TransitionBridge.playOut(
+            el,
+            () => {
+              animatingNodes -= el
+              Option(el.parentNode).foreach(_.removeChild(el))
+              remaining -= 1
+              if remaining == 0 then owner.destroy()
+            }
+          )
         }
 
     def mount(): Unit =
@@ -517,7 +520,7 @@ object Bind:
     startAnchor: dom.Comment,
     endAnchor:   dom.Comment
   ): Unit =
-    var currentNodes:   List[dom.Node]   = Nil
+    var currentNodes:   List[dom.Node]    = Nil
     var elementNode:    Option[OwnerNode] = None
     var lastKey:        Option[Any]       = None
     var animatingNodes: Set[dom.Element]  = Set.empty
@@ -546,12 +549,15 @@ object Bind:
         withOut.foreach { el =>
           animatingNodes += el
           Lifecycle.destroyTree(el)
-          TransitionBridge.playOut(el, () => {
-            animatingNodes -= el
-            Option(el.parentNode).foreach(_.removeChild(el))
-            remaining -= 1
-            if remaining == 0 then owner.destroy()
-          })
+          TransitionBridge.playOut(
+            el,
+            () => {
+              animatingNodes -= el
+              Option(el.parentNode).foreach(_.removeChild(el))
+              remaining -= 1
+              if remaining == 0 then owner.destroy()
+            }
+          )
         }
 
     def mount(): Unit =
