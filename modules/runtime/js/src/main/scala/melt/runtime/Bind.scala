@@ -365,6 +365,199 @@ object Bind:
     observer.observe(el)
     Cleanup.register(() => observer.disconnect())
 
+  // ── Media element bindings (bind:currentTime, bind:paused etc.) ───────
+
+  /** Two-way binding: `media.currentTime ↔ Var[Double]`.
+    *
+    * - DOM → Var: updated on every `timeupdate` event.
+    * - Var → DOM: seeks to the new position, skipping the initial value
+    *   to avoid an unexpected seek-to-zero on mount.
+    *
+    * Corresponds to `bind:currentTime` in Svelte 5.
+    */
+  def mediaCurrentTime(el: dom.Element, v: Var[Double]): Unit =
+    val media = el.asInstanceOf[dom.html.Media]
+    v.set(media.currentTime)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.currentTime)
+    media.addEventListener("timeupdate", listener)
+    Cleanup.register(() => media.removeEventListener("timeupdate", listener))
+    var initialized = false
+    val cancel = v.signal.subscribe { t =>
+      if initialized then media.currentTime = t
+      else initialized = true
+    }
+    Cleanup.register(cancel)
+
+  /** One-way binding: `media.duration → Var[Double]` (read-only).
+    *
+    * Updated on `durationchange` and `loadedmetadata`.
+    * Corresponds to `bind:duration` in Svelte 5.
+    */
+  def mediaDuration(el: dom.Element, v: Var[Double]): Unit =
+    val media    = el.asInstanceOf[dom.html.Media]
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.duration)
+    media.addEventListener("durationchange", listener)
+    media.addEventListener("loadedmetadata", listener)
+    Cleanup.register(() => {
+      media.removeEventListener("durationchange", listener)
+      media.removeEventListener("loadedmetadata", listener)
+    })
+
+  /** Two-way binding: `media.paused ↔ Var[Boolean]`.
+    *
+    * - DOM → Var: updated on `play` and `pause` events.
+    * - Var → DOM: calls `media.play()` or `media.pause()`, skipping the
+    *   initial value to avoid auto-playing on mount.
+    *
+    * Corresponds to `bind:paused` in Svelte 5.
+    */
+  def mediaPaused(el: dom.Element, v: Var[Boolean]): Unit =
+    val media = el.asInstanceOf[dom.html.Media]
+    v.set(media.paused)
+    val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
+    val pauseListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
+    media.addEventListener("play", playListener)
+    media.addEventListener("pause", pauseListener)
+    Cleanup.register(() => {
+      media.removeEventListener("play", playListener)
+      media.removeEventListener("pause", pauseListener)
+    })
+    var initialized = false
+    val cancel = v.signal.subscribe { paused =>
+      if initialized then
+        if paused then media.pause()
+        else { val _ = media.play() }
+      else initialized = true
+    }
+    Cleanup.register(cancel)
+
+  /** Two-way binding: `media.volume ↔ Var[Double]` (0.0–1.0).
+    *
+    * - DOM → Var: updated on `volumechange`.
+    * - Var → DOM: sets `media.volume`, skipping the initial value.
+    *
+    * Corresponds to `bind:volume` in Svelte 5.
+    */
+  def mediaVolume(el: dom.Element, v: Var[Double]): Unit =
+    val media = el.asInstanceOf[dom.html.Media]
+    v.set(media.volume)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.volume)
+    media.addEventListener("volumechange", listener)
+    Cleanup.register(() => media.removeEventListener("volumechange", listener))
+    var initialized = false
+    val cancel = v.signal.subscribe { vol =>
+      if initialized then media.volume = vol
+      else initialized = true
+    }
+    Cleanup.register(cancel)
+
+  /** Two-way binding: `media.muted ↔ Var[Boolean]`.
+    *
+    * - DOM → Var: updated on `volumechange`.
+    * - Var → DOM: sets `media.muted`, skipping the initial value.
+    *
+    * Corresponds to `bind:muted` in Svelte 5.
+    */
+  def mediaMuted(el: dom.Element, v: Var[Boolean]): Unit =
+    val media = el.asInstanceOf[dom.html.Media]
+    v.set(media.muted)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.muted)
+    media.addEventListener("volumechange", listener)
+    Cleanup.register(() => media.removeEventListener("volumechange", listener))
+    var initialized = false
+    val cancel = v.signal.subscribe { muted =>
+      if initialized then media.muted = muted
+      else initialized = true
+    }
+    Cleanup.register(cancel)
+
+  /** Two-way binding: `media.playbackRate ↔ Var[Double]`.
+    *
+    * - DOM → Var: updated on `ratechange`.
+    * - Var → DOM: sets `media.playbackRate`, skipping the initial value.
+    *
+    * Corresponds to `bind:playbackRate` in Svelte 5.
+    */
+  def mediaPlaybackRate(el: dom.Element, v: Var[Double]): Unit =
+    val media = el.asInstanceOf[dom.html.Media]
+    v.set(media.playbackRate)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.playbackRate)
+    media.addEventListener("ratechange", listener)
+    Cleanup.register(() => media.removeEventListener("ratechange", listener))
+    var initialized = false
+    val cancel = v.signal.subscribe { rate =>
+      if initialized then media.playbackRate = rate
+      else initialized = true
+    }
+    Cleanup.register(cancel)
+
+  /** One-way binding: `media.seeking → Var[Boolean]` (read-only).
+    *
+    * `true` while the user is seeking; `false` once seeking completes.
+    * Corresponds to `bind:seeking` in Svelte 5.
+    */
+  def mediaSeeking(el: dom.Element, v: Var[Boolean]): Unit =
+    val media            = el.asInstanceOf[dom.html.Media]
+    val seekingListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
+    val seekedListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
+    media.addEventListener("seeking", seekingListener)
+    media.addEventListener("seeked", seekedListener)
+    Cleanup.register(() => {
+      media.removeEventListener("seeking", seekingListener)
+      media.removeEventListener("seeked", seekedListener)
+    })
+
+  /** One-way binding: `media.ended → Var[Boolean]` (read-only).
+    *
+    * `true` when playback reaches the end; resets to `false` on `play`.
+    * Corresponds to `bind:ended` in Svelte 5.
+    */
+  def mediaEnded(el: dom.Element, v: Var[Boolean]): Unit =
+    val media         = el.asInstanceOf[dom.html.Media]
+    val endedListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
+    val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
+    media.addEventListener("ended", endedListener)
+    media.addEventListener("play", playListener)
+    Cleanup.register(() => {
+      media.removeEventListener("ended", endedListener)
+      media.removeEventListener("play", playListener)
+    })
+
+  /** One-way binding: `media.readyState → Var[Int]` (read-only, 0–4).
+    *
+    * 0=HAVE_NOTHING, 1=HAVE_METADATA, 2=HAVE_CURRENT_DATA,
+    * 3=HAVE_FUTURE_DATA, 4=HAVE_ENOUGH_DATA.
+    * Corresponds to `bind:readyState` in Svelte 5.
+    */
+  def mediaReadyState(el: dom.Element, v: Var[Int]): Unit =
+    val media    = el.asInstanceOf[dom.html.Media]
+    val events   = List("emptied", "loadedmetadata", "loadeddata", "canplay", "canplaythrough")
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.readyState.asInstanceOf[Int])
+    events.foreach(media.addEventListener(_, listener))
+    Cleanup.register(() => events.foreach(media.removeEventListener(_, listener)))
+
+  /** One-way binding: `video.videoWidth → Var[Int]` (read-only, `<video>` only).
+    *
+    * Intrinsic width of the video in CSS pixels. Updated on `loadedmetadata`.
+    * Corresponds to `bind:videoWidth` in Svelte 5.
+    */
+  def mediaVideoWidth(el: dom.Element, v: Var[Int]): Unit =
+    val video    = el.asInstanceOf[dom.html.Video]
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoWidth)
+    video.addEventListener("loadedmetadata", listener)
+    Cleanup.register(() => video.removeEventListener("loadedmetadata", listener))
+
+  /** One-way binding: `video.videoHeight → Var[Int]` (read-only, `<video>` only).
+    *
+    * Intrinsic height of the video in CSS pixels. Updated on `loadedmetadata`.
+    * Corresponds to `bind:videoHeight` in Svelte 5.
+    */
+  def mediaVideoHeight(el: dom.Element, v: Var[Int]): Unit =
+    val video    = el.asInstanceOf[dom.html.Video]
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoHeight)
+    video.addEventListener("loadedmetadata", listener)
+    Cleanup.register(() => video.removeEventListener("loadedmetadata", listener))
+
   // ── Conditional rendering (if/else, match) ─────────────────────────────
 
   /** Renders the result of `render()` before `anchor`.
