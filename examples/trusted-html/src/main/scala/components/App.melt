@@ -1,0 +1,54 @@
+<script lang="scala">
+val showExtra = Var(false)
+</script>
+
+<div class="app">
+  <h1>TrustedHtml Example</h1>
+
+  <section>
+    <h2>1. Static HTML string</h2>
+    <p class="note">Inline <code>TrustedHtml.unsafe(...)</code> inserts raw HTML without a wrapper element.</p>
+    <div class="output">
+      {TrustedHtml.unsafe("<p>A <strong>paragraph</strong> with <em>italic</em> and <code>code</code>.</p>")}
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Mixed with sibling nodes</h2>
+    <p class="note">TrustedHtml works alongside regular elements in the same parent.</p>
+    <div class="output row">
+      <span>Before — </span>
+      {TrustedHtml.unsafe("<strong>bold HTML</strong>")}
+      <span> — After</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. HTML list</h2>
+    <div class="output">
+      {TrustedHtml.unsafe("<ul><li>Apple</li><li>Banana</li><li>Cherry</li></ul>")}
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Conditional</h2>
+    <button onclick={_ => showExtra.update(!_)}>Toggle</button>
+    <div class="output">
+      {if showExtra
+       then TrustedHtml.unsafe("<p><strong>Extra content</strong> is now visible.</p>")
+       else TrustedHtml.unsafe("<p><em>(hidden)</em></p>")}
+    </div>
+  </section>
+</div>
+
+<style>
+.app { font-family: sans-serif; max-width: 600px; margin: 2em auto; padding: 1em; }
+h1 { color: #ff3e00; margin-bottom: 1em; }
+h2 { color: #333; font-size: 1rem; margin: 0 0 0.25em; }
+section { margin-bottom: 2em; padding: 1em; border: 1px solid #eee; border-radius: 6px; }
+.note { color: #888; font-size: 0.85em; margin: 0 0 0.5em; }
+.output { padding: 0.75em 1em; background: #f9f9f9; border-radius: 4px; }
+.output.row { display: flex; align-items: center; gap: 0.25em; }
+button { padding: 0.4em 0.9em; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; margin-bottom: 0.5em; }
+button:hover { background: #f0f0f0; }
+</style>

@@ -545,7 +545,8 @@ object SsrCodeGen extends CodeGen:
     scopeId: String
   ): Unit =
     val pad = " " * indent
-    buf ++= s"""${ pad }renderer.push(Escape.html($code))\n"""
+    if code.trim.contains("TrustedHtml") then buf ++= s"""${ pad }renderer.push(($code).value)\n"""
+    else buf ++= s"""${ pad }renderer.push(Escape.html($code))\n"""
 
   /** Emits a `TemplateNode.InlineTemplate`.
     *
@@ -661,7 +662,8 @@ object SsrCodeGen extends CodeGen:
       sb ++= s"""_sb ++= "$escaped"; """
 
     case TemplateNode.Expression(code) =>
-      sb ++= s"""_sb ++= Escape.html($code); """
+      if code.trim.contains("TrustedHtml") then sb ++= s"""_sb ++= ($code).value; """
+      else sb ++= s"""_sb ++= Escape.html($code); """
 
     case TemplateNode.Component(name, attrs, _) =>
       val args = attrs.flatMap {
