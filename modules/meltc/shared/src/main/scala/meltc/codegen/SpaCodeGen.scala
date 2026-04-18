@@ -626,6 +626,14 @@ object SpaCodeGen extends CodeGen:
           buf ++= s"""${ indent }Bind.radioGroup($v.asInstanceOf[dom.html.Input], $expr, $v.asInstanceOf[dom.html.Input].value)\n"""
       case Attr.Directive("bind", "this", Some(expr), _) =>
         buf ++= s"""${ indent }$expr.set($v.asInstanceOf[dom.Element])\n"""
+      case Attr.Directive("bind", "clientWidth", Some(expr), _) =>
+        buf ++= s"""${ indent }Bind.clientWidth($v, $expr)\n"""
+      case Attr.Directive("bind", "clientHeight", Some(expr), _) =>
+        buf ++= s"""${ indent }Bind.clientHeight($v, $expr)\n"""
+      case Attr.Directive("bind", "offsetWidth", Some(expr), _) =>
+        buf ++= s"""${ indent }Bind.offsetWidth($v, $expr)\n"""
+      case Attr.Directive("bind", "offsetHeight", Some(expr), _) =>
+        buf ++= s"""${ indent }Bind.offsetHeight($v, $expr)\n"""
       case Attr.Directive("class", name, Some(expr), _) =>
         buf ++= s"""${ indent }Bind.classToggle($v, "$name", $expr)\n"""
       case Attr.Directive("class", name, None, _) =>
