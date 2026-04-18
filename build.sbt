@@ -230,6 +230,19 @@ lazy val `special-elements` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
+// ── Example: Media Binding (M-5 — bind:currentTime / paused / volume etc.) ───
+lazy val `media-binding` = project
+  .in(file("examples/media-binding"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "media-binding",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
 // ── Example: Dimension Binding (M-3 — bind:clientWidth / offsetWidth etc.) ───
 lazy val `dimension-binding` = project
   .in(file("examples/dimension-binding"))
@@ -412,6 +425,7 @@ lazy val root = project
     `dynamic-element`,
     `layout-effect`,
     `select-textarea-bind`,
+    `media-binding`,
     `dimension-binding`,
     `reactive-scope`,
     boundary,

@@ -1,0 +1,292 @@
+<script lang="scala">
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+val progressRef = Ref.empty[dom.Element]
+
+// ── Playback state ───────────────────────────────────────────────────────────
+val currentTime  = Var(0.0)
+val duration     = Var(0.0)
+val paused       = Var(true)
+val volume       = Var(1.0)
+val muted        = Var(false)
+val playbackRate = Var(1.0)
+
+// ── Read-only state ──────────────────────────────────────────────────────────
+val seeking    = Var(false)
+val ended      = Var(false)
+val readyState = Var(0)
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+def formatTime(secs: Double): String =
+  if secs.isNaN || secs.isInfinite then "--:--"
+  else
+    val m = (secs / 60).toInt
+    val s = (secs % 60).toInt
+    f"$m%02d:$s%02d"
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+def rateClass(r: Double): Signal[String] =
+  playbackRate.map(pr => "rate-btn" + (if pr == r then " active" else ""))
+
+// ── Derived values ───────────────────────────────────────────────────────────
+val progressPct = currentTime.map(t =>
+  if duration.value > 0 then (t / duration.value * 100).toInt else 0
+)
+
+val currentTimeLabel = currentTime.map(t => formatTime(t))
+val durationLabel    = duration.map(t => formatTime(t))
+
+val readyStateLabel = readyState.map {
+  case 0 => "0 — HAVE_NOTHING"
+  case 1 => "1 — HAVE_METADATA"
+  case 2 => "2 — HAVE_CURRENT_DATA"
+  case 3 => "3 — HAVE_FUTURE_DATA"
+  case 4 => "4 — HAVE_ENOUGH_DATA"
+  case n => s"$n — unknown"
+}
+</script>
+
+<div class="demo">
+  <header class="hero">
+    <h1>Media Element Binding</h1>
+    <p class="subtitle">
+      Demonstrates <code>bind:currentTime</code>, <code>bind:paused</code>,
+      <code>bind:volume</code>, <code>bind:muted</code>, <code>bind:playbackRate</code>,
+      and read-only bindings like <code>bind:duration</code>, <code>bind:seeking</code>,
+      <code>bind:ended</code>, <code>bind:readyState</code>.
+    </p>
+  </header>
+
+  <!-- ── Video player ──────────────────────────────────────────────────────── -->
+  <div class="player-wrapper">
+    <video
+      class="player-video"
+      src="https://www.w3schools.com/html/mov_bbb.mp4"
+      bind:currentTime={currentTime}
+      bind:duration={duration}
+      bind:paused={paused}
+      bind:volume={volume}
+      bind:muted={muted}
+      bind:playbackRate={playbackRate}
+      bind:seeking={seeking}
+      bind:ended={ended}
+      bind:readyState={readyState}
+    ></video>
+
+    <!-- Progress bar: clicking seeks via currentTime Var -->
+    <div class="progress-bar" bind:this={progressRef} onclick={(e: dom.Event) => {
+      val me = e.asInstanceOf[org.scalajs.dom.MouseEvent]
+      progressRef.foreach { el =>
+        val rect = el.getBoundingClientRect()
+        val pct  = (me.clientX - rect.left) / rect.width
+        currentTime.set(duration.value * pct)
+      }
+    }}>
+      <div class="progress-fill" style={s"width: ${progressPct.value}%"}></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="play-btn" onclick={_ => paused.update(!_)}>
+        {paused.map(p => if p then "▶ Play" else "⏸ Pause")}
+      </button>
+
+      <span class="time-label">{currentTimeLabel} / {durationLabel}</span>
+
+      <button onclick={_ => muted.update(!_)}>
+        {muted.map(m => if m then "🔇 Unmute" else "🔊 Mute")}
+      </button>
+
+      <input
+        class="volume-slider"
+        type="range"
+        bind:value-double={volume}
+        min="0"
+        max="1"
+        step="0.05"
+      />
+    </div>
+
+    <!-- Playback rate -->
+    <div class="rate-row">
+      <span class="rate-label">Speed:</span>
+      {List(0.5, 1.0, 1.5, 2.0).map((r: Double) =>
+        <button
+          class={rateClass(r)}
+          onclick={_ => playbackRate.set(r)}
+        >{s"${r}x"}</button>
+      )}
+    </div>
+  </div>
+
+  <!-- ── State panel ───────────────────────────────────────────────────────── -->
+  <section class="state-panel">
+    <h2 class="panel-title">Live Binding Values</h2>
+    <div class="metrics">
+      <div class="metric-row">
+        <span class="metric-label">currentTime</span>
+        <code class="metric-value">{currentTimeLabel}</code>
+        <span class="metric-desc">bind:currentTime (two-way)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">duration</span>
+        <code class="metric-value">{durationLabel}</code>
+        <span class="metric-desc">bind:duration (read-only)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">paused</span>
+        <code class="metric-value">{paused.map(_.toString)}</code>
+        <span class="metric-desc">bind:paused (two-way)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">volume</span>
+        <code class="metric-value">{volume.map(v => f"$v%.2f")}</code>
+        <span class="metric-desc">bind:volume (two-way)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">muted</span>
+        <code class="metric-value">{muted.map(_.toString)}</code>
+        <span class="metric-desc">bind:muted (two-way)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">playbackRate</span>
+        <code class="metric-value">{playbackRate.map(r => s"${r}x")}</code>
+        <span class="metric-desc">bind:playbackRate (two-way)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">seeking</span>
+        <code class="metric-value">{seeking.map(_.toString)}</code>
+        <span class="metric-desc">bind:seeking (read-only)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">ended</span>
+        <code class="metric-value">{ended.map(_.toString)}</code>
+        <span class="metric-desc">bind:ended (read-only)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">readyState</span>
+        <code class="metric-value">{readyStateLabel}</code>
+        <span class="metric-desc">bind:readyState (read-only)</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; color: #222; background: #f5f5f5; }
+
+.demo { max-width: 760px; margin: 0 auto; padding: 1.5em 1em 4em; }
+
+.hero { text-align: center; padding: 2em 1em; }
+.hero h1 { font-size: 2em; color: #ff3e00; }
+.subtitle { margin-top: 0.5em; color: #555; font-size: 0.9em; line-height: 1.6; }
+
+.player-wrapper {
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 1.5em;
+}
+
+.player-video { width: 100%; display: block; }
+
+.progress-bar {
+  height: 6px;
+  background: #444;
+  cursor: pointer;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  background: #ff3e00;
+  pointer-events: none;
+  transition: width 0.1s linear;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.7em 1em;
+  background: #1a1a1a;
+  flex-wrap: wrap;
+}
+
+.play-btn {
+  background: #ff3e00;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4em 1em;
+  cursor: pointer;
+  font-size: 0.88em;
+  white-space: nowrap;
+}
+.play-btn:hover { background: #e03500; }
+
+.time-label { color: #ccc; font-size: 0.85em; font-family: monospace; flex: 1; }
+
+button { cursor: pointer; }
+
+.controls button:not(.play-btn) {
+  background: #333;
+  color: #ddd;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.3em 0.7em;
+  font-size: 0.82em;
+}
+.controls button:not(.play-btn):hover { background: #444; }
+
+.volume-slider { width: 90px; accent-color: #ff3e00; }
+
+.rate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em 1em;
+  background: #222;
+  flex-wrap: wrap;
+}
+.rate-label { color: #aaa; font-size: 0.82em; }
+.rate-btn {
+  background: #333;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 0.25em 0.6em;
+  font-size: 0.82em;
+}
+.rate-btn:hover { background: #444; }
+.rate-btn.active { background: #ff3e00; color: #fff; border-color: #ff3e00; }
+
+.state-panel {
+  margin-top: 1.5em;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.2em;
+}
+
+.panel-title { font-size: 1em; font-weight: 600; color: #333; margin-bottom: 0.8em; }
+
+.metrics { display: flex; flex-direction: column; gap: 0.4em; }
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  font-size: 0.88em;
+  flex-wrap: wrap;
+}
+.metric-label { color: #555; font-family: monospace; min-width: 110px; flex-shrink: 0; }
+.metric-value {
+  background: #f4f4f4;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-family: monospace;
+  min-width: 160px;
+}
+.metric-desc { color: #aaa; font-size: 0.82em; }
+
+code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.88em; font-family: monospace; }
+</style>

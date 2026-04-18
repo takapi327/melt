@@ -8,6 +8,7 @@ package meltc
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Paths }
+import java.util.ArrayList as JArrayList
 
 /** CLI entry point for the meltc compiler (JVM platform only).
   *
@@ -63,11 +64,19 @@ object MeltcMain:
       hydration
     )
 
-    result.warnings.foreach(w => System.err.println(s"meltc warning: ${ w.message }"))
+    // ── Structured diagnostics file for sbt-meltc reporter integration ────
+    // Written alongside the output file so the plugin can read it after fork.
+    // Format: one line per diagnostic, tab-separated: severity\tpath\tline\tcol\tmessage
+    //   E = error, W = warning
+    val diagPath  = Paths.get(outputPath.toString + ".diag")
+    val absMelt   = inputPath.toAbsolutePath.toString
+    val diagLines = new JArrayList[String]()
+    result.errors.foreach(e => diagLines.add(s"E\t$absMelt\t${ e.line }\t${ e.column }\t${ e.message }"))
+    result.warnings.foreach(w => diagLines.add(s"W\t$absMelt\t${ w.line }\t${ w.column }\t${ w.message }"))
+    try Files.write(diagPath, diagLines, StandardCharsets.UTF_8)
+    catch case _: Exception => () // best-effort; don't fail compilation over this
 
-    if result.errors.nonEmpty then
-      result.errors.foreach(e => System.err.println(s"meltc error: ${ e.message }"))
-      sys.exit(1)
+    if result.errors.nonEmpty then sys.exit(1)
 
     result.scalaCode match
       case None =>

@@ -77,3 +77,45 @@ class SemanticCheckersSpec extends munit.FunSuite:
   // directly testable through MeltCompiler.compile. The AttrNameChecker
   // is a defence-in-depth layer — it catches attributes that a future
   // parser extension might admit but that HTML5 forbids.
+
+  // ── Binding context validation ─────────────────────────────────────────
+
+  test("bind:currentTime on <video> is valid") {
+    val result = compileSpa("""<video bind:currentTime={t}></video>""")
+    assert(result.errors.isEmpty, result.errors)
+  }
+
+  test("bind:currentTime on <audio> is valid") {
+    val result = compileSpa("""<audio bind:currentTime={t}></audio>""")
+    assert(result.errors.isEmpty, result.errors)
+  }
+
+  test("bind:currentTime on <div> is a compile error") {
+    val result = compileSpa("""<div bind:currentTime={t}></div>""")
+    assert(result.errors.nonEmpty, result.errors)
+    assert(result.errors.head.message.contains("bind:currentTime"), result.errors.head.message)
+    assert(result.errors.head.message.contains("<div>"), result.errors.head.message)
+  }
+
+  test("bind:paused on <div> is a compile error") {
+    val result = compileSpa("""<div bind:paused={p}></div>""")
+    assert(result.errors.nonEmpty, result.errors)
+    assert(result.errors.head.message.contains("bind:paused"), result.errors.head.message)
+  }
+
+  test("bind:videoWidth on <video> is valid") {
+    val result = compileSpa("""<video bind:videoWidth={w}></video>""")
+    assert(result.errors.isEmpty, result.errors)
+  }
+
+  test("bind:videoWidth on <audio> is a compile error") {
+    val result = compileSpa("""<audio bind:videoWidth={w}></audio>""")
+    assert(result.errors.nonEmpty, result.errors)
+    assert(result.errors.head.message.contains("bind:videoWidth"), result.errors.head.message)
+  }
+
+  test("bind:videoHeight on <div> is a compile error") {
+    val result = compileSpa("""<div bind:videoHeight={h}></div>""")
+    assert(result.errors.nonEmpty, result.errors)
+    assert(result.errors.head.message.contains("bind:videoHeight"), result.errors.head.message)
+  }

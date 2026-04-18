@@ -239,9 +239,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── Dynamic attribute generation ──────────────────────────────────────
 
-  test("dynamic class attribute uses classList.add to preserve scope ID") {
+  test("dynamic class attribute uses Bind.cls to support reactive values") {
     val code = compile("<div class={expr}></div>")
-    assert(code.contains("classList.add"), code)
+    assert(code.contains("Bind.cls(_el0, expr)"), code)
     assert(!code.contains("""setAttribute("class""""), code)
   }
 
@@ -686,6 +686,68 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile("<div bind:clientWidth={w} bind:clientHeight={h}></div>")
     assert(code.contains("Bind.clientWidth(_el0, w)"), code)
     assert(code.contains("Bind.clientHeight(_el0, h)"), code)
+  }
+
+  test("bind:currentTime emits Bind.mediaCurrentTime") {
+    val code = compile("<video bind:currentTime={time}></video>")
+    assert(code.contains("Bind.mediaCurrentTime(_el0, time)"), code)
+  }
+
+  test("bind:duration emits Bind.mediaDuration") {
+    val code = compile("<video bind:duration={dur}></video>")
+    assert(code.contains("Bind.mediaDuration(_el0, dur)"), code)
+  }
+
+  test("bind:paused emits Bind.mediaPaused") {
+    val code = compile("<video bind:paused={paused}></video>")
+    assert(code.contains("Bind.mediaPaused(_el0, paused)"), code)
+  }
+
+  test("bind:volume emits Bind.mediaVolume") {
+    val code = compile("<audio bind:volume={vol}></audio>")
+    assert(code.contains("Bind.mediaVolume(_el0, vol)"), code)
+  }
+
+  test("bind:muted emits Bind.mediaMuted") {
+    val code = compile("<video bind:muted={muted}></video>")
+    assert(code.contains("Bind.mediaMuted(_el0, muted)"), code)
+  }
+
+  test("bind:playbackRate emits Bind.mediaPlaybackRate") {
+    val code = compile("<video bind:playbackRate={rate}></video>")
+    assert(code.contains("Bind.mediaPlaybackRate(_el0, rate)"), code)
+  }
+
+  test("bind:seeking emits Bind.mediaSeeking") {
+    val code = compile("<video bind:seeking={seeking}></video>")
+    assert(code.contains("Bind.mediaSeeking(_el0, seeking)"), code)
+  }
+
+  test("bind:ended emits Bind.mediaEnded") {
+    val code = compile("<video bind:ended={ended}></video>")
+    assert(code.contains("Bind.mediaEnded(_el0, ended)"), code)
+  }
+
+  test("bind:readyState emits Bind.mediaReadyState") {
+    val code = compile("<video bind:readyState={rs}></video>")
+    assert(code.contains("Bind.mediaReadyState(_el0, rs)"), code)
+  }
+
+  test("bind:videoWidth emits Bind.mediaVideoWidth") {
+    val code = compile("<video bind:videoWidth={vw}></video>")
+    assert(code.contains("Bind.mediaVideoWidth(_el0, vw)"), code)
+  }
+
+  test("bind:videoHeight emits Bind.mediaVideoHeight") {
+    val code = compile("<video bind:videoHeight={vh}></video>")
+    assert(code.contains("Bind.mediaVideoHeight(_el0, vh)"), code)
+  }
+
+  test("media bindings can be combined on a single video element") {
+    val code = compile("<video bind:currentTime={t} bind:paused={p} bind:volume={v}></video>")
+    assert(code.contains("Bind.mediaCurrentTime(_el0, t)"), code)
+    assert(code.contains("Bind.mediaPaused(_el0, p)"), code)
+    assert(code.contains("Bind.mediaVolume(_el0, v)"), code)
   }
 
   // ── Phase 6: List rendering ───────────────────────────────────────────────
