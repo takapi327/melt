@@ -1843,7 +1843,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   }
 
   test("{@render expr} appends the expression result") {
-    val src = """<div>{@render mySnippet()}</div>"""
+    val src  = """<div>{@render mySnippet()}</div>"""
     val code = compile(src)
     assert(code.contains("val _el"), code)
     assert(code.contains("mySnippet()"), code)

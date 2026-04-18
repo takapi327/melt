@@ -326,8 +326,8 @@ private[parser] final class TemplateParser(src: String):
     val current = new StringBuilder
     var depth   = 0
     raw.foreach {
-      case c @ ('[' | '(') => depth += 1; current += c
-      case c @ (']' | ')') => depth -= 1; current += c
+      case c @ ('[' | '(')   => depth += 1; current += c
+      case c @ (']' | ')')   => depth -= 1; current += c
       case ',' if depth == 0 =>
         params += parseOneSnippetParam(current.toString.trim)
         current.clear()
