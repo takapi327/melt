@@ -91,6 +91,26 @@ enum TemplateNode:
     */
   case KeyBlock(keyExpr: String, children: List[TemplateNode])
 
+  /** A `{#snippet name(params)}...{/snippet}` definition — creates a typed lambda
+    * that can be passed as a Props field or rendered inline with `{@render}`.
+    *
+    * @param name     the snippet identifier
+    * @param params   the typed parameter list
+    * @param children the template body to render when the snippet is called
+    */
+  case SnippetDef(
+    name:     String,
+    params:   List[SnippetParam],
+    children: List[TemplateNode]
+  )
+
+  /** A `{@render expr}` directive — evaluates `expr` (which must produce a
+    * `dom.Element`) and inserts it into the DOM at this position.
+    *
+    * @param expr the raw Scala expression to evaluate (e.g. `"renderItem(todo)"`)
+    */
+  case RenderCall(expr: String)
+
 /** The `<melt:pending>` block inside a `<melt:boundary>` — shown while `Await` futures are pending. */
 case class PendingBlock(children: List[TemplateNode])
 
@@ -101,6 +121,13 @@ case class PendingBlock(children: List[TemplateNode])
   * @param children the fallback UI nodes
   */
 case class FailedBlock(errorVar: String, resetVar: String, children: List[TemplateNode])
+
+/** A parameter in a `{#snippet name(params)}` block.
+  *
+  * @param name          the Scala parameter name
+  * @param typeAnnotation the optional Scala type (e.g. `"Todo"`, `"Seq[String]"`)
+  */
+case class SnippetParam(name: String, typeAnnotation: Option[String])
 
 /** A part of an [[TemplateNode.InlineTemplate]] expression. */
 enum InlineTemplatePart:

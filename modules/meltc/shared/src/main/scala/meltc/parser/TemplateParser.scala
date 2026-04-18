@@ -197,15 +197,27 @@ private[parser] final class TemplateParser(src: String):
         src(pos) match
           case '{' =>
             pos += 1
-            val (parts, end) = ExprExtractor.extractRich(src, pos)
-            pos = end
-            val hasHtml = parts.exists(_.isInstanceOf[meltc.ast.InlineTemplatePart.Html])
-            if hasHtml then
-              if parts.nonEmpty then nodes += TemplateNode.InlineTemplate(parts)
+            if src.startsWith("/snippet", pos) then
+              // End of snippet body — consume until `}` and stop this parse level
+              while pos < src.length && src(pos) != '}' do pos += 1
+              if pos < src.length then pos += 1
+              stop = true
+            else if src.startsWith("#snippet ", pos) then
+              pos += "#snippet ".length
+              nodes += parseSnippetDef()
+            else if src.startsWith("@render ", pos) then
+              pos += "@render ".length
+              nodes += parseRenderCall()
             else
-              // Pure Scala expression — flatten to Expression node
-              val expr = parts.collect { case meltc.ast.InlineTemplatePart.Code(c) => c }.mkString
-              if expr.nonEmpty then nodes += TemplateNode.Expression(expr)
+              val (parts, end) = ExprExtractor.extractRich(src, pos)
+              pos = end
+              val hasHtml = parts.exists(_.isInstanceOf[meltc.ast.InlineTemplatePart.Html])
+              if hasHtml then
+                if parts.nonEmpty then nodes += TemplateNode.InlineTemplate(parts)
+              else
+                // Pure Scala expression — flatten to Expression node
+                val expr = parts.collect { case meltc.ast.InlineTemplatePart.Code(c) => c }.mkString
+                if expr.nonEmpty then nodes += TemplateNode.Expression(expr)
 
           case '<' if isOpenTagAt(pos) =>
             nodes += parseElement()
@@ -252,6 +264,83 @@ private[parser] final class TemplateParser(src: String):
       skipSpaces()
       while pos < src.length && src(pos) != '>' do pos += 1
       if pos < src.length then pos += 1
+
+  /** Parses a `{#snippet name(params)}...{/snippet}` block.
+    * Called after `{#snippet ` has been consumed from the source.
+    */
+  private def parseSnippetDef(): TemplateNode.SnippetDef =
+    // Collect snippet name
+    skipSpaces()
+    val name = collectName()
+    skipSpaces()
+
+    // Collect optional parameter list
+    val params: List[SnippetParam] =
+      if pos < src.length && src(pos) == '(' then
+        pos += 1 // consume '('
+        val rawParams = collectBalancedUntil(')')
+        if pos < src.length && src(pos) == ')' then pos += 1 // consume ')'
+        parseSnippetParams(rawParams)
+      else Nil
+
+    // Consume the closing `}` of the opening tag
+    skipSpaces()
+    if pos < src.length && src(pos) == '}' then pos += 1
+
+    // Parse body nodes until {/snippet}
+    val children = parseNodes(insideTag = false)
+
+    TemplateNode.SnippetDef(name, params, children)
+
+  /** Parses a `{@render expr}` directive.
+    * Called after `{@render ` has been consumed from the source.
+    */
+  private def parseRenderCall(): TemplateNode.RenderCall =
+    val (parts, end) = ExprExtractor.extractRich(src, pos)
+    pos = end
+    val expr = parts.collect { case InlineTemplatePart.Code(c) => c }.mkString.trim
+    TemplateNode.RenderCall(expr)
+
+  /** Collects characters until `stopChar` is found (or end of input),
+    * respecting nested brackets.
+    */
+  private def collectBalancedUntil(stopChar: Char): String =
+    val buf   = new StringBuilder
+    var depth = 0
+    while pos < src.length && !(src(pos) == stopChar && depth == 0) do
+      src(pos) match
+        case '(' | '[' | '{' => depth += 1; buf += src(pos)
+        case ')' | ']' | '}' =>
+          if depth > 0 then { depth -= 1; buf += src(pos) }
+          else return buf.toString
+        case c => buf += c
+      pos += 1
+    buf.toString
+
+  /** Parses a comma-separated snippet parameter string like `"todo: Todo, index: Int"`.
+    * Handles nested brackets in type annotations (e.g. `Seq[String]`, `T => String`).
+    */
+  private def parseSnippetParams(raw: String): List[SnippetParam] =
+    if raw.trim.isEmpty then return Nil
+    val params  = List.newBuilder[SnippetParam]
+    val current = new StringBuilder
+    var depth   = 0
+    raw.foreach {
+      case c @ ('[' | '(') => depth += 1; current += c
+      case c @ (']' | ')') => depth -= 1; current += c
+      case ',' if depth == 0 =>
+        params += parseOneSnippetParam(current.toString.trim)
+        current.clear()
+      case c => current += c
+    }
+    val last = current.toString.trim
+    if last.nonEmpty then params += parseOneSnippetParam(last)
+    params.result()
+
+  private def parseOneSnippetParam(s: String): SnippetParam =
+    val colon = s.indexOf(':')
+    if colon < 0 then SnippetParam(s.trim, None)
+    else SnippetParam(s.substring(0, colon).trim, Some(s.substring(colon + 1).trim))
 
   // ── Attribute parsing ─────────────────────────────────────────────────────
 

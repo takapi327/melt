@@ -180,6 +180,12 @@ object SsrCodeGen extends CodeGen:
       case TemplateNode.KeyBlock(_, children) =>
         children.foreach(c => emitNode(c, buf, indent, scopeId))
 
+      case TemplateNode.SnippetDef(_, _, _) => () // SSR: snippets not yet supported
+
+      case TemplateNode.RenderCall(expr) =>
+        val pad = " " * indent
+        buf ++= s"${ pad }renderer.push($expr)\n"
+
   /** Generic element emission — the normal open/close path used when no
     * special `bind:` directive is in play. Kept as a separate method so
     * that the special cases above can fall through cleanly.

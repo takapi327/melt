@@ -557,6 +557,15 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"${ indent }Bind.key($keyExpr, $kVar, $startAnch, $endAnch)\n"
         ""
 
+      case TemplateNode.SnippetDef(name, params, children) =>
+        emitSnippetDef(buf, name, params, children, indent, ctr)
+        "" // snippets define a val, they don't produce an inline element reference
+
+      case TemplateNode.RenderCall(expr) =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v = $expr\n"
+        v
+
       case TemplateNode.Component(name, attrs, children) =>
         val v = ctr.nextEl()
 
@@ -576,11 +585,27 @@ object SpaCodeGen extends CodeGen:
           case _                    => true
         }
 
+        // Separate snippet definitions from regular children
+        val (snippetChildren, regularChildren) = filteredChildren.partition {
+          case TemplateNode.SnippetDef(_, _, _) => true
+          case _                                => false
+        }
+
+        // Emit snippet lambdas and collect their prop assignments
+        val snippetArgs = snippetChildren.collect {
+          case TemplateNode.SnippetDef(snName, snParams, snChildren) =>
+            val varName = s"_snippet_${ snName }_${ ctr.nextChildIdx() }"
+            emitSnippetDef(buf, varName, snParams, snChildren, indent, ctr)
+            s"$snName = $varName"
+        }
+
         spreadExpr match
           case Some(expr) =>
             buf ++= s"${ indent }val $v = $name($expr)\n"
           case None =>
-            val propsArgs = buildPropsArgs(attrs, filteredChildren, indent, ctr, buf)
+            val baseArgs  = buildPropsArgs(attrs, regularChildren, indent, ctr, buf)
+            val allArgs   = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
+            val propsArgs = allArgs.mkString(", ")
             if propsArgs.nonEmpty then buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
             else buf ++= s"${ indent }val $v = $name()\n"
 
@@ -772,6 +797,62 @@ object SpaCodeGen extends CodeGen:
 
     buf ++= s"${ indent }}\n"
     varName
+
+  /** Emits a snippet definition as a typed Scala lambda val.
+    *
+    * `{#snippet render(todo: Todo)}` emits:
+    * {{{
+    * val render: (Todo) => dom.Element = (todo: Todo) => {
+    *   // ... body ...
+    * }
+    * }}}
+    */
+  private def emitSnippetDef(
+    buf:      StringBuilder,
+    name:     String,
+    params:   List[SnippetParam],
+    children: List[TemplateNode],
+    indent:   String,
+    ctr:      Counter
+  ): Unit =
+    val inner    = indent + "  "
+    val innerCtr = new Counter
+
+    // Build type annotation and parameter list
+    val (typeStr, paramStr) = params match
+      case Nil =>
+        ("() => dom.Element", "()")
+      case List(p) =>
+        val tpe   = p.typeAnnotation.getOrElse("Any")
+        val pDecl = p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)
+        (s"($tpe) => dom.Element", s"($pDecl)")
+      case ps =>
+        val types = ps.map(_.typeAnnotation.getOrElse("Any")).mkString(", ")
+        val decls = ps.map(p => p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)).mkString(", ")
+        (s"(($types)) => dom.Element", s"(($decls))")
+
+    buf ++= s"${ indent }val $name: $typeStr = $paramStr => {\n"
+
+    val filteredChildren = children.filter {
+      case TemplateNode.Text(t) => !t.isBlank
+      case _                    => true
+    }
+    filteredChildren match
+      case Nil =>
+        buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
+      case single :: Nil =>
+        val cv = emitNode(buf, single, inner, innerCtr, isRoot = false, parentVar = None)
+        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
+        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
+      case multiple =>
+        buf ++= s"${ inner }val _frag = dom.document.createElement(\"div\")\n"
+        multiple.foreach { child =>
+          val cv = emitNode(buf, child, inner, innerCtr, isRoot = false, parentVar = Some("_frag"))
+          if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
+        }
+        buf ++= s"${ inner }_frag\n"
+
+    buf ++= s"${ indent }}\n"
 
   /** Emits the body of a key-block render lambda.
     *
