@@ -366,9 +366,15 @@ object SpaCodeGen extends CodeGen:
 
           case ExprKind.DomResult =>
             // Expression that directly creates and returns a dom.Element (e.g. Await(...) { ... }).
-            // We assign it to a typed variable; the caller is responsible for appending it.
             val v = ctr.nextEl()
             buf ++= s"${ indent }val $v: dom.Element = {\n${ indent }  ${ code.trim }\n${ indent }}\n"
+            v
+
+          case ExprKind.FragmentResult =>
+            // InlineTemplate multiple children wrapped in a DocumentFragment.
+            // Typed as dom.Node since DocumentFragment is not a dom.Element.
+            val v = ctr.nextEl()
+            buf ++= s"${ indent }val $v: dom.Node = {\n${ indent }  ${ code.trim }\n${ indent }}\n"
             v
 
           case ExprKind.TrustedHtmlExpr =>
@@ -410,7 +416,7 @@ object SpaCodeGen extends CodeGen:
                 val v = emitNode(innerBuf, single, indent + "  ", innerCtr, isRoot = false, parentVar = None)
                 exprBuf ++= s"{\n$innerBuf${ indent }  $v\n${ indent }}"
               case multiple =>
-                innerBuf ++= s"${ indent }  val _frag = dom.document.createElement(\"div\")\n"
+                innerBuf ++= s"${ indent }  val _frag = dom.document.createDocumentFragment()\n"
                 multiple.foreach { n =>
                   val v =
                     emitNode(innerBuf, n, indent + "  ", innerCtr, isRoot = false, parentVar = Some("_frag"))
@@ -802,7 +808,7 @@ object SpaCodeGen extends CodeGen:
         if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
         else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
-        buf ++= s"${ inner }val _frag = dom.document.createElement(\"div\")\n"
+        buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
         multiple.foreach { child =>
           val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"))
           if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
@@ -1101,7 +1107,8 @@ object SpaCodeGen extends CodeGen:
     case ListMap
     case KeyedMap
     case DomExpr
-    case DomResult
+    case DomResult      // single dom.Element (e.g. Await, explicit createElement)
+    case FragmentResult // dom.DocumentFragment (InlineTemplate multiple children)
     case TrustedHtmlExpr
     case PlainText
 
@@ -1139,6 +1146,7 @@ object SpaCodeGen extends CodeGen:
     else if (trimmed.startsWith("if ") || trimmed.startsWith("if(")) && containsDomConstruction(trimmed) then
       ExprKind.DomExpr
     else if trimmed.contains(" match") && containsDomConstruction(trimmed) then ExprKind.DomExpr
+    else if trimmed.contains("createDocumentFragment") then ExprKind.FragmentResult
     else if returnsDomElementDirectly(trimmed) then ExprKind.DomResult
     else ExprKind.PlainText
 
