@@ -528,6 +528,10 @@ object SpaCodeGen extends CodeGen:
           case _                          => false
         }
 
+        val bindThisExpr = attrs.collectFirst {
+          case Attr.Directive("bind", "this", Some(expr), _) => expr
+        }
+
         val filteredChildren = children.filter {
           case TemplateNode.Text(t) => !t.isBlank
           case _                    => true
@@ -542,6 +546,9 @@ object SpaCodeGen extends CodeGen:
             else buf ++= s"${ indent }val $v = $name()\n"
 
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
+        bindThisExpr.foreach { expr =>
+          buf ++= s"${ indent }$expr.set($v)\n"
+        }
         v
 
   private def emitAttr(
