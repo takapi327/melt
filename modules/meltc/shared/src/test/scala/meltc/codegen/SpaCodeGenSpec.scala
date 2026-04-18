@@ -662,6 +662,32 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("canvasRef.set("), code)
   }
 
+  test("bind:clientWidth emits Bind.clientWidth") {
+    val code = compile("<div bind:clientWidth={w}></div>")
+    assert(code.contains("Bind.clientWidth(_el0, w)"), code)
+  }
+
+  test("bind:clientHeight emits Bind.clientHeight") {
+    val code = compile("<div bind:clientHeight={h}></div>")
+    assert(code.contains("Bind.clientHeight(_el0, h)"), code)
+  }
+
+  test("bind:offsetWidth emits Bind.offsetWidth") {
+    val code = compile("<div bind:offsetWidth={w}></div>")
+    assert(code.contains("Bind.offsetWidth(_el0, w)"), code)
+  }
+
+  test("bind:offsetHeight emits Bind.offsetHeight") {
+    val code = compile("<div bind:offsetHeight={h}></div>")
+    assert(code.contains("Bind.offsetHeight(_el0, h)"), code)
+  }
+
+  test("bind:clientWidth and bind:clientHeight can be combined") {
+    val code = compile("<div bind:clientWidth={w} bind:clientHeight={h}></div>")
+    assert(code.contains("Bind.clientWidth(_el0, w)"), code)
+    assert(code.contains("Bind.clientHeight(_el0, h)"), code)
+  }
+
   // ── Phase 6: List rendering ───────────────────────────────────────────────
 
   test(".map() expression with DOM body emits anchor + Bind.list") {
