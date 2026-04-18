@@ -9,6 +9,8 @@ package meltc.sbt
 import sbt._
 import sbt.Keys._
 
+import java.util.Optional
+
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
 
@@ -283,7 +285,8 @@ object MeltcPlugin extends AutoPlugin {
       pkg        = meltcPackage.value,
       mode       = meltcMode.value,
       hydration  = meltcHydration.value,
-      compilerCp = meltcCompilerClasspath.value
+      compilerCp = meltcCompilerClasspath.value,
+      reporter   = (Compile / compile / bspReporter).value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
@@ -349,7 +352,8 @@ object MeltcPlugin extends AutoPlugin {
     pkg:        String,
     mode:       String,
     hydration:  Boolean,
-    compilerCp: Seq[File]
+    compilerCp: Seq[File],
+    reporter:   xsbti.Reporter
   ): Seq[File] = {
     val log = streams.log
 
@@ -401,7 +405,8 @@ object MeltcPlugin extends AutoPlugin {
           .map(rel => new java.io.File(outDir, rel))
           .getOrElse(outDir)
         IO.createDirectory(outSubDir)
-        val outFile = outSubDir / s"$objectName.scala"
+        val outFile  = outSubDir / s"$objectName.scala"
+        val diagFile = new File(outFile.getAbsolutePath + ".diag")
 
         log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
@@ -419,15 +424,82 @@ object MeltcPlugin extends AutoPlugin {
 
         val exitCode = Fork.java(ForkOptions(), javaArgs)
 
-        if (exitCode == 0) {
-          log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
-          Seq(outFile)
-        } else {
-          log.error(s"[sbt-meltc] Compilation failed for ${ meltFile.getName } (exit $exitCode)")
-          Seq.empty
+        // ── Read structured diagnostics written by MeltcMain ──────────────
+        val (errors, warnings) = readDiagnostics(diagFile)
+        IO.delete(diagFile)
+
+        // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
+        warnings.foreach { case (path, lineNum, col, msg) =>
+          try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
+          catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
         }
+
+        if (exitCode != 0) {
+          errors.foreach { case (path, lineNum, col, msg) =>
+            try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
+            catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
+          }
+          throw new MessageOnlyException(
+            s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
+          )
+        }
+
+        log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
+        Seq(outFile)
     }
   }
+
+  /** Reads the structured `.diag` file written by `MeltcMain`.
+    *
+    * Each line is tab-separated: `severity\tabsPath\tline\tcol\tmessage`
+    * where severity is `E` (error) or `W` (warning).
+    *
+    * Returns `(errors, warnings)` as `(absPath, line, col, message)` tuples.
+    */
+  private def readDiagnostics(
+    diagFile: File
+  ): (List[(String, Int, Int, String)], List[(String, Int, Int, String)]) = {
+    if (!diagFile.exists()) return (Nil, Nil)
+    def parseInt(s: String): Int = try s.toInt catch { case _: NumberFormatException => 0 }
+    def parseLine(line: String): Option[(String, Int, Int, String)] = {
+      val parts = line.split("\t", 5)
+      if (parts.length >= 5) Some((parts(1), parseInt(parts(2)), parseInt(parts(3)), parts(4)))
+      else None
+    }
+    val lines    = IO.readLines(diagFile)
+    val errors   = lines.filter(_.startsWith("E\t")).flatMap(parseLine)
+    val warnings = lines.filter(_.startsWith("W\t")).flatMap(parseLine)
+    (errors, warnings)
+  }
+
+  /** Creates an `xsbti.Position` pointing at a location in a `.melt` file. */
+  private def mkPosition(absPath: String, lineNum: Int): xsbti.Position =
+    new xsbti.Position {
+      override def line(): Optional[Integer] =
+        if (lineNum > 0) Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
+      override def lineContent(): String     = ""
+      override def offset(): Optional[Integer]      = Optional.empty()
+      override def pointer(): Optional[Integer]     = Optional.empty()
+      override def pointerSpace(): Optional[String] = Optional.empty()
+      override def sourcePath(): Optional[String]   = Optional.of(absPath)
+      override def sourceFile(): Optional[java.io.File] =
+        Optional.of(new java.io.File(absPath))
+    }
+
+  /** Creates an `xsbti.Problem` suitable for reporting to the BSP/IDE reporter. */
+  private def mkProblem(
+    absPath: String,
+    lineNum: Int,
+    col:     Int,
+    msg:     String,
+    sev:     xsbti.Severity
+  ): xsbti.Problem =
+    new xsbti.Problem {
+      override def category(): String          = "meltc"
+      override def severity(): xsbti.Severity  = sev
+      override def message(): String           = msg
+      override def position(): xsbti.Position  = mkPosition(absPath, lineNum)
+    }
 
   /** Writes a `generated.AssetManifest` Scala source that exposes the
     * client project's Scala.js `fastLinkJS` output as a
