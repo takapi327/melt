@@ -230,6 +230,19 @@ lazy val `special-elements` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
+// ── Example: Dimension Binding (M-3 — bind:clientWidth / offsetWidth etc.) ───
+lazy val `dimension-binding` = project
+  .in(file("examples/dimension-binding"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "dimension-binding",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
 // ── Example: Dynamic Element (Phase 0 — melt:element) ────────────────────────
 lazy val `dynamic-element` = project
   .in(file("examples/dynamic-element"))
@@ -399,6 +412,7 @@ lazy val root = project
     `dynamic-element`,
     `layout-effect`,
     `select-textarea-bind`,
+    `dimension-binding`,
     `reactive-scope`,
     boundary,
     `http4s-components`.jvm,
