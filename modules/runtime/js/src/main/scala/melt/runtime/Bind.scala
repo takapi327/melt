@@ -603,6 +603,22 @@ object Bind:
       elementNode  = None
     })
 
+  /** Compile-time guard: the `this={...}` expression in `<melt:key>` must be
+    * a [[Var]][?] or [[Signal]][?].
+    *
+    * Fires when the key expression resolves to any other type (e.g. a plain
+    * `Int` field access like `user.id` where `user: Var[User]`).  Use `.map()`
+    * to derive a [[Signal]] from the reactive container instead.
+    */
+  @scala.annotation.targetName("keyInvalidSource")
+  inline def key(source: Any, render: Any, startAnchor: Any, endAnchor: Any): Unit =
+    scala.compiletime.error(
+      "The `this={...}` expression in <melt:key> must be a Var[?] or Signal[?].\n" +
+        "If your key is a field of a reactive object, use .map() to derive a Signal:\n" +
+        "  Instead of:  <melt:key this={user.id}>\n" +
+        "  Write:       <melt:key this={user.map(_.id)}>"
+    )
+
   // ── List rendering ────────────────────────────────────────────────────
 
   /** Renders a plain (non-reactive) collection before `anchor`. Used
