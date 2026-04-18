@@ -579,6 +579,48 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(applyIdx >= 0 && classAddIdx > applyIdx, s"styled should add _scopeId after apply:\n$code")
   }
 
+  test("bind:this on component emits ref.set after component call") {
+    val code     = compile("<div><Footer bind:this={footerRef} /></div>")
+    val applyIdx = code.indexOf("Footer()")
+    val setIdx   = code.indexOf("footerRef.set(", applyIdx)
+    assert(applyIdx >= 0, s"Footer() not found:\n$code")
+    assert(setIdx > applyIdx, s"footerRef.set should appear after Footer():\n$code")
+  }
+
+  test("bind:this on component with props emits ref.set after component call") {
+    val code     = compile("""<div><Panel bind:this={panelRef} title="Info" /></div>""")
+    val applyIdx = code.indexOf("Panel(Panel.Props(")
+    val setIdx   = code.indexOf("panelRef.set(", applyIdx)
+    assert(applyIdx >= 0, s"Panel(Panel.Props( not found:\n$code")
+    assert(setIdx > applyIdx, s"panelRef.set should appear after Panel(Panel.Props(:\n$code")
+  }
+
+  test("bind:this on component does not appear in Props args") {
+    val code = compile("<div><Counter count={5} bind:this={ref} /></div>")
+    assert(code.contains("Counter(Counter.Props(count = 5)"), code)
+    assert(!code.contains("this = ref"), code)
+  }
+
+  test("bind:this on component with styled emits classList.add before ref.set") {
+    val code        = compile("<div><Button styled bind:this={btnRef} /></div>")
+    val classAddIdx = code.indexOf("classList.add(_scopeId)")
+    val setIdx      = code.indexOf("btnRef.set(")
+    assert(classAddIdx >= 0 && setIdx > classAddIdx, s"classList.add should appear before btnRef.set:\n$code")
+  }
+
+  test("bind:this on component with spread props emits ref.set after component call") {
+    val code     = compile("<div><Counter {...counterProps} bind:this={counterRef} /></div>")
+    val applyIdx = code.indexOf("Counter(counterProps)")
+    val setIdx   = code.indexOf("counterRef.set(", applyIdx)
+    assert(applyIdx >= 0, s"Counter(counterProps) not found:\n$code")
+    assert(setIdx > applyIdx, s"counterRef.set should appear after Counter(counterProps):\n$code")
+  }
+
+  test("component without bind:this does not emit ref.set") {
+    val code = compile("<div><Counter count={5} /></div>")
+    assert(!code.contains(".set("), code)
+  }
+
   test("component with children generates children lambda") {
     val code = compile("<div><Card><p>Content</p></Card></div>")
     assert(code.contains("Card(Card.Props(children ="), code)
