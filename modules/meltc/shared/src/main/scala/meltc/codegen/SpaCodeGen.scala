@@ -590,7 +590,7 @@ object SpaCodeGen extends CodeGen:
       case Attr.BooleanAttr(name) =>
         buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case Attr.Dynamic("class", expr) =>
-        buf ++= s"""${ indent }($expr).toString.split("\\\\s+").filter(_.nonEmpty).foreach($v.classList.add(_))\n"""
+        buf ++= s"""${ indent }Bind.cls($v, $expr)\n"""
       case Attr.Dynamic(name, expr) if SpaCodeGen.htmlBooleanAttrs.contains(name) =>
         buf ++= s"""${ indent }Bind.booleanAttr($v, "$name", $expr)\n"""
       case Attr.Dynamic(name, expr) =>

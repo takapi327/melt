@@ -239,9 +239,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── Dynamic attribute generation ──────────────────────────────────────
 
-  test("dynamic class attribute uses classList.add to preserve scope ID") {
+  test("dynamic class attribute uses Bind.cls to support reactive values") {
     val code = compile("<div class={expr}></div>")
-    assert(code.contains("classList.add"), code)
+    assert(code.contains("Bind.cls(_el0, expr)"), code)
     assert(!code.contains("""setAttribute("class""""), code)
   }
 

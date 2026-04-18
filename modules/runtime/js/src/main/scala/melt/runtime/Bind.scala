@@ -95,6 +95,31 @@ object Bind:
       case _ =>
         el.setAttribute(name, value.toString)
 
+  // ── Class attribute ────────────────────────────────────────────────────
+
+  /** Reactive `class` binding for `Var[String]`. Tracks previously-added
+    * classes so scoped IDs and other classes set outside this binding are
+    * preserved on each update.
+    */
+  def cls(el: dom.Element, v: Var[String]): Unit =
+    cls(el, v.signal)
+
+  /** Reactive `class` binding for `Signal[String]`. */
+  def cls(el: dom.Element, signal: Signal[String]): Unit =
+    var current = signal.value.split("\\s+").filter(_.nonEmpty).toSet
+    current.foreach(el.classList.add(_))
+    val cancel = signal.subscribe { s =>
+      val next = s.split("\\s+").filter(_.nonEmpty).toSet
+      (current -- next).foreach(el.classList.remove(_))
+      (next -- current).foreach(el.classList.add(_))
+      current = next
+    }
+    Cleanup.register(cancel)
+
+  /** Static `class` binding. */
+  def cls(el: dom.Element, value: String): Unit =
+    value.split("\\s+").filter(_.nonEmpty).foreach(el.classList.add(_))
+
   // ── Optional attribute ─────────────────────────────────────────────────
 
   def optionalAttr[A](el: dom.Element, name: String, v: Var[Option[A]]): Unit =
@@ -378,13 +403,12 @@ object Bind:
   def mediaCurrentTime(el: dom.Element, v: Var[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.currentTime)
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.currentTime)
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
+      if v.value != media.currentTime then v.set(media.currentTime)
     media.addEventListener("timeupdate", listener)
     Cleanup.register(() => media.removeEventListener("timeupdate", listener))
-    var initialized = false
-    val cancel      = v.signal.subscribe { t =>
-      if initialized then media.currentTime = t
-      else initialized                      = true
+    val cancel = v.signal.subscribe { t =>
+      if t != media.currentTime then media.currentTime = t
     }
     Cleanup.register(cancel)
 
@@ -414,20 +438,21 @@ object Bind:
   def mediaPaused(el: dom.Element, v: Var[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.paused)
-    val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
-    val pauseListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
+    // DOM → Var: only update if value changed to avoid feedback loops
+    val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => if v.value then v.set(false)
+    val pauseListener: scalajs.js.Function1[dom.Event, Unit] = _ => if !v.value then v.set(true)
     media.addEventListener("play", playListener)
     media.addEventListener("pause", pauseListener)
     Cleanup.register(() => {
       media.removeEventListener("play", playListener)
       media.removeEventListener("pause", pauseListener)
     })
-    var initialized = false
-    val cancel      = v.signal.subscribe { paused =>
-      if initialized then
+    // Var → DOM: Signal.subscribe is lazy so no initialized guard needed;
+    // equality check prevents feedback loops
+    val cancel = v.signal.subscribe { paused =>
+      if paused != media.paused then
         if paused then media.pause()
         else { val _ = media.play() }
-      else initialized = true
     }
     Cleanup.register(cancel)
 
@@ -441,13 +466,13 @@ object Bind:
   def mediaVolume(el: dom.Element, v: Var[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.volume)
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.volume)
+    // DOM → Var: only update if value actually changed to avoid feedback loops
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
+      if v.value != media.volume then v.set(media.volume)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
-    var initialized = false
-    val cancel      = v.signal.subscribe { vol =>
-      if initialized then media.volume = vol
-      else initialized                 = true
+    val cancel = v.signal.subscribe { vol =>
+      if vol != media.volume then media.volume = vol
     }
     Cleanup.register(cancel)
 
@@ -461,13 +486,13 @@ object Bind:
   def mediaMuted(el: dom.Element, v: Var[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.muted)
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.muted)
+    // DOM → Var: only update if value actually changed to avoid feedback loops
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
+      if v.value != media.muted then v.set(media.muted)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
-    var initialized = false
-    val cancel      = v.signal.subscribe { muted =>
-      if initialized then media.muted = muted
-      else initialized                = true
+    val cancel = v.signal.subscribe { muted =>
+      if muted != media.muted then media.muted = muted
     }
     Cleanup.register(cancel)
 
@@ -481,13 +506,13 @@ object Bind:
   def mediaPlaybackRate(el: dom.Element, v: Var[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.playbackRate)
-    val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.playbackRate)
+    // DOM → Var: only update if value actually changed to avoid feedback loops
+    val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
+      if v.value != media.playbackRate then v.set(media.playbackRate)
     media.addEventListener("ratechange", listener)
     Cleanup.register(() => media.removeEventListener("ratechange", listener))
-    var initialized = false
-    val cancel      = v.signal.subscribe { rate =>
-      if initialized then media.playbackRate = rate
-      else initialized                       = true
+    val cancel = v.signal.subscribe { rate =>
+      if rate != media.playbackRate then media.playbackRate = rate
     }
     Cleanup.register(cancel)
 
