@@ -1863,3 +1863,24 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("header = _snippet_header_"), code)
     assert(code.contains("Card.Props("), code)
   }
+
+  // ── TrustedHtml expression ─────────────────────────────────────────────
+
+  test("{TrustedHtml.unsafe(...)} generates span wrapper with static innerHTML") {
+    val src = """<div>{TrustedHtml.unsafe("<b>Hello</b>")}</div>"""
+    val code = compile(src)
+    assert(code.contains("""createElement("span")"""), code)
+    assert(code.contains("""innerHTML = (TrustedHtml.unsafe("<b>Hello</b>")).value"""), code)
+    assert(!code.contains("Bind.html"), code)
+  }
+
+  test("{TrustedHtml} if/else with reactive source uses Bind.html with mapped signal") {
+    val src =
+      """<div>
+        |  {if flag then TrustedHtml.unsafe("<b>yes</b>") else TrustedHtml.unsafe("<em>no</em>")}
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""createElement("span")"""), code)
+    assert(code.contains("Bind.html("), code)
+    assert(code.contains("flag.map("), code)
+  }
