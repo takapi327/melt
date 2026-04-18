@@ -1509,7 +1509,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── melt:key ─────────────────────────────────────────────────────────────
 
-  // G-2 / G-3: デュアルアンカー (start + end) と DocumentFragment への移行
+  // G-2 / G-3: migrated to dual-anchor (start + end) with DocumentFragment
 
   test("melt:key emits dual anchor comments and Bind.key call") {
     val code = compile("<div><melt:key this={count}><span>hi</span></melt:key></div>")
@@ -1518,13 +1518,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Bind.key(count,"), code)
   }
 
-  // G-2: レンダーラムダは dom.DocumentFragment を返す
+  // G-2: render lambda returns dom.DocumentFragment
   test("melt:key render lambda is typed as () => dom.DocumentFragment") {
     val code = compile("<div><melt:key this={count}><p>content</p></melt:key></div>")
     assert(code.contains("_keyRender0: (() => dom.DocumentFragment) = () =>"), code)
   }
 
-  // G-2: 単一子でも DocumentFragment を使用
+  // G-2: single child also uses DocumentFragment
   test("melt:key with single child uses DocumentFragment") {
     val code = compile("<div><melt:key this={userId}><p>profile</p></melt:key></div>")
     assert(code.contains("Bind.key(userId,"), code)
@@ -1533,7 +1533,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("_kFrag"), code)
   }
 
-  // G-2: 複数子要素は <div> ラッパーなし (DocumentFragment に直接追加)
+  // G-2: multiple children appended directly to DocumentFragment — no <div> wrapper
   test("melt:key with multiple children uses DocumentFragment without div wrapper") {
     val code = compile("<div><melt:key this={count}><p>a</p><span>b</span></melt:key></div>")
     assert(code.contains("Bind.key(count,"), code)
@@ -1541,7 +1541,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("createDocumentFragment()"), code)
     assert(code.contains("""createElement("p")"""), code)
     assert(code.contains("""createElement("span")"""), code)
-    // div ラッパーが生成されないこと (_el0 のみ許容)
+    // no _bFrag div wrapper should be emitted
     assert(!code.contains("_bFrag"), code)
   }
 
@@ -1551,7 +1551,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("UserProfile()"), code)
   }
 
-  // G-2: 両アンカーが親に追加されてから Bind.key が呼ばれる
+  // G-2: both anchors must be appended to parent before Bind.key is called
   test("melt:key both anchors are appended to parent before Bind.key call") {
     val code       = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
     val startIdx   = code.indexOf("""createComment("melt-key-start")""")
@@ -1566,14 +1566,14 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(keyIdx > append2Idx, s"Bind.key should come after both appendChilds:\n$code")
   }
 
-  // G-2: Bind.key 呼び出しにはキー式 + レンダーラムダ + startAnchor + endAnchor の4引数
+  // G-2: Bind.key call must have four args: keyExpr, renderLambda, startAnchor, endAnchor
   test("melt:key Bind.key call receives four arguments including both anchors") {
     val code       = compile("<div><melt:key this={count}><span>x</span></melt:key></div>")
     val keyCallIdx = code.indexOf("Bind.key(count,")
     assert(keyCallIdx >= 0, s"Bind.key call not found:\n$code")
     val lineEnd = code.indexOf("\n", keyCallIdx)
     val keyLine = code.substring(keyCallIdx, lineEnd)
-    // _txt が2つ含まれる (startAnchor と endAnchor)
+    // two _txt references expected — one for startAnchor and one for endAnchor
     val txtCount = "_txt".r.findAllIn(keyLine).size
     assert(txtCount == 2, s"Expected 2 anchor args in Bind.key call, got $txtCount:\n$keyLine")
   }
@@ -1593,7 +1593,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("""createElement("melt:key")"""), code)
   }
 
-  // G-5: テキスト式のみの子要素が Bind.text(_kFrag) として生成される
+  // G-5: reactive text expression child is emitted as Bind.text(v, _kFrag)
   test("melt:key with reactive text expression uses Bind.text with _kFrag") {
     val code = compile("<div><melt:key this={step}>{message}</melt:key></div>")
     assert(code.contains("_kFrag"), code)
@@ -1601,7 +1601,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Bind.text(message, _kFrag)"), code)
   }
 
-  // G-5: 静的テキストのみの子要素がフラグメントに追加される
+  // G-5: static text child is appended to the DocumentFragment
   test("melt:key with static text child appends text node to _kFrag") {
     val code = compile("<div><melt:key this={count}>Hello</melt:key></div>")
     assert(code.contains("_kFrag"), code)
@@ -1610,7 +1610,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("_kFrag.appendChild("), code)
   }
 
-  // G-3: 複数子要素にトランジションが設定されていても各要素に TransitionBridge が設定される
+  // G-3: each child element gets its own TransitionBridge registration
   test("melt:key multiple children each get their own TransitionBridge calls") {
     val code = compile(
       """<div><melt:key this={page}>""" +
@@ -1622,11 +1622,11 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("createDocumentFragment()"), code)
     assert(code.contains("TransitionBridge.setOut("), code)
     assert(code.contains("TransitionBridge.setIn("), code)
-    // 両方の要素が _kFrag に追加される
+    // both elements are appended to _kFrag
     assert(code.contains("_kFrag.appendChild("), code)
   }
 
-  // 2つの melt:key ブロックが異なる変数名を持つ
+  // two melt:key blocks in the same component must use distinct variable names
   test("two melt:key blocks in same component use distinct variable names") {
     val code = compile(
       "<div><melt:key this={a}><p>A</p></melt:key><melt:key this={b}><span>B</span></melt:key></div>"
