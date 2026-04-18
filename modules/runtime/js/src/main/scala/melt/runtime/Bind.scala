@@ -382,9 +382,9 @@ object Bind:
     media.addEventListener("timeupdate", listener)
     Cleanup.register(() => media.removeEventListener("timeupdate", listener))
     var initialized = false
-    val cancel = v.signal.subscribe { t =>
+    val cancel      = v.signal.subscribe { t =>
       if initialized then media.currentTime = t
-      else initialized = true
+      else initialized                      = true
     }
     Cleanup.register(cancel)
 
@@ -394,7 +394,7 @@ object Bind:
     * Corresponds to `bind:duration` in Svelte 5.
     */
   def mediaDuration(el: dom.Element, v: Var[Double]): Unit =
-    val media    = el.asInstanceOf[dom.html.Media]
+    val media = el.asInstanceOf[dom.html.Media]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.duration)
     media.addEventListener("durationchange", listener)
     media.addEventListener("loadedmetadata", listener)
@@ -423,7 +423,7 @@ object Bind:
       media.removeEventListener("pause", pauseListener)
     })
     var initialized = false
-    val cancel = v.signal.subscribe { paused =>
+    val cancel      = v.signal.subscribe { paused =>
       if initialized then
         if paused then media.pause()
         else { val _ = media.play() }
@@ -445,9 +445,9 @@ object Bind:
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
     var initialized = false
-    val cancel = v.signal.subscribe { vol =>
+    val cancel      = v.signal.subscribe { vol =>
       if initialized then media.volume = vol
-      else initialized = true
+      else initialized                 = true
     }
     Cleanup.register(cancel)
 
@@ -465,9 +465,9 @@ object Bind:
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
     var initialized = false
-    val cancel = v.signal.subscribe { muted =>
+    val cancel      = v.signal.subscribe { muted =>
       if initialized then media.muted = muted
-      else initialized = true
+      else initialized                = true
     }
     Cleanup.register(cancel)
 
@@ -485,9 +485,9 @@ object Bind:
     media.addEventListener("ratechange", listener)
     Cleanup.register(() => media.removeEventListener("ratechange", listener))
     var initialized = false
-    val cancel = v.signal.subscribe { rate =>
+    val cancel      = v.signal.subscribe { rate =>
       if initialized then media.playbackRate = rate
-      else initialized = true
+      else initialized                       = true
     }
     Cleanup.register(cancel)
 
@@ -497,7 +497,7 @@ object Bind:
     * Corresponds to `bind:seeking` in Svelte 5.
     */
   def mediaSeeking(el: dom.Element, v: Var[Boolean]): Unit =
-    val media            = el.asInstanceOf[dom.html.Media]
+    val media = el.asInstanceOf[dom.html.Media]
     val seekingListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val seekedListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     media.addEventListener("seeking", seekingListener)
@@ -513,7 +513,7 @@ object Bind:
     * Corresponds to `bind:ended` in Svelte 5.
     */
   def mediaEnded(el: dom.Element, v: Var[Boolean]): Unit =
-    val media         = el.asInstanceOf[dom.html.Media]
+    val media = el.asInstanceOf[dom.html.Media]
     val endedListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     media.addEventListener("ended", endedListener)
@@ -530,8 +530,8 @@ object Bind:
     * Corresponds to `bind:readyState` in Svelte 5.
     */
   def mediaReadyState(el: dom.Element, v: Var[Int]): Unit =
-    val media    = el.asInstanceOf[dom.html.Media]
-    val events   = List("emptied", "loadedmetadata", "loadeddata", "canplay", "canplaythrough")
+    val media  = el.asInstanceOf[dom.html.Media]
+    val events = List("emptied", "loadedmetadata", "loadeddata", "canplay", "canplaythrough")
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.readyState.asInstanceOf[Int])
     events.foreach(media.addEventListener(_, listener))
     Cleanup.register(() => events.foreach(media.removeEventListener(_, listener)))
@@ -542,7 +542,7 @@ object Bind:
     * Corresponds to `bind:videoWidth` in Svelte 5.
     */
   def mediaVideoWidth(el: dom.Element, v: Var[Int]): Unit =
-    val video    = el.asInstanceOf[dom.html.Video]
+    val video = el.asInstanceOf[dom.html.Video]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoWidth)
     video.addEventListener("loadedmetadata", listener)
     Cleanup.register(() => video.removeEventListener("loadedmetadata", listener))
@@ -553,7 +553,7 @@ object Bind:
     * Corresponds to `bind:videoHeight` in Svelte 5.
     */
   def mediaVideoHeight(el: dom.Element, v: Var[Int]): Unit =
-    val video    = el.asInstanceOf[dom.html.Video]
+    val video = el.asInstanceOf[dom.html.Video]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoHeight)
     video.addEventListener("loadedmetadata", listener)
     Cleanup.register(() => video.removeEventListener("loadedmetadata", listener))
