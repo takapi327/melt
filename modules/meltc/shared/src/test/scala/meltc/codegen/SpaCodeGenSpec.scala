@@ -580,9 +580,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
   }
 
   test("bind:this on component emits ref.set after component call") {
-    val code = compile("<div><Footer bind:this={footerRef} /></div>")
-    val applyIdx  = code.indexOf("Footer()")
-    val setIdx    = code.indexOf("footerRef.set(", applyIdx)
+    val code     = compile("<div><Footer bind:this={footerRef} /></div>")
+    val applyIdx = code.indexOf("Footer()")
+    val setIdx   = code.indexOf("footerRef.set(", applyIdx)
     assert(applyIdx >= 0, s"Footer() not found:\n$code")
     assert(setIdx > applyIdx, s"footerRef.set should appear after Footer():\n$code")
   }
@@ -602,9 +602,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
   }
 
   test("bind:this on component with styled emits classList.add before ref.set") {
-    val code         = compile("<div><Button styled bind:this={btnRef} /></div>")
-    val classAddIdx  = code.indexOf("classList.add(_scopeId)")
-    val setIdx       = code.indexOf("btnRef.set(")
+    val code        = compile("<div><Button styled bind:this={btnRef} /></div>")
+    val classAddIdx = code.indexOf("classList.add(_scopeId)")
+    val setIdx      = code.indexOf("btnRef.set(")
     assert(classAddIdx >= 0 && setIdx > classAddIdx, s"classList.add should appear before btnRef.set:\n$code")
   }
 
