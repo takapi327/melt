@@ -1811,3 +1811,55 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src, name = "Counter")
     assert(!code.contains("val Props = Props"), code) // no redundant alias
   }
+
+  // ── M-10: {#snippet} and {@render} ───────────────────────────────────────
+
+  test("{#snippet} without params generates () => dom.Element lambda") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(children: () => dom.Element)
+        |</script>
+        |<div>
+        |  {#snippet children()}
+        |    <p>Hello</p>
+        |  {/snippet}
+        |  {@render props.children()}
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("val children: () => dom.Element ="), code)
+    assert(code.contains("createElement(\"p\")"), code)
+  }
+
+  test("{#snippet} with typed param generates (T) => dom.Element lambda") {
+    val src =
+      """<div>
+        |  {#snippet renderItem(todo: Todo)}
+        |    <li>{todo.title}</li>
+        |  {/snippet}
+        |  {@render renderItem(myTodo)}
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("val renderItem: (Todo) => dom.Element = (todo: Todo) =>"), code)
+  }
+
+  test("{@render expr} appends the expression result") {
+    val src = """<div>{@render mySnippet()}</div>"""
+    val code = compile(src)
+    assert(code.contains("val _el"), code)
+    assert(code.contains("mySnippet()"), code)
+  }
+
+  test("{#snippet} inside component tag becomes named snippet prop") {
+    val src =
+      """<div>
+        |  <Card>
+        |    {#snippet header(title: String)}
+        |      <h1>{title}</h1>
+        |    {/snippet}
+        |  </Card>
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("val _snippet_header_"), code)
+    assert(code.contains("header = _snippet_header_"), code)
+    assert(code.contains("Card.Props("), code)
+  }
