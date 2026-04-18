@@ -8,7 +8,7 @@ package meltc
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Paths }
-import java.util.{ ArrayList => JArrayList }
+import java.util.ArrayList as JArrayList
 
 /** CLI entry point for the meltc compiler (JVM platform only).
   *
@@ -71,12 +71,8 @@ object MeltcMain:
     val diagPath  = Paths.get(outputPath.toString + ".diag")
     val absMelt   = inputPath.toAbsolutePath.toString
     val diagLines = new JArrayList[String]()
-    result.errors.foreach(e =>
-      diagLines.add(s"E\t$absMelt\t${ e.line }\t${ e.column }\t${ e.message }")
-    )
-    result.warnings.foreach(w =>
-      diagLines.add(s"W\t$absMelt\t${ w.line }\t${ w.column }\t${ w.message }")
-    )
+    result.errors.foreach(e => diagLines.add(s"E\t$absMelt\t${ e.line }\t${ e.column }\t${ e.message }"))
+    result.warnings.foreach(w => diagLines.add(s"W\t$absMelt\t${ w.line }\t${ w.column }\t${ w.message }"))
     try Files.write(diagPath, diagLines, StandardCharsets.UTF_8)
     catch case _: Exception => () // best-effort; don't fail compilation over this
 

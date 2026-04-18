@@ -6,7 +6,14 @@
 
 package meltc
 
-import meltc.analysis.{ A11yChecker, AttrNameChecker, BindingContextChecker, RawTextInterpolationChecker, SecurityChecker, TagNameChecker }
+import meltc.analysis.{
+  A11yChecker,
+  AttrNameChecker,
+  BindingContextChecker,
+  RawTextInterpolationChecker,
+  SecurityChecker,
+  TagNameChecker
+}
 import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
 import meltc.parser.MeltParser
 

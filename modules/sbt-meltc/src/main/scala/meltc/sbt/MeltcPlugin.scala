@@ -6,10 +6,10 @@
 
 package meltc.sbt
 
+import java.util.Optional
+
 import sbt._
 import sbt.Keys._
-
-import java.util.Optional
 
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
@@ -429,15 +429,17 @@ object MeltcPlugin extends AutoPlugin {
         IO.delete(diagFile)
 
         // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
-        warnings.foreach { case (path, lineNum, col, msg) =>
-          try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
-          catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
+        warnings.foreach {
+          case (path, lineNum, col, msg) =>
+            try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
+            catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
         }
 
         if (exitCode != 0) {
-          errors.foreach { case (path, lineNum, col, msg) =>
-            try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
-            catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
+          errors.foreach {
+            case (path, lineNum, col, msg) =>
+              try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
+              catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
           }
           throw new MessageOnlyException(
             s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
@@ -460,7 +462,8 @@ object MeltcPlugin extends AutoPlugin {
     diagFile: File
   ): (List[(String, Int, Int, String)], List[(String, Int, Int, String)]) = {
     if (!diagFile.exists()) return (Nil, Nil)
-    def parseInt(s: String): Int = try s.toInt catch { case _: NumberFormatException => 0 }
+    def parseInt(s: String): Int = try s.toInt
+    catch { case _: NumberFormatException => 0 }
     def parseLine(line: String): Option[(String, Int, Int, String)] = {
       val parts = line.split("\t", 5)
       if (parts.length >= 5) Some((parts(1), parseInt(parts(2)), parseInt(parts(3)), parts(4)))
@@ -477,12 +480,12 @@ object MeltcPlugin extends AutoPlugin {
     new xsbti.Position {
       override def line(): Optional[Integer] =
         if (lineNum > 0) Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
-      override def lineContent(): String     = ""
-      override def offset(): Optional[Integer]      = Optional.empty()
-      override def pointer(): Optional[Integer]     = Optional.empty()
-      override def pointerSpace(): Optional[String] = Optional.empty()
-      override def sourcePath(): Optional[String]   = Optional.of(absPath)
-      override def sourceFile(): Optional[java.io.File] =
+      override def lineContent():  String                 = ""
+      override def offset():       Optional[Integer]      = Optional.empty()
+      override def pointer():      Optional[Integer]      = Optional.empty()
+      override def pointerSpace(): Optional[String]       = Optional.empty()
+      override def sourcePath():   Optional[String]       = Optional.of(absPath)
+      override def sourceFile():   Optional[java.io.File] =
         Optional.of(new java.io.File(absPath))
     }
 
@@ -495,10 +498,10 @@ object MeltcPlugin extends AutoPlugin {
     sev:     xsbti.Severity
   ): xsbti.Problem =
     new xsbti.Problem {
-      override def category(): String          = "meltc"
-      override def severity(): xsbti.Severity  = sev
-      override def message(): String           = msg
-      override def position(): xsbti.Position  = mkPosition(absPath, lineNum)
+      override def category(): String         = "meltc"
+      override def severity(): xsbti.Severity = sev
+      override def message():  String         = msg
+      override def position(): xsbti.Position = mkPosition(absPath, lineNum)
     }
 
   /** Writes a `generated.AssetManifest` Scala source that exposes the

@@ -28,8 +28,15 @@ import meltc.CompileError
 object BindingContextChecker:
 
   private val mediaBindings: Set[String] = Set(
-    "currentTime", "duration", "paused", "volume", "muted",
-    "playbackRate", "seeking", "ended", "readyState"
+    "currentTime",
+    "duration",
+    "paused",
+    "volume",
+    "muted",
+    "playbackRate",
+    "seeking",
+    "ended",
+    "readyState"
   )
 
   private val videoOnlyBindings: Set[String] = Set("videoWidth", "videoHeight")
