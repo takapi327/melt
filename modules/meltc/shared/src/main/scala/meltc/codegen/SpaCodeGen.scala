@@ -152,7 +152,8 @@ object SpaCodeGen extends CodeGen:
       case None =>
         buf ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
-    if hydration && propsType.forall(extractTypeParams(_).isEmpty) then emitHydrationEntry(buf, objectName, propsType, ast)
+    if hydration && propsType.forall(extractTypeParams(_).isEmpty) then
+      emitHydrationEntry(buf, objectName, propsType, ast)
 
     buf ++= "}\n"
     buf.toString

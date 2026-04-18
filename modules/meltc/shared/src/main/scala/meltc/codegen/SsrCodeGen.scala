@@ -788,8 +788,8 @@ object SsrCodeGen extends CodeGen:
   private def renderParams(propsType: Option[String]): String =
     propsType match
       case Some(tpe) if extractTypeParams(tpe).nonEmpty => s"props: $tpe"
-      case Some(tpe) => s"props: $tpe = $tpe()"
-      case None      => ""
+      case Some(tpe)                                    => s"props: $tpe = $tpe()"
+      case None                                         => ""
 
   /** Converts `objectName` to kebab-case for Vite `moduleID`.
     * `Counter` → `counter`, `TodoList` → `todo-list`.
