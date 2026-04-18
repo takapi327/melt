@@ -81,15 +81,30 @@ object SsrCodeGen extends CodeGen:
       buf ++= "\n"
     }
 
-    propsType.foreach { tpe =>
-      buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+    // When the user chose a type name other than "Props", generate a
+    // `val Props = BaseName` value alias so that call sites can always
+    // use `ComponentName.Props(...)` regardless of the actual type name.
+    propsType.foreach { typeName =>
+      val baseName = extractBaseName(typeName)
+      if baseName != "Props" then
+        val tp = extractTypeParams(typeName)
+        buf ++= s"  val Props = $baseName\n"
+        if tp.nonEmpty then buf ++= s"  type Props$tp = $typeName\n"
+        else buf ++= s"  type Props = $baseName\n"
+        buf += '\n'
     }
 
-    buf ++= s"  def apply(${ renderParams(propsType) }): RenderResult = {\n"
+    propsType.foreach { tpe =>
+      if extractTypeParams(tpe).isEmpty then // skip for generic — PropsCodec.derived doesn't support type params
+        buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+    }
+
+    val _tp = propsType.map(extractTypeParams).getOrElse("")
+    buf ++= s"  def apply$_tp(${ renderParams(propsType) }): RenderResult = {\n"
     buf ++= "    val renderer = SsrRenderer()\n"
     val moduleId = kebabCase(objectName)
     buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
-    if propsType.isDefined then
+    if propsType.exists(extractTypeParams(_).isEmpty) then
       buf ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
     if hasCss then buf ++= "    renderer.css.add(_scopeId, _css)\n"
     buf ++= "\n"
@@ -742,10 +757,39 @@ object SsrCodeGen extends CodeGen:
       case _ =>
         ()
 
+  /** Extracts the base (un-parameterised) type name from a type name.
+    * `"Props[T]"` → `"Props"`, `"Todo[K, V]"` → `"Todo"`, `"Props"` → `"Props"`.
+    */
+  private def extractBaseName(typeName: String): String =
+    val i = typeName.indexOf('[')
+    if i < 0 then typeName else typeName.substring(0, i)
+
+  /** Extracts the balanced type-parameter bracket from a type name.
+    * `"Props[T]"` → `"[T]"`, `"Props[K, V <: Ordered[V]]"` → `"[K, V <: Ordered[V]]"`.
+    * Returns `""` if the type has no type parameters.
+    */
+  private def extractTypeParams(typeName: String): String =
+    val i = typeName.indexOf('[')
+    if i < 0 then ""
+    else
+      var depth = 0
+      var j     = i
+      var found = false
+      while j < typeName.length && !found do
+        typeName(j) match
+          case '[' => depth += 1
+          case ']' =>
+            depth -= 1
+            if depth == 0 then found = true
+          case _ => ()
+        if !found then j += 1
+      if found then typeName.substring(i, j + 1) else ""
+
   private def renderParams(propsType: Option[String]): String =
     propsType match
-      case Some(tpe) => s"props: $tpe = $tpe()"
-      case None      => ""
+      case Some(tpe) if extractTypeParams(tpe).nonEmpty => s"props: $tpe"
+      case Some(tpe)                                    => s"props: $tpe = $tpe()"
+      case None                                         => ""
 
   /** Converts `objectName` to kebab-case for Vite `moduleID`.
     * `Counter` → `counter`, `TodoList` → `todo-list`.

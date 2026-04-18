@@ -77,14 +77,30 @@ object SpaCodeGen extends CodeGen:
           case None =>
     }
 
+    // When the user chose a type name other than "Props", generate a
+    // `val Props = BaseName` value alias so that call sites can always
+    // use `ComponentName.Props(...)` regardless of the actual type name.
+    // The companion-object alias also provides a `type Props` for annotations.
+    propsType.foreach { typeName =>
+      val baseName = extractBaseName(typeName)
+      if baseName != "Props" then
+        val tp = extractTypeParams(typeName)
+        buf ++= s"  val Props = $baseName\n"
+        if tp.nonEmpty then buf ++= s"  type Props$tp = $typeName\n"
+        else buf ++= s"  type Props = $baseName\n"
+        buf += '\n'
+    }
+
     if hydration then
       propsType.foreach { tpe =>
-        buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+        if extractTypeParams(tpe).isEmpty then // skip for generic — PropsCodec.derived doesn't support type params
+          buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
       }
 
     propsType match
       case Some(typeName) =>
-        buf ++= s"  def apply(props: $typeName): dom.Element = {\n"
+        val tp = extractTypeParams(typeName)
+        buf ++= s"  def apply$tp(props: $typeName): dom.Element = {\n"
       case None =>
         buf ++= "  def apply(): dom.Element = {\n"
 
@@ -131,11 +147,13 @@ object SpaCodeGen extends CodeGen:
 
     propsType match
       case Some(typeName) =>
-        buf ++= s"  def mount(target: dom.Element, props: $typeName): Unit = Mount(target, apply(props))\n\n"
+        val tp = extractTypeParams(typeName)
+        buf ++= s"  def mount$tp(target: dom.Element, props: $typeName): Unit = Mount(target, apply(props))\n\n"
       case None =>
         buf ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
-    if hydration then emitHydrationEntry(buf, objectName, propsType, ast)
+    if hydration && propsType.forall(extractTypeParams(_).isEmpty) then
+      emitHydrationEntry(buf, objectName, propsType, ast)
 
     buf ++= "}\n"
     buf.toString
@@ -896,6 +914,34 @@ object SpaCodeGen extends CodeGen:
     * compatibility with the old call sites but is no longer used —
     * the extractor is type-agnostic.
     */
+  /** Extracts the base (un-parameterised) type name from a type name.
+    * `"Props[T]"` → `"Props"`, `"Todo[K, V]"` → `"Todo"`, `"Props"` → `"Props"`.
+    */
+  private def extractBaseName(typeName: String): String =
+    val i = typeName.indexOf('[')
+    if i < 0 then typeName else typeName.substring(0, i)
+
+  /** Extracts the balanced type-parameter bracket from a type name.
+    * `"Props[T]"` → `"[T]"`, `"Props[K, V <: Ordered[V]]"` → `"[K, V <: Ordered[V]]"`.
+    * Returns `""` if the type has no type parameters.
+    */
+  private def extractTypeParams(typeName: String): String =
+    val i = typeName.indexOf('[')
+    if i < 0 then ""
+    else
+      var depth = 0
+      var j     = i
+      var found = false
+      while j < typeName.length && !found do
+        typeName(j) match
+          case '[' => depth += 1
+          case ']' =>
+            depth -= 1
+            if depth == 0 then found = true
+          case _ => ()
+        if !found then j += 1
+      if found then typeName.substring(i, j + 1) else ""
+
   private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
     val (typeDecls, rest) = splitTypeDecls(code)
     (typeDecls.mkString("\n\n"), rest)
