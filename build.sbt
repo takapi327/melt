@@ -342,6 +342,19 @@ lazy val `reactive-scope` = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, `melt-testkit` % Test)
 
+// ── Example: TrustedHtml (raw HTML injection) ─────────────────────────────────
+lazy val `trusted-html` = project
+  .in(file("examples/trusted-html"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "trusted-html",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
+
 // ── Shared components for http4s examples ───────────────────────────────────
 //
 // crossProject shared by both http4s-spa and http4s-ssr. The same .melt
@@ -428,6 +441,7 @@ lazy val root = project
     `media-binding`,
     `dimension-binding`,
     `reactive-scope`,
+    `trusted-html`,
     boundary,
     `http4s-components`.jvm,
     `http4s-components`.js,
