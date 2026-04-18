@@ -371,6 +371,20 @@ object SpaCodeGen extends CodeGen:
             buf ++= s"${ indent }val $v: dom.Element = {\n${ indent }  ${ code.trim }\n${ indent }}\n"
             v
 
+          case ExprKind.TrustedHtmlExpr =>
+            // Wrap in a <span> so the HTML nodes have a stable container.
+            // If a reactive source is detected, use Bind.html(span, source.map(_ => expr))
+            // so the span's innerHTML updates whenever the source changes.
+            // For purely static TrustedHtml, set innerHTML once.
+            val v = ctr.nextEl()
+            buf ++= s"""${ indent }val $v = dom.document.createElement("span")\n"""
+            extractReactiveSource(code) match
+              case Some(source) =>
+                buf ++= s"${ indent }Bind.html($v, $source.map(_ => $code))\n"
+              case None =>
+                buf ++= s"${ indent }$v.innerHTML = ($code).value\n"
+            v
+
           case ExprKind.PlainText =>
             parentVar match
               case Some(parent) =>
@@ -1088,6 +1102,7 @@ object SpaCodeGen extends CodeGen:
     case KeyedMap
     case DomExpr
     case DomResult
+    case TrustedHtmlExpr
     case PlainText
 
   /** Classifies a template expression to determine rendering strategy.
@@ -1120,6 +1135,7 @@ object SpaCodeGen extends CodeGen:
       val dotMap  = trimmed.lastIndexOf(".map(")
       val mapBody = trimmed.substring(dotMap + 5)
       if containsDomConstruction(mapBody) then ExprKind.ListMap else ExprKind.PlainText
+    else if trimmed.contains("TrustedHtml") then ExprKind.TrustedHtmlExpr
     else if (trimmed.startsWith("if ") || trimmed.startsWith("if(")) && containsDomConstruction(trimmed) then
       ExprKind.DomExpr
     else if trimmed.contains(" match") && containsDomConstruction(trimmed) then ExprKind.DomExpr
