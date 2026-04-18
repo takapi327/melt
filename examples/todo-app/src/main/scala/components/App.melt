@@ -21,7 +21,13 @@ def removeTodo(id: Int): Unit =
 <div class="app">
   <h1>Melt Todo</h1>
   <TodoInput onadd={addTodo} />
-  <TodoList items={todos} ontoggle={toggleTodo} onremove={removeTodo} />
+  <TodoList items={todos}>
+    {#snippet renderItem(item: models.Todo)}
+      <input type="checkbox" checked={item.done} onclick={(_: dom.Event) => toggleTodo(item.id)} />
+      <span>{item.text}</span>
+      <button onclick={(_: dom.Event) => removeTodo(item.id)}>×</button>
+    {/snippet}
+  </TodoList>
   <p class="count">{todos.map(_.size)} items</p>
 </div>
 
