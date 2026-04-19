@@ -15,6 +15,7 @@ import meltc.analysis.{
   TagNameChecker
 }
 import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
+import meltc.css.StylePreprocessor
 import meltc.parser.MeltParser
 
 /** Entry point of the meltc compiler. */
@@ -34,12 +35,13 @@ object MeltCompiler:
     *                   single-module Scala.js examples keep working.
     */
   def compile(
-    source:     String,
-    filename:   String,
-    objectName: String,
-    pkg:        String,
-    mode:       CompileMode = CompileMode.SPA,
-    hydration:  Boolean = false
+    source:       String,
+    filename:     String,
+    objectName:   String,
+    pkg:          String,
+    mode:         CompileMode = CompileMode.SPA,
+    hydration:    Boolean = false,
+    preprocessor: StylePreprocessor = StylePreprocessor.cssOnly
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
@@ -80,12 +82,21 @@ object MeltCompiler:
             case (msg, line) =>
               CompileWarning(msg, line, 0, filename)
           }
-          CompileResult(
-            Some(code),
-            ast.style.map(s => CssScoper.scope(s.css, scopeId)),
-            Nil,
-            parserWarnings ++ a11yWarnings ++ securityWarnings
-          )
+          val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings
+
+          val cssResult: Either[String, Option[String]] =
+            ast.style match
+              case None    => Right(None)
+              case Some(s) =>
+                preprocessor.process(s.content, s.lang).map(css =>
+                  Some(CssScoper.scope(css, scopeId))
+                )
+
+          cssResult match
+            case Left(err) =>
+              CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
+            case Right(scopedCss) =>
+              CompileResult(Some(code), scopedCss, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */
   private def offsetToLine(source: String, offset: Int): Int =

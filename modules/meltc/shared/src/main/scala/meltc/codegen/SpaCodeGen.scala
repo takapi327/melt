@@ -60,7 +60,7 @@ object SpaCodeGen extends CodeGen:
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
 
     ast.style.foreach { s =>
-      val scoped = CssScoper.scope(s.css, scopeId)
+      val scoped = CssScoper.scope(s.content, scopeId)
       val css    = escapeString(scoped)
       buf ++= s"""  private val _css =\n    "$css"\n\n"""
     }

@@ -65,7 +65,7 @@ object SsrCodeGen extends CodeGen:
 
     val hasCss = ast.style.isDefined
     ast.style.foreach { s =>
-      val scoped = CssScoper.scope(s.css, scopeId)
+      val scoped = CssScoper.scope(s.content, scopeId)
       buf ++= s"""  private val _css =\n    "${ escapeString(scoped) }"\n\n"""
     }
 

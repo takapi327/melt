@@ -56,7 +56,7 @@ class MeltParserSpec extends munit.FunSuite:
 
     // ── Style section ─────────────────────────────────────────────────────
     val style = meltFile.style.getOrElse(fail("style section missing"))
-    assertEquals(style.css, ".counter { text-align: center; }")
+    assertEquals(style.content, ".counter { text-align: center; }")
   }
 
   // ── Minimal files ─────────────────────────────────────────────────────────
