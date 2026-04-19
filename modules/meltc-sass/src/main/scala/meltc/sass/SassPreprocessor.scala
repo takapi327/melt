@@ -23,6 +23,6 @@ object SassPreprocessor extends StylePreprocessor:
       case StyleLang.Css  => Right(content)
       case StyleLang.Scss =>
         val compiler = SassCompilerFactory.bundled()
-        try Right(compiler.compileString(content).getCss)
+        try Right(compiler.compileScssString(content).getCss)
         catch case e: Exception => Left(s"SCSS compilation failed: ${ e.getMessage }")
         finally compiler.close()

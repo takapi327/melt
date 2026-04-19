@@ -275,15 +275,35 @@ object MeltcPlugin extends AutoPlugin {
     /** Preprocessor constant for SCSS support via Dart Sass.
       *
       * Requires the `meltc-sass` artifact on the compiler classpath.
-      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)`,
-      * the plugin adds `meltc-css` and `meltc-sass` to the compiler classpath
-      * automatically.
+      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)` and
+      * [[meltcManagePreprocessorDeps]] is `true` (the default), the plugin adds
+      * `meltc-css` and `meltc-sass` to the compiler classpath automatically.
       *
       * {{{
       * meltcStylePreprocessor := Some(SassPreprocessor)
       * }}}
       */
     val SassPreprocessor: String = "meltc.sass.SassPreprocessor"
+
+    /** When `true` (the default), the plugin automatically adds the required
+      * preprocessor JARs (e.g. `meltc-css_3`, `meltc-sass_3`) to the
+      * `meltc-compiler` Ivy configuration so they are resolved and placed on
+      * [[meltcCompilerClasspath]].
+      *
+      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
+      * for example, in a monorepo where you wire the classpath directly from
+      * source projects:
+      * {{{
+      * meltcManagePreprocessorDeps := false,
+      * meltcStylePreprocessor      := Some(SassPreprocessor),
+      * meltcCompilerClasspath      := (meltc.jvm / Compile / fullClasspath).value.files ++
+      *                                (`meltc-sass` / Compile / fullClasspath).value.files
+      * }}}
+      */
+    val meltcManagePreprocessorDeps =
+      settingKey[Boolean](
+        "When true, automatically resolve preprocessor JARs via Ivy. Set false when providing meltcCompilerClasspath manually."
+      )
   }
 
   import autoImport._
@@ -302,8 +322,9 @@ object MeltcPlugin extends AutoPlugin {
     meltcMode := {
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
-    meltcHydration         := false,
-    meltcStylePreprocessor := None,
+    meltcHydration              := false,
+    meltcStylePreprocessor      := None,
+    meltcManagePreprocessorDeps := true,
     meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
@@ -320,7 +341,8 @@ object MeltcPlugin extends AutoPlugin {
       ("io.github.takapi327" % "meltc_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
     },
     libraryDependencies ++= {
-      meltcStylePreprocessor.value match {
+      if (!meltcManagePreprocessorDeps.value) Seq.empty
+      else meltcStylePreprocessor.value match {
         case Some(cls) if cls == SassPreprocessor =>
           val v = meltcCompilerVersion.value
           Seq(

@@ -14,7 +14,7 @@ import meltc.analysis.{
   SecurityChecker,
   TagNameChecker
 }
-import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
+import meltc.codegen.{ CodeGen, SpaCodeGen, SsrCodeGen }
 import meltc.css.StylePreprocessor
 import meltc.parser.MeltParser
 
@@ -68,33 +68,38 @@ object MeltCompiler:
         val allErrors = semanticErrors ++ securityErrors
         if allErrors.nonEmpty then CompileResult(None, None, allErrors, Nil)
         else
-          val code           = codegen.generate(ast, objectName, pkg, scopeId, hydration)
-          val parserWarnings = result.warnings.map {
-            case (msg, pos) =>
-              val line = offsetToLine(source, pos)
-              CompileWarning(msg, line, 0, filename)
-          }
-          val a11yWarnings = A11yChecker.check(ast, source).map {
-            case (msg, line) =>
-              CompileWarning(msg, line, 0, filename)
-          }
-          val securityWarnings = SecurityChecker.check(ast, source).map {
-            case (msg, line) =>
-              CompileWarning(msg, line, 0, filename)
-          }
-          val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings
-
-          val cssResult: Either[String, Option[String]] =
+          // ── Preprocess CSS before code generation ─────────────────────────
+          // SCSS (or other source langs) must be compiled to plain CSS first so
+          // that the code generators embed already-compiled CSS, not raw SCSS.
+          val styleResult: Either[String, Option[meltc.ast.StyleSection]] =
             ast.style match
               case None    => Right(None)
               case Some(s) =>
-                preprocessor.process(s.content, s.lang).map(css => Some(CssScoper.scope(css, scopeId)))
+                preprocessor.process(s.content, s.lang).map { css =>
+                  Some(s.copy(content = css, lang = meltc.css.StyleLang.Css))
+                }
 
-          cssResult match
+          styleResult match
             case Left(err) =>
               CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
-            case Right(scopedCss) =>
-              CompileResult(Some(code), scopedCss, Nil, allWarnings)
+            case Right(processedStyle) =>
+              val processedAst = ast.copy(style = processedStyle)
+              val code         = codegen.generate(processedAst, objectName, pkg, scopeId, hydration)
+              val parserWarnings = result.warnings.map {
+                case (msg, pos) =>
+                  val line = offsetToLine(source, pos)
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val a11yWarnings = A11yChecker.check(ast, source).map {
+                case (msg, line) =>
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val securityWarnings = SecurityChecker.check(ast, source).map {
+                case (msg, line) =>
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings
+              CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */
   private def offsetToLine(source: String, offset: Int): Int =
