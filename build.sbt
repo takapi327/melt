@@ -82,7 +82,7 @@ lazy val `meltc-sass` = project
   .settings(BuildSettings.commonSettings)
   .settings(
     name := "meltc-sass",
-    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-bundled" % "4.0.2"
+    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(`meltc-css`.jvm)
@@ -212,6 +212,22 @@ lazy val counter = project
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, `melt-testkit` % Test)
+
+// ── Example: SCSS Counter (SCSS support via meltc-sass) ──────────────────────
+lazy val `scss-counter` = project
+  .in(file("examples/scss-counter"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "scss-counter",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcManagePreprocessorDeps     := false,
+    meltcStylePreprocessor          := Some(SassPreprocessor),
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files ++
+      (`meltc-sass` / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
 
 // ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
 lazy val `todo-app` = project
@@ -458,6 +474,7 @@ lazy val root = project
     `language-server`,
     `hello-world`,
     counter,
+    `scss-counter`,
     `todo-app`,
     transitions,
     `special-elements`,
