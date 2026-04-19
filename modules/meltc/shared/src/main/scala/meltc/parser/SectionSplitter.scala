@@ -64,6 +64,9 @@ private[parser] object SectionSplitter:
         (Some(RawScript(code, propsType)), remaining)
 
     // ── 2. Extract <style> section ────────────────────────────────────────
+    // Only plain `<style>` (no attributes) and `<style lang="...">` are
+    // extracted. Tags with other attributes (e.g. `<style scoped>`) are
+    // left in the template source unchanged, matching the original behaviour.
     val styleStart              = afterScript.indexOf("<style")
     val (styleOpt, templateRaw) =
       if styleStart < 0 then (None, afterScript)
@@ -71,19 +74,21 @@ private[parser] object SectionSplitter:
         val tagMatch = StyleOpenTag.findFirstMatchIn(afterScript.substring(styleStart)) match
           case None    => return Left("Malformed <style> tag")
           case Some(m) => m
-        val tagEnd = styleStart + tagMatch.end
-        val cssEnd = afterScript.indexOf(StyleClose, tagEnd)
-        if cssEnd < 0 then return Left("Unclosed <style> tag")
-        val rawContent = afterScript.substring(tagEnd, cssEnd).trim
-        val langStr    = Option(tagMatch.group(1))
-          .flatMap(StyleLangAttr.findFirstMatchIn(_))
-          .map(_.group(1).toLowerCase)
-          .getOrElse("css")
-        val lang = langStr match
-          case "scss" => StyleLang.Scss
-          case _      => StyleLang.Css
-        val remaining = afterScript.substring(0, styleStart) +
-          afterScript.substring(cssEnd + StyleClose.length)
-        (Some((rawContent, lang)), remaining)
+        val attrsOpt = Option(tagMatch.group(1))
+        val langOpt  = attrsOpt.flatMap(StyleLangAttr.findFirstMatchIn(_))
+        // Skip tags that have attributes other than `lang` (e.g. `scoped`)
+        if attrsOpt.isDefined && langOpt.isEmpty then (None, afterScript)
+        else
+          val tagEnd = styleStart + tagMatch.end
+          val cssEnd = afterScript.indexOf(StyleClose, tagEnd)
+          if cssEnd < 0 then return Left("Unclosed <style> tag")
+          val rawContent = afterScript.substring(tagEnd, cssEnd).trim
+          val langStr    = langOpt.map(_.group(1).toLowerCase).getOrElse("css")
+          val lang = langStr match
+            case "scss" => StyleLang.Scss
+            case _      => StyleLang.Css
+          val remaining = afterScript.substring(0, styleStart) +
+            afterScript.substring(cssEnd + StyleClose.length)
+          (Some((rawContent, lang)), remaining)
 
     Right(Sections(rawScript, templateRaw.trim, styleOpt))
