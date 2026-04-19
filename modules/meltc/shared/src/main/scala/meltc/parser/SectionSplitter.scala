@@ -84,7 +84,7 @@ private[parser] object SectionSplitter:
           if cssEnd < 0 then return Left("Unclosed <style> tag")
           val rawContent = afterScript.substring(tagEnd, cssEnd).trim
           val langStr    = langOpt.map(_.group(1).toLowerCase).getOrElse("css")
-          val lang = langStr match
+          val lang       = langStr match
             case "scss" => StyleLang.Scss
             case _      => StyleLang.Css
           val remaining = afterScript.substring(0, styleStart) +

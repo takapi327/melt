@@ -217,7 +217,7 @@ class SectionSplitterSpec extends munit.FunSuite:
         |$primary: #ff3e00;
         |p { color: $primary; }
         |</style>""".stripMargin
-    val sections = split(src).getOrElse(fail("unexpected error"))
+    val sections    = split(src).getOrElse(fail("unexpected error"))
     val (css, lang) = sections.style.getOrElse(fail("style missing"))
     assertEquals(lang, StyleLang.Scss)
     assert(css.contains("$primary: #ff3e00;"))
@@ -261,7 +261,7 @@ class SectionSplitterSpec extends munit.FunSuite:
         |  }
         |  h1 { color: #ff3e00; }
         |</style>""".stripMargin
-    val sections = split(src).getOrElse(fail("unexpected error"))
+    val sections    = split(src).getOrElse(fail("unexpected error"))
     val (css, lang) = sections.style.getOrElse(fail("style missing"))
     assertEquals(lang, StyleLang.Css)
     assert(css.contains(".counter"))
