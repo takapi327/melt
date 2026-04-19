@@ -325,8 +325,8 @@ object MeltcPlugin extends AutoPlugin {
     meltcHydration              := false,
     meltcStylePreprocessor      := None,
     meltcManagePreprocessorDeps := true,
-    meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
-    meltcSourceDirectories := {
+    meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
+    meltcSourceDirectories      := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
       val legacy    = meltcSourceDirectory.value
       (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
@@ -342,15 +342,16 @@ object MeltcPlugin extends AutoPlugin {
     },
     libraryDependencies ++= {
       if (!meltcManagePreprocessorDeps.value) Seq.empty
-      else meltcStylePreprocessor.value match {
-        case Some(cls) if cls == SassPreprocessor =>
-          val v = meltcCompilerVersion.value
-          Seq(
-            ("io.github.takapi327" % "meltc-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
-            ("io.github.takapi327" % "meltc-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
-          )
-        case _ => Seq.empty
-      }
+      else
+        meltcStylePreprocessor.value match {
+          case Some(cls) if cls == SassPreprocessor =>
+            val v = meltcCompilerVersion.value
+            Seq(
+              ("io.github.takapi327" % "meltc-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
+              ("io.github.takapi327" % "meltc-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+            )
+          case _ => Seq.empty
+        }
     },
     meltcCompilerClasspath := update.value.select(
       configurationFilter(MeltcCompilerConfig.name)

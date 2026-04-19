@@ -83,8 +83,8 @@ object MeltCompiler:
             case Left(err) =>
               CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
             case Right(processedStyle) =>
-              val processedAst = ast.copy(style = processedStyle)
-              val code         = codegen.generate(processedAst, objectName, pkg, scopeId, hydration)
+              val processedAst   = ast.copy(style = processedStyle)
+              val code           = codegen.generate(processedAst, objectName, pkg, scopeId, hydration)
               val parserWarnings = result.warnings.map {
                 case (msg, pos) =>
                   val line = offsetToLine(source, pos)
