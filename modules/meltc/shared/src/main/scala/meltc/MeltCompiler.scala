@@ -14,7 +14,8 @@ import meltc.analysis.{
   SecurityChecker,
   TagNameChecker
 }
-import meltc.codegen.{ CodeGen, CssScoper, SpaCodeGen, SsrCodeGen }
+import meltc.codegen.{ CodeGen, SpaCodeGen, SsrCodeGen }
+import meltc.css.StylePreprocessor
 import meltc.parser.MeltParser
 
 /** Entry point of the meltc compiler. */
@@ -34,12 +35,13 @@ object MeltCompiler:
     *                   single-module Scala.js examples keep working.
     */
   def compile(
-    source:     String,
-    filename:   String,
-    objectName: String,
-    pkg:        String,
-    mode:       CompileMode = CompileMode.SPA,
-    hydration:  Boolean = false
+    source:       String,
+    filename:     String,
+    objectName:   String,
+    pkg:          String,
+    mode:         CompileMode = CompileMode.SPA,
+    hydration:    Boolean = false,
+    preprocessor: StylePreprocessor = StylePreprocessor.cssOnly
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
@@ -66,26 +68,38 @@ object MeltCompiler:
         val allErrors = semanticErrors ++ securityErrors
         if allErrors.nonEmpty then CompileResult(None, None, allErrors, Nil)
         else
-          val code           = codegen.generate(ast, objectName, pkg, scopeId, hydration)
-          val parserWarnings = result.warnings.map {
-            case (msg, pos) =>
-              val line = offsetToLine(source, pos)
-              CompileWarning(msg, line, 0, filename)
-          }
-          val a11yWarnings = A11yChecker.check(ast, source).map {
-            case (msg, line) =>
-              CompileWarning(msg, line, 0, filename)
-          }
-          val securityWarnings = SecurityChecker.check(ast, source).map {
-            case (msg, line) =>
-              CompileWarning(msg, line, 0, filename)
-          }
-          CompileResult(
-            Some(code),
-            ast.style.map(s => CssScoper.scope(s.css, scopeId)),
-            Nil,
-            parserWarnings ++ a11yWarnings ++ securityWarnings
-          )
+          // ── Preprocess CSS before code generation ─────────────────────────
+          // SCSS (or other source langs) must be compiled to plain CSS first so
+          // that the code generators embed already-compiled CSS, not raw SCSS.
+          val styleResult: Either[String, Option[meltc.ast.StyleSection]] =
+            ast.style match
+              case None    => Right(None)
+              case Some(s) =>
+                preprocessor.process(s.content, s.lang).map { css =>
+                  Some(s.copy(content = css, lang = meltc.css.StyleLang.Css))
+                }
+
+          styleResult match
+            case Left(err) =>
+              CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
+            case Right(processedStyle) =>
+              val processedAst   = ast.copy(style = processedStyle)
+              val code           = codegen.generate(processedAst, objectName, pkg, scopeId, hydration)
+              val parserWarnings = result.warnings.map {
+                case (msg, pos) =>
+                  val line = offsetToLine(source, pos)
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val a11yWarnings = A11yChecker.check(ast, source).map {
+                case (msg, line) =>
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val securityWarnings = SecurityChecker.check(ast, source).map {
+                case (msg, line) =>
+                  CompileWarning(msg, line, 0, filename)
+              }
+              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings
+              CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */
   private def offsetToLine(source: String, offset: Int): Int =

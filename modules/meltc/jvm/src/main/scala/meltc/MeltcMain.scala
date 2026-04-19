@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Paths }
 import java.util.ArrayList as JArrayList
 
+import meltc.css.StylePreprocessor
+
 /** CLI entry point for the meltc compiler (JVM platform only).
   *
   * Usage:
@@ -27,6 +29,27 @@ import java.util.ArrayList as JArrayList
   */
 object MeltcMain:
 
+  /** Loads the [[StylePreprocessor]] for the given fully-qualified object name.
+    *
+    * The `$` suffix required for Scala objects is appended internally, so
+    * callers pass plain names like `"meltc.sass.SassPreprocessor"`.
+    *
+    * Falls back to [[StylePreprocessor.cssOnly]] when `className` is `None`.
+    * Exits with an error when the requested class is not found on the classpath.
+    */
+  private def resolvePreprocessor(className: Option[String]): StylePreprocessor =
+    className match
+      case None      => StylePreprocessor.cssOnly
+      case Some(cls) =>
+        try Class.forName(cls + "$").getField("MODULE$").get(null).asInstanceOf[StylePreprocessor]
+        catch
+          case _: ClassNotFoundException =>
+            System.err.println(
+              s"meltc: preprocessor class '$cls' not found on classpath. " +
+                "Ensure the corresponding JAR is on meltcCompilerClasspath."
+            )
+            sys.exit(1)
+
   private val Usage =
     "Usage: MeltcMain <input.melt> <output.scala> <ObjectName> <package> " +
       "[--mode spa|ssr] [--hydration]"
@@ -41,7 +64,7 @@ object MeltcMain:
     val objectName = args(2)
     val pkg        = args(3)
 
-    val (mode, hydration) = parseExtras(args.drop(4)) match
+    val (mode, hydration, preprocessorClass) = parseExtras(args.drop(4)) match
       case Right(v)  => v
       case Left(err) =>
         System.err.println(s"meltc: $err")
@@ -61,7 +84,8 @@ object MeltcMain:
       objectName,
       pkg,
       mode,
-      hydration
+      hydration,
+      resolvePreprocessor(preprocessorClass)
     )
 
     // ── Structured diagnostics file for sbt-meltc reporter integration ────
@@ -91,15 +115,16 @@ object MeltcMain:
             System.err.println(s"meltc: cannot write ${ outputPath }: ${ e.getMessage }")
             sys.exit(1)
 
-  /** Parses optional trailing flags: `--mode spa|ssr` and the boolean
-    * `--hydration` switch. Returns the resolved `(CompileMode, hydration)`
-    * pair or an error message.
+  /** Parses optional trailing flags: `--mode spa|ssr`, `--hydration`, and
+    * `--preprocessor <className>`. Returns the resolved
+    * `(CompileMode, hydration, preprocessorClass)` triple or an error message.
     */
-  private def parseExtras(extras: Array[String]): Either[String, (CompileMode, Boolean)] =
-    var mode      = CompileMode.SPA
-    var hydration = false
-    var i         = 0
-    val args      = extras
+  private def parseExtras(extras: Array[String]): Either[String, (CompileMode, Boolean, Option[String])] =
+    var mode              = CompileMode.SPA
+    var hydration         = false
+    var preprocessorClass = Option.empty[String]
+    var i                 = 0
+    val args              = extras
     while i < args.length do
       args(i) match
         case "--mode" =>
@@ -112,6 +137,10 @@ object MeltcMain:
         case "--hydration" =>
           hydration = true
           i += 1
+        case "--preprocessor" =>
+          if i + 1 >= args.length then return Left("--preprocessor requires a class name")
+          preprocessorClass = Some(args(i + 1))
+          i += 2
         case other =>
           return Left(s"unrecognised argument: '$other'")
-    Right((mode, hydration))
+    Right((mode, hydration, preprocessorClass))

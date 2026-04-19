@@ -1,0 +1,140 @@
+<script lang="scala">
+val count   = Var(0)
+val name    = Var("")
+val doubled = count.map(_ * 2)
+val isEven  = memo(count)(_ % 2 == 0)
+
+effect(count) { n =>
+  dom.console.log(s"Count changed to: $n")
+}
+
+def resetAll(): Unit = batch {
+  count.set(0)
+  name.set("")
+}
+
+val windowWidth = Window.innerWidth
+
+Document.title(name.map(n => if n.isEmpty then "Melt SCSS Counter" else s"Hello, $n!"))
+</script>
+
+<div class="counter">
+  <h1>Melt SCSS Counter</h1>
+  <p class="count-display">Count: <span class="count-value">{count}</span></p>
+  <p class="count-display">Doubled: <span class="count-value">{doubled}</span></p>
+  <p class="meta">Even: {isEven}</p>
+  <p class="meta">Window width: {windowWidth}</p>
+  <div class="button-row">
+    <button class="btn btn--primary" onclick={_ => count += 1}>+1</button>
+    <button class="btn btn--primary" onclick={_ => count -= 1}>-1</button>
+    <button class="btn btn--secondary" onclick={_ => resetAll()}>Reset</button>
+  </div>
+  <hr />
+  <input use:autoFocus bind:value={name} placeholder="Your name" />
+  <p>Hello, {name}!</p>
+  <hr />
+  <p class="section-label">Var as props — bidirectional binding</p>
+  <div class="step-row">
+    <StepControl count={count} step={1} />
+    <StepControl count={count} step={5} />
+  </div>
+  <p class="meta">Parent sees: <strong>{count}</strong></p>
+</div>
+
+<style lang="scss">
+$primary:   #ff3e00;
+$secondary: #333;
+$muted:     #888;
+$border:    #ddd;
+$bg-card:   #fafafa;
+$radius:    6px;
+
+.counter {
+  font-family: sans-serif;
+  max-width: 420px;
+  margin: 2em auto;
+  padding: 1.5em;
+  background: $bg-card;
+  border: 1px solid $border;
+  border-radius: $radius * 2;
+
+  h1 {
+    color: $primary;
+    margin-top: 0;
+  }
+
+  hr {
+    margin: 1em 0;
+    border: none;
+    border-top: 1px solid $border;
+  }
+
+  input {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 1em;
+    border: 1px solid $border;
+    border-radius: $radius;
+  }
+}
+
+.count-display {
+  color: $secondary;
+
+  .count-value {
+    font-weight: 700;
+    color: $primary;
+  }
+}
+
+.meta {
+  color: $muted;
+  font-size: 0.85em;
+}
+
+.section-label {
+  font-weight: 600;
+  margin-top: 0.5em;
+  color: $primary;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.5em 1.2em;
+  border: none;
+  border-radius: $radius;
+  cursor: pointer;
+  font-size: 1em;
+
+  &--primary {
+    background: $primary;
+    color: #fff;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &--secondary {
+    background: $border;
+    color: $secondary;
+
+    &:hover {
+      background: #c8c8c8;
+    }
+  }
+}
+
+.step-row {
+  display: flex;
+  gap: 1em;
+  flex-wrap: wrap;
+  margin: 0.5em 0;
+}
+</style>

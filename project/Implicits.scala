@@ -35,7 +35,6 @@ object Implicits {
 
     def defaultSettings: CrossProject =
       project
-        .settings(scalaVersion := scala3)
         .settings(commonSettings)
         .enablePlugins(AutomateHeaderPlugin)
   }

@@ -6,6 +6,8 @@
 
 package meltc.parser
 
+import meltc.css.StyleLang
+
 class SectionSplitterSpec extends munit.FunSuite:
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -26,7 +28,7 @@ class SectionSplitterSpec extends munit.FunSuite:
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.map(_.code), Some("val x = 1"))
     assert(sections.templateSource.contains("<div>Hello</div>"))
-    assertEquals(sections.style, Some("div { color: red; }"))
+    assertEquals(sections.style, Some(("div { color: red; }", StyleLang.Css)))
   }
 
   test("template-only file (no script, no style)") {
@@ -53,7 +55,7 @@ class SectionSplitterSpec extends munit.FunSuite:
         |<style>p { margin: 0; }</style>""".stripMargin
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript, None)
-    assertEquals(sections.style, Some("p { margin: 0; }"))
+    assertEquals(sections.style, Some(("p { margin: 0; }", StyleLang.Css)))
   }
 
   // ── props attribute extraction ────────────────────────────────────────────
@@ -129,7 +131,7 @@ class SectionSplitterSpec extends munit.FunSuite:
   test("empty style body") {
     val src      = """<div></div><style></style>"""
     val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.style, Some(""))
+    assertEquals(sections.style, Some(("", StyleLang.Css)))
   }
 
   test("empty file") {
@@ -167,7 +169,7 @@ class SectionSplitterSpec extends munit.FunSuite:
     val sections = split(src).getOrElse(fail("unexpected error"))
     assert(sections.rawScript.isDefined)
     assert(sections.templateSource.contains("<p>ok</p>"))
-    assertEquals(sections.style, Some("p { color: blue; }"))
+    assertEquals(sections.style, Some(("p { color: blue; }", StyleLang.Css)))
   }
 
   // ── Error cases ───────────────────────────────────────────────────────────
@@ -200,10 +202,38 @@ class SectionSplitterSpec extends munit.FunSuite:
 
   test("<style> with an extra attribute stays in template (not extracted)") {
     // <style scoped> is non-standard; the splitter only matches plain <style>
+    // or <style lang="...">. Tags with unrecognised attributes are left in
+    // the template source unchanged.
     val src      = "<p></p><style scoped>div { color: red; }</style>"
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.style, None)
     assert(sections.templateSource.contains("<style scoped>"))
+  }
+
+  test("<style lang=\"scss\"> is extracted with StyleLang.Scss") {
+    val src =
+      """<p></p>
+        |<style lang="scss">
+        |$primary: #ff3e00;
+        |p { color: $primary; }
+        |</style>""".stripMargin
+    val sections    = split(src).getOrElse(fail("unexpected error"))
+    val (css, lang) = sections.style.getOrElse(fail("style missing"))
+    assertEquals(lang, StyleLang.Scss)
+    assert(css.contains("$primary: #ff3e00;"))
+    assert(css.contains("p { color: $primary; }"))
+  }
+
+  test("<style lang='scss'> with single quotes is extracted with StyleLang.Scss") {
+    val src      = "<p></p><style lang='scss'>$c: red; p { color: $c; }</style>"
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.style.map(_._2), Some(StyleLang.Scss))
+  }
+
+  test("<style lang=\"css\"> is extracted with StyleLang.Css") {
+    val src      = "<p></p><style lang=\"css\">p { margin: 0; }</style>"
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.style, Some(("p { margin: 0; }", StyleLang.Css)))
   }
 
   // ── Multiple style blocks ─────────────────────────────────────────────────
@@ -215,7 +245,7 @@ class SectionSplitterSpec extends munit.FunSuite:
         |<div></div>
         |<style>div { margin: 0; }</style>""".stripMargin
     val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.style, Some("p { color: red; }"))
+    assertEquals(sections.style, Some(("p { color: red; }", StyleLang.Css)))
     assert(sections.templateSource.contains("div { margin: 0; }"))
   }
 
@@ -231,8 +261,9 @@ class SectionSplitterSpec extends munit.FunSuite:
         |  }
         |  h1 { color: #ff3e00; }
         |</style>""".stripMargin
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    val css      = sections.style.getOrElse(fail("style missing"))
+    val sections    = split(src).getOrElse(fail("unexpected error"))
+    val (css, lang) = sections.style.getOrElse(fail("style missing"))
+    assertEquals(lang, StyleLang.Css)
     assert(css.contains(".counter"))
     assert(css.contains("text-align: center;"))
     assert(css.contains("h1 { color: #ff3e00; }"))

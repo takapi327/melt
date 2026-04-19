@@ -1,0 +1,47 @@
+<script lang="scala" props="Props">
+case class Props(count: Var[Int], step: Int)
+</script>
+
+<div class="step-control">
+  <button class="step-btn" onclick={_ => props.count.update(_ - props.step)}>−{props.step}</button>
+  <span class="step-value">{props.count}</span>
+  <button class="step-btn" onclick={_ => props.count.update(_ + props.step)}>+{props.step}</button>
+</div>
+
+<style lang="scss">
+$border:  #ddd;
+$bg:      #fafafa;
+$radius:  6px;
+$primary: #ff3e00;
+
+.step-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: 0.2em 0.5em;
+  background: $bg;
+}
+
+.step-value {
+  min-width: 2.5em;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.step-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+  color: $primary;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+
+  &:hover {
+    background: #ffe0d8;
+  }
+}
+</style>

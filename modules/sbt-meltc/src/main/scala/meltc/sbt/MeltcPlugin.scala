@@ -240,6 +240,70 @@ object MeltcPlugin extends AutoPlugin {
       */
     val meltcViteInputGenerate =
       taskKey[File]("Generate vite-inputs.json from the client's fullLinkJS Report")
+
+    /** Class name of the [[meltc.css.StylePreprocessor]] implementation to use
+      * for stylesheet preprocessing in `.melt` files.
+      *
+      * Default: `None` — plain CSS only. Setting `<style lang="scss">` will
+      * result in a compile error with a hint to set this key.
+      *
+      * Use the predefined constants from this plugin's `autoImport` to refer
+      * to known implementations:
+      *
+      * {{{
+      * // SCSS via Dart Sass:
+      * meltcStylePreprocessor := Some(SassPreprocessor)
+      * }}}
+      *
+      * The implementation class must be a Scala `object` that extends
+      * [[meltc.css.StylePreprocessor]] and its JAR must be present on
+      * [[meltcCompilerClasspath]]. For known preprocessors (e.g. [[SassPreprocessor]])
+      * the plugin adds the required JAR automatically.
+      *
+      * For a custom preprocessor, add the JAR to [[meltcCompilerClasspath]]
+      * manually and pass the fully-qualified object name:
+      * {{{
+      * meltcStylePreprocessor := Some("com.example.MyPreprocessor")
+      * }}}
+      */
+    val meltcStylePreprocessor =
+      settingKey[Option[String]](
+        "Fully-qualified object name of the StylePreprocessor to use. " +
+          "Known values: SassPreprocessor."
+      )
+
+    /** Preprocessor constant for SCSS support via Dart Sass.
+      *
+      * Requires the `meltc-sass` artifact on the compiler classpath.
+      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)` and
+      * [[meltcManagePreprocessorDeps]] is `true` (the default), the plugin adds
+      * `meltc-css` and `meltc-sass` to the compiler classpath automatically.
+      *
+      * {{{
+      * meltcStylePreprocessor := Some(SassPreprocessor)
+      * }}}
+      */
+    val SassPreprocessor: String = "meltc.sass.SassPreprocessor"
+
+    /** When `true` (the default), the plugin automatically adds the required
+      * preprocessor JARs (e.g. `meltc-css_3`, `meltc-sass_3`) to the
+      * `meltc-compiler` Ivy configuration so they are resolved and placed on
+      * [[meltcCompilerClasspath]].
+      *
+      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
+      * for example, in a monorepo where you wire the classpath directly from
+      * source projects:
+      * {{{
+      * meltcManagePreprocessorDeps := false,
+      * meltcStylePreprocessor      := Some(SassPreprocessor),
+      * meltcCompilerClasspath      := (meltc.jvm / Compile / fullClasspath).value.files ++
+      *                                (`meltc-sass` / Compile / fullClasspath).value.files
+      * }}}
+      */
+    val meltcManagePreprocessorDeps =
+      settingKey[Boolean](
+        "When true, automatically resolve preprocessor JARs via Ivy. Set false when providing meltcCompilerClasspath manually."
+      )
   }
 
   import autoImport._
@@ -258,9 +322,11 @@ object MeltcPlugin extends AutoPlugin {
     meltcMode := {
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
-    meltcHydration         := false,
-    meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
-    meltcSourceDirectories := {
+    meltcHydration              := false,
+    meltcStylePreprocessor      := None,
+    meltcManagePreprocessorDeps := true,
+    meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
+    meltcSourceDirectories      := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
       val legacy    = meltcSourceDirectory.value
       (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
@@ -274,19 +340,33 @@ object MeltcPlugin extends AutoPlugin {
       val v = meltcCompilerVersion.value
       ("io.github.takapi327" % "meltc_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
     },
+    libraryDependencies ++= {
+      if (!meltcManagePreprocessorDeps.value) Seq.empty
+      else
+        meltcStylePreprocessor.value match {
+          case Some(cls) if cls == SassPreprocessor =>
+            val v = meltcCompilerVersion.value
+            Seq(
+              ("io.github.takapi327" % "meltc-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
+              ("io.github.takapi327" % "meltc-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+            )
+          case _ => Seq.empty
+        }
+    },
     meltcCompilerClasspath := update.value.select(
       configurationFilter(MeltcCompilerConfig.name)
     ),
 
     meltcGenerate := compileMeltFiles(
-      streams    = streams.value,
-      srcDirs    = meltcSourceDirectories.value,
-      outDir     = meltcOutputDirectory.value,
-      pkg        = meltcPackage.value,
-      mode       = meltcMode.value,
-      hydration  = meltcHydration.value,
-      compilerCp = meltcCompilerClasspath.value,
-      reporter   = (Compile / compile / bspReporter).value
+      streams      = streams.value,
+      srcDirs      = meltcSourceDirectories.value,
+      outDir       = meltcOutputDirectory.value,
+      pkg          = meltcPackage.value,
+      mode         = meltcMode.value,
+      hydration    = meltcHydration.value,
+      preprocessor = meltcStylePreprocessor.value,
+      compilerCp   = meltcCompilerClasspath.value,
+      reporter     = (Compile / compile / bspReporter).value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
@@ -346,14 +426,15 @@ object MeltcPlugin extends AutoPlugin {
   )
 
   private def compileMeltFiles(
-    streams:    TaskStreams,
-    srcDirs:    Seq[File],
-    outDir:     File,
-    pkg:        String,
-    mode:       String,
-    hydration:  Boolean,
-    compilerCp: Seq[File],
-    reporter:   xsbti.Reporter
+    streams:      TaskStreams,
+    srcDirs:      Seq[File],
+    outDir:       File,
+    pkg:          String,
+    mode:         String,
+    hydration:    Boolean,
+    preprocessor: Option[String],
+    compilerCp:   Seq[File],
+    reporter:     xsbti.Reporter
   ): Seq[File] = {
     val log = streams.log
 
@@ -420,7 +501,8 @@ object MeltcPlugin extends AutoPlugin {
           fullPkg,
           "--mode",
           normalisedMode
-        ) ++ (if (hydration) Seq("--hydration") else Seq.empty)
+        ) ++ (if (hydration) Seq("--hydration") else Seq.empty) ++
+          preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
 
         val exitCode = Fork.java(ForkOptions(), javaArgs)
 

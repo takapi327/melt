@@ -66,6 +66,27 @@ ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
+// ── CSS preprocessor API (no external dependencies, cross-compiled) ──
+lazy val `meltc-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+  .crossType(CrossType.Pure)
+  .in(file("modules/meltc-css"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name := "meltc-css"
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+
+// ── SCSS support via Dart Sass (optional, JVM only) ──
+lazy val `meltc-sass` = project
+  .in(file("modules/meltc-sass"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                                       := "meltc-sass",
+    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(`meltc-css`.jvm)
+
 // ── Core compiler (JVM + JS + Native) ──
 lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Full)
@@ -82,6 +103,7 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeSettings(
     // Reserved for future Native CLI configuration
   )
+  .dependsOn(`meltc-css`)
 
 // ── sbt plugin ──
 // The plugin forks a JVM process to run meltc.MeltcMain, avoiding Scala 2.12/3 binary
@@ -190,6 +212,22 @@ lazy val counter = project
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, `melt-testkit` % Test)
+
+// ── Example: SCSS Counter (SCSS support via meltc-sass) ──────────────────────
+lazy val `scss-counter` = project
+  .in(file("examples/scss-counter"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "scss-counter",
+    publish / skip                  := true,
+    scalaJSUseMainModuleInitializer := true,
+    meltcManagePreprocessorDeps     := false,
+    meltcStylePreprocessor          := Some(SassPreprocessor),
+    meltcCompilerClasspath          := (meltc.jvm / Compile / fullClasspath).value.files ++
+      (`meltc-sass` / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(runtime.js)
 
 // ── Example: Todo App (Phase 5 — multi-component) ────────────────────────────
 lazy val `todo-app` = project
@@ -422,6 +460,10 @@ lazy val `http4s-spa-server` = project
 lazy val root = project
   .in(file("."))
   .aggregate(
+    `meltc-css`.jvm,
+    `meltc-css`.js,
+    `meltc-css`.native,
+    `meltc-sass`,
     meltc.jvm,
     meltc.js,
     meltc.native,
@@ -432,6 +474,7 @@ lazy val root = project
     `language-server`,
     `hello-world`,
     counter,
+    `scss-counter`,
     `todo-app`,
     transitions,
     `special-elements`,

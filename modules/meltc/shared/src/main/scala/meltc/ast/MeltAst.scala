@@ -25,9 +25,10 @@ case class ScriptSection(
 
 /** The `<style>` section of a `.melt` file.
   *
-  * @param css raw CSS text (scope ID injection is done in Phase 3)
+  * @param content raw stylesheet text (scope ID injection is done later)
+  * @param lang    the stylesheet language (default: [[meltc.css.StyleLang.Css]])
   */
-case class StyleSection(css: String)
+case class StyleSection(content: String, lang: meltc.css.StyleLang = meltc.css.StyleLang.Css)
 
 /** A node in the HTML template of a `.melt` file. */
 enum TemplateNode:
