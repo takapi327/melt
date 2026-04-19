@@ -88,9 +88,7 @@ object MeltCompiler:
             ast.style match
               case None    => Right(None)
               case Some(s) =>
-                preprocessor.process(s.content, s.lang).map(css =>
-                  Some(CssScoper.scope(css, scopeId))
-                )
+                preprocessor.process(s.content, s.lang).map(css => Some(CssScoper.scope(css, scopeId)))
 
           cssResult match
             case Left(err) =>

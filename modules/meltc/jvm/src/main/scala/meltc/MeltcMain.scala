@@ -39,10 +39,9 @@ object MeltcMain:
     */
   private def resolvePreprocessor(className: Option[String]): StylePreprocessor =
     className match
-      case None => StylePreprocessor.cssOnly
+      case None      => StylePreprocessor.cssOnly
       case Some(cls) =>
-        try
-          Class.forName(cls + "$").getField("MODULE$").get(null).asInstanceOf[StylePreprocessor]
+        try Class.forName(cls + "$").getField("MODULE$").get(null).asInstanceOf[StylePreprocessor]
         catch
           case _: ClassNotFoundException =>
             System.err.println(

@@ -71,8 +71,8 @@ private[parser] object SectionSplitter:
         val tagMatch = StyleOpenTag.findFirstMatchIn(afterScript.substring(styleStart)) match
           case None    => return Left("Malformed <style> tag")
           case Some(m) => m
-        val tagEnd     = styleStart + tagMatch.end
-        val cssEnd     = afterScript.indexOf(StyleClose, tagEnd)
+        val tagEnd = styleStart + tagMatch.end
+        val cssEnd = afterScript.indexOf(StyleClose, tagEnd)
         if cssEnd < 0 then return Left("Unclosed <style> tag")
         val rawContent = afterScript.substring(tagEnd, cssEnd).trim
         val langStr    = Option(tagMatch.group(1))
@@ -82,7 +82,7 @@ private[parser] object SectionSplitter:
         val lang = langStr match
           case "scss" => StyleLang.Scss
           case _      => StyleLang.Css
-        val remaining  = afterScript.substring(0, styleStart) +
+        val remaining = afterScript.substring(0, styleStart) +
           afterScript.substring(cssEnd + StyleClose.length)
         (Some((rawContent, lang)), remaining)
 

@@ -302,8 +302,8 @@ object MeltcPlugin extends AutoPlugin {
     meltcMode := {
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
-    meltcHydration           := false,
-    meltcStylePreprocessor   := None,
+    meltcHydration         := false,
+    meltcStylePreprocessor := None,
     meltcSourceDirectory   := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
