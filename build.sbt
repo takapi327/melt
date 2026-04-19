@@ -81,7 +81,7 @@ lazy val `meltc-sass` = project
   .in(file("modules/meltc-sass"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                := "meltc-sass",
+    name                                       := "meltc-sass",
     libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
   )
   .enablePlugins(AutomateHeaderPlugin)
