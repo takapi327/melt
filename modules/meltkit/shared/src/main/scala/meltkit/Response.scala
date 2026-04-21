@@ -44,3 +44,6 @@ object Response:
 
   def notFound(body: String = "Not Found"): Response =
     Response(404, "text/plain; charset=utf-8", body)
+
+  def unprocessableEntity(body: String): Response =
+    Response(422, "text/plain; charset=utf-8", body)

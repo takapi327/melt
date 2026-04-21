@@ -32,8 +32,37 @@ trait MeltContext[F[_], P <: AnyNamedTuple]:
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 
+  /** Reads and decodes the request body.
+    *
+    * Returns `Left(BodyError.DecodeError(...))` when the raw body cannot be
+    * parsed and `Left(BodyError.ValidationError(...))` when constraint
+    * validation fails.  A `given BodyDecoder[A]` must be in scope; adapters
+    * provide these (e.g. `CirceBodyDecoder` in `meltkit-adapter-http4s`).
+    */
+  def body[A: BodyDecoder]: F[Either[BodyError, A]]
+
+  /** Like [[body]], but automatically returns a 400 Bad Request or
+    * 422 Unprocessable Entity response when decoding fails.
+    *
+    * {{{
+    * app.post("users") { ctx =>
+    *   for
+    *     b    <- ctx.bodyOrBadRequest[CreateUserBody]
+    *     user <- Database.createUser(b)
+    *   yield ctx.json(user.asJson.noSpaces)
+    * }
+    * }}}
+    */
+  def bodyOrBadRequest[A: BodyDecoder]: F[A]
+
   /** Builds a plain-text 200 response. */
   def text(value: String): Response
+
+  /** Builds a 200 application/json response from a pre-serialised JSON string. */
+  def json(body: String): Response
+
+  /** Builds a 400 Bad Request response from a [[BodyError]]. */
+  def badRequest(err: BodyError): Response
 
   /** Builds a 301 or 302 redirect response. */
   def redirect(path: String, permanent: Boolean = false): Response
