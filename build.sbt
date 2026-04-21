@@ -204,7 +204,11 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
     scalaVersion                            := scala38,
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.1"
+  )
   .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(runtime)
 
 // ── MeltKit: http4s adapter (JVM + JS, Scala 3.8+) ───────────────────────────
 lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
