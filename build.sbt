@@ -15,13 +15,25 @@ ThisBuild / githubWorkflowJavaVersions := Seq(
   JavaSpec.corretto(java25)
 )
 ThisBuild / githubWorkflowBuildMatrixAdditions +=
-  "project" -> List("meltcJVM", "meltcJS", "meltcNative")
+  "project" -> List(
+    "meltcJVM",
+    "meltcJS",
+    "meltcNative",
+    "meltkitJVM",
+    "meltkitJS",
+    "meltkit-adapter-http4sJVM",
+    "meltkit-adapter-http4sJS"
+  )
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   // JS / Native run on Java 17 only
-  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltcJS",                    "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltcJS",                    "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltcNative",                "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltcNative",                "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkitJS",                  "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkitJS",                  "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS",   "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS",   "java" -> s"corretto@$java25")),
   // Scala 3.8.3 runs on Java 17 only
   MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
   MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
@@ -43,7 +55,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
-    cond = Some("matrix.project == 'meltcJS'")
+    cond = Some("contains('meltcJS meltkitJS meltkit-adapter-http4sJS', matrix.project)")
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/nativeLink"),
