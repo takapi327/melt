@@ -182,6 +182,31 @@ lazy val `melt-testkit` = project
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
+// ── MeltKit: routing DSL (JVM + JS, Scala 3.8+) ──────────────────────────────
+lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/meltkit"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                               := "meltkit",
+    scalaVersion                       := scala38,
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+
+// ── MeltKit: http4s adapter (JVM + JS, Scala 3.8+) ───────────────────────────
+lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("modules/meltkit-adapter-http4s"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                               := "meltkit-adapter-http4s",
+    scalaVersion                       := scala38,
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(meltkit)
+
 // ── Example: Hello World ──────────────────────────────────────────────────────
 // MeltcPlugin is loaded from source via project/build.sbt (no publishLocal needed).
 // meltcCompilerClasspath is wired directly from meltc.jvm, so Fork.java is invoked
@@ -486,6 +511,10 @@ lazy val root = project
     `reactive-scope`,
     `trusted-html`,
     boundary,
+    meltkit.jvm,
+    meltkit.js,
+    `meltkit-adapter-http4s`.jvm,
+    `meltkit-adapter-http4s`.js,
     `http4s-components`.jvm,
     `http4s-components`.js,
     `http4s-spa-client`,
