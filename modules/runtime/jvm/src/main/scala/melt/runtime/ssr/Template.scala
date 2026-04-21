@@ -195,6 +195,12 @@ final class Template private (private val raw: String):
 
     renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody)
 
+  /** Substitutes only `%melt.head%` — for SPA shells where the body is
+    * static and only script tags need to be injected at runtime.
+    */
+  def renderSpa(headContent: String): String =
+    raw.replace("%melt.head%", headContent)
+
   /** Shared substitution pipeline used by both `render` overloads. */
   private def renderInternal(
     result:         RenderResult,

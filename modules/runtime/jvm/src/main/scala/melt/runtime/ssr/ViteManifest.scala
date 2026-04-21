@@ -52,6 +52,17 @@ final class ViteManifest private (
     val key = s"$uriPrefix:$moduleId.js"
     resolveCss(key, Set.empty)
 
+  /** Returns `<script type="module" src="...">` tags for all JS modules
+    * in this manifest, suitable for injection into an SPA HTML shell.
+    *
+    * Entries are sorted by key for stable output.
+    */
+  def scriptTags(basePath: String = "/assets"): String =
+    val base = basePath.stripSuffix("/")
+    entries.toList.sortBy(_._1)
+      .map { case (_, entry) => s"""<script type="module" src="$base/${ entry.file }"></script>""" }
+      .mkString("\n")
+
   /** Internal accessor for tests. */
   private[ssr] def lookup(key: String): Option[ViteManifest.Entry] =
     entries.get(key)
