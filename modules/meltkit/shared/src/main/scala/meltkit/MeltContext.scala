@@ -58,8 +58,14 @@ trait MeltContext[F[_], P <: AnyNamedTuple]:
   /** Builds a plain-text 200 response. */
   def text(value: String): Response
 
-  /** Builds a 200 application/json response from a pre-serialised JSON string. */
-  def json(body: String): Response
+  /** Builds a 200 application/json response from a value of type `A`.
+    *
+    * A `given BodyEncoder[A]` must be in scope.  Import
+    * `meltkit.adapter.http4s.CirceBodyEncoder.given` to derive encoders from
+    * Circe.  Raw JSON strings are also accepted via the built-in
+    * `BodyEncoder[String]` instance.
+    */
+  def json[A: BodyEncoder](value: A): Response
 
   /** Builds a 400 Bad Request response from a [[BodyError]]. */
   def badRequest(err: BodyError): Response
