@@ -58,17 +58,32 @@ class MeltKit[F[_]]:
   def get[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P] => F[Response]): Unit =
     register("GET", spec)(handler)
 
+  def get(path: String)(handler: MeltContext[F, PathSpec.Empty] => F[Response]): Unit =
+    register("GET", PathSpec.fromString(path))(handler)
+
   def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P] => F[Response]): Unit =
     register("POST", spec)(handler)
+
+  def post(path: String)(handler: MeltContext[F, PathSpec.Empty] => F[Response]): Unit =
+    register("POST", PathSpec.fromString(path))(handler)
 
   def put[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P] => F[Response]): Unit =
     register("PUT", spec)(handler)
 
+  def put(path: String)(handler: MeltContext[F, PathSpec.Empty] => F[Response]): Unit =
+    register("PUT", PathSpec.fromString(path))(handler)
+
   def delete[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P] => F[Response]): Unit =
     register("DELETE", spec)(handler)
 
+  def delete(path: String)(handler: MeltContext[F, PathSpec.Empty] => F[Response]): Unit =
+    register("DELETE", PathSpec.fromString(path))(handler)
+
   def patch[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P] => F[Response]): Unit =
     register("PATCH", spec)(handler)
+
+  def patch(path: String)(handler: MeltContext[F, PathSpec.Empty] => F[Response]): Unit =
+    register("PATCH", PathSpec.fromString(path))(handler)
 
   /** Mounts a sub-router under a static path prefix.
     *
