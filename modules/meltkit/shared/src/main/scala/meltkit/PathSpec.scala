@@ -29,6 +29,7 @@ import scala.NamedTuple.NamedTuple as NT
   */
 sealed trait PathSpec[P <: AnyNamedTuple]:
   def segments: List[PathSegment]
+  private[meltkit] def paramDecoders: List[(String, PathParamDecoder[?])]
 
 /** Computes the NamedTuple type after appending `T` to `PathSpec[P]`.
   *
@@ -44,13 +45,30 @@ object PathSpec:
   /** The NamedTuple type for a path with no dynamic parameters. */
   type Empty = NT[EmptyTuple, EmptyTuple]
 
-  private final case class Impl[P <: AnyNamedTuple](segments: List[PathSegment]) extends PathSpec[P]
+  private final case class Impl[P <: AnyNamedTuple](
+    segments:      List[PathSegment],
+    paramDecoders: List[(String, PathParamDecoder[?])]
+  ) extends PathSpec[P]
 
-  private[meltkit] def of[P <: AnyNamedTuple](segments: List[PathSegment]): PathSpec[P] = Impl(segments)
+  private[meltkit] def of[P <: AnyNamedTuple](
+    segments:      List[PathSegment],
+    paramDecoders: List[(String, PathParamDecoder[?])] = Nil
+  ): PathSpec[P] = Impl(segments, paramDecoders)
 
-  /** Converts a plain `String` to a no-param `PathSpec[Empty]`. */
+  /** Splits a string on `/` to produce static path segments.
+    *
+    * `"api/users"` → `[Static("api"), Static("users")]`
+    */
+  private[meltkit] def staticSegments(s: String): List[PathSegment] =
+    s.split('/').filter(_.nonEmpty).toList.map(PathSegment.Static(_))
+
+  /** Converts a plain `String` to a no-param `PathSpec[Empty]`.
+    *
+    * Slashes in `s` produce multiple static segments, so `"api/users"` is
+    * equivalent to the path `/api/users`.
+    */
   private[meltkit] def fromString(s: String): PathSpec[Empty] =
-    of(if s.isEmpty then Nil else List(PathSegment.Static(s)))
+    of(staticSegments(s))
 
   extension [P <: AnyNamedTuple](spec: PathSpec[P])
 
@@ -62,20 +80,33 @@ object PathSpec:
     transparent inline def /[T](t: T): PathSpec[AppendedWith[P, T]] =
       inline t match
         case p: PathParam[?, ?] =>
-          of(spec.segments :+ PathSegment.Param(p.paramName))
-            .asInstanceOf[PathSpec[AppendedWith[P, T]]]
+          of(
+            spec.segments :+ PathSegment.Param(p.paramName),
+            spec.paramDecoders :+ (p.paramName -> p.decoder)
+          ).asInstanceOf[PathSpec[AppendedWith[P, T]]]
         case s: String =>
-          of(spec.segments :+ PathSegment.Static(s))
-            .asInstanceOf[PathSpec[AppendedWith[P, T]]]
+          of(
+            spec.segments ++ staticSegments(s),
+            spec.paramDecoders
+          ).asInstanceOf[PathSpec[AppendedWith[P, T]]]
 
 // ── String-receiver DSL ──────────────────────────────────────────────────────
 
 extension (s: String)
 
-  /** `"users" / id` — starts a PathSpec with a dynamic segment. */
+  /** `"users" / id` — starts a PathSpec with a dynamic segment.
+    *
+    * Slashes in `s` produce multiple leading static segments.
+    */
   def /[N <: String, A](p: PathParam[N, A]): PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]] =
-    PathSpec.of(List(PathSegment.Static(s), PathSegment.Param(p.paramName)))
+    PathSpec.of(
+      PathSpec.staticSegments(s) :+ PathSegment.Param(p.paramName),
+      List(p.paramName -> p.decoder)
+    )
 
-  /** `"api" / otherSpec` — prepends a static segment to an existing PathSpec. */
+  /** `"api" / otherSpec` — prepends static segment(s) to an existing PathSpec.
+    *
+    * Slashes in `s` produce multiple leading static segments.
+    */
   def /[P <: AnyNamedTuple](spec: PathSpec[P]): PathSpec[P] =
-    PathSpec.of(PathSegment.Static(s) :: spec.segments)
+    PathSpec.of(PathSpec.staticSegments(s) ++ spec.segments, spec.paramDecoders)
