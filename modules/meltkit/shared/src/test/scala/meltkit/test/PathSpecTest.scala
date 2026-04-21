@@ -6,9 +6,10 @@
 
 package meltkit.test
 
-import meltkit.*
 import scala.NamedTuple.AnyNamedTuple
 import scala.NamedTuple.NamedTuple as NT
+
+import meltkit.*
 
 class PathSpecTest extends munit.FunSuite:
 
@@ -83,7 +84,7 @@ class PathSpecTest extends munit.FunSuite:
   test("MeltKit registers route with correct method and segments"):
     type Id = [A] =>> A
     val app = MeltKit[Id]()
-    app.get("users" / id) { ctx => ctx.text(s"User ${ctx.params.id}") }
+    app.get("users" / id) { ctx => ctx.text(s"User ${ ctx.params.id }") }
     val routes = app.routes
     assertEquals(routes.size, 1)
     assertEquals(routes.head.method, "GET")
@@ -110,7 +111,7 @@ class PathSpecTest extends munit.FunSuite:
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
 private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P]:
-  def query(name: String): Option[String]                  = None
-  def text(value: String): Response                        = Response.text(value)
-  def redirect(path: String, permanent: Boolean): Response = Response.redirect(path, permanent)
-  def notFound(message: String): Response                  = Response.notFound(message)
+  def query(name:       String):                     Option[String] = None
+  def text(value:       String):                     Response       = Response.text(value)
+  def redirect(path:    String, permanent: Boolean): Response       = Response.redirect(path, permanent)
+  def notFound(message: String):                     Response       = Response.notFound(message)

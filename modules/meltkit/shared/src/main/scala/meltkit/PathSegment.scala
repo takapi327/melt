@@ -10,5 +10,6 @@ package meltkit
 enum PathSegment:
   /** A fixed string segment (e.g., `"users"` in `/users/:id`). */
   case Static(value: String)
+
   /** A dynamic segment bound to a named path parameter. */
   case Param(name: String)

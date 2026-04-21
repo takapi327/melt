@@ -36,8 +36,8 @@ sealed trait PathSpec[P <: AnyNamedTuple]:
   *   - `PathParam[n, a]` → Concat[P, (n: a)] (dynamic segment)
   */
 private type AppendedWith[P <: AnyNamedTuple, T] <: AnyNamedTuple = T match
-  case String            => P
-  case PathParam[n, a]   => Concat[P, NT[n *: EmptyTuple, a *: EmptyTuple]]
+  case String          => P
+  case PathParam[n, a] => Concat[P, NT[n *: EmptyTuple, a *: EmptyTuple]]
 
 object PathSpec:
 

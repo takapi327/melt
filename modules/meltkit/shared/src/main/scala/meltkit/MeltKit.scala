@@ -6,8 +6,8 @@
 
 package meltkit
 
-import scala.NamedTuple.AnyNamedTuple
 import scala.collection.mutable.ListBuffer
+import scala.NamedTuple.AnyNamedTuple
 
 /** Internal representation of a registered route.
   *
@@ -16,8 +16,8 @@ import scala.collection.mutable.ListBuffer
   * request.
   */
 private[meltkit] final class Route[F[_]](
-  val method:   String,
-  val segments: List[PathSegment],
+  val method:                      String,
+  val segments:                    List[PathSegment],
   private[meltkit] val rawHandler: Any // MeltContext[F, P] => F[Response], P erased
 ):
   private[meltkit] def unsafeHandle[P <: AnyNamedTuple](ctx: MeltContext[F, P]): F[Response] =
