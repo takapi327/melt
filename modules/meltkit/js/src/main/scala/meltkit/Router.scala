@@ -18,7 +18,7 @@ import melt.runtime.Var
   *
   * {{{
   * // .melt component
-  * val path = BrowserRouter.currentPath
+  * val path = Router.currentPath
   *
   * {if path.value == "/" then
   *   <IndexPage />
@@ -29,7 +29,7 @@ import melt.runtime.Var
   * }
   * }}}
   */
-object BrowserRouter:
+object Router:
 
   private val _path: Var[String] = Var(dom.window.location.pathname)
 
