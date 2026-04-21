@@ -11,7 +11,10 @@ package meltkit
   * @tparam N the parameter name as a literal `String` type
   * @tparam A the value type decoded from the URL path segment
   */
-final class PathParam[N <: String, A] private[meltkit] (val paramName: String)
+final class PathParam[N <: String, A] private[meltkit] (
+  val paramName:                    String,
+  private[meltkit] val decoder: PathParamDecoder[A]
+)
 
 /** Creates a typed path parameter.
   *
@@ -25,4 +28,5 @@ final class PathParam[N <: String, A] private[meltkit] (val paramName: String)
   * val slug = param[String]("slug") // PathParam["slug", String]
   * }}}
   */
-def param[A](name: String & Singleton): PathParam[name.type, A] = new PathParam(name)
+def param[A: PathParamDecoder](name: String & Singleton): PathParam[name.type, A] =
+  new PathParam(name, summon[PathParamDecoder[A]])
