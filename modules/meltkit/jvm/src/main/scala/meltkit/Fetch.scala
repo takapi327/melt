@@ -63,29 +63,33 @@ object Fetch:
     apply(url, RequestInit())
 
   def apply(url: String, init: RequestInit)(using ec: ExecutionContext): Future[Response] =
-    val bodyPublisher = init.body match
-      case Some(b) => BodyPublishers.ofString(b)
-      case None    => BodyPublishers.noBody()
+    // Build the request inside Future so that any synchronous exception
+    // (e.g. IllegalArgumentException for a relative or malformed URL) becomes
+    // a failed Future rather than a thrown exception at the call site.
+    Future {
+      val bodyPublisher = init.body match
+        case Some(b) => BodyPublishers.ofString(b)
+        case None    => BodyPublishers.noBody()
+      val builder = HttpRequest.newBuilder(URI.create(url)).method(init.method, bodyPublisher)
+      init.headers.foreach((k, v) => builder.header(k, v))
+      builder.build()
+    }.flatMap { request =>
+      // BodyHandlers.ofInputStream() resolves when headers are received.
+      // The body InputStream is left open and read lazily when text() is called.
+      client.sendAsync(request, BodyHandlers.ofInputStream()).asScala.map { res =>
+        val headerMap: Map[String, List[String]] = res.headers.map.asScala
+          .map((k, vs) => k.toLowerCase -> vs.asScala.toList)
+          .toMap
 
-    val builder = HttpRequest.newBuilder(URI.create(url))
-      .method(init.method, bodyPublisher)
-    init.headers.foreach((k, v) => builder.header(k, v))
-
-    // BodyHandlers.ofInputStream() resolves when headers are received.
-    // The body InputStream is left open and read lazily when text() is called.
-    client.sendAsync(builder.build(), BodyHandlers.ofInputStream()).asScala.map { res =>
-      val headerMap: Map[String, List[String]] = res.headers.map.asScala
-        .map((k, vs) => k.toLowerCase -> vs.asScala.toList)
-        .toMap
-
-      new Response(
-        status     = res.statusCode,
-        statusText = "",
-        ok         = res.statusCode >= 200 && res.statusCode < 300,
-        url        = res.uri.toString,
-        headers    = Headers(headerMap),
-        // Body is read lazily when text() is called, matching Node.js behaviour.
-        // readAllBytes() blocks the thread, so it runs on the ExecutionContext.
-        _text      = () => Future(new String(res.body.readAllBytes(), StandardCharsets.UTF_8))
-      )
+        new Response(
+          status     = res.statusCode,
+          statusText = "",
+          ok         = res.statusCode >= 200 && res.statusCode < 300,
+          url        = res.uri.toString,
+          headers    = Headers(headerMap),
+          // Body is read lazily when text() is called, matching Node.js behaviour.
+          // readAllBytes() blocks the thread, so it runs on the ExecutionContext.
+          _text      = () => Future(new String(res.body.readAllBytes(), StandardCharsets.UTF_8))
+        )
+      }
     }
