@@ -11,21 +11,18 @@ package meltkit
   * @tparam N the parameter name as a literal `String` type
   * @tparam A the value type decoded from the URL path segment
   */
-opaque type PathParam[N <: String, A] = String
-
-object PathParam:
-  extension [N <: String, A](p: PathParam[N, A])
-    /** Returns the runtime parameter name. */
-    def paramName: String = p
+final class PathParam[N <: String, A] private[meltkit] (val paramName: String)
 
 /** Creates a typed path parameter.
   *
-  * The upper bound `N <: String` causes the compiler to infer the literal
-  * singleton type (e.g., `"id"`) for `N` rather than widening to `String`.
+  * `name: String & Singleton` prevents the string literal from being widened
+  * to `String`, so `name.type` is inferred as the literal singleton type
+  * (e.g., `"id"`). This preserves the parameter name at the type level with
+  * a single explicit type argument at the call site.
   *
   * {{{
-  * val id   = param[Int]("id")     // PathParam["id", Int]
+  * val id   = param[Int]("id")      // PathParam["id", Int]
   * val slug = param[String]("slug") // PathParam["slug", String]
   * }}}
   */
-def param[A, N <: String](name: N): PathParam[N, A] = name
+def param[A](name: String & Singleton): PathParam[name.type, A] = new PathParam(name)
