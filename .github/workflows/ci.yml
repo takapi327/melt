@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-latest]
         scala: [3.3.7, 3.8.3]
         java: [corretto@17, corretto@21, corretto@25]
-        project: [meltcJVM, meltcJS, meltcNative]
+        project: [meltcJVM, meltcJS, meltcNative, meltkitJVM, meltkitJS, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
         exclude:
           - project: meltcJS
             java: corretto@21
@@ -34,6 +34,14 @@ jobs:
           - project: meltcNative
             java: corretto@21
           - project: meltcNative
+            java: corretto@25
+          - project: meltkitJS
+            java: corretto@21
+          - project: meltkitJS
+            java: corretto@25
+          - project: meltkit-adapter-http4sJS
+            java: corretto@21
+          - project: meltkit-adapter-http4sJS
             java: corretto@25
           - java: corretto@21
             scala: 3.8.3
@@ -87,7 +95,7 @@ jobs:
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
       - name: scalaJSLink
-        if: matrix.project == 'meltcJS'
+        if: contains('meltcJS meltkitJS meltkit-adapter-http4sJS', matrix.project)
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/scalaJSLinkerResult
 
       - name: nativeLink
