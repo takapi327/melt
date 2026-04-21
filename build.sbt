@@ -188,8 +188,8 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/meltkit"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                               := "meltkit",
-    scalaVersion                       := scala38,
+    name                                    := "meltkit",
+    scalaVersion                            := scala38,
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
@@ -200,8 +200,8 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/meltkit-adapter-http4s"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                               := "meltkit-adapter-http4s",
-    scalaVersion                       := scala38,
+    name                                    := "meltkit-adapter-http4s",
+    scalaVersion                            := scala38,
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
