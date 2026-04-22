@@ -10,6 +10,9 @@ import scala.NamedTuple.AnyNamedTuple
 import scala.NamedTuple.Concat
 import scala.NamedTuple.NamedTuple as NT
 
+import meltkit.codec.PathParamDecoder
+import meltkit.codec.PathParamEncoder
+
 /** A type-safe URL path pattern.
   *
   * `P` is a [[scala.NamedTuple]] whose fields correspond to the dynamic
@@ -30,6 +33,7 @@ import scala.NamedTuple.NamedTuple as NT
 sealed trait PathSpec[P <: AnyNamedTuple]:
   def segments: List[PathSegment]
   private[meltkit] def paramDecoders: List[(String, PathParamDecoder[?])]
+  private[meltkit] def paramEncoders: List[(String, PathParamEncoder[?])]
 
 /** Computes the NamedTuple type after appending `T` to `PathSpec[P]`.
   *
@@ -47,13 +51,15 @@ object PathSpec:
 
   private final case class Impl[P <: AnyNamedTuple](
     segments:      List[PathSegment],
-    paramDecoders: List[(String, PathParamDecoder[?])]
+    paramDecoders: List[(String, PathParamDecoder[?])],
+    paramEncoders: List[(String, PathParamEncoder[?])]
   ) extends PathSpec[P]
 
   private[meltkit] def of[P <: AnyNamedTuple](
     segments:      List[PathSegment],
-    paramDecoders: List[(String, PathParamDecoder[?])] = Nil
-  ): PathSpec[P] = Impl(segments, paramDecoders)
+    paramDecoders: List[(String, PathParamDecoder[?])] = Nil,
+    paramEncoders: List[(String, PathParamEncoder[?])] = Nil
+  ): PathSpec[P] = Impl(segments, paramDecoders, paramEncoders)
 
   /** Splits a string on `/` to produce static path segments.
     *
@@ -82,12 +88,14 @@ object PathSpec:
         case p: PathParam[?, ?] =>
           of(
             spec.segments :+ PathSegment.Param(p.paramName),
-            spec.paramDecoders :+ (p.paramName -> p.decoder)
+            spec.paramDecoders :+ (p.paramName -> p.decoder),
+            spec.paramEncoders :+ (p.paramName -> p.encoder)
           ).asInstanceOf[PathSpec[AppendedWith[P, T]]]
         case s: String =>
           of(
             spec.segments ++ staticSegments(s),
-            spec.paramDecoders
+            spec.paramDecoders,
+            spec.paramEncoders
           ).asInstanceOf[PathSpec[AppendedWith[P, T]]]
 
 // ── String-receiver DSL ──────────────────────────────────────────────────────
@@ -101,7 +109,8 @@ extension (s: String)
   def /[N <: String, A](p: PathParam[N, A]): PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]] =
     PathSpec.of(
       PathSpec.staticSegments(s) :+ PathSegment.Param(p.paramName),
-      List(p.paramName -> p.decoder)
+      List(p.paramName -> p.decoder),
+      List(p.paramName -> p.encoder)
     )
 
   /** `"api" / otherSpec` — prepends static segment(s) to an existing PathSpec.
@@ -109,4 +118,4 @@ extension (s: String)
     * Slashes in `s` produce multiple leading static segments.
     */
   def /[P <: AnyNamedTuple](spec: PathSpec[P]): PathSpec[P] =
-    PathSpec.of(PathSpec.staticSegments(s) ++ spec.segments, spec.paramDecoders)
+    PathSpec.of(PathSpec.staticSegments(s) ++ spec.segments, spec.paramDecoders, spec.paramEncoders)
