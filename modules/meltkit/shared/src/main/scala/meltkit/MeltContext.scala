@@ -67,14 +67,20 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B]:
     */
   def bodyOrBadRequest(using NotGiven[B =:= Unit]): F[B]
 
+  /** Builds a 200 OK JSON response. Requires a [[BodyEncoder]][A] in scope. */
+  def ok[A: BodyEncoder](value: A): PlainResponse
+
+  /** Builds a 201 Created JSON response. Requires a [[BodyEncoder]][A] in scope. */
+  def created[A: BodyEncoder](value: A): PlainResponse
+
+  /** Builds a 204 No Content response. */
+  def noContent: PlainResponse
+
   /** Builds a plain-text 200 response. */
   def text(value: String): PlainResponse
 
-  /** Builds a 200 application/json response from a value of type `A`.
-    *
-    * A `given BodyEncoder[A]` must be in scope.
-    */
-  def json[A: BodyEncoder](value: A): PlainResponse
+  /** Builds a 200 application/json response from a raw JSON string. */
+  def json(value: String): PlainResponse
 
   /** Builds a 400 Bad Request response from a [[BodyError]]. */
   def badRequest(err: BodyError): BadRequest
