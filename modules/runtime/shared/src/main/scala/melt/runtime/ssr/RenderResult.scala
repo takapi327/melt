@@ -20,7 +20,7 @@ package melt.runtime.ssr
   * @param title      Deduplicated `<title>` content — the last component
   *                   to call `renderer.head.title(x)` wins. Use this as
   *                   the `%melt.title%` placeholder value in
-  *                   [[melt.runtime.ssr.Template.render]] when the caller
+  *                   [[meltkit.Template.render]] when the caller
   *                   does not provide an explicit title.
   * @param metaTags   Deduplicated `<meta name="...">` entries keyed by
   *                   name. Already folded into [[head]] in the canonical
