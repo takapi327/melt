@@ -30,18 +30,18 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, 
   *
   * {{{
   * // One-time in the melt monorepo:
-  * sbt meltcJVM/publishLocal runtime/publishLocal sbt-meltc/publishLocal
+  * sbt meltcJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-meltc/publishLocal
   * }}}
   *
-  * The plugin resolves `meltc` (including all transitive deps such as
-  * `scala3-library`) using its own Ivy configuration `meltc-compiler`, so
-  * you do not need to configure the classpath manually.
+  * The plugin resolves `melt-codegen` (including all transitive deps such as
+  * `meltc`, `melt-runtime`, and `scala3-library`) using its own Ivy configuration
+  * `meltc-compiler`, so you do not need to configure the classpath manually.
   *
   * === Monorepo override ===
   * When working inside the melt monorepo you can skip `publishLocal` by wiring
   * the JVM full classpath directly:
   * {{{
-  * meltcCompilerClasspath := (meltcJVM / Compile / fullClasspath).value.files
+  * meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
   * }}}
   */
 object MeltcPlugin extends AutoPlugin {
@@ -338,7 +338,7 @@ object MeltcPlugin extends AutoPlugin {
     ivyConfigurations += MeltcCompilerConfig,
     libraryDependencies += {
       val v = meltcCompilerVersion.value
-      ("io.github.takapi327" % "meltc_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+      ("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
     },
     libraryDependencies ++= {
       if (!meltcManagePreprocessorDeps.value) Seq.empty
