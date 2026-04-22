@@ -32,7 +32,7 @@ import meltkit.codec.PathParamEncoder
   * }}}
   */
 final case class Endpoint[P <: AnyNamedTuple, B, E, R] private[meltkit] (
-  val method:                           String,
+  val method:                           HttpMethod,
   val spec:                             PathSpec[P],
   val statusCode:                       StatusCode,
   private[meltkit] val bodyDecoder:     BodyDecoder[B],
@@ -105,7 +105,7 @@ final case class Endpoint[P <: AnyNamedTuple, B, E, R] private[meltkit] (
   */
 object Endpoint:
 
-  private def make[P <: AnyNamedTuple](method: String, spec: PathSpec[P]): Endpoint[P, Unit, Nothing, Unit] =
+  private def make[P <: AnyNamedTuple](method: HttpMethod, spec: PathSpec[P]): Endpoint[P, Unit, Nothing, Unit] =
     Endpoint(method, spec, 200, summon[BodyDecoder[Unit]], summon[BodyEncoder[Unit]])
 
   def get(path: String): Endpoint[PathSpec.Empty, Unit, Nothing, Unit] =
