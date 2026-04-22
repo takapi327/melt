@@ -115,7 +115,7 @@ private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltCon
   def body[A: BodyDecoder]:                          Either[BodyError, A]    = Left(BodyError.DecodeError("not implemented"))
   def bodyOrBadRequest[A: BodyDecoder]:              A                       = throw new UnsupportedOperationException("not implemented")
   def text(value:       String):                     Response                = Response.text(value)
-  def json(body:        String):                     Response                = Response.json(body)
+  def json[A: BodyEncoder](value: A):                Response                = Response.json(summon[BodyEncoder[A]].encode(value))
   def badRequest(err:   BodyError):                  Response                = Response.badRequest(err.message)
   def redirect(path:    String, permanent: Boolean): Response                = Response.redirect(path, permanent)
   def notFound(message: String):                     Response                = Response.notFound(message)
