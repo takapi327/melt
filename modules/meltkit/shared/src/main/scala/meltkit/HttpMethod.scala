@@ -20,3 +20,9 @@ package meltkit
   * `String` is expected (e.g. comparison with `request.method.name`).
   */
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
+
+object HttpMethod:
+  /** Parses a string into an [[HttpMethod]], returning `None` for unrecognised values. */
+  def fromString(s: String): Option[HttpMethod] = s match
+    case m @ ("GET" | "POST" | "PUT" | "DELETE" | "PATCH") => Some(m)
+    case _                                                  => None
