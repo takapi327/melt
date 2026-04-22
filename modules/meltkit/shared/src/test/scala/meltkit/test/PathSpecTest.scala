@@ -8,8 +8,10 @@ package meltkit.test
 
 import scala.NamedTuple.AnyNamedTuple
 import scala.NamedTuple.NamedTuple as NT
+import scala.util.NotGiven
 
 import meltkit.*
+import meltkit.codec.*
 
 class PathSpecTest extends munit.FunSuite:
 
@@ -53,7 +55,6 @@ class PathSpecTest extends munit.FunSuite:
   // ── NamedTuple.Concat type accumulation ───────────────────────────────────
 
   test("two params accumulate via NamedTuple.Concat"):
-    // PathSpec[(userId: Int, postId: String)] after Concat
     val spec: PathSpec[NT["userId" *: "postId" *: EmptyTuple, Int *: String *: EmptyTuple]] =
       "users" / userId / "posts" / postId
     assertEquals(
@@ -84,10 +85,10 @@ class PathSpecTest extends munit.FunSuite:
   test("MeltKit registers route with correct method and segments"):
     type Id = [A] =>> A
     val app = MeltKit[Id]()
-    app.get("users" / id) { ctx => ctx.text(s"User ${ ctx.params.id }") }
+    app.get("users" / id) { ctx => ctx.text(s"User ${ctx.params.id}") }
     val routes = app.routes
     assertEquals(routes.size, 1)
-    assertEquals(routes.head.method, "GET")
+    assertEquals(routes.head.method, ("GET": HttpMethod))
     assertEquals(
       routes.head.segments,
       List(PathSegment.Static("users"), PathSegment.Param("id"))
@@ -108,14 +109,37 @@ class PathSpecTest extends munit.FunSuite:
       List(PathSegment.Static("api"), PathSegment.Static("users"), PathSegment.Param("id"))
     )
 
+  // ── MeltKit.on with typed endpoint ────────────────────────────────────────
+
+  test("MeltKit.on registers route and maps response via Functor"):
+    type Id = [A] =>> A
+    given Functor[Id] with
+      override def map[A, B](fa: A)(f: A => B): B = f(fa)
+
+    val getUser = Endpoint.get("users" / id).response[String]
+    val app     = MeltKit[Id]()
+    app.on(getUser) { ctx => ctx.ok(s"user-${ctx.params.id}") }
+
+    val routes = app.routes
+    assertEquals(routes.size, 1)
+    assertEquals(routes.head.method, ("GET": HttpMethod))
+    assertEquals(
+      routes.head.segments,
+      List(PathSegment.Static("users"), PathSegment.Param("id"))
+    )
+
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
-private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P]:
-  def query(name: String):  Option[String]       = None
-  def body[A: BodyDecoder]: Either[BodyError, A] = Left(BodyError.DecodeError("not implemented"))
-  def bodyOrBadRequest[A: BodyDecoder]: A        = throw new UnsupportedOperationException("not implemented")
-  def text(value: String):              Response = Response.text(value)
-  def json[A: BodyEncoder](value: A):         Response = Response.json(summon[BodyEncoder[A]].encode(value))
-  def badRequest(err:             BodyError): Response = Response.badRequest(err.message)
-  def redirect(path:    String, permanent: Boolean): Response = Response.redirect(path, permanent)
-  def notFound(message: String):                     Response = Response.notFound(message)
+private class TestMeltContext[P <: AnyNamedTuple](val params: P)
+    extends MeltContext[[A] =>> A, P, Unit]:
+  override def query(name: String): Option[String]  = None
+  override def body(using NotGiven[Unit =:= Unit]):              Either[BodyError, Unit] = ???
+  override def bodyOrBadRequest(using NotGiven[Unit =:= Unit]):  Unit                   = ???
+  override def ok[A: BodyEncoder](value: A):                     PlainResponse          = Response.json(summon[BodyEncoder[A]].encode(value))
+  override def created[A: BodyEncoder](value: A):                PlainResponse          = PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
+  override def noContent:                                         PlainResponse          = Response.noContent
+  override def text(value: String):                              PlainResponse          = Response.text(value)
+  override def json(value: String):                              PlainResponse          = Response.json(value)
+  override def badRequest(err: BodyError):                       BadRequest             = Response.badRequest(err.message)
+  override def redirect(path: String, permanent: Boolean = false): PlainResponse        = Response.redirect(path, permanent)
+  override def notFound(message: String = "Not Found"):          NotFound               = Response.notFound(message)
