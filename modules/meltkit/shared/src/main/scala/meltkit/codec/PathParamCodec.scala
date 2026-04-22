@@ -43,20 +43,15 @@ object PathParamCodec:
       def decode(s: String): Either[String, A] = dec.decode(s)
       def encode(value: A): String             = enc.encode(value)
 
-  /** Derives a [[PathParamCodec]] from given [[PathParamDecoder]] and [[PathParamEncoder]] in scope. */
+  /** Derives a [[PathParamCodec]] from given [[PathParamDecoder]] and [[PathParamEncoder]] in scope.
+    *
+    * {{{
+    * // Requires PathParamDecoder[Int] and PathParamEncoder[Int] in scope:
+    * val intCodec: PathParamCodec[Int] = PathParamCodec.of[Int]
+    *
+    * // Then derive a custom codec via imap:
+    * given PathParamCodec[UserId] = PathParamCodec.of[Int].imap(UserId(_))(_.value)
+    * }}}
+    */
   def of[A](using dec: PathParamDecoder[A], enc: PathParamEncoder[A]): PathParamCodec[A] =
     from(dec, enc)
-
-  given PathParamCodec[String] with
-    def decode(s: String): Either[String, String] = Right(s)
-    def encode(value: String): String             = value
-
-  given PathParamCodec[Int] with
-    def decode(s: String): Either[String, Int] =
-      s.toIntOption.toRight(s"'$s' is not a valid Int")
-    def encode(value: Int): String = value.toString
-
-  given PathParamCodec[Long] with
-    def decode(s: String): Either[String, Long] =
-      s.toLongOption.toRight(s"'$s' is not a valid Long")
-    def encode(value: Long): String = value.toString

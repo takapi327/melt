@@ -25,3 +25,13 @@ trait PathParamEncoder[A]:
   /** Adapts this encoder to a type `B` by first applying `f` to convert `B → A`. */
   def contramap[B](f: B => A): PathParamEncoder[B] =
     value => encode(f(value))
+
+object PathParamEncoder:
+  given PathParamEncoder[String] with
+    def encode(value: String): String = value
+
+  given PathParamEncoder[Int] with
+    def encode(value: Int): String = value.toString
+
+  given PathParamEncoder[Long] with
+    def encode(value: Long): String = value.toString

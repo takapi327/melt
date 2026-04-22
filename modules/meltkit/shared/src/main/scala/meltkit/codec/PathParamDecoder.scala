@@ -40,3 +40,15 @@ trait PathParamDecoder[A]:
     */
   def emap[B](f: A => Either[String, B]): PathParamDecoder[B] =
     s => decode(s).flatMap(f)
+
+object PathParamDecoder:
+  given PathParamDecoder[String] with
+    def decode(s: String): Either[String, String] = Right(s)
+
+  given PathParamDecoder[Int] with
+    def decode(s: String): Either[String, Int] =
+      s.toIntOption.toRight(s"'$s' is not a valid Int")
+
+  given PathParamDecoder[Long] with
+    def decode(s: String): Either[String, Long] =
+      s.toLongOption.toRight(s"'$s' is not a valid Long")
