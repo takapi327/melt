@@ -6,8 +6,8 @@
 
 package meltkit
 
-import scala.NamedTuple.AnyNamedTuple
 import scala.util.NotGiven
+import scala.NamedTuple.AnyNamedTuple
 
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder

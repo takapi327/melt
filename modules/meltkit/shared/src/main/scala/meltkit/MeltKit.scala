@@ -79,8 +79,9 @@ class MeltKit[F[_]]:
   )(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
     val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
       (rawValues, factory) =>
-        val results = spec.paramDecoders.zip(rawValues).map { case ((_, dec), raw) =>
-          dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
+        val results = spec.paramDecoders.zip(rawValues).map {
+          case ((_, dec), raw) =>
+            dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
         }
         if results.forall(_.isRight) then
           val decoded = results.map(_.getOrElse(sys.error("unreachable")))
@@ -146,8 +147,9 @@ class MeltKit[F[_]]:
   )(using functor: Functor[F], lift: ResponseLift[E, Out]): Unit =
     val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
       (rawValues, factory) =>
-        val results = ep.spec.paramDecoders.zip(rawValues).map { case ((_, dec), raw) =>
-          dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
+        val results = ep.spec.paramDecoders.zip(rawValues).map {
+          case ((_, dec), raw) =>
+            dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
         }
         if results.forall(_.isRight) then
           val decoded = results.map(_.getOrElse(sys.error("unreachable")))

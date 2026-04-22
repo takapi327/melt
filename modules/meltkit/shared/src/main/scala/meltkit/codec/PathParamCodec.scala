@@ -40,8 +40,8 @@ object PathParamCodec:
   /** Creates a [[PathParamCodec]] from explicit [[PathParamDecoder]] and [[PathParamEncoder]]. */
   def from[A](dec: PathParamDecoder[A], enc: PathParamEncoder[A]): PathParamCodec[A] =
     new PathParamCodec[A]:
-      def decode(s: String): Either[String, A] = dec.decode(s)
-      def encode(value: A): String             = enc.encode(value)
+      def decode(s:     String): Either[String, A] = dec.decode(s)
+      def encode(value: A):      String            = enc.encode(value)
 
   /** Derives a [[PathParamCodec]] from given [[PathParamDecoder]] and [[PathParamEncoder]] in scope.
     *

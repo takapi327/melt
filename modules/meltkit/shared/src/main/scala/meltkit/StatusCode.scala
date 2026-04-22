@@ -22,9 +22,9 @@ package meltkit
 type StatusCode =
   // 2xx Success
   200 | 201 | 202 | 204 |
-  // 3xx Redirection
-  301 | 302 | 303 | 307 | 308 |
-  // 4xx Client Error
-  400 | 401 | 403 | 404 | 405 | 409 | 410 | 422 | 429 |
-  // 5xx Server Error
-  500 | 501 | 502 | 503 | 504
+    // 3xx Redirection
+    301 | 302 | 303 | 307 | 308 |
+    // 4xx Client Error
+    400 | 401 | 403 | 404 | 405 | 409 | 410 | 422 | 429 |
+    // 5xx Server Error
+    500 | 501 | 502 | 503 | 504

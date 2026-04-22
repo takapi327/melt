@@ -6,15 +6,15 @@
 
 package meltkit
 
-import meltkit.fetch.{ Headers, RequestInit, Response }
-
-import org.scalajs.dom
-
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters.*
 import scala.scalajs.js.Thenable.Implicits.*
+
+import org.scalajs.dom
+
+import meltkit.fetch.{ Headers, RequestInit, Response }
 
 /** Cross-platform HTTP client matching the Node.js `fetch` API — JS implementation.
   *
@@ -74,6 +74,6 @@ object Fetch:
         url        = res.url,
         headers    = Headers(headerMap.toMap),
         // Body is read lazily when text() is called, matching Node.js behaviour.
-        _text      = () => res.text().toFuture
+        _text = () => res.text().toFuture
       )
     }

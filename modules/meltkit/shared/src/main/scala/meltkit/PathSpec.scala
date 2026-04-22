@@ -31,7 +31,7 @@ import meltkit.codec.PathParamEncoder
   *
   */
 sealed trait PathSpec[P <: AnyNamedTuple]:
-  def segments: List[PathSegment]
+  def segments:                       List[PathSegment]
   private[meltkit] def paramDecoders: List[(String, PathParamDecoder[?])]
   private[meltkit] def paramEncoders: List[(String, PathParamEncoder[?])]
 

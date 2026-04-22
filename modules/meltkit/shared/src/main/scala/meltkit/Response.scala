@@ -40,9 +40,9 @@ final case class NotFound(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 404
-  val body               = message
-  override def withContentType(ct: String): NotFound             = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): NotFound     = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              NotFound = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): NotFound = copy(headers = h)
 
 final case class BadRequest(
   message:     String,
@@ -50,9 +50,9 @@ final case class BadRequest(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 400
-  val body               = message
-  override def withContentType(ct: String): BadRequest           = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): BadRequest   = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              BadRequest = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): BadRequest = copy(headers = h)
 
 final case class Unauthorized(
   message:     String              = "Unauthorized",
@@ -60,9 +60,9 @@ final case class Unauthorized(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 401
-  val body               = message
-  override def withContentType(ct: String): Unauthorized         = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): Unauthorized = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              Unauthorized = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): Unauthorized = copy(headers = h)
 
 final case class Forbidden(
   message:     String              = "Forbidden",
@@ -70,9 +70,9 @@ final case class Forbidden(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 403
-  val body               = message
-  override def withContentType(ct: String): Forbidden            = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): Forbidden    = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              Forbidden = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): Forbidden = copy(headers = h)
 
 final case class Conflict(
   message:     String,
@@ -80,9 +80,9 @@ final case class Conflict(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 409
-  val body               = message
-  override def withContentType(ct: String): Conflict             = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): Conflict     = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              Conflict = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): Conflict = copy(headers = h)
 
 final case class UnprocessableEntity(
   message:     String,
@@ -90,9 +90,9 @@ final case class UnprocessableEntity(
   headers:     Map[String, String] = Map.empty
 ) extends Response:
   val status: StatusCode = 422
-  val body               = message
-  override def withContentType(ct: String): UnprocessableEntity         = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): UnprocessableEntity = copy(headers = h)
+  val body = message
+  override def withContentType(ct: String):              UnprocessableEntity = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): UnprocessableEntity = copy(headers = h)
 
 /** A general-purpose response for cases not covered by the typed subtypes. */
 final case class PlainResponse(
@@ -101,8 +101,8 @@ final case class PlainResponse(
   body:        String,
   headers:     Map[String, String] = Map.empty
 ) extends Response:
-  override def withContentType(ct: String): PlainResponse           = copy(contentType = ct)
-  override def withHeaders(h: Map[String, String]): PlainResponse   = copy(headers = h)
+  override def withContentType(ct: String):              PlainResponse = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): PlainResponse = copy(headers = h)
 
 object Response:
   def text(value: String): PlainResponse =

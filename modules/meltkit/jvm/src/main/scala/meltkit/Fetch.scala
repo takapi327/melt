@@ -6,17 +6,17 @@
 
 package meltkit
 
-import meltkit.fetch.{ Headers, RequestInit, Response }
-
-import java.net.URI
 import java.net.http.{ HttpClient, HttpRequest, HttpResponse }
 import java.net.http.HttpRequest.BodyPublishers
 import java.net.http.HttpResponse.BodyHandlers
+import java.net.URI
 import java.nio.charset.StandardCharsets
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.jdk.CollectionConverters.*
 import scala.jdk.FutureConverters.*
+
+import meltkit.fetch.{ Headers, RequestInit, Response }
 
 /** Cross-platform HTTP client matching the Node.js `fetch` API — JVM implementation.
   *
@@ -55,7 +55,8 @@ import scala.jdk.FutureConverters.*
 object Fetch:
 
   private val client: HttpClient =
-    HttpClient.newBuilder()
+    HttpClient
+      .newBuilder()
       .followRedirects(HttpClient.Redirect.NORMAL)
       .build()
 
@@ -89,7 +90,7 @@ object Fetch:
           headers    = Headers(headerMap),
           // Body is read lazily when text() is called, matching Node.js behaviour.
           // readAllBytes() blocks the thread, so it runs on the ExecutionContext.
-          _text      = () => Future(new String(res.body.readAllBytes(), StandardCharsets.UTF_8))
+          _text = () => Future(new String(res.body.readAllBytes(), StandardCharsets.UTF_8))
         )
       }
     }

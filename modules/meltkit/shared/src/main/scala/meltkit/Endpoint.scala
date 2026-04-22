@@ -80,7 +80,7 @@ final case class Endpoint[P <: AnyNamedTuple, B, E, R] private[meltkit] (
     var idx      = 0
     val parts    = spec.segments.map {
       case PathSegment.Static(s) => s
-      case PathSegment.Param(_) =>
+      case PathSegment.Param(_)  =>
         val (_, enc) = encoders(idx)
         val value    = values(idx)
         idx += 1

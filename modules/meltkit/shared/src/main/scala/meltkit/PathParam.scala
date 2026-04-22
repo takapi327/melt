@@ -15,7 +15,7 @@ import meltkit.codec.PathParamEncoder
   * @tparam A the value type decoded from the URL path segment
   */
 final class PathParam[N <: String, A] private[meltkit] (
-  val paramName:                    String,
+  val paramName:                String,
   private[meltkit] val decoder: PathParamDecoder[A],
   private[meltkit] val encoder: PathParamEncoder[A]
 )

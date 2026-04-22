@@ -6,15 +6,14 @@
 
 package meltkit.test
 
-import com.sun.net.httpserver.{ HttpExchange, HttpServer }
-
 import java.net.InetSocketAddress
-
-import meltkit.Fetch
-import meltkit.fetch.RequestInit
 
 import scala.compiletime.uninitialized
 import scala.concurrent.ExecutionContext.Implicits.global
+
+import com.sun.net.httpserver.{ HttpExchange, HttpServer }
+import meltkit.fetch.RequestInit
+import meltkit.Fetch
 
 class FetchTest extends munit.FunSuite:
 
@@ -27,20 +26,26 @@ class FetchTest extends munit.FunSuite:
     val port = server.getAddress.getPort
     baseUrl = s"http://localhost:$port"
 
-    server.createContext("/hello",    exchange => respond(exchange, 200, "hello"))
+    server.createContext("/hello", exchange => respond(exchange, 200, "hello"))
     server.createContext("/not-found", exchange => respond(exchange, 404, "not found"))
-    server.createContext("/headers",  exchange =>
-      exchange.getResponseHeaders.add("X-Custom", "test-value")
-      respond(exchange, 200, "ok")
+    server.createContext(
+      "/headers",
+      exchange =>
+        exchange.getResponseHeaders.add("X-Custom", "test-value")
+        respond(exchange, 200, "ok")
     )
-    server.createContext("/multi-cookie", exchange =>
-      exchange.getResponseHeaders.add("Set-Cookie", "a=1")
-      exchange.getResponseHeaders.add("Set-Cookie", "b=2")
-      respond(exchange, 200, "ok")
+    server.createContext(
+      "/multi-cookie",
+      exchange =>
+        exchange.getResponseHeaders.add("Set-Cookie", "a=1")
+        exchange.getResponseHeaders.add("Set-Cookie", "b=2")
+        respond(exchange, 200, "ok")
     )
-    server.createContext("/echo", exchange =>
-      val body = new String(exchange.getRequestBody.readAllBytes(), "UTF-8")
-      respond(exchange, 200, body)
+    server.createContext(
+      "/echo",
+      exchange =>
+        val body = new String(exchange.getRequestBody.readAllBytes(), "UTF-8")
+        respond(exchange, 200, body)
     )
     server.start()
 
@@ -83,7 +88,7 @@ class FetchTest extends munit.FunSuite:
 
   test("url reflects the final request URL"):
     Fetch(s"$baseUrl/hello").map { res =>
-      assert(res.url.endsWith("/hello"), s"expected url to end with /hello but got ${res.url}")
+      assert(res.url.endsWith("/hello"), s"expected url to end with /hello but got ${ res.url }")
     }
 
   // ── headers ──────────────────────────────────────────────────────────────────

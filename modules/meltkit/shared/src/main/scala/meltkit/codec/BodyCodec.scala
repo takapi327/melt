@@ -45,8 +45,8 @@ object BodyCodec:
   /** Creates a [[BodyCodec]] from explicit [[BodyDecoder]] and [[BodyEncoder]] instances. */
   def from[A](dec: BodyDecoder[A], enc: BodyEncoder[A]): BodyCodec[A] =
     new BodyCodec[A]:
-      def decode(body: String): Either[BodyError, A] = dec.decode(body)
-      def encode(value: A): String                   = enc.encode(value)
+      def decode(body:  String): Either[BodyError, A] = dec.decode(body)
+      def encode(value: A):      String               = enc.encode(value)
 
   /** Derives a [[BodyCodec]] from given [[BodyDecoder]] and [[BodyEncoder]] instances in scope. */
   def of[A](using dec: BodyDecoder[A], enc: BodyEncoder[A]): BodyCodec[A] =
@@ -54,5 +54,5 @@ object BodyCodec:
 
   /** Built-in [[BodyCodec]] for `Unit` (no-op body). */
   given BodyCodec[Unit] with
-    def decode(body: String): Either[BodyError, Unit] = Right(())
-    def encode(value: Unit): String                   = ""
+    def decode(body:  String): Either[BodyError, Unit] = Right(())
+    def encode(value: Unit):   String                  = ""

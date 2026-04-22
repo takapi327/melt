@@ -24,11 +24,11 @@ import scala.concurrent.Future
   * @param headers    Response headers
   */
 final class Response(
-  val status:     Int,
-  val statusText: String,
-  val ok:         Boolean,
-  val url:        String,
-  val headers:    Headers,
+  val status:        Int,
+  val statusText:    String,
+  val ok:            Boolean,
+  val url:           String,
+  val headers:       Headers,
   private val _text: () => Future[String]
 ):
 

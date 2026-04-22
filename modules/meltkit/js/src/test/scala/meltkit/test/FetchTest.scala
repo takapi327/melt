@@ -6,13 +6,13 @@
 
 package meltkit.test
 
-import meltkit.Fetch
-import meltkit.fetch.RequestInit
-
 import scala.concurrent.{ Future, Promise }
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 import scala.scalajs.js
-import scala.scalajs.js.Dynamic.{ global => g }
+import scala.scalajs.js.Dynamic.global as g
+
+import meltkit.fetch.RequestInit
+import meltkit.Fetch
 
 /** Integration tests for [[meltkit.Fetch]] on the JS platform.
   *
@@ -23,8 +23,8 @@ import scala.scalajs.js.Dynamic.{ global => g }
 class FetchTest extends munit.FunSuite:
 
   // Completes with the ephemeral port once the server is listening.
-  private val serverReady             = Promise[Int]()
-  private var server: js.Dynamic      = js.undefined.asInstanceOf[js.Dynamic]
+  private val serverReady = Promise[Int]()
+  private var server: js.Dynamic = js.undefined.asInstanceOf[js.Dynamic]
 
   override def beforeAll(): Unit =
     server = g.require("http").createServer { (req: js.Dynamic, res: js.Dynamic) =>
@@ -50,9 +50,7 @@ class FetchTest extends munit.FunSuite:
           res.writeHead(404)
           res.end("not found")
     }
-    server.listen(0, "127.0.0.1", () =>
-      serverReady.success(server.address().port.asInstanceOf[Int])
-    )
+    server.listen(0, "127.0.0.1", () => serverReady.success(server.address().port.asInstanceOf[Int]))
 
   override def afterAll(): Unit =
     if server != null then server.close()
@@ -94,7 +92,7 @@ class FetchTest extends munit.FunSuite:
 
   test("url reflects the final request URL"):
     baseUrl.flatMap(url => Fetch(s"$url/hello")).map { res =>
-      assert(res.url.endsWith("/hello"), s"expected url to end with /hello but got ${res.url}")
+      assert(res.url.endsWith("/hello"), s"expected url to end with /hello but got ${ res.url }")
     }
 
   // ── headers ──────────────────────────────────────────────────────────────────
@@ -125,15 +123,15 @@ class FetchTest extends munit.FunSuite:
 
   test("POST with custom header reaches the server"):
     for
-      url  <- baseUrl
-      res  <- Fetch(
-                s"$url/echo",
-                RequestInit(
-                  method  = "POST",
-                  headers = Map("Content-Type" -> "application/json"),
-                  body    = Some("""{"msg":"hello"}""")
-                )
-              )
+      url <- baseUrl
+      res <- Fetch(
+               s"$url/echo",
+               RequestInit(
+                 method  = "POST",
+                 headers = Map("Content-Type" -> "application/json"),
+                 body    = Some("""{"msg":"hello"}""")
+               )
+             )
       body <- res.text()
     yield assertEquals(body, """{"msg":"hello"}""")
 
