@@ -8,7 +8,6 @@ package meltkit
 
 import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
-import java.nio.file.{ Files, Path }
 
 import scala.io.Source
 
@@ -32,7 +31,3 @@ extension (obj: Template.type)
       )
     try Template.fromString(Source.fromInputStream(stream, StandardCharsets.UTF_8.name).mkString)
     finally stream.close()
-
-  /** Loads a [[Template]] from a filesystem path. */
-  def fromFile(path: Path): Template =
-    Template.fromString(new String(Files.readAllBytes(path), StandardCharsets.UTF_8))
