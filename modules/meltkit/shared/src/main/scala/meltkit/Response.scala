@@ -10,40 +10,126 @@ package meltkit
   *
   * Adapters (e.g. `meltkit-adapter-http4s`) convert this to their own
   * framework-specific response type.
+  *
+  * Built-in error subtypes (`NotFound`, `BadRequest`, etc.) can be used
+  * directly as `errorOut` types in [[Endpoint]] definitions. User-defined
+  * error types may also extend this trait.
+  *
+  * Every subtype exposes [[withContentType]] and [[withHeaders]] so that
+  * callers can override the defaults without losing the concrete type:
+  *
+  * {{{
+  * NotFound().withContentType("application/json").withHeaders(Map("X-Trace" -> "abc"))
+  * }}}
   */
-final class Response(
-  val status:      Int,
-  val contentType: String,
-  val body:        String,
-  val headers:     Map[String, String]
-)
+sealed trait Response:
+  def status:      StatusCode
+  def contentType: String
+  def body:        String
+  def headers:     Map[String, String]
+
+  /** Returns a copy with the given content-type. */
+  def withContentType(ct: String): Response
+
+  /** Returns a copy with the given headers (replaces all existing headers). */
+  def withHeaders(h: Map[String, String]): Response
+
+final case class NotFound(
+  message:     String              = "Not Found",
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 404
+  val body               = message
+  override def withContentType(ct: String): NotFound             = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): NotFound     = copy(headers = h)
+
+final case class BadRequest(
+  message:     String,
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 400
+  val body               = message
+  override def withContentType(ct: String): BadRequest           = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): BadRequest   = copy(headers = h)
+
+final case class Unauthorized(
+  message:     String              = "Unauthorized",
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 401
+  val body               = message
+  override def withContentType(ct: String): Unauthorized         = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): Unauthorized = copy(headers = h)
+
+final case class Forbidden(
+  message:     String              = "Forbidden",
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 403
+  val body               = message
+  override def withContentType(ct: String): Forbidden            = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): Forbidden    = copy(headers = h)
+
+final case class Conflict(
+  message:     String,
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 409
+  val body               = message
+  override def withContentType(ct: String): Conflict             = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): Conflict     = copy(headers = h)
+
+final case class UnprocessableEntity(
+  message:     String,
+  contentType: String              = "text/plain; charset=utf-8",
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  val status: StatusCode = 422
+  val body               = message
+  override def withContentType(ct: String): UnprocessableEntity         = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): UnprocessableEntity = copy(headers = h)
+
+/** A general-purpose response for cases not covered by the typed subtypes. */
+final case class PlainResponse(
+  status:      StatusCode,
+  contentType: String,
+  body:        String,
+  headers:     Map[String, String] = Map.empty
+) extends Response:
+  override def withContentType(ct: String): PlainResponse           = copy(contentType = ct)
+  override def withHeaders(h: Map[String, String]): PlainResponse   = copy(headers = h)
 
 object Response:
+  def text(value: String): PlainResponse =
+    PlainResponse(200, "text/plain; charset=utf-8", value)
 
-  def apply(
-    status:      Int,
-    contentType: String,
-    body:        String,
-    headers:     Map[String, String] = Map.empty
-  ): Response = new Response(status, contentType, body, headers)
+  def html(value: String): PlainResponse =
+    PlainResponse(200, "text/html; charset=utf-8", value)
 
-  def text(body: String): Response =
-    Response(200, "text/plain; charset=utf-8", body)
+  def json(value: String): PlainResponse =
+    PlainResponse(200, "application/json", value)
 
-  def html(body: String): Response =
-    Response(200, "text/html; charset=utf-8", body)
+  def noContent: PlainResponse =
+    PlainResponse(204, "text/plain", "")
 
-  def json(body: String): Response =
-    Response(200, "application/json", body)
+  def redirect(location: String, permanent: Boolean = false): PlainResponse =
+    PlainResponse(
+      if permanent then 301 else 302,
+      "text/plain",
+      "",
+      Map("Location" -> location)
+    )
 
-  def redirect(location: String, permanent: Boolean = false): Response =
-    Response(if permanent then 301 else 302, "text/plain", "", Map("Location" -> location))
+  def badRequest(body: String): BadRequest =
+    BadRequest(body)
 
-  def badRequest(body: String): Response =
-    Response(400, "text/plain; charset=utf-8", body)
+  def notFound(body: String = "Not Found"): NotFound =
+    NotFound(body)
 
-  def notFound(body: String = "Not Found"): Response =
-    Response(404, "text/plain; charset=utf-8", body)
-
-  def unprocessableEntity(body: String): Response =
-    Response(422, "text/plain; charset=utf-8", body)
+  def unprocessableEntity(body: String): UnprocessableEntity =
+    UnprocessableEntity(body)
