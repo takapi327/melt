@@ -45,10 +45,8 @@ import melt.runtime.ssr.RenderResult
   *
   * Server setup:
   * {{{
-  * val template = Template.fromResource("/index.html")
-  * val manifest = ViteManifest.load("dist/.vite/manifest.json")
-  *
-  * Http4sAdapter.spaRoutes(app, clientDistDir, manifest, template)
+  * val httpApp = Http4sAdapter.spaRoutes(app, AssetManifest.clientDistDir, AssetManifest.manifest)
+  *   .map(_.orNotFound)
   * }}}
   *
   * == SSR example ==
@@ -70,11 +68,9 @@ import melt.runtime.ssr.RenderResult
   *
   * Server setup:
   * {{{
-  * val template = Template.fromResource("/index.html")
-  * val manifest = ViteManifest.load("dist/.vite/manifest.json")
-  *
-  * val result = components.Home.render()
-  * Ok(template.render(result, manifest), `Content-Type`(MediaType.text.html))
+  * val httpApp =
+  *   Http4sAdapter(app, AssetManifest.clientDistDir, AssetManifest.manifest)
+  *     .map(_.routes.orNotFound)
   * }}}
   */
 final class Template private[meltkit] (private val raw: String):
