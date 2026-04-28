@@ -97,12 +97,19 @@ object SpaCodeGen extends CodeGen:
           buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
       }
 
+    val hasChildren = hasChildrenRef(ast.template)
     propsType match
       case Some(typeName) =>
         val tp = extractTypeParams(typeName)
-        buf ++= s"  def apply$tp(props: $typeName): dom.Element = {\n"
+        if hasChildren then
+          buf ++= s"  def apply$tp(props: $typeName, children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
+        else
+          buf ++= s"  def apply$tp(props: $typeName): dom.Element = {\n"
       case None =>
-        buf ++= "  def apply(): dom.Element = {\n"
+        if hasChildren then
+          buf ++= "  def apply(children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
+        else
+          buf ++= "  def apply(): dom.Element = {\n"
 
     buf ++= "    val (_result, _owner) = Owner.withNew {\n"
 
@@ -135,7 +142,7 @@ object SpaCodeGen extends CodeGen:
         buf ++= "    _root.classList.add(_scopeId)\n"
         multiple.foreach { node =>
           val v = emitNode(buf, node, "    ", ctr, isRoot = false, parentVar = Some("_root"))
-          if v.nonEmpty then buf ++= s"    _root.appendChild($v)\n"
+          if v.nonEmpty then buf ++= s"    if !Hydrating.isActive then _root.appendChild($v)\n"
         }
         buf ++= "    val _result = _root\n"
 
@@ -177,8 +184,8 @@ object SpaCodeGen extends CodeGen:
             .getOrElse(true)
 
     val mountExpr: String = propsType match
-      case None    => "Mount(host, apply())"
-      case Some(_) => "Mount(host, apply(_props))"
+      case None    => "apply()"
+      case Some(_) => "apply(_props)"
 
     val resolveProps: String = propsType match
       case None      => ""
@@ -220,15 +227,11 @@ object SpaCodeGen extends CodeGen:
 
     val loopBody =
       s"""${ loopIndent }starts.zip(ends).foreach { case (startNode, endNode) =>
-         |${ loopIndent }  val parent = startNode.parentNode
-         |${ loopIndent }  var n = startNode.nextSibling
-         |${ loopIndent }  while n != null && !(n eq endNode) do
-         |${ loopIndent }    val next = n.nextSibling
-         |${ loopIndent }    parent.removeChild(n)
-         |${ loopIndent }    n = next
-         |${ loopIndent }  val host = dom.document.createElement("div")
-         |${ loopIndent }  parent.insertBefore(host, endNode)
-         |${ loopIndent }  $mountExpr
+         |${ loopIndent }  val cursor = new HydrationCursor(startNode.nextSibling)
+         |${ loopIndent }  Hydrating.withCursor(cursor) {
+         |${ loopIndent }    $mountExpr
+         |${ loopIndent }  }
+         |${ loopIndent }  Hydrating.flush()
          |${ loopIndent }}""".stripMargin
 
     buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via the
@@ -277,10 +280,13 @@ object SpaCodeGen extends CodeGen:
           if tag == "svg" || (ns == "svg" && KnownSvgTags.contains(tag)) then "svg"
           else if tag == "math" || (ns == "math" && KnownMathTags.contains(tag)) then "math"
           else ns
-        if childNs == "svg" then buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "$tag")\n"""
+        // Claim the existing SSR element when hydrating, or create a fresh one.
+        if childNs == "svg" then
+          buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.elementNS("$SvgNs", "$tag") else dom.document.createElementNS("$SvgNs", "$tag")\n"""
         else if childNs == "math" then
-          buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "$tag")\n"""
-        else buf ++= s"""${ indent }val $v = dom.document.createElement("$tag")\n"""
+          buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.elementNS("$MathNs", "$tag") else dom.document.createElementNS("$MathNs", "$tag")\n"""
+        else
+          buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.element("$tag") else dom.document.createElement("$tag")\n"""
         buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         // For <select bind:value>, the Bind call must come *after* <option> children are
         // appended so that the initial select.value assignment finds a matching option.
@@ -303,10 +309,17 @@ object SpaCodeGen extends CodeGen:
             case _ =>
               emitAttr(buf, v, attr, tag, indent, attrs)
         }
+        // Wrap children in Hydrating.withChildren so the cursor descends into
+        // the claimed element's children.  appendChild calls are conditional —
+        // skipped when claiming (node already in SSR DOM).
+        val hasChildren = children.nonEmpty
+        val childIndent = if hasChildren then indent + "  " else indent
+        if hasChildren then buf ++= s"${ indent }Hydrating.withChildren($v) {\n"
         children.foreach { child =>
-          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
-          if cv.nonEmpty then buf ++= s"${ indent }$v.appendChild($cv)\n"
+          val cv = emitNode(buf, child, childIndent, ctr, isRoot = false, parentVar = Some(v), ns = childNs)
+          if cv.nonEmpty then buf ++= s"${ childIndent }if !Hydrating.isActive then $v.appendChild($cv)\n"
         }
+        if hasChildren then buf ++= s"${ indent }}\n"
         deferredSelectBind.foreach {
           case (expr, isMultiple) =>
             if isMultiple then buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], $expr)\n"
@@ -319,15 +332,26 @@ object SpaCodeGen extends CodeGen:
         else
           val v       = ctr.nextTxt()
           val escaped = escapeString(content)
-          buf ++= s"""${ indent }val $v = dom.document.createTextNode("$escaped")\n"""
+          // Claim the existing SSR text node when hydrating, or create a fresh one.
+          buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.textNode("$escaped") else dom.document.createTextNode("$escaped")\n"""
           v
+
+      case TemplateNode.Expression(code) if code.trim == "children" =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v: dom.Node = children()\n"
+        v
 
       case TemplateNode.Expression(code) =>
         classifyExpr(code) match
           case ExprKind.ListMap =>
             val anchor = ctr.nextTxt()
-            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
-            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            parentVar match
+              case Some(p) =>
+                // During hydration, consume the SSR dyn section and use the closing
+                // comment as the anchor.  During SPA, create a comment and append it.
+                buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+              case None =>
+                buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             val dotMap    = code.lastIndexOf(".map(")
             val rawSource = code.substring(0, dotMap).trim
             val source    =
@@ -335,13 +359,20 @@ object SpaCodeGen extends CodeGen:
               else if rawSource.endsWith(".now()") then rawSource.dropRight(6)
               else rawSource
             val fnBody = code.substring(dotMap + 5, code.length - 1).trim
-            buf ++= s"${ indent }Bind.list($source, $fnBody, $anchor)\n"
+            // Wrap with a sentinel cursor so the render lambda creates fresh elements
+            // instead of trying to claim nodes from the outer cursor.
+            buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+            buf ++= s"${ indent }  Bind.list($source, $fnBody, $anchor)\n"
+            buf ++= s"${ indent }}\n"
             ""
 
           case ExprKind.KeyedMap =>
             val anchor = ctr.nextTxt()
-            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
-            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            parentVar match
+              case Some(p) =>
+                buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+              case None =>
+                buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
             val keyedIdx   = code.indexOf(".keyed(")
             val source     = code.substring(0, keyedIdx).trim
             val afterKeyed = code.substring(keyedIdx + 7)
@@ -350,18 +381,25 @@ object SpaCodeGen extends CodeGen:
             val rest       = afterKeyed.substring(keyEnd + 1)
             val dotMap     = rest.indexOf(".map(")
             val fnBody     = rest.substring(dotMap + 5, rest.length - 1).trim
-            buf ++= s"${ indent }Bind.each($source, $keyFn, $fnBody, $anchor)\n"
+            buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+            buf ++= s"${ indent }  Bind.each($source, $keyFn, $fnBody, $anchor)\n"
+            buf ++= s"${ indent }}\n"
             ""
 
           case ExprKind.DomExpr =>
             val anchor = ctr.nextTxt()
-            buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
-            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            parentVar match
+              case Some(p) =>
+                buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+              case None =>
+                buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+            buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
             extractReactiveSource(code) match
               case Some(source) =>
-                buf ++= s"${ indent }Bind.show($source, _ => { $code }, $anchor)\n"
+                buf ++= s"${ indent }  Bind.show($source, _ => { $code }, $anchor)\n"
               case None =>
-                buf ++= s"${ indent }Bind.show(() => { $code }, $anchor)\n"
+                buf ++= s"${ indent }  Bind.show(() => { $code }, $anchor)\n"
+            buf ++= s"${ indent }}\n"
             ""
 
           case ExprKind.DomResult =>
@@ -381,9 +419,10 @@ object SpaCodeGen extends CodeGen:
             // Anchor-based raw HTML insertion — no wrapper element, matching Svelte 5's {@html}.
             // A comment node acts as the anchor; Bind.htmlAnchor inserts parsed HTML nodes
             // immediately before it and replaces them on reactive updates.
+            // TrustedHtml has no SSR dyn markers so hydration skips insertion (limitation).
             val anchor = ctr.nextTxt()
             buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt-html")\n"""
-            parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+            parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
             extractReactiveSource(code) match
               case Some(source) =>
                 buf ++= s"${ indent }Bind.htmlAnchor($source, _ => { $code }, $anchor)\n"
@@ -394,11 +433,13 @@ object SpaCodeGen extends CodeGen:
           case ExprKind.PlainText =>
             parentVar match
               case Some(parent) =>
-                buf ++= s"${ indent }Bind.text($code, $parent)\n"
+                // Hydrating.text claims an existing SSR text node when active,
+                // or delegates to Bind.text (create + append) when not active.
+                buf ++= s"${ indent }Hydrating.text($code, $parent)\n"
                 ""
               case None =>
                 val v = ctr.nextTxt()
-                buf ++= s"""${ indent }val $v = dom.document.createTextNode(($code).toString)\n"""
+                buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.textNode(($code).toString) else dom.document.createTextNode(($code).toString)\n"""
                 v
 
       case TemplateNode.InlineTemplate(parts) =>
@@ -496,7 +537,7 @@ object SpaCodeGen extends CodeGen:
           if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
         }
         buf ++= s"""${ indent }val $anchor = dom.document.createComment("")\n"""
-        parentVar.foreach(p => buf ++= s"${ indent }$p.appendChild($anchor)\n")
+        parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
         buf ++= s"${ indent }Bind.dynamicElement($tagExpr, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
         buf ++= setupBuf.toString
         buf ++= s"${ indent }  ()\n"
@@ -547,7 +588,7 @@ object SpaCodeGen extends CodeGen:
         // ── append or wrap ──────────────────────────────────────────────────
         parentVar match
           case Some(parent) =>
-            buf ++= s"${ indent }$parent.appendChild($fragVar)\n"
+            buf ++= s"${ indent }if !Hydrating.isActive then $parent.appendChild($fragVar)\n"
             ""
           case None =>
             val wVar = s"_bWrap$idx"
@@ -571,8 +612,8 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }val $startAnch = dom.document.createComment("melt-key-start")\n"""
         buf ++= s"""${ indent }val $endAnch   = dom.document.createComment("melt-key-end")\n"""
         parentVar.foreach { p =>
-          buf ++= s"${ indent }$p.appendChild($startAnch)\n"
-          buf ++= s"${ indent }$p.appendChild($endAnch)\n"
+          buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($startAnch)\n"
+          buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($endAnch)\n"
         }
         buf ++= s"${ indent }Bind.key($keyExpr, $kVar, $startAnch, $endAnch)\n"
         ""
@@ -623,11 +664,18 @@ object SpaCodeGen extends CodeGen:
           case Some(expr) =>
             buf ++= s"${ indent }val $v = $name($expr)\n"
           case None =>
-            val baseArgs  = buildPropsArgs(attrs, regularChildren, indent, ctr, buf)
-            val allArgs   = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
-            val propsArgs = allArgs.mkString(", ")
-            if propsArgs.nonEmpty then buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
-            else buf ++= s"${ indent }val $v = $name()\n"
+            val (baseArgs, childrenVar) = buildPropsArgs(attrs, regularChildren, indent, ctr, buf)
+            val allProps  = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
+            val propsArgs = allProps.mkString(", ")
+            val childrenArg = childrenVar.map(cv => s"children = $cv")
+            if propsArgs.isEmpty && childrenArg.isEmpty then
+              buf ++= s"${ indent }val $v = $name()\n"
+            else if propsArgs.isEmpty then
+              buf ++= s"${ indent }val $v = $name(${ childrenArg.get })\n"
+            else if childrenArg.isEmpty then
+              buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
+            else
+              buf ++= s"${ indent }val $v = $name($name.Props($propsArgs), ${ childrenArg.get })\n"
 
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         bindThisExpr.foreach { expr =>
@@ -756,14 +804,22 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }$expr.apply($v)\n"""
       case Attr.Directive(_, _, _, _) | Attr.Shorthand(_) =>
 
-  /** Builds the Props constructor argument string from component attributes and children. */
+  /** Builds the Props constructor argument string and optional children var from component
+    * attributes and children nodes.
+    *
+    * Returns `(propsArgs, childrenVar)` where:
+    *   - `propsArgs` is the comma-separated Props field assignments (empty string if none)
+    *   - `childrenVar` is `Some(varName)` of the emitted children lambda, or `None` if no children
+    *
+    * Children are emitted as a separate `() => dom.Node` lambda and passed outside of Props.
+    */
   private def buildPropsArgs(
     attrs:    List[Attr],
     children: List[TemplateNode],
     indent:   String,
     ctr:      Counter,
     buf:      StringBuilder
-  ): String =
+  ): (String, Option[String]) =
     val args = List.newBuilder[String]
 
     attrs.foreach {
@@ -781,11 +837,11 @@ object SpaCodeGen extends CodeGen:
       case _ =>
     }
 
-    if children.nonEmpty then
-      val childVar = emitChildrenLambda(children, indent, ctr, buf)
-      args += s"children = $childVar"
+    val childrenVar: Option[String] =
+      if children.nonEmpty then Some(emitChildrenLambda(children, indent, ctr, buf))
+      else None
 
-    args.result().mkString(", ")
+    (args.result().mkString(", "), childrenVar)
 
   /** Emits a `val _childrenN = () => { ... }` lambda that builds the children DOM tree.
     * Returns the variable name (e.g. `_children0`).
@@ -800,20 +856,22 @@ object SpaCodeGen extends CodeGen:
     val varName  = s"_children${ ctr.nextChildIdx() }"
     val inner    = indent + "  "
 
-    buf ++= s"${ indent }val $varName: (() => dom.Element) = () => {\n"
+    buf ++= s"${ indent }val $varName: (() => dom.Node) = () => {\n"
 
-    children match
-      case single :: Nil =>
-        val cv = emitNode(buf, single, inner, childCtr, isRoot = false, parentVar = None)
-        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
-        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
-      case multiple =>
-        buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
-        multiple.foreach { child =>
-          val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"))
-          if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
-        }
-        buf ++= s"${ inner }_frag\n"
+    // Always wrap in DocumentFragment so reactive bindings (Bind.show, Bind.list, etc.)
+    // get a parent element to append their anchor nodes to, even when there is only
+    // a single child.  When Layout calls `_elN.appendChild(children())` the fragment's
+    // contents are moved into the real DOM, which is exactly what we want.
+    //
+    // During hydration the top-level children nodes are already in the DOM (placed by
+    // SSR), so we must NOT move them into the fragment — the parent's `appendChild`
+    // call is also skipped during hydration, which would leave them detached.
+    buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
+    children.foreach { child =>
+      val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"))
+      if cv.nonEmpty then buf ++= s"${ inner }if !Hydrating.isActive then _frag.appendChild($cv)\n"
+    }
+    buf ++= s"${ inner }_frag\n"
 
     buf ++= s"${ indent }}\n"
     varName
@@ -1042,6 +1100,30 @@ object SpaCodeGen extends CodeGen:
           case _ => ()
         if !found then j += 1
       if found then typeName.substring(i, j + 1) else ""
+
+  /** Returns `true` if `nodes` (or any descendants) contain `{children}` — i.e. a
+    * [[TemplateNode.Expression]] whose code is exactly `"children"`.
+    * Used by [[generate]] to decide whether `apply()` should accept a `children` parameter.
+    */
+  private def hasChildrenRef(nodes: List[TemplateNode]): Boolean =
+    nodes.exists {
+      case TemplateNode.Expression(code)              => code.trim == "children"
+      case TemplateNode.Element(_, _, ch)             => hasChildrenRef(ch)
+      case TemplateNode.Component(_, _, ch)           => hasChildrenRef(ch)
+      case TemplateNode.InlineTemplate(parts)         =>
+        parts.exists {
+          case InlineTemplatePart.Html(ns) => hasChildrenRef(ns)
+          case _                          => false
+        }
+      case TemplateNode.Head(ch)                      => hasChildrenRef(ch)
+      case TemplateNode.Boundary(_, ch, pend, failed) =>
+        hasChildrenRef(ch) ||
+          pend.exists(p => hasChildrenRef(p.children)) ||
+          failed.exists(f => hasChildrenRef(f.children))
+      case TemplateNode.KeyBlock(_, ch)               => hasChildrenRef(ch)
+      case TemplateNode.SnippetDef(_, _, ch)          => hasChildrenRef(ch)
+      case _                                          => false
+    }
 
   private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
     val (typeDecls, rest) = splitTypeDecls(code)

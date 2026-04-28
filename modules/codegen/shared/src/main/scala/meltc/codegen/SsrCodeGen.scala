@@ -29,8 +29,8 @@ import meltc.ast.*
   *
   * Event handlers, `bind:`, `use:`, transitions, animations, `melt:window`,
   * and `melt:body` are silently dropped (they have no meaning in SSR).
-  * `melt:head` is supported via `SsrRenderer.head.push`. Spread attributes
-  * are handled via `SsrRenderer.spreadAttrs`.
+  * `melt:head` is supported via `ServerRenderer.head.push`. Spread attributes
+  * are handled via `ServerRenderer.spreadAttrs`.
   *
   * List rendering (`InlineTemplate`) and conditional blocks are deferred
   * to Phase B.
@@ -58,7 +58,7 @@ object SsrCodeGen extends CodeGen:
     buf ++= "import scala.language.implicitConversions\n"
     buf ++= "import melt.runtime.*\n"
     if ast.script.flatMap(_.propsType).isDefined then buf ++= "import melt.runtime.json.PropsCodec\n"
-    buf ++= "import melt.runtime.ssr.*\n\n"
+    buf ++= "import melt.runtime.render.*\n\n"
 
     buf ++= s"object $objectName {\n\n"
     buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
@@ -100,8 +100,9 @@ object SsrCodeGen extends CodeGen:
     }
 
     val _tp = propsType.map(extractTypeParams).getOrElse("")
-    buf ++= s"  def apply$_tp(${ renderParams(propsType) }): RenderResult = {\n"
-    buf ++= "    val renderer = SsrRenderer()\n"
+    val hasChildren = hasChildrenRef(ast.template)
+    buf ++= s"  def apply$_tp(${ renderParams(propsType, hasChildren) }): RenderResult = {\n"
+    buf ++= "    val renderer = ServerRenderer()\n"
     val moduleId = kebabCase(objectName)
     buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
     if propsType.exists(extractTypeParams(_).isEmpty) then
@@ -159,8 +160,8 @@ object SsrCodeGen extends CodeGen:
       case TemplateNode.Expression(code) =>
         emitExpression(code, buf, indent, scopeId)
 
-      case TemplateNode.Component(name, attrs, _) =>
-        emitComponentCall(name, attrs, buf, indent)
+      case TemplateNode.Component(name, attrs, childNodes) =>
+        emitComponentCall(name, attrs, buf, indent, childNodes, scopeId)
 
       case TemplateNode.Head(children) =>
         children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
@@ -430,9 +431,9 @@ object SsrCodeGen extends CodeGen:
     attrs.foreach(attr => emitAttr(tag, attr, buf, indent))
 
   /** Emits the `class="melt-xxxxxx"` (combined with any static `class`
-    * attribute) that scopes the element's CSS. If there is an additional
-    * dynamic `class=`, it is not handled in Phase A — the caller keeps
-    * its own `class` attribute as-is.
+    * attribute and `class:name={expr}` bindings) that scopes the element's CSS.
+    * Dynamic class bindings are appended conditionally to the same class
+    * attribute so that CSS selectors like `.foo.active` work correctly.
     */
   private def emitScopedClassAttr(
     tag:     String,
@@ -441,17 +442,21 @@ object SsrCodeGen extends CodeGen:
     indent:  Int,
     scopeId: String
   ): Unit =
-    val pad         = " " * indent
-    val staticClass = attrs.collectFirst {
-      case Attr.Static("class", v) => v
+    val pad           = " " * indent
+    val staticClass   = attrs.collectFirst { case Attr.Static("class", v) => v }
+    val classBindings = attrs.collect {
+      case Attr.Directive("class", name, Some(expr), _) => (name, expr)
     }
-    staticClass match
-      case Some(cls) =>
-        val combined = escapeString(s""" class=\"$cls $scopeId\"""")
-        buf ++= s"""${ pad }renderer.push("$combined")\n"""
-      case None =>
-        val combined = escapeString(s""" class=\"$scopeId\"""")
-        buf ++= s"""${ pad }renderer.push("$combined")\n"""
+    val baseClass = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
+
+    if classBindings.isEmpty then
+      val combined = escapeString(s""" class=\"$baseClass\"""")
+      buf ++= s"""${ pad }renderer.push("$combined")\n"""
+    else
+      val condParts = classBindings.map { case (name, expr) =>
+        s"""(if ($expr) " $name" else "")"""
+      }.mkString(" + ")
+      buf ++= s"""${ pad }renderer.push(" class=\\"${ escapeString(baseClass) }" + $condParts + "\\"")\n"""
 
   /** Emits one non-`class`-static attribute. */
   private def emitAttr(
@@ -495,9 +500,7 @@ object SsrCodeGen extends CodeGen:
               buf ++= s"""${ pad }renderer.push(s\" $name=\\\"\" + Escape.attr($e) + \"\\\"\")\n"""
             }
           case "class" =>
-            expr.foreach { e =>
-              buf ++= s"""${ pad }if ($e) then renderer.push(" $name")\n"""
-            }
+            () // handled in emitScopedClassAttr — merged into the class attribute
           case "style" =>
             expr.foreach { e =>
               buf ++= s"""${ pad }renderer.push(s\" style=\\\"$name:\" + Escape.cssValue($e) + \";\\\"\")\n"""
@@ -507,10 +510,12 @@ object SsrCodeGen extends CodeGen:
 
   /** Emits a `<Child ... />` component invocation. */
   private def emitComponentCall(
-    name:   String,
-    attrs:  List[Attr],
-    buf:    StringBuilder,
-    indent: Int
+    name:      String,
+    attrs:     List[Attr],
+    buf:       StringBuilder,
+    indent:    Int,
+    childNodes: List[TemplateNode] = Nil,
+    scopeId:   String = ""
   ): Unit =
     val pad  = " " * indent
     val args = attrs.flatMap {
@@ -521,8 +526,19 @@ object SsrCodeGen extends CodeGen:
       case _                  => None
     }
 
-    if args.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
-    else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+    val childrenArg: Option[String] =
+      if childNodes.nonEmpty then
+        Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
+      else None
+
+    if args.isEmpty && childrenArg.isEmpty then
+      buf ++= s"${ pad }renderer.merge($name())\n"
+    else if args.isEmpty then
+      buf ++= s"${ pad }renderer.merge($name(${ childrenArg.get }))\n"
+    else if childrenArg.isEmpty then
+      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+    else
+      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") }), ${ childrenArg.get }))\n"
 
   /** Emits a `TemplateNode.Expression`.
     *
@@ -545,7 +561,8 @@ object SsrCodeGen extends CodeGen:
     scopeId: String
   ): Unit =
     val pad = " " * indent
-    if code.trim.contains("TrustedHtml") then buf ++= s"""${ pad }renderer.push(($code).value)\n"""
+    if code.trim == "children" then buf ++= s"${ pad }renderer.merge(children())\n"
+    else if code.trim.contains("TrustedHtml") then buf ++= s"""${ pad }renderer.push(($code).value)\n"""
     else buf ++= s"""${ pad }renderer.push(Escape.html($code))\n"""
 
   /** Emits a `TemplateNode.InlineTemplate`.
@@ -589,10 +606,14 @@ object SsrCodeGen extends CodeGen:
 
     kind match
       case InlineKind.Iterable =>
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
         buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
       case InlineKind.SingleString =>
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
         buf ++= s"${ pad }renderer.push($expr)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
   /** Converts a list of `TemplateNode`s from an `InlineTemplatePart.Html`
     * into a Scala expression that returns the corresponding HTML string.
@@ -622,14 +643,19 @@ object SsrCodeGen extends CodeGen:
   ): Unit = node match
     case TemplateNode.Element(tag, attrs, children) =>
       sb ++= s"""_sb ++= "<$tag"; """
-      val staticClass = attrs.collectFirst {
-        case Attr.Static("class", v) => v
+      val staticClass   = attrs.collectFirst { case Attr.Static("class", v) => v }
+      val classBindings = attrs.collect {
+        case Attr.Directive("class", name, Some(expr), _) => (name, expr)
       }
-      staticClass match
-        case Some(cls) =>
-          sb ++= s"""_sb ++= " class=\\"${ escapeString(cls) } $scopeId\\""; """
-        case None =>
-          sb ++= s"""_sb ++= " class=\\"$scopeId\\""; """
+      val baseClass = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
+
+      if classBindings.isEmpty then
+        sb ++= s"""_sb ++= " class=\\"${ escapeString(baseClass) }\\""; """
+      else
+        val condParts = classBindings.map { case (name, expr) =>
+          s"""(if ($expr) " $name" else "")"""
+        }.mkString(" + ")
+        sb ++= s"""_sb ++= " class=\\"${ escapeString(baseClass) }" + $condParts + "\\""; """
 
       attrs.foreach {
         case Attr.Static("class", _)  => ()
@@ -662,42 +688,50 @@ object SsrCodeGen extends CodeGen:
       sb ++= s"""_sb ++= "$escaped"; """
 
     case TemplateNode.Expression(code) =>
-      if code.trim.contains("TrustedHtml") then sb ++= s"""_sb ++= ($code).value; """
+      if code.trim == "children" then
+        sb ++= """{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }; """
+      else if code.trim.contains("TrustedHtml") then sb ++= s"""_sb ++= ($code).value; """
       else sb ++= s"""_sb ++= Escape.html($code); """
 
-    case TemplateNode.Component(name, attrs, _) =>
+    case TemplateNode.Component(name, attrs, childNodes) =>
       val args = attrs.flatMap {
         case Attr.Shorthand(n)  => Some(s"$n = $n")
         case Attr.Static(n, v)  => Some(s"""$n = \"${ escapeString(v) }\"""")
         case Attr.Dynamic(n, e) => Some(s"$n = $e")
         case _                  => None
       }
-      if args.isEmpty then sb ++= s"""_sb ++= $name().body; """
-      else sb ++= s"""_sb ++= $name($name.Props(${ args.mkString(", ") })).body; """
+      val childrenArg: Option[String] =
+        if childNodes.nonEmpty then
+          Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
+        else None
+      val call =
+        if args.isEmpty && childrenArg.isEmpty then s"$name()"
+        else if args.isEmpty then s"$name(${ childrenArg.get })"
+        else if childrenArg.isEmpty then s"$name($name.Props(${ args.mkString(", ") }))"
+        else s"$name($name.Props(${ args.mkString(", ") }), ${ childrenArg.get })"
+      // Use mergeMeta so CSS, head content, and hydration-component tracking
+      // from the child are propagated to the enclosing renderer while the
+      // body is appended to the local StringBuilder (avoiding a double-push).
+      sb ++= s"""{ val _r = $call; renderer.mergeMeta(_r); _sb ++= _r.body }; """
 
     case TemplateNode.InlineTemplate(nested) =>
-      sb ++= "_sb ++= "
-      sb ++= htmlNodesToStringExprFromParts(nested, scopeId)
-      sb ++= "; "
+      val exprBuf = new StringBuilder
+      nested.foreach {
+        case InlineTemplatePart.Code(code)  => exprBuf ++= code
+        case InlineTemplatePart.Html(nodes) => exprBuf ++= htmlNodesToStringExpr(nodes, scopeId)
+      }
+      val expr = exprBuf.toString
+      val kind = classifyInlineExpr(expr, nested)
+      sb ++= """_sb ++= "<!--[melt:dyn-->"; """
+      kind match
+        case InlineKind.Iterable =>
+          sb ++= s"$expr.foreach(s => _sb ++= s); "
+        case InlineKind.SingleString =>
+          sb ++= s"_sb ++= ($expr); "
+      sb ++= """_sb ++= "<!--]melt:dyn-->"; """
 
     case _ =>
       ()
-
-  /** Helper: convert a nested `List[InlineTemplatePart]` (recursive case). */
-  private def htmlNodesToStringExprFromParts(
-    parts:   List[InlineTemplatePart],
-    scopeId: String
-  ): String =
-    val sb = new StringBuilder
-    sb ++= "{ val _sb = new StringBuilder; "
-    parts.foreach {
-      case InlineTemplatePart.Code(code) =>
-        sb ++= code
-      case InlineTemplatePart.Html(nodes) =>
-        nodes.foreach(n => appendNodeToSb(n, sb, scopeId))
-    }
-    sb ++= "_sb.toString }"
-    sb.toString
 
   private enum InlineKind:
     case Iterable
@@ -793,11 +827,58 @@ object SsrCodeGen extends CodeGen:
         if !found then j += 1
       if found then typeName.substring(i, j + 1) else ""
 
-  private def renderParams(propsType: Option[String]): String =
-    propsType match
+  private def renderParams(propsType: Option[String], hasChildren: Boolean = false): String =
+    val propsPart = propsType match
       case Some(tpe) if extractTypeParams(tpe).nonEmpty => s"props: $tpe"
       case Some(tpe)                                    => s"props: $tpe = $tpe()"
       case None                                         => ""
+    val childrenPart =
+      if hasChildren then "children: () => RenderResult = () => RenderResult.empty"
+      else ""
+    List(propsPart, childrenPart).filter(_.nonEmpty).mkString(", ")
+
+  /** Builds a `() => RenderResult` lambda expression (as a code string) that
+    * renders `childNodes` using [[appendNodeToSb]] so they can be passed as
+    * the `children` parameter to a component call.
+    *
+    * The generated lambda captures `renderer` and `_scopeId` from the enclosing
+    * `apply()` body — sub-component metadata (CSS, head) is merged into the outer
+    * renderer via `renderer.mergeMeta(...)`.
+    */
+  private def buildSsrChildrenLambdaExpr(
+    childNodes: List[TemplateNode],
+    scopeId:    String
+  ): String =
+    val sb = new StringBuilder
+    sb ++= "() => { val _sb = new StringBuilder; "
+    childNodes.foreach(n => appendNodeToSb(n, sb, scopeId))
+    sb ++= "RenderResult(_sb.toString, \"\") }"
+    sb.toString
+
+  /** Returns `true` if `nodes` (or any of their descendants) contain
+    * `{children}` — i.e. a [[TemplateNode.Expression]] whose code is
+    * exactly `"children"`.  Used by [[generate]] to decide whether the
+    * generated `apply()` should accept a `children` parameter.
+    */
+  private def hasChildrenRef(nodes: List[TemplateNode]): Boolean =
+    nodes.exists {
+      case TemplateNode.Expression(code)              => code.trim == "children"
+      case TemplateNode.Element(_, _, ch)             => hasChildrenRef(ch)
+      case TemplateNode.Component(_, _, ch)           => hasChildrenRef(ch)
+      case TemplateNode.InlineTemplate(parts)         =>
+        parts.exists {
+          case InlineTemplatePart.Html(ns) => hasChildrenRef(ns)
+          case _                          => false
+        }
+      case TemplateNode.Head(ch)                      => hasChildrenRef(ch)
+      case TemplateNode.Boundary(_, ch, pend, failed) =>
+        hasChildrenRef(ch) ||
+          pend.exists(p => hasChildrenRef(p.children)) ||
+          failed.exists(f => hasChildrenRef(f.children))
+      case TemplateNode.KeyBlock(_, ch)               => hasChildrenRef(ch)
+      case TemplateNode.SnippetDef(_, _, ch)          => hasChildrenRef(ch)
+      case _                                          => false
+    }
 
   /** Converts `objectName` to kebab-case for Vite `moduleID`.
     * `Counter` → `counter`, `TodoList` → `todo-list`.
