@@ -112,6 +112,8 @@ object Escape:
       case Some(inner)     => normalize(inner)
       case th: TrustedHtml => Some(th.value)
       case tu: TrustedUrl  => Some(tu.value)
+      case sig: Signal[?]  => normalize(sig.value)
+      case v: Var[?]       => normalize(v.value)
       case other           =>
         val s = other.toString
         if s == null then None else Some(s)
