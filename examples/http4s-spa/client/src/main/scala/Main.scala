@@ -7,7 +7,7 @@
 import org.scalajs.dom
 
 import components.*
-import meltkit.*
+import meltkit.{*, given}
 
 /** SPA client entry point.
   *
@@ -27,7 +27,7 @@ object Main:
     BrowserAdapter.mountWithShell(buildApp(), rootEl, Layout())
 
   private def buildApp(): MeltRouter =
-    val app = MeltKit()
+    val app = MeltRouter()
     app.get("") { ctx => ctx.render(TodoPage()) }
     app.get("counter") { ctx => ctx.render(CounterPage()) }
     app.get("users") { ctx => ctx.render(UserPage()) }
