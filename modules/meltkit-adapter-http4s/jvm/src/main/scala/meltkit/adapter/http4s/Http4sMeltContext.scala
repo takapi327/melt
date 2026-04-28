@@ -9,7 +9,6 @@ package meltkit.adapter.http4s
 import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
-
 import cats.effect.Concurrent
 import cats.syntax.all.*
 import meltkit.*

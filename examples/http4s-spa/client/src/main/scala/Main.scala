@@ -7,7 +7,7 @@
 import org.scalajs.dom
 
 import components.*
-import meltkit.{*, given}
+import meltkit.{ *, given }
 
 /** SPA client entry point.
   *

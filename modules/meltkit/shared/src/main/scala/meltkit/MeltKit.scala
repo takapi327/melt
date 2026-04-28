@@ -113,8 +113,7 @@ class MeltKit[F[_]]:
     */
   def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit] => F[Response]): Unit =
     val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
-      (_, factory) =>
-        Some(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
+      (_, factory) => Some(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
     _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
 
   def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
