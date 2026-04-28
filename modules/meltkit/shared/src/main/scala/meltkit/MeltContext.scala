@@ -6,10 +6,8 @@
 
 package meltkit
 
-import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
-import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
 
 /** The handler context provided to each route handler.
@@ -17,26 +15,13 @@ import meltkit.codec.BodyEncoder
   * Concrete implementations are provided by adapters
   * (e.g. `Http4sMeltContext` in `meltkit-adapter-http4s`).
   *
-  * @tparam F  the effect type (e.g. `cats.effect.IO`)
-  * @tparam P  the [[scala.NamedTuple]] of typed path parameters
-  * @tparam B  the request body type (`Unit` = no body)
+  * For request-body access (`ctx.body` / `ctx.bodyOrBadRequest`) use
+  * [[ServerMeltContext]], which extends this trait and is provided to
+  * handlers registered via [[MeltKit.on]].
   *
-  * When `B = Unit` (i.e. the route or endpoint declares no request body),
-  * calling [[body]] or [[bodyOrBadRequest]] is a **compile error** —
-  * enforced via `NotGiven[B =:= Unit]`.
-  *
-  * {{{
-  * val createTodo = Endpoint.post("api/todos").body[CreateTodoBody].response[Todo]
-  * app.on(createTodo) { ctx =>
-  *   ctx.body              // F[Either[BodyError, CreateTodoBody]]  OK
-  *   ctx.bodyOrBadRequest  // F[CreateTodoBody]                     OK
-  * }
-  *
-  * val getTodos = Endpoint.get("api/todos").response[List[Todo]]
-  * app.on(getTodos) { ctx =>
-  *   ctx.body              // compile error: No given instance of type NotGiven[Unit =:= Unit]
-  * }
-  * }}}
+  * @tparam F the effect type (e.g. `cats.effect.IO`)
+  * @tparam P the [[scala.NamedTuple]] of typed path parameters
+  * @tparam B the request body type (`Unit` = no body)
   */
 trait MeltContext[F[_], P <: AnyNamedTuple, B]:
 
@@ -51,21 +36,41 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B]:
     */
   def params: P
 
+  /** The path component of the current request URL (e.g. `"/counter"`, `"/users/42"`).
+    *
+    * On the JVM (SSR) this is derived from the incoming HTTP request URI.
+    * In the browser it reflects `window.location.pathname`.
+    *
+    * Used internally by the JVM `ctx.melt()` extension to automatically set
+    * [[Router.currentPath]] for the duration of SSR rendering, so that
+    * components can read the correct path without any manual `Router.withPath`
+    * call in route handlers.
+    */
+  def requestPath: String
+
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 
-  /** Reads and decodes the request body using the endpoint's [[BodyDecoder]].
+  /** Renders a Melt component and returns a 200 response.
     *
-    * Only available when `B ≠ Unit` (i.e. the endpoint declares a body type
-    * via `.body[B]`).  Returns `Left` when the raw body cannot be decoded.
-    */
-  def body(using NotGiven[B =:= Unit]): F[Either[BodyError, B]]
-
-  /** Like [[body]], but automatically raises a 400 Bad Request when decoding fails.
+    * On the JVM (SSR) this calls [[Template.render]] and returns an HTML response.
+    * On JS (SPA) this mounts the component into the root DOM element managed by
+    * [[BrowserAdapter]] and returns a no-content response.
     *
-    * Only available when `B ≠ Unit`.
+    * `.melt`-compiled components satisfy [[AsComponent]] via platform-specific
+    * given instances, so no explicit wrapping is needed:
+    *
+    * {{{
+    * // shared route handler — compiles and runs on both JVM and JS
+    * app.get("todos") { ctx => F.pure(ctx.render(TodoPage())) }
+    * }}}
+    *
+    * On the JVM: only available when using the class-based
+    * [[meltkit.adapter.http4s.Http4sAdapter]] (i.e. `Http4sAdapter(app, template, manifest).routes`).
+    * Calling this method when using the API-only `Http4sAdapter.routes(app)` raises an
+    * [[IllegalStateException]] at runtime.
     */
-  def bodyOrBadRequest(using NotGiven[B =:= Unit]): F[B]
+  def render(component: Component): PlainResponse
 
   /** Builds a 200 OK JSON response. Requires a [[BodyEncoder]][A] in scope. */
   def ok[A: BodyEncoder](value: A): PlainResponse
