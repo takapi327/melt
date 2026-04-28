@@ -64,14 +64,45 @@ object MeltcPlugin extends AutoPlugin {
       * and do not need the per-component public modules.
       *
       * Set to `true` on projects that actually do SSR + client-side
-      * hydration. Those projects typically also configure
-      * `scalaJSLinkerConfig` with `ModuleKind.ESModule` and a
-      * small-modules split style so each component ends up in its own
-      * public chunk. See `examples/http4s-ssr-hydration` for a complete
-      * Phase C setup.
+      * hydration (Approach B: per-component Islands hydration). Those
+      * projects typically also configure `scalaJSLinkerConfig` with
+      * `ModuleKind.ESModule` and a small-modules split style so each
+      * component ends up in its own public chunk.
+      *
+      * For full-page hydration (Approach A, SvelteKit-like), use
+      * [[meltcHydrationRoot]] instead. The two settings are mutually
+      * exclusive: `meltcHydrationRoot` takes precedence when set.
       */
     val meltcHydration =
       settingKey[Boolean]("Emit @JSExportTopLevel hydration entries in SPA codegen")
+
+    /** Root component name for full-page hydration (Approach A).
+      *
+      * When set to `Some("App")` (or another component name), only the
+      * named component receives a `@JSExportTopLevel("hydrate")` entry.
+      * All other `.melt` files are compiled without a hydration export,
+      * keeping them as internal Scala.js chunks.
+      *
+      * This mirrors SvelteKit's single-entry-point hydration model:
+      * one bootstrap `<script>` mounts the entire component tree from
+      * the server-rendered HTML markers.
+      *
+      * Default: `None` — falls back to [[meltcHydration]] behaviour.
+      *
+      * {{{
+      * // build.sbt (JS platform of a crossProject):
+      * meltcHydrationRoot := Some("App"),
+      * scalaJSLinkerConfig ~= {
+      *   _.withModuleKind(ModuleKind.ESModule)
+      *     .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+      * }
+      * }}}
+      */
+    val meltcHydrationRoot =
+      settingKey[Option[String]](
+        "Root component name for full-page hydration (Approach A). " +
+          "When set, only this component emits a @JSExportTopLevel hydration entry."
+      )
 
     /** Compilation mode for `.melt` files.
       *
@@ -336,6 +367,23 @@ object MeltcPlugin extends AutoPlugin {
       */
     val SassPreprocessor: String = "meltc.sass.SassPreprocessor"
 
+    /** When `true` (the default), the plugin automatically adds `melt-codegen_3`
+      * to the `meltc-compiler` Ivy configuration so it is resolved and placed on
+      * [[meltcCompilerClasspath]].
+      *
+      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
+      * for example, in a monorepo where you wire the classpath directly from
+      * source projects:
+      * {{{
+      * meltcManageCompilerDeps    := false,
+      * meltcCompilerClasspath     := (codegen.jvm / Compile / fullClasspath).value.files
+      * }}}
+      */
+    val meltcManageCompilerDeps =
+      settingKey[Boolean](
+        "When true, automatically resolve melt-codegen_3 via Ivy. Set false when providing meltcCompilerClasspath manually."
+      )
+
     /** When `true` (the default), the plugin automatically adds the required
       * preprocessor JARs (e.g. `meltc-css_3`, `meltc-sass_3`) to the
       * `meltc-compiler` Ivy configuration so they are resolved and placed on
@@ -374,7 +422,9 @@ object MeltcPlugin extends AutoPlugin {
       if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
     },
     meltcHydration              := false,
+    meltcHydrationRoot          := None,
     meltcStylePreprocessor      := None,
+    meltcManageCompilerDeps     := true,
     meltcManagePreprocessorDeps := true,
     meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories      := {
@@ -387,9 +437,12 @@ object MeltcPlugin extends AutoPlugin {
     meltcCompilerVersion := sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT"),
 
     ivyConfigurations += MeltcCompilerConfig,
-    libraryDependencies += {
-      val v = meltcCompilerVersion.value
-      ("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+    libraryDependencies ++= {
+      if (!meltcManageCompilerDeps.value) Seq.empty
+      else {
+        val v = meltcCompilerVersion.value
+        Seq(("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig)
+      }
     },
     libraryDependencies ++= {
       if (!meltcManagePreprocessorDeps.value) Seq.empty
@@ -409,15 +462,16 @@ object MeltcPlugin extends AutoPlugin {
     ),
 
     meltcGenerate := compileMeltFiles(
-      streams      = streams.value,
-      srcDirs      = meltcSourceDirectories.value,
-      outDir       = meltcOutputDirectory.value,
-      pkg          = meltcPackage.value,
-      mode         = meltcMode.value,
-      hydration    = meltcHydration.value,
-      preprocessor = meltcStylePreprocessor.value,
-      compilerCp   = meltcCompilerClasspath.value,
-      reporter     = (Compile / compile / bspReporter).value
+      streams       = streams.value,
+      srcDirs       = meltcSourceDirectories.value,
+      outDir        = meltcOutputDirectory.value,
+      pkg           = meltcPackage.value,
+      mode          = meltcMode.value,
+      hydration     = meltcHydration.value,
+      hydrationRoot = meltcHydrationRoot.value,
+      preprocessor  = meltcStylePreprocessor.value,
+      compilerCp    = meltcCompilerClasspath.value,
+      reporter      = (Compile / compile / bspReporter).value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
@@ -430,7 +484,7 @@ object MeltcPlugin extends AutoPlugin {
     meltcViteDistDir      := baseDirectory.value / ".." / "dist",
     meltcIndexHtml        := {
       val f = (Compile / resourceDirectory).value / "index.html"
-      if f.exists() then Some(f) else None
+      if (f.exists()) Some(f) else None
     },
 
     meltcMeltKitConfigObject   := "MeltKitConfig",
@@ -509,15 +563,16 @@ object MeltcPlugin extends AutoPlugin {
   )
 
   private def compileMeltFiles(
-    streams:      TaskStreams,
-    srcDirs:      Seq[File],
-    outDir:       File,
-    pkg:          String,
-    mode:         String,
-    hydration:    Boolean,
-    preprocessor: Option[String],
-    compilerCp:   Seq[File],
-    reporter:     xsbti.Reporter
+    streams:       TaskStreams,
+    srcDirs:       Seq[File],
+    outDir:        File,
+    pkg:           String,
+    mode:          String,
+    hydration:     Boolean,
+    hydrationRoot: Option[String],
+    preprocessor:  Option[String],
+    compilerCp:    Seq[File],
+    reporter:      xsbti.Reporter
   ): Seq[File] = {
     val log = streams.log
 
@@ -574,6 +629,14 @@ object MeltcPlugin extends AutoPlugin {
 
         log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
+        // Determine whether this component gets a hydration entry:
+        //   - Approach A (meltcHydrationRoot set): only the named root component
+        //   - Approach B (meltcHydration := true): all components
+        val emitHydration = hydrationRoot match {
+          case Some(root) => objectName == root
+          case None       => hydration
+        }
+
         val javaArgs = Seq(
           "-cp",
           cpStr,
@@ -584,7 +647,7 @@ object MeltcPlugin extends AutoPlugin {
           fullPkg,
           "--mode",
           normalisedMode
-        ) ++ (if (hydration) Seq("--hydration") else Seq.empty) ++
+        ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
           preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
 
         val exitCode = Fork.java(ForkOptions(), javaArgs)
