@@ -43,12 +43,7 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   override def requestPath: String = dom.window.location.pathname
 
   override def query(name: String): Option[String] =
-    val search = dom.window.location.search
-    if search.isEmpty || search == "?" then None
-    else
-      search.drop(1).split("&").collectFirst {
-        case kv if kv.startsWith(s"$name=") => kv.drop(name.length + 1)
-      }
+    Option(new dom.URLSearchParams(dom.window.location.search).get(name))
 
   /** Replaces the outlet element's content with the given component.
     *
