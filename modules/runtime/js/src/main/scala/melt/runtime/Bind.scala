@@ -609,7 +609,8 @@ object Bind:
       val next = render(a)
       val old  = current
       current = next
-      parent.insertBefore(next, anchor)
+      val p = anchor.parentNode
+      p.insertBefore(next, anchor)
       next match
         case el: dom.Element if TransitionBridge.hasIn(el) =>
           TransitionBridge.playIn(el)
@@ -623,11 +624,11 @@ object Bind:
           TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
         case el: dom.Element =>
           playGlobalTransitions(old, intro = false)
-          parent.removeChild(old)
+          p.removeChild(old)
           Lifecycle.destroyTree(el)
         case _ =>
           playGlobalTransitions(old, intro = false)
-          parent.removeChild(old)
+          p.removeChild(old)
     }
     Cleanup.register(cancel)
 
@@ -645,7 +646,8 @@ object Bind:
       val next = render(a)
       val old  = current
       current = next
-      parent.insertBefore(next, anchor)
+      val p = anchor.parentNode
+      p.insertBefore(next, anchor)
       next match
         case el: dom.Element if TransitionBridge.hasIn(el) =>
           TransitionBridge.playIn(el)
@@ -659,11 +661,11 @@ object Bind:
           TransitionBridge.playOut(el, () => Option(el.parentNode).foreach(_.removeChild(el)))
         case el: dom.Element =>
           playGlobalTransitions(old, intro = false)
-          parent.removeChild(old)
+          p.removeChild(old)
           Lifecycle.destroyTree(el)
         case _ =>
           playGlobalTransitions(old, intro = false)
-          parent.removeChild(old)
+          p.removeChild(old)
     }
     Cleanup.register(cancel)
 
@@ -905,10 +907,10 @@ object Bind:
     * Used for `{items.map(renderFn)}` in templates.
     */
   def list[A](source: Var[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    val parent = anchor.parentNode
     var nodes  = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
+      val parent = anchor.parentNode
       nodes.foreach { n =>
         parent.removeChild(n)
         n match
@@ -927,10 +929,10 @@ object Bind:
     Cleanup.register(cancel)
 
   def list[A](source: Signal[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    val parent = anchor.parentNode
     var nodes  = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
+      val parent = anchor.parentNode
       nodes.foreach { n =>
         parent.removeChild(n)
         n match
@@ -960,10 +962,10 @@ object Bind:
     renderFn: A => dom.Node,
     anchor:   dom.Node
   ): Unit =
-    val parent  = anchor.parentNode
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
+      val parent = anchor.parentNode
       // Snapshot positions of animate-marked elements before mutation
       val animEls = nodeMap.values.collect {
         case el: dom.Element if isAnimateMarked(el) => el
@@ -1005,10 +1007,10 @@ object Bind:
     renderFn: A => dom.Node,
     anchor:   dom.Node
   ): Unit =
-    val parent  = anchor.parentNode
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
+      val parent = anchor.parentNode
       val animEls = nodeMap.values.collect {
         case el: dom.Element if isAnimateMarked(el) => el
       }
