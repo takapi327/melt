@@ -99,7 +99,7 @@ object SsrCodeGen extends CodeGen:
         buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
     }
 
-    val _tp = propsType.map(extractTypeParams).getOrElse("")
+    val _tp         = propsType.map(extractTypeParams).getOrElse("")
     val hasChildren = hasChildrenRef(ast.template)
     buf ++= s"  def apply$_tp(${ renderParams(propsType, hasChildren) }): RenderResult = {\n"
     buf ++= "    val renderer = ServerRenderer()\n"
@@ -453,9 +453,12 @@ object SsrCodeGen extends CodeGen:
       val combined = escapeString(s""" class=\"$baseClass\"""")
       buf ++= s"""${ pad }renderer.push("$combined")\n"""
     else
-      val condParts = classBindings.map { case (name, expr) =>
-        s"""(if ($expr) " $name" else "")"""
-      }.mkString(" + ")
+      val condParts = classBindings
+        .map {
+          case (name, expr) =>
+            s"""(if ($expr) " $name" else "")"""
+        }
+        .mkString(" + ")
       buf ++= s"""${ pad }renderer.push(" class=\\"${ escapeString(baseClass) }" + $condParts + "\\"")\n"""
 
   /** Emits one non-`class`-static attribute. */
@@ -510,12 +513,12 @@ object SsrCodeGen extends CodeGen:
 
   /** Emits a `<Child ... />` component invocation. */
   private def emitComponentCall(
-    name:      String,
-    attrs:     List[Attr],
-    buf:       StringBuilder,
-    indent:    Int,
+    name:       String,
+    attrs:      List[Attr],
+    buf:        StringBuilder,
+    indent:     Int,
     childNodes: List[TemplateNode] = Nil,
-    scopeId:   String = ""
+    scopeId:    String = ""
   ): Unit =
     val pad  = " " * indent
     val args = attrs.flatMap {
@@ -527,18 +530,13 @@ object SsrCodeGen extends CodeGen:
     }
 
     val childrenArg: Option[String] =
-      if childNodes.nonEmpty then
-        Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
+      if childNodes.nonEmpty then Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
       else None
 
-    if args.isEmpty && childrenArg.isEmpty then
-      buf ++= s"${ pad }renderer.merge($name())\n"
-    else if args.isEmpty then
-      buf ++= s"${ pad }renderer.merge($name(${ childrenArg.get }))\n"
-    else if childrenArg.isEmpty then
-      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
-    else
-      buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") }), ${ childrenArg.get }))\n"
+    if args.isEmpty && childrenArg.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
+    else if args.isEmpty then buf ++= s"${ pad }renderer.merge($name(${ childrenArg.get }))\n"
+    else if childrenArg.isEmpty then buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+    else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") }), ${ childrenArg.get }))\n"
 
   /** Emits a `TemplateNode.Expression`.
     *
@@ -649,12 +647,14 @@ object SsrCodeGen extends CodeGen:
       }
       val baseClass = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
 
-      if classBindings.isEmpty then
-        sb ++= s"""_sb ++= " class=\\"${ escapeString(baseClass) }\\""; """
+      if classBindings.isEmpty then sb ++= s"""_sb ++= " class=\\"${ escapeString(baseClass) }\\""; """
       else
-        val condParts = classBindings.map { case (name, expr) =>
-          s"""(if ($expr) " $name" else "")"""
-        }.mkString(" + ")
+        val condParts = classBindings
+          .map {
+            case (name, expr) =>
+              s"""(if ($expr) " $name" else "")"""
+          }
+          .mkString(" + ")
         sb ++= s"""_sb ++= " class=\\"${ escapeString(baseClass) }" + $condParts + "\\""; """
 
       attrs.foreach {
@@ -688,8 +688,7 @@ object SsrCodeGen extends CodeGen:
       sb ++= s"""_sb ++= "$escaped"; """
 
     case TemplateNode.Expression(code) =>
-      if code.trim == "children" then
-        sb ++= """{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }; """
+      if code.trim == "children" then sb ++= """{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }; """
       else if code.trim.contains("TrustedHtml") then sb ++= s"""_sb ++= ($code).value; """
       else sb ++= s"""_sb ++= Escape.html($code); """
 
@@ -701,8 +700,7 @@ object SsrCodeGen extends CodeGen:
         case _                  => None
       }
       val childrenArg: Option[String] =
-        if childNodes.nonEmpty then
-          Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
+        if childNodes.nonEmpty then Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
         else None
       val call =
         if args.isEmpty && childrenArg.isEmpty then s"$name()"
@@ -862,22 +860,22 @@ object SsrCodeGen extends CodeGen:
     */
   private def hasChildrenRef(nodes: List[TemplateNode]): Boolean =
     nodes.exists {
-      case TemplateNode.Expression(code)              => code.trim == "children"
-      case TemplateNode.Element(_, _, ch)             => hasChildrenRef(ch)
-      case TemplateNode.Component(_, _, ch)           => hasChildrenRef(ch)
-      case TemplateNode.InlineTemplate(parts)         =>
+      case TemplateNode.Expression(code)      => code.trim == "children"
+      case TemplateNode.Element(_, _, ch)     => hasChildrenRef(ch)
+      case TemplateNode.Component(_, _, ch)   => hasChildrenRef(ch)
+      case TemplateNode.InlineTemplate(parts) =>
         parts.exists {
           case InlineTemplatePart.Html(ns) => hasChildrenRef(ns)
-          case _                          => false
+          case _                           => false
         }
       case TemplateNode.Head(ch)                      => hasChildrenRef(ch)
       case TemplateNode.Boundary(_, ch, pend, failed) =>
         hasChildrenRef(ch) ||
-          pend.exists(p => hasChildrenRef(p.children)) ||
-          failed.exists(f => hasChildrenRef(f.children))
-      case TemplateNode.KeyBlock(_, ch)               => hasChildrenRef(ch)
-      case TemplateNode.SnippetDef(_, _, ch)          => hasChildrenRef(ch)
-      case _                                          => false
+        pend.exists(p => hasChildrenRef(p.children)) ||
+        failed.exists(f => hasChildrenRef(f.children))
+      case TemplateNode.KeyBlock(_, ch)      => hasChildrenRef(ch)
+      case TemplateNode.SnippetDef(_, _, ch) => hasChildrenRef(ch)
+      case _                                 => false
     }
 
   /** Converts `objectName` to kebab-case for Vite `moduleID`.

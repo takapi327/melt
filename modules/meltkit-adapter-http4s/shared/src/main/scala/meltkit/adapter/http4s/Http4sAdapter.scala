@@ -6,28 +6,26 @@
 
 package meltkit.adapter.http4s
 
+import scala.NamedTuple.AnyNamedTuple
+
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.Concurrent
 import cats.syntax.all.*
+import fs2.io.file.Files
+import fs2.io.file.Path
+import meltkit.*
+import meltkit.codec.BodyDecoder
+import org.http4s.headers.`Content-Type`
+import org.http4s.server.staticcontent.fileService
+import org.http4s.server.staticcontent.FileService
+import org.http4s.server.Router
+import org.http4s.Charset
 import org.http4s.Headers
 import org.http4s.HttpRoutes
 import org.http4s.MediaType
 import org.http4s.Response as Http4sResponse
-import org.http4s.Charset
 import org.http4s.Status
-import org.http4s.headers.`Content-Type`
-import org.http4s.server.Router
-import org.http4s.server.staticcontent.fileService
-import org.http4s.server.staticcontent.FileService
-
-import fs2.io.file.Files
-import fs2.io.file.Path
-
-import scala.NamedTuple.AnyNamedTuple
-
-import meltkit.*
-import meltkit.codec.BodyDecoder
 
 /** Converts a [[MeltKit]] router into an http4s [[HttpRoutes]].
   *
@@ -96,13 +94,16 @@ final class Http4sAdapter[F[_]: Concurrent] private (
       }
 
       matched match
-        case None => OptionT.none
+        case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           val factory   = new MeltContextFactory[F]:
             def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
               Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
-            def buildServer[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]] =
+            def buildServer[P <: AnyNamedTuple, B](
+              params:      P,
+              bodyDecoder: BodyDecoder[B]
+            ): Option[ServerMeltContext[F, P, B]] =
               Some(Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
@@ -150,9 +151,11 @@ object Http4sAdapter:
     lang:          String = "en",
     basePath:      String = "/assets"
   ): F[Http4sAdapter[F]] =
-    Files[F].readAll(clientDistDir / "index.html")
+    Files[F]
+      .readAll(clientDistDir / "index.html")
       .through(fs2.text.utf8.decode)
-      .compile.string
+      .compile
+      .string
       .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath))
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
@@ -173,13 +176,16 @@ object Http4sAdapter:
       }
 
       matched match
-        case None => OptionT.none
+        case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           val factory   = new MeltContextFactory[F]:
             def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
               Http4sMeltContext(params, request, bodyDecoder)
-            def buildServer[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]] =
+            def buildServer[P <: AnyNamedTuple, B](
+              params:      P,
+              bodyDecoder: BodyDecoder[B]
+            ): Option[ServerMeltContext[F, P, B]] =
               Some(Http4sMeltContext(params, request, bodyDecoder))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
@@ -233,9 +239,11 @@ object Http4sAdapter:
     indexPath:   Path,
     headContent: String
   ): F[HttpRoutes[F]] =
-    Files[F].readAll(indexPath)
+    Files[F]
+      .readAll(indexPath)
       .through(fs2.text.utf8.decode)
-      .compile.string
+      .compile
+      .string
       .map { content =>
         val html = Template.fromString(content).render(headContent)
         HttpRoutes[F] { req =>
@@ -255,8 +263,9 @@ object Http4sAdapter:
     // StatusCode <: Int so fromInt accepts it directly
     val status = Status.fromInt(r.status: Int).getOrElse(Status.InternalServerError)
     val ct     = MediaType.parse(r.contentType).toOption.map(`Content-Type`(_))
-    val rawHeaders: List[org.http4s.Header.ToRaw] = r.headers.toList.map { case (k, v) =>
-      org.http4s.Header.Raw(org.typelevel.ci.CIString(k), v)
+    val rawHeaders: List[org.http4s.Header.ToRaw] = r.headers.toList.map {
+      case (k, v) =>
+        org.http4s.Header.Raw(org.typelevel.ci.CIString(k), v)
     }
     val allHeaders: List[org.http4s.Header.ToRaw] = ct.toList.map(h => h: org.http4s.Header.ToRaw) ++ rawHeaders
     Http4sResponse(

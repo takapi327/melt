@@ -6,8 +6,8 @@
 
 package meltkit
 
-import melt.runtime.Escape
 import melt.runtime.render.RenderResult
+import melt.runtime.Escape
 
 /** An HTML shell template for SPA and SSR applications.
   *
@@ -182,11 +182,11 @@ final class Template private[meltkit] (private val raw: String):
     val headContent =
       if extraHead.isEmpty then result.head
       else if result.head.isEmpty then extraHead
-      else s"${result.head}\n$extraHead"
+      else s"${ result.head }\n$extraHead"
 
     val bodyContent =
       if extraBody.isEmpty then result.body
-      else s"${result.body}\n$extraBody"
+      else s"${ result.body }\n$extraBody"
 
     var out = raw
     out = out.replace("%melt.lang%", Escape.attr(lang))

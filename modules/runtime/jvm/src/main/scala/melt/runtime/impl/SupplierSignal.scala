@@ -19,11 +19,11 @@ import melt.runtime.Signal
   * `Signal[String]` without breaking the cross-platform API.
   */
 final class SupplierSignal[A](supplier: () => A) extends Signal[A]:
-  def value: A                                 = supplier()
-  def subscribe(f: A => Unit): () => Unit      = () => ()
-  def map[B](f: A => B): Signal[B]             = new SupplierSignal(() => f(supplier()))
-  def flatMap[B](f: A => Signal[B]): Signal[B] = f(supplier())
+  def value:                         A          = supplier()
+  def subscribe(f:  A => Unit):      () => Unit = () => ()
+  def map[B](f:     A => B):         Signal[B]  = new SupplierSignal(() => f(supplier()))
+  def flatMap[B](f: A => Signal[B]): Signal[B]  = f(supplier())
 
-  private[runtime] def emit(v: A): Unit                           = ()
-  private[runtime] def subscribePre(f: A => Unit): () => Unit     = () => ()
-  private[runtime] def subscribePost(f: A => Unit): () => Unit    = () => ()
+  private[runtime] def emit(v:          A):         Unit       = ()
+  private[runtime] def subscribePre(f:  A => Unit): () => Unit = () => ()
+  private[runtime] def subscribePost(f: A => Unit): () => Unit = () => ()

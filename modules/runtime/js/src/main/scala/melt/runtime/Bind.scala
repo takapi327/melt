@@ -907,7 +907,7 @@ object Bind:
     * Used for `{items.map(renderFn)}` in templates.
     */
   def list[A](source: Var[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    var nodes  = mutable.ListBuffer.empty[dom.Node]
+    var nodes = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
       val parent = anchor.parentNode
@@ -929,7 +929,7 @@ object Bind:
     Cleanup.register(cancel)
 
   def list[A](source: Signal[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    var nodes  = mutable.ListBuffer.empty[dom.Node]
+    var nodes = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
       val parent = anchor.parentNode
@@ -1010,7 +1010,7 @@ object Bind:
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
-      val parent = anchor.parentNode
+      val parent  = anchor.parentNode
       val animEls = nodeMap.values.collect {
         case el: dom.Element if isAnimateMarked(el) => el
       }

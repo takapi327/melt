@@ -57,8 +57,7 @@ final class HydrationCursor(private[this] var _current: dom.Node | Null):
     */
   def nextText(): dom.Text | Null =
     var n = _current
-    while n != null && n.nodeType == dom.Node.COMMENT_NODE do
-      n = n.nextSibling
+    while n != null && n.nodeType == dom.Node.COMMENT_NODE do n = n.nextSibling
     n match
       case t: dom.Text =>
         _current = t.nextSibling

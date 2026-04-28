@@ -6,25 +6,23 @@
 
 package meltkit.adapter.http4s
 
-import cats.effect.Concurrent
-import cats.syntax.all.*
-import org.http4s.Request
-
-import scala.NamedTuple.AnyNamedTuple
 import scala.util.NotGiven
+import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
+import cats.effect.Concurrent
+import cats.syntax.all.*
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
+import org.http4s.Request
 
 /** An exception raised by [[Http4sMeltContext.bodyOrBadRequest]] when body
   * decoding fails. [[Http4sAdapter]] catches this and converts it to a 400
   * Bad Request response.
   */
-private[http4s] final class BodyDecodeException(val error: BodyError)
-    extends RuntimeException(error.message)
+private[http4s] final class BodyDecodeException(val error: BodyError) extends RuntimeException(error.message)
 
 /** http4s implementation of [[ServerMeltContext]].
   *

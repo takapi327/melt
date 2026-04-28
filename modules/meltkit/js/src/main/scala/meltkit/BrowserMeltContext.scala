@@ -6,9 +6,9 @@
 
 package meltkit
 
-import org.scalajs.dom
-
 import scala.NamedTuple.AnyNamedTuple
+
+import org.scalajs.dom
 
 import melt.runtime.Mount
 

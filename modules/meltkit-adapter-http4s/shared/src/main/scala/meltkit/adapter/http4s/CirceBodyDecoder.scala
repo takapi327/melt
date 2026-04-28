@@ -6,11 +6,10 @@
 
 package meltkit.adapter.http4s
 
-import io.circe.Decoder
 import io.circe.parser
-
-import meltkit.BodyError
+import io.circe.Decoder
 import meltkit.codec.BodyDecoder
+import meltkit.BodyError
 
 /** Provides a [[meltkit.codec.BodyDecoder]] for any type that has a Circe [[io.circe.Decoder]].
   *

@@ -35,10 +35,10 @@ object PathSegment:
   private[meltkit] def matches(pattern: List[PathSegment], actual: List[String]): Boolean =
     pattern match
       case List(Wildcard) => true
-      case _ =>
+      case _              =>
         pattern.length == actual.length &&
-          pattern.zip(actual).forall {
-            case (Static(s), seg) => s == seg
-            case (Param(_), _)    => true
-            case (Wildcard, _)    => true
-          }
+        pattern.zip(actual).forall {
+          case (Static(s), seg) => s == seg
+          case (Param(_), _)    => true
+          case (Wildcard, _)    => true
+        }

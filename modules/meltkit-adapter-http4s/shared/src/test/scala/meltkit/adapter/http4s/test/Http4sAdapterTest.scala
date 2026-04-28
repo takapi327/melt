@@ -6,18 +6,18 @@
 
 package meltkit.adapter.http4s.test
 
+import munit.CatsEffectSuite
+
 import cats.effect.IO
 import io.circe.Codec
-import munit.CatsEffectSuite
-import org.http4s.*
-import org.http4s.implicits.*
-
 import meltkit.*
-import meltkit.codec.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
+import meltkit.codec.*
+import org.http4s.*
+import org.http4s.implicits.*
 
 class Http4sAdapterTest extends CatsEffectSuite:
 
@@ -46,7 +46,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
 
   test("GET /users/42 extracts id as Int"):
     val app = MeltKit[IO]()
-    app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ctx.params.id}")) }
+    app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ ctx.params.id }")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/users/42")
     Http4sAdapter
@@ -64,7 +64,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
 
   test("GET /users/abc returns None when id is Int param"):
     val app = MeltKit[IO]()
-    app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ctx.params.id}")) }
+    app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ ctx.params.id }")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/users/abc")
     Http4sAdapter
@@ -78,7 +78,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
   test("GET /users/1/posts/hello extracts both params"):
     val app = MeltKit[IO]()
     app.get("users" / id / "posts" / postId) { ctx =>
-      IO.pure(ctx.text(s"${ctx.params.id}:${ctx.params.postId}"))
+      IO.pure(ctx.text(s"${ ctx.params.id }:${ ctx.params.postId }"))
     }
 
     val req = Request[IO](method = Method.GET, uri = uri"/users/1/posts/hello")
@@ -112,7 +112,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
 
   test("route() prefix is prepended to sub-router paths"):
     val api = MeltKit[IO]()
-    api.get("users" / id) { ctx => IO.pure(ctx.text(s"${ctx.params.id}")) }
+    api.get("users" / id) { ctx => IO.pure(ctx.text(s"${ ctx.params.id }")) }
 
     val app = MeltKit[IO]()
     app.route("api", api)
@@ -167,7 +167,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
   test("Endpoint.get with errorOut returns 404 on Left(NotFound)"):
     val getItem = Endpoint.get("items" / id).errorOut[NotFound].response[Item]
     val app     = MeltKit[IO]()
-    app.on(getItem) { ctx => IO.pure(Left(ctx.notFound(s"item ${ctx.params.id} not found"))) }
+    app.on(getItem) { ctx => IO.pure(Left(ctx.notFound(s"item ${ ctx.params.id } not found"))) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/items/99")
     Http4sAdapter

@@ -37,4 +37,3 @@ object Component:
 
   /** Extracts the underlying platform value. Adapter-internal use only. */
   private[meltkit] def unwrap(c: Component): Any = c
-

@@ -7,7 +7,6 @@
 package meltkit.adapter.http4s
 
 import io.circe.Encoder
-
 import meltkit.codec.BodyEncoder
 
 /** Provides a [[meltkit.codec.BodyEncoder]] for any type that has a Circe [[io.circe.Encoder]].

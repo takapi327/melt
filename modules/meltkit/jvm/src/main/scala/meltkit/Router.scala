@@ -6,8 +6,8 @@
 
 package meltkit
 
-import melt.runtime.Signal
 import melt.runtime.impl.SupplierSignal
+import melt.runtime.Signal
 
 /** JVM SSR implementation of [[Router]].
   *

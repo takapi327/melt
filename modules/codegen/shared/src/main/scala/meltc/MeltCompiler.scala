@@ -113,4 +113,3 @@ object MeltCompiler:
   def compile(source: String, filename: String): CompileResult =
     val objectName = filename.stripSuffix(".melt").capitalize
     compile(source, filename, objectName, "")
-

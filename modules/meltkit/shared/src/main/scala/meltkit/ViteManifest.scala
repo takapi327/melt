@@ -31,7 +31,7 @@ final class ViteManifest private[meltkit] (
     val base = basePath.stripSuffix("/")
     entries.toList
       .sortBy(_._1)
-      .map { case (_, entry) => s"""<script type="module" src="$base/${entry.file}"></script>""" }
+      .map { case (_, entry) => s"""<script type="module" src="$base/${ entry.file }"></script>""" }
       .mkString("\n")
 
   /** Returns the recursive list of JS chunk files required to load the
@@ -91,7 +91,7 @@ object ViteManifest:
     parser.skipWs()
     if parser.pos < json.length then
       throw new IllegalArgumentException(
-        s"Unexpected trailing content in manifest JSON at offset ${parser.pos}"
+        s"Unexpected trailing content in manifest JSON at offset ${ parser.pos }"
       )
     topVal match
       case JsonValue.Obj(fields) =>
@@ -110,25 +110,29 @@ object ViteManifest:
         new ViteManifest((rawEntries ++ aliases).to(immutable.Map), uriPrefix)
       case other =>
         throw new IllegalArgumentException(
-          s"Vite manifest must be a top-level JSON object, got ${other.kind}"
+          s"Vite manifest must be a top-level JSON object, got ${ other.kind }"
         )
 
   private def parseEntry(fields: Map[String, JsonValue]): Entry =
-    val file    = fields.get("file")    collect { case JsonValue.Str(s) => s } getOrElse ""
-    val imports = fields.get("imports") collect { case JsonValue.Arr(items) => items.collect { case JsonValue.Str(s) => s } } getOrElse Nil
-    val css     = fields.get("css")     collect { case JsonValue.Arr(items) => items.collect { case JsonValue.Str(s) => s } } getOrElse Nil
+    val file    = fields.get("file") collect { case JsonValue.Str(s) => s } getOrElse ""
+    val imports = fields.get("imports") collect {
+      case JsonValue.Arr(items) => items.collect { case JsonValue.Str(s) => s }
+    } getOrElse Nil
+    val css = fields.get("css") collect {
+      case JsonValue.Arr(items) => items.collect { case JsonValue.Str(s) => s }
+    } getOrElse Nil
     val isEntry = fields.get("isEntry") collect { case JsonValue.Bool(b) => b } getOrElse false
     Entry(file, imports, css, isEntry)
 
   private sealed trait JsonValue:
     def kind: String
   private object JsonValue:
-    final case class Obj(fields: Map[String, JsonValue])  extends JsonValue { def kind = "object" }
-    final case class Arr(items:  List[JsonValue])          extends JsonValue { def kind = "array"  }
-    final case class Str(value:  String)                   extends JsonValue { def kind = "string" }
-    final case class Num(value:  Double)                   extends JsonValue { def kind = "number" }
-    final case class Bool(value: Boolean)                  extends JsonValue { def kind = "bool"   }
-    case object Null                                       extends JsonValue { def kind = "null"   }
+    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue { def kind = "object" }
+    final case class Arr(items: List[JsonValue])         extends JsonValue { def kind = "array"  }
+    final case class Str(value: String)                  extends JsonValue { def kind = "string" }
+    final case class Num(value: Double)                  extends JsonValue { def kind = "number" }
+    final case class Bool(value: Boolean)                extends JsonValue { def kind = "bool"   }
+    case object Null                                     extends JsonValue { def kind = "null"   }
 
   private final class JsonParser(src: String):
     var pos: Int = 0
@@ -140,13 +144,13 @@ object ViteManifest:
       skipWs()
       if pos >= src.length then throw new IllegalArgumentException("unexpected end of input")
       src.charAt(pos) match
-        case '{'                                      => parseObject()
-        case '['                                      => parseArray()
-        case '"'                                      => JsonValue.Str(parseString())
-        case 't' | 'f'                                => JsonValue.Bool(parseBool())
-        case 'n'                                      => parseNull()
+        case '{'                                     => parseObject()
+        case '['                                     => parseArray()
+        case '"'                                     => JsonValue.Str(parseString())
+        case 't' | 'f'                               => JsonValue.Bool(parseBool())
+        case 'n'                                     => parseNull()
         case c if c == '-' || (c >= '0' && c <= '9') => parseNumber()
-        case c                                        => fail(s"unexpected '$c'")
+        case c                                       => fail(s"unexpected '$c'")
 
     private def parseObject(): JsonValue.Obj =
       expect('{')
@@ -178,7 +182,7 @@ object ViteManifest:
 
     private def parseString(): String =
       expect('"')
-      val buf = new StringBuilder
+      val buf  = new StringBuilder
       var done = false
       while !done do
         if pos >= src.length then fail("unterminated string")
@@ -216,9 +220,14 @@ object ViteManifest:
     private def parseNumber(): JsonValue.Num =
       val start = pos
       if pos < src.length && src.charAt(pos) == '-' then pos += 1
-      while pos < src.length && { val c = src.charAt(pos); (c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-' } do pos += 1
+      while pos < src.length && {
+          val c = src.charAt(pos); (c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-'
+        }
+      do pos += 1
       JsonValue.Num(src.substring(start, pos).toDouble)
 
     private def peekChar(c: Char): Boolean = { skipWs(); pos < src.length && src.charAt(pos) == c }
-    private def expect(c: Char): Unit = { skipWs(); if pos >= src.length || src.charAt(pos) != c then fail(s"expected '$c'"); pos += 1 }
+    private def expect(c: Char):   Unit    = {
+      skipWs(); if pos >= src.length || src.charAt(pos) != c then fail(s"expected '$c'"); pos += 1
+    }
     private def fail(msg: String): Nothing = throw new IllegalArgumentException(s"$msg at offset $pos")

@@ -84,7 +84,7 @@ class PathSpecTest extends munit.FunSuite:
   test("MeltKit registers route with correct method and segments"):
     type Id = [A] =>> A
     val app = MeltKit[Id]()
-    app.get("users" / id) { ctx => ctx.text(s"User ${ctx.params.id}") }
+    app.get("users" / id) { ctx => ctx.text(s"User ${ ctx.params.id }") }
     val routes = app.routes
     assertEquals(routes.size, 1)
     assertEquals(routes.head.method, ("GET": HttpMethod))
@@ -117,7 +117,7 @@ class PathSpecTest extends munit.FunSuite:
 
     val getUser = Endpoint.get("users" / id).response[String]
     val app     = MeltKit[Id]()
-    app.on(getUser) { ctx => ctx.ok(s"user-${ctx.params.id}") }
+    app.on(getUser) { ctx => ctx.ok(s"user-${ ctx.params.id }") }
 
     val routes = app.routes
     assertEquals(routes.size, 1)
@@ -129,16 +129,16 @@ class PathSpecTest extends munit.FunSuite:
 
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
-private class TestMeltContext[P <: AnyNamedTuple](val params: P)
-    extends MeltContext[[A] =>> A, P, Unit]:
-  override def requestPath: String                               = "/"
-  override def query(name: String): Option[String]               = None
-  override def render(component: Component):               PlainResponse = ???
-  override def ok[A: BodyEncoder](value: A):               PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
-  override def created[A: BodyEncoder](value: A):          PlainResponse = PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
-  override def noContent:                                  PlainResponse = Response.noContent
-  override def text(value: String):                        PlainResponse = Response.text(value)
-  override def json(value: String):                        PlainResponse = Response.json(value)
-  override def badRequest(err: BodyError):                 BadRequest    = Response.badRequest(err.message)
-  override def redirect(path: String, permanent: Boolean = false): PlainResponse = Response.redirect(path, permanent)
-  override def notFound(message: String = "Not Found"):    NotFound      = Response.notFound(message)
+private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P, Unit]:
+  override def requestPath:                  String         = "/"
+  override def query(name:       String):    Option[String] = None
+  override def render(component: Component): PlainResponse  = ???
+  override def ok[A: BodyEncoder](value: A):      PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
+  override def created[A: BodyEncoder](value: A): PlainResponse =
+    PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
+  override def noContent:                                             PlainResponse = Response.noContent
+  override def text(value:       String):                             PlainResponse = Response.text(value)
+  override def json(value:       String):                             PlainResponse = Response.json(value)
+  override def badRequest(err:   BodyError):                          BadRequest    = Response.badRequest(err.message)
+  override def redirect(path:    String, permanent: Boolean = false): PlainResponse = Response.redirect(path, permanent)
+  override def notFound(message: String = "Not Found"):               NotFound      = Response.notFound(message)

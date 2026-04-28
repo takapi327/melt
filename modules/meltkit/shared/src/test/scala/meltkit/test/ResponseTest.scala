@@ -14,29 +14,29 @@ class ResponseTest extends munit.FunSuite:
 
   test("Response.text produces 200 text/plain"):
     val r = Response.text("hello")
-    assertEquals(r.status,      (200: StatusCode))
+    assertEquals(r.status, (200: StatusCode))
     assertEquals(r.contentType, "text/plain; charset=utf-8")
-    assertEquals(r.body,        "hello")
+    assertEquals(r.body, "hello")
 
   test("Response.json produces 200 application/json"):
     val r = Response.json("""{"id":1}""")
-    assertEquals(r.status,      (200: StatusCode))
+    assertEquals(r.status, (200: StatusCode))
     assertEquals(r.contentType, "application/json")
-    assertEquals(r.body,        """{"id":1}""")
+    assertEquals(r.body, """{"id":1}""")
 
   test("Response.html produces 200 text/html"):
     val r = Response.html("<h1>Hi</h1>")
-    assertEquals(r.status,      (200: StatusCode))
+    assertEquals(r.status, (200: StatusCode))
     assertEquals(r.contentType, "text/html; charset=utf-8")
 
   test("Response.noContent produces 204"):
     val r = Response.noContent
     assertEquals(r.status, (204: StatusCode))
-    assertEquals(r.body,   "")
+    assertEquals(r.body, "")
 
   test("Response.redirect produces 302 with Location header"):
     val r = Response.redirect("/home")
-    assertEquals(r.status,             (302: StatusCode))
+    assertEquals(r.status, (302: StatusCode))
     assertEquals(r.headers("Location"), "/home")
 
   test("Response.redirect permanent produces 301"):
@@ -46,7 +46,7 @@ class ResponseTest extends munit.FunSuite:
   test("Response.badRequest produces 400"):
     val r = Response.badRequest("invalid input")
     assertEquals(r.status, (400: StatusCode))
-    assertEquals(r.body,   "invalid input")
+    assertEquals(r.body, "invalid input")
 
   test("Response.notFound produces 404"):
     val r = Response.notFound("not found")
@@ -65,7 +65,7 @@ class ResponseTest extends munit.FunSuite:
   test("NotFound.withContentType returns NotFound with updated contentType"):
     val r: NotFound = NotFound().withContentType("application/json")
     assertEquals(r.contentType, "application/json")
-    assertEquals(r.status,      (404: StatusCode))
+    assertEquals(r.status, (404: StatusCode))
 
   test("BadRequest.withContentType returns BadRequest"):
     val r: BadRequest = BadRequest("err").withContentType("application/json")
@@ -80,7 +80,7 @@ class ResponseTest extends munit.FunSuite:
   test("NotFound.withHeaders returns NotFound with updated headers"):
     val r: NotFound = NotFound().withHeaders(Map("X-Trace" -> "abc"))
     assertEquals(r.headers, Map("X-Trace" -> "abc"))
-    assertEquals(r.status,  (404: StatusCode))
+    assertEquals(r.status, (404: StatusCode))
 
   test("PlainResponse.withHeaders returns PlainResponse"):
     val r: PlainResponse = Response.json("{}").withHeaders(Map("X-Request-Id" -> "123"))
@@ -90,9 +90,9 @@ class ResponseTest extends munit.FunSuite:
     val r: NotFound = NotFound()
       .withContentType("application/json")
       .withHeaders(Map("X-Trace" -> "xyz"))
-    assertEquals(r.contentType,       "application/json")
+    assertEquals(r.contentType, "application/json")
     assertEquals(r.headers("X-Trace"), "xyz")
-    assertEquals(r.status,            (404: StatusCode))
+    assertEquals(r.status, (404: StatusCode))
 
   // ── Typed subtypes preserve concrete return type ───────────────────────────
 

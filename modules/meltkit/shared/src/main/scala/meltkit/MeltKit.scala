@@ -25,7 +25,7 @@ import meltkit.codec.PathParamDecoder
   * `B = Unit` and `bodyDecoder = summon[BodyDecoder[Unit]]`.
   */
 private[meltkit] trait MeltContextFactory[F[_]]:
-  def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B]
+  def build[P <: AnyNamedTuple, B](params:       P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B]
   def buildServer[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]]
 
 /** Internal representation of a registered route.
