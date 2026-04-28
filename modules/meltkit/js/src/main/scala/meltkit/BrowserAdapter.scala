@@ -166,7 +166,7 @@ object BrowserAdapter:
         val href = anchor.getAttribute("href")
         if href != null && href.nonEmpty then
           val hasExternal = Option(anchor.getAttribute("rel"))
-                              .exists(_.split("\\s+").contains("external"))
+            .exists(_.split("\\s+").contains("external"))
           val hasTarget   = Option(anchor.getAttribute("target")).exists(_.nonEmpty)
           val hasDownload = anchor.hasAttribute("download")
           if !hasExternal && !hasTarget && !hasDownload then
@@ -188,9 +188,10 @@ object BrowserAdapter:
     @annotation.tailrec
     def loop(node: dom.Node | Null): Option[dom.html.Anchor] =
       if node == null then None
-      else node match
-        case a: dom.html.Anchor if a.hasAttribute("href") => Some(a)
-        case _                                             => loop(node.parentNode)
+      else
+        node match
+          case a: dom.html.Anchor if a.hasAttribute("href") => Some(a)
+          case _                                            => loop(node.parentNode)
     event.target match
       case n: dom.Node => loop(n)
       case _           => None
