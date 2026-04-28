@@ -8,7 +8,6 @@ package meltkit.test
 
 import scala.NamedTuple.AnyNamedTuple
 import scala.NamedTuple.NamedTuple as NT
-import scala.util.NotGiven
 
 import meltkit.*
 import meltkit.codec.*
@@ -132,14 +131,14 @@ class PathSpecTest extends munit.FunSuite:
 
 private class TestMeltContext[P <: AnyNamedTuple](val params: P)
     extends MeltContext[[A] =>> A, P, Unit]:
-  override def query(name: String): Option[String]  = None
-  override def body(using NotGiven[Unit =:= Unit]):              Either[BodyError, Unit] = ???
-  override def bodyOrBadRequest(using NotGiven[Unit =:= Unit]):  Unit                   = ???
-  override def ok[A: BodyEncoder](value: A):                     PlainResponse          = Response.json(summon[BodyEncoder[A]].encode(value))
-  override def created[A: BodyEncoder](value: A):                PlainResponse          = PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
-  override def noContent:                                         PlainResponse          = Response.noContent
-  override def text(value: String):                              PlainResponse          = Response.text(value)
-  override def json(value: String):                              PlainResponse          = Response.json(value)
-  override def badRequest(err: BodyError):                       BadRequest             = Response.badRequest(err.message)
-  override def redirect(path: String, permanent: Boolean = false): PlainResponse        = Response.redirect(path, permanent)
-  override def notFound(message: String = "Not Found"):          NotFound               = Response.notFound(message)
+  override def requestPath: String                               = "/"
+  override def query(name: String): Option[String]               = None
+  override def render(component: Component):               PlainResponse = ???
+  override def ok[A: BodyEncoder](value: A):               PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
+  override def created[A: BodyEncoder](value: A):          PlainResponse = PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
+  override def noContent:                                  PlainResponse = Response.noContent
+  override def text(value: String):                        PlainResponse = Response.text(value)
+  override def json(value: String):                        PlainResponse = Response.json(value)
+  override def badRequest(err: BodyError):                 BadRequest    = Response.badRequest(err.message)
+  override def redirect(path: String, permanent: Boolean = false): PlainResponse = Response.redirect(path, permanent)
+  override def notFound(message: String = "Not Found"):    NotFound      = Response.notFound(message)
