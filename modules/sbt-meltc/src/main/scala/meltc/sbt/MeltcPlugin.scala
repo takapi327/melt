@@ -104,26 +104,6 @@ object MeltcPlugin extends AutoPlugin {
           "When set, only this component emits a @JSExportTopLevel hydration entry."
       )
 
-    /** Compilation mode for `.melt` files.
-      *
-      * Values:
-      *   - `"spa"` — generate Scala.js DOM-manipulating code (default for
-      *              projects with `ScalaJSPlugin` enabled)
-      *   - `"ssr"` — generate JVM HTML string-generating code (default for
-      *              projects without `ScalaJSPlugin`)
-      *
-      * The default is auto-detected from the project's enabled plugins, so
-      * crossProject (JVM + JS) users normally do not need to set this
-      * manually: the `.jvm` sub-project will get `"ssr"` and the `.js`
-      * sub-project will get `"spa"`.
-      *
-      * Detection is performed by scanning `thisProject.value.autoPlugins` for
-      * a plugin whose class name is `org.scalajs.sbtplugin.ScalaJSPlugin`.
-      * This avoids making sbt-meltc itself depend on sbt-scalajs.
-      */
-    val meltcMode =
-      settingKey[String]("Compilation mode: 'spa' or 'ssr' (auto-detected from platform)")
-
     /** Directory that contains `.melt` source files.
       *
       * Default: `src/main/scala`.
@@ -418,9 +398,6 @@ object MeltcPlugin extends AutoPlugin {
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    meltcMode := {
-      if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
-    },
     meltcHydration              := false,
     meltcHydrationRoot          := None,
     meltcStylePreprocessor      := None,
@@ -466,7 +443,7 @@ object MeltcPlugin extends AutoPlugin {
       srcDirs       = meltcSourceDirectories.value,
       outDir        = meltcOutputDirectory.value,
       pkg           = meltcPackage.value,
-      mode          = meltcMode.value,
+      mode          = if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr",
       hydration     = meltcHydration.value,
       hydrationRoot = meltcHydrationRoot.value,
       preprocessor  = meltcStylePreprocessor.value,
@@ -493,8 +470,7 @@ object MeltcPlugin extends AutoPlugin {
 
     meltcMeltKitConfigGenerate := Def.taskDyn {
       val client = meltcAssetManifestClient.value
-      val mode   = meltcMode.value
-      if (client.isDefined && mode == "ssr")
+      if (client.isDefined && !hasScalaJSPlugin(thisProject.value))
         Def.task {
           generateMeltKitConfig(
             streams        = streams.value,
@@ -598,12 +574,7 @@ object MeltcPlugin extends AutoPlugin {
 
     val cpStr = compilerCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
-    val normalisedMode = mode.toLowerCase match {
-      case "spa" | "ssr" => mode.toLowerCase
-      case other         =>
-        log.warn(s"[sbt-meltc] unknown meltcMode '$other' — falling back to 'spa'")
-        "spa"
-    }
+    val normalisedMode = mode.toLowerCase
 
     meltFilesWithRoot.flatMap {
       case (meltFile, srcDir) =>
