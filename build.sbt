@@ -123,7 +123,7 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
-// JVM side: no-op stubs + SSR helpers under melt.runtime.ssr.
+// JVM side: no-op stubs + server-render helpers under melt.runtime.render.
 // Shared:   trait Var[A] / Signal[A] / Memo[A] API contract + TrustedHtml +
 //           VarExtensions.
 lazy val runtime = crossProject(JVMPlatform, JSPlatform)
@@ -182,9 +182,6 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
     name                                    := "meltkit",
     scalaVersion                            := scala38,
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
-  )
-  .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.1"
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
@@ -260,6 +257,7 @@ lazy val `hello-world` = project
     name                            := "hello-world",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -273,6 +271,7 @@ lazy val counter = project
     name                            := "counter",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files,
     // Use jsdom so that DOM APIs are available in unit tests
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
@@ -288,6 +287,7 @@ lazy val `scss-counter` = project
     name                            := "scss-counter",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcManagePreprocessorDeps     := false,
     meltcStylePreprocessor          := Some(SassPreprocessor),
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files ++
@@ -304,6 +304,7 @@ lazy val `todo-app` = project
     name                            := "todo-app",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -317,6 +318,7 @@ lazy val transitions = project
     name                            := "transitions",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -330,6 +332,7 @@ lazy val `special-elements` = project
     name                            := "special-elements",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -343,6 +346,7 @@ lazy val `media-binding` = project
     name                            := "media-binding",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -356,6 +360,7 @@ lazy val `dimension-binding` = project
     name                            := "dimension-binding",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -369,6 +374,7 @@ lazy val `dynamic-element` = project
     name                            := "dynamic-element",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -382,6 +388,7 @@ lazy val `layout-effect` = project
     name                            := "layout-effect",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -395,6 +402,7 @@ lazy val `select-textarea-bind` = project
     name                            := "select-textarea-bind",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -408,6 +416,7 @@ lazy val boundary = project
     name                            := "boundary",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
@@ -421,6 +430,7 @@ lazy val `reactive-scope` = project
     name                            := "reactive-scope",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files,
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
@@ -435,46 +445,11 @@ lazy val `trusted-html` = project
     name                            := "trusted-html",
     publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
+    meltcManageCompilerDeps         := false,
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
-
-// ── Shared components for http4s examples ───────────────────────────────────
-//
-// crossProject shared by both http4s-spa and http4s-ssr. The same .melt
-// components compile to SPA (JS) and SSR (JVM) code.
-//
-// JS side: per-component ES modules with hydration entries for SSR.
-// JVM side: HTML string rendering for SSR.
-
-lazy val `http4s-components` = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Full)
-  .in(file("examples/http4s-components"))
-  .settings(BuildSettings.commonSettings)
-  .settings(
-    name                   := "http4s-components",
-    publish / skip         := true,
-    scalaVersion           := scala38,
-    meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files,
-    libraryDependencies ++= Seq(
-      "io.circe" %%% "circe-core"    % "0.14.9",
-      "io.circe" %%% "circe-generic" % "0.14.9",
-      "io.circe" %%% "circe-parser"  % "0.14.9"
-    )
-  )
-  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(meltkit)
-  .jsSettings(
-    meltcHydration                  := true,
-    scalaJSUseMainModuleInitializer := false,
-    scalaJSLinkerConfig ~= {
-      _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(
-          ModuleSplitStyle.SmallModulesFor(List("components"))
-        )
-    }
-  )
 
 // ── Example: http4s SPA (pure client-side rendering) ────────────────────────
 //
@@ -489,10 +464,16 @@ lazy val `http4s-spa-client` = project
     scalaVersion                    := scala38,
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
+    meltcManageCompilerDeps := false,
+    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
+    libraryDependencies ++= Seq(
+      "io.circe" %%% "circe-core"    % "0.14.9",
+      "io.circe" %%% "circe-generic" % "0.14.9",
+      "io.circe" %%% "circe-parser"  % "0.14.9"
+    )
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(`http4s-components`.js)
+  .dependsOn(meltkit.js)
 
 lazy val `http4s-spa-server` = project
   .in(file("examples/http4s-spa/server"))
@@ -513,24 +494,57 @@ lazy val `http4s-spa-server` = project
 
 // ── Example: http4s SSR + Hydration ─────────────────────────────────────────
 //
-//   sbt "~http4s-ssr/reStart"
+// crossProject for SSR components: same .melt files compile to
+// JVM (HTML string rendering) and JS (hydration entries).
+//
+//   sbt "~http4s-ssr-server/reStart"
 
-lazy val `http4s-ssr` = project
-  .in(file("examples/http4s-ssr"))
+lazy val `http4s-ssr-client` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("examples/http4s-ssr/client"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name           := "http4s-ssr",
+    name                    := "http4s-ssr-client",
+    publish / skip          := true,
+    scalaVersion            := scala38,
+    meltcManageCompilerDeps := false,
+    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
+    libraryDependencies ++= Seq(
+      "io.circe" %%% "circe-core"    % "0.14.9",
+      "io.circe" %%% "circe-generic" % "0.14.9",
+      "io.circe" %%% "circe-parser"  % "0.14.9"
+    )
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(meltkit)
+  .jsSettings(
+    meltcHydration                  := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(
+          ModuleSplitStyle.SmallModulesFor(List("components"))
+        )
+    }
+  )
+
+lazy val `http4s-ssr-server` = project
+  .in(file("examples/http4s-ssr/server"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name           := "http4s-ssr-server",
     publish / skip := true,
     scalaVersion   := scala38,
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-ember-server" % "0.23.33",
-      "org.http4s" %% "http4s-dsl"          % "0.23.33"
+      "org.http4s" %% "http4s-dsl"          % "0.23.33",
+      "io.circe"   %% "circe-generic"       % "0.14.9"
     ),
-    meltcAssetManifestClient := Some(`http4s-components`.js),
+    meltcAssetManifestClient := Some(`http4s-ssr-client`.js),
     meltcProd                := false
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
-  .dependsOn(`http4s-components`.jvm, meltkit.jvm)
+  .dependsOn(`http4s-ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)
 
 // ── Root (no publish) ──
 lazy val root = project
@@ -568,11 +582,11 @@ lazy val root = project
     `reactive-scope`,
     `trusted-html`,
     boundary,
-    `http4s-components`.jvm,
-    `http4s-components`.js,
     `http4s-spa-client`,
     `http4s-spa-server`,
-    `http4s-ssr`
+    `http4s-ssr-client`.jvm,
+    `http4s-ssr-client`.js,
+    `http4s-ssr-server`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
