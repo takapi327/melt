@@ -103,13 +103,11 @@ object SpaCodeGen extends CodeGen:
         val tp = extractTypeParams(typeName)
         if hasChildren then
           buf ++= s"  def apply$tp(props: $typeName, children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
-        else
-          buf ++= s"  def apply$tp(props: $typeName): dom.Element = {\n"
+        else buf ++= s"  def apply$tp(props: $typeName): dom.Element = {\n"
       case None =>
         if hasChildren then
           buf ++= "  def apply(children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
-        else
-          buf ++= "  def apply(): dom.Element = {\n"
+        else buf ++= "  def apply(): dom.Element = {\n"
 
     buf ++= "    val (_result, _owner) = Owner.withNew {\n"
 
@@ -665,17 +663,13 @@ object SpaCodeGen extends CodeGen:
             buf ++= s"${ indent }val $v = $name($expr)\n"
           case None =>
             val (baseArgs, childrenVar) = buildPropsArgs(attrs, regularChildren, indent, ctr, buf)
-            val allProps  = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
-            val propsArgs = allProps.mkString(", ")
-            val childrenArg = childrenVar.map(cv => s"children = $cv")
-            if propsArgs.isEmpty && childrenArg.isEmpty then
-              buf ++= s"${ indent }val $v = $name()\n"
-            else if propsArgs.isEmpty then
-              buf ++= s"${ indent }val $v = $name(${ childrenArg.get })\n"
-            else if childrenArg.isEmpty then
-              buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
-            else
-              buf ++= s"${ indent }val $v = $name($name.Props($propsArgs), ${ childrenArg.get })\n"
+            val allProps                = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
+            val propsArgs               = allProps.mkString(", ")
+            val childrenArg             = childrenVar.map(cv => s"children = $cv")
+            if propsArgs.isEmpty && childrenArg.isEmpty then buf ++= s"${ indent }val $v = $name()\n"
+            else if propsArgs.isEmpty then buf ++= s"${ indent }val $v = $name(${ childrenArg.get })\n"
+            else if childrenArg.isEmpty then buf ++= s"${ indent }val $v = $name($name.Props($propsArgs))\n"
+            else buf ++= s"${ indent }val $v = $name($name.Props($propsArgs), ${ childrenArg.get })\n"
 
         if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
         bindThisExpr.foreach { expr =>
@@ -1107,22 +1101,22 @@ object SpaCodeGen extends CodeGen:
     */
   private def hasChildrenRef(nodes: List[TemplateNode]): Boolean =
     nodes.exists {
-      case TemplateNode.Expression(code)              => code.trim == "children"
-      case TemplateNode.Element(_, _, ch)             => hasChildrenRef(ch)
-      case TemplateNode.Component(_, _, ch)           => hasChildrenRef(ch)
-      case TemplateNode.InlineTemplate(parts)         =>
+      case TemplateNode.Expression(code)      => code.trim == "children"
+      case TemplateNode.Element(_, _, ch)     => hasChildrenRef(ch)
+      case TemplateNode.Component(_, _, ch)   => hasChildrenRef(ch)
+      case TemplateNode.InlineTemplate(parts) =>
         parts.exists {
           case InlineTemplatePart.Html(ns) => hasChildrenRef(ns)
-          case _                          => false
+          case _                           => false
         }
       case TemplateNode.Head(ch)                      => hasChildrenRef(ch)
       case TemplateNode.Boundary(_, ch, pend, failed) =>
         hasChildrenRef(ch) ||
-          pend.exists(p => hasChildrenRef(p.children)) ||
-          failed.exists(f => hasChildrenRef(f.children))
-      case TemplateNode.KeyBlock(_, ch)               => hasChildrenRef(ch)
-      case TemplateNode.SnippetDef(_, _, ch)          => hasChildrenRef(ch)
-      case _                                          => false
+        pend.exists(p => hasChildrenRef(p.children)) ||
+        failed.exists(f => hasChildrenRef(f.children))
+      case TemplateNode.KeyBlock(_, ch)      => hasChildrenRef(ch)
+      case TemplateNode.SnippetDef(_, _, ch) => hasChildrenRef(ch)
+      case _                                 => false
     }
 
   private def splitPropsDefinition(code: String, propsTypeName: String): (String, String) =
