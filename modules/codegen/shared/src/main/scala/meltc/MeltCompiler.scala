@@ -114,27 +114,3 @@ object MeltCompiler:
     val objectName = filename.stripSuffix(".melt").capitalize
     compile(source, filename, objectName, "")
 
-/** Result of a compilation. */
-case class CompileResult(
-  scalaCode: Option[String],
-  scopedCss: Option[String],
-  errors:    List[CompileError],
-  warnings:  List[CompileWarning]
-):
-  def isSuccess: Boolean = errors.isEmpty
-
-/** A compilation error. */
-case class CompileError(
-  message:  String,
-  line:     Int,
-  column:   Int,
-  filename: String
-)
-
-/** A compilation warning. */
-case class CompileWarning(
-  message:  String,
-  line:     Int,
-  column:   Int,
-  filename: String
-)
