@@ -9,7 +9,6 @@ package meltkit.adapter.http4s
 import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
-import melt.runtime.render.RenderResult
 
 import cats.effect.Concurrent
 import cats.syntax.all.*
@@ -75,7 +74,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
         )
       case Some(template) =>
-        val result = component.asInstanceOf[RenderResult]
+        val result = Component.unwrap(component)
         Response.html(template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty))
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =

@@ -56,9 +56,8 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
     * }}}
     */
   override def render(component: Component): PlainResponse =
-    val element = component.asInstanceOf[dom.Element]
     outletEl.innerHTML = ""
-    Mount(outletEl, element)
+    Mount(outletEl, Component.unwrap(component))
     Response.noContent
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
