@@ -7,7 +7,7 @@
 package meltkit
 
 import melt.runtime.Escape
-import melt.runtime.ssr.RenderResult
+import melt.runtime.render.RenderResult
 
 /** An HTML shell template for SPA and SSR applications.
   *
@@ -152,7 +152,7 @@ final class Template private[meltkit] (private val raw: String):
     val bootstrap = result.components.toList.distinct
       .flatMap { moduleId =>
         manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
-          s"""<script type="module">import("$strippedBase/$entryChunk").then(m => m.hydrate())</script>"""
+          s"""<script type="module">import("$strippedBase/$entryChunk").then(m => m.hydrate?.())</script>"""
         }
       }
       .mkString("\n")

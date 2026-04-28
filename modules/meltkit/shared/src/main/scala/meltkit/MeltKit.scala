@@ -26,6 +26,7 @@ import meltkit.codec.PathParamDecoder
   */
 private[meltkit] trait MeltContextFactory[F[_]]:
   def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B]
+  def buildServer[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]]
 
 /** Internal representation of a registered route.
   *
@@ -96,6 +97,27 @@ class MeltKit[F[_]]:
   def get(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
     register("GET", PathSpec.fromString(path))(handler)
 
+  /** Registers a catch-all GET handler that matches any path not already
+    * matched by a more-specific route.
+    *
+    * Register this **last** so that specific routes (API endpoints, typed
+    * pages) take precedence. Typical use is SSR page fallback:
+    *
+    * {{{
+    * app.get("api/todos") { ctx => ... }  // specific API route first
+    *
+    * app.getAll { ctx =>                  // catch-all last
+    *   IO.pure(ctx.melt(App()))
+    * }
+    * }}}
+    */
+  def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit] => F[Response]): Unit =
+    val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
+      (_, factory) =>
+        val emptyParams = EmptyTuple.asInstanceOf[NamedTuple.Empty]
+        Some(handler(factory.build(emptyParams, summon[BodyDecoder[Unit]])))
+    _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
+
   def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
     register("POST", spec)(handler)
 
@@ -143,7 +165,7 @@ class MeltKit[F[_]]:
     * }}}
     */
   def on[P <: AnyNamedTuple, B, E <: Response, Out](ep: Endpoint[P, B, E, ?])(
-    handler: MeltContext[F, P, B] => F[Out]
+    handler: ServerMeltContext[F, P, B] => F[Out]
   )(using functor: Functor[F], lift: ResponseLift[E, Out]): Unit =
     val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
       (rawValues, factory) =>
@@ -154,8 +176,9 @@ class MeltKit[F[_]]:
         if results.forall(_.isRight) then
           val decoded = results.map(_.getOrElse(sys.error("unreachable")))
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
-          val ctx     = factory.build(params, ep.bodyDecoder)
-          Some(functor.map(handler(ctx))(lift.lift))
+          factory.buildServer(params, ep.bodyDecoder).map { ctx =>
+            functor.map(handler(ctx))(lift.lift)
+          }
         else None
     _routes += Route(ep.method, ep.spec.segments, tryHandle)
 
