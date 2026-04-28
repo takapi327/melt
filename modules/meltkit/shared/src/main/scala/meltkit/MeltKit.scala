@@ -85,7 +85,7 @@ class MeltKit[F[_]]:
             dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
         }
         if results.forall(_.isRight) then
-          val decoded = results.map(_.getOrElse(sys.error("unreachable")))
+          val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
           Some(handler(factory.build(params, summon[BodyDecoder[Unit]])))
         else None
@@ -174,7 +174,7 @@ class MeltKit[F[_]]:
             dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
         }
         if results.forall(_.isRight) then
-          val decoded = results.map(_.getOrElse(sys.error("unreachable")))
+          val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
           factory.buildServer(params, ep.bodyDecoder).map { ctx =>
             functor.map(handler(ctx))(lift.lift)
