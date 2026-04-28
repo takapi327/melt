@@ -24,5 +24,5 @@ enum BodyError:
 object BodyError:
   extension (e: BodyError)
     def message: String = e match
-      case DecodeError(msg)      => msg
+      case DecodeError(msg, _)   => msg
       case ValidationError(errs) => errs.mkString(", ")

@@ -48,7 +48,7 @@ given EffectRunner[Id] with
   * import meltkit.*
   *
   * def buildApp(): MeltRouter =
-  *   val app = MeltKit()
+  *   val app = MeltRouter()
   *   app.get("") { ctx => ctx.render(TodoPage()) }
   *   app
   * }}}
@@ -63,9 +63,10 @@ type MeltRouter = MeltKit[Id]
   * {{{
   * import meltkit.*
   *
-  * val app = MeltKit()
+  * val app = MeltRouter()
   * app.get("") { ctx => ctx.render(TodoPage()) }
   * BrowserAdapter.mountWithShell(app, rootEl, Layout())
   * }}}
   */
-def MeltKit(): MeltRouter = new MeltKit[Id]()
+object MeltRouter:
+  def apply(): MeltRouter = new MeltKit[Id]()
