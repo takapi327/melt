@@ -11,32 +11,30 @@ import java.util.UUID
 import cats.effect.*
 import com.comcast.ip4s.*
 import generated.AssetManifest
-import org.http4s.*
-import org.http4s.dsl.io.*
+import io.circe.Codec
+import meltkit.*
+import meltkit.adapter.http4s.CirceBodyDecoder.given
+import meltkit.adapter.http4s.CirceBodyEncoder.given
+import meltkit.adapter.http4s.Http4sAdapter
+import meltkit.adapter.http4s.Http4sAdapter.given
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.headers.`Content-Type`
-import org.http4s.server.staticcontent.*
-import org.http4s.server.Router
 
 /** Pure SPA server — no server-side rendering.
   *
-  * Serves a static HTML shell, Scala.js assets, and JSON API endpoints.
-  * All rendering happens client-side via Melt components.
+  * Serves a static HTML shell, Scala.js assets, and JSON API endpoints
+  * via the MeltKit routing DSL.
   *
   * {{{ sbt "~http4s-spa-server/reStart" }}}
   */
 object Server extends IOApp.Simple:
 
-  case class Todo(id: String, text: String, done: Boolean = false)
-  case class User(id: Int, name: String, email: String, role: String)
+  case class Todo(id: String, text: String, done: Boolean = false) derives Codec
+  case class User(id: Int, name: String, email: String, role: String) derives Codec
+  case class CreateTodoBody(text: String) derives Codec
+  case class CreateUserBody(name: String, email: String, role: String) derives Codec
+  case class UpdateUserBody(name: String, email: String, role: String) derives Codec
 
-  private val htmlContentType: `Content-Type` =
-    `Content-Type`(MediaType.text.html, Charset.`UTF-8`)
-
-  private val jsonContentType: `Content-Type` =
-    `Content-Type`(MediaType.application.json, Charset.`UTF-8`)
-
-  private val users = List(
+  private val initialUsers = List(
     User(1, "Alice", "alice@example.com", "Admin"),
     User(2, "Bob", "bob@example.com", "Developer"),
     User(3, "Charlie", "charlie@example.com", "Designer"),
@@ -44,68 +42,92 @@ object Server extends IOApp.Simple:
     User(5, "Eve", "eve@example.com", "Manager")
   )
 
-  private def routes(todoStore: Ref[IO, List[Todo]]): HttpRoutes[IO] =
-    HttpRoutes.of[IO] {
+  private def buildApp(
+    todoStore: Ref[IO, List[Todo]],
+    userStore: Ref[IO, List[User]],
+    nextId:    Ref[IO, Int]
+  ): MeltKit[IO] =
+    val app    = MeltKit[IO]()
+    val todoId = param[String]("id")
+    val userId = param[Int]("id")
 
-      case req @ GET -> Root =>
-        StaticFile.fromResource("/index.html", Some(req)).getOrElseF(NotFound())
+    val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
+    val createUser = Endpoint.post("api/users").body[CreateUserBody]
+    val updateUser = Endpoint.put("api/users" / userId).body[UpdateUserBody]
 
-      // ── Todo API ──────────────────────────────────────────────────────
+    // ── Todo API ──────────────────────────────────────────────────────────
 
-      case GET -> Root / "api" / "todos" =>
-        for
-          todos <- todoStore.get
-          json = todos.map(todoToJson).mkString("[", ",", "]")
-          resp <- Ok(json, jsonContentType)
-        yield resp
-
-      case req @ POST -> Root / "api" / "todos" =>
-        for
-          body <- req.as[String]
-          text = parseTextField(body)
-          resp <-
-            if text.nonEmpty then
-              val todo = Todo(id = UUID.randomUUID().toString, text = text)
-              todoStore.update(_ :+ todo) *>
-                Created(todoToJson(todo), jsonContentType)
-            else BadRequest()
-        yield resp
-
-      case POST -> Root / "api" / "todos" / id / "toggle" =>
-        todoStore.update(_.map(t => if t.id == id then t.copy(done = !t.done) else t)) *>
-          Ok()
-
-      case DELETE -> Root / "api" / "todos" / id =>
-        todoStore.update(_.filterNot(_.id == id)) *> Ok()
-
-      // ── User API ──────────────────────────────────────────────────────
-
-      case GET -> Root / "api" / "users" =>
-        Ok(users.map(userToJson).mkString("[", ",", "]"), jsonContentType)
+    app.get("api/todos") { ctx =>
+      todoStore.get.map(ctx.ok(_))
     }
 
-  private def todoToJson(t: Todo): String =
-    s"""{"id":"${ t.id }","text":"${ escapeJson(t.text) }","done":${ t.done }}"""
+    app.on(createTodo) { ctx =>
+      for
+        body <- ctx.bodyOrBadRequest
+        resp <-
+          if body.text.nonEmpty then
+            val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
+            todoStore.update(_ :+ todo).as(ctx.ok(todo))
+          else IO.pure(ctx.badRequest(BodyError.DecodeError("text must not be empty")))
+      yield resp
+    }
 
-  private def userToJson(u: User): String =
-    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(
-        u.role
-      ) }"}"""
+    app.post("api/todos" / todoId / "toggle") { ctx =>
+      todoStore
+        .update(_.map(t => if t.id == ctx.params.id then t.copy(done = !t.done) else t))
+        .as(ctx.text(""))
+    }
 
-  private def escapeJson(s: String): String =
-    s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+    app.delete("api/todos" / todoId) { ctx =>
+      todoStore.update(_.filterNot(_.id == ctx.params.id)).as(ctx.text(""))
+    }
 
-  private def parseTextField(json: String): String =
-    val key = """"text":""""
-    val idx = json.indexOf(key)
-    if idx < 0 then ""
-    else
-      val start = idx + key.length
-      val end   = json.indexOf('"', start)
-      if end < 0 then "" else json.substring(start, end).trim
+    // ── User API ──────────────────────────────────────────────────────────
 
-  private val assetRoutes: HttpRoutes[IO] =
-    fileService[IO](FileService.Config(AssetManifest.clientDistDir.getAbsolutePath))
+    app.get("api/users") { ctx =>
+      userStore.get.map(ctx.ok(_))
+    }
+
+    app.get("api/users" / userId) { ctx =>
+      userStore.get.map { users =>
+        users.find(_.id == ctx.params.id) match
+          case Some(u) => ctx.ok(u)
+          case None    => ctx.notFound(s"User ${ ctx.params.id } not found")
+      }
+    }
+
+    app.on(createUser) { ctx =>
+      for
+        body <- ctx.bodyOrBadRequest
+        resp <-
+          if body.name.nonEmpty && body.email.nonEmpty then
+            for
+              id <- nextId.getAndUpdate(_ + 1)
+              user = User(id = id, name = body.name, email = body.email, role = body.role)
+              _ <- userStore.update(_ :+ user)
+            yield ctx.ok(user)
+          else IO.pure(ctx.badRequest(BodyError.DecodeError("name and email must not be empty")))
+      yield resp
+    }
+
+    app.on(updateUser) { ctx =>
+      for
+        body <- ctx.bodyOrBadRequest
+        resp <- userStore.modify { users =>
+                  users.find(_.id == ctx.params.id) match
+                    case None    => (users, ctx.notFound(s"User ${ ctx.params.id } not found"))
+                    case Some(u) =>
+                      val updated = u.copy(name = body.name, email = body.email, role = body.role)
+                      (users.map(x => if x.id == ctx.params.id then updated else x), ctx.ok(updated))
+                }
+      yield resp
+    }
+
+    app.delete("api/users" / userId) { ctx =>
+      userStore.update(_.filterNot(_.id == ctx.params.id)).as(ctx.text(""))
+    }
+
+    app
 
   def run: IO[Unit] =
     for
@@ -116,10 +138,12 @@ object Server extends IOApp.Simple:
                        Todo(UUID.randomUUID().toString, "Deploy to production")
                      )
                    )
-      httpApp = Router(
-                  "/"       -> routes(todoStore),
-                  "/assets" -> assetRoutes
-                ).orNotFound
+      userStore <- Ref.of[IO, List[User]](initialUsers)
+      nextId    <- Ref.of[IO, Int](initialUsers.size + 1)
+      httpApp   <-
+        Http4sAdapter
+          .spaRoutes(buildApp(todoStore, userStore, nextId), AssetManifest.clientDistDir, AssetManifest.manifest)
+          .map(_.orNotFound)
       _ <- EmberServerBuilder
              .default[IO]
              .withHost(host"0.0.0.0")

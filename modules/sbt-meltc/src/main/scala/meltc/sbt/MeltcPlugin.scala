@@ -30,18 +30,18 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, 
   *
   * {{{
   * // One-time in the melt monorepo:
-  * sbt meltcJVM/publishLocal runtime/publishLocal sbt-meltc/publishLocal
+  * sbt meltcJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-meltc/publishLocal
   * }}}
   *
-  * The plugin resolves `meltc` (including all transitive deps such as
-  * `scala3-library`) using its own Ivy configuration `meltc-compiler`, so
-  * you do not need to configure the classpath manually.
+  * The plugin resolves `melt-codegen` (including all transitive deps such as
+  * `meltc`, `melt-runtime`, and `scala3-library`) using its own Ivy configuration
+  * `meltc-compiler`, so you do not need to configure the classpath manually.
   *
   * === Monorepo override ===
   * When working inside the melt monorepo you can skip `publishLocal` by wiring
   * the JVM full classpath directly:
   * {{{
-  * meltcCompilerClasspath := (meltcJVM / Compile / fullClasspath).value.files
+  * meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
   * }}}
   */
 object MeltcPlugin extends AutoPlugin {
@@ -64,34 +64,45 @@ object MeltcPlugin extends AutoPlugin {
       * and do not need the per-component public modules.
       *
       * Set to `true` on projects that actually do SSR + client-side
-      * hydration. Those projects typically also configure
-      * `scalaJSLinkerConfig` with `ModuleKind.ESModule` and a
-      * small-modules split style so each component ends up in its own
-      * public chunk. See `examples/http4s-ssr-hydration` for a complete
-      * Phase C setup.
+      * hydration (Approach B: per-component Islands hydration). Those
+      * projects typically also configure `scalaJSLinkerConfig` with
+      * `ModuleKind.ESModule` and a small-modules split style so each
+      * component ends up in its own public chunk.
+      *
+      * For full-page hydration (Approach A, SvelteKit-like), use
+      * [[meltcHydrationRoot]] instead. The two settings are mutually
+      * exclusive: `meltcHydrationRoot` takes precedence when set.
       */
     val meltcHydration =
       settingKey[Boolean]("Emit @JSExportTopLevel hydration entries in SPA codegen")
 
-    /** Compilation mode for `.melt` files.
+    /** Root component name for full-page hydration (Approach A).
       *
-      * Values:
-      *   - `"spa"` — generate Scala.js DOM-manipulating code (default for
-      *              projects with `ScalaJSPlugin` enabled)
-      *   - `"ssr"` — generate JVM HTML string-generating code (default for
-      *              projects without `ScalaJSPlugin`)
+      * When set to `Some("App")` (or another component name), only the
+      * named component receives a `@JSExportTopLevel("hydrate")` entry.
+      * All other `.melt` files are compiled without a hydration export,
+      * keeping them as internal Scala.js chunks.
       *
-      * The default is auto-detected from the project's enabled plugins, so
-      * crossProject (JVM + JS) users normally do not need to set this
-      * manually: the `.jvm` sub-project will get `"ssr"` and the `.js`
-      * sub-project will get `"spa"`.
+      * This mirrors SvelteKit's single-entry-point hydration model:
+      * one bootstrap `<script>` mounts the entire component tree from
+      * the server-rendered HTML markers.
       *
-      * Detection is performed by scanning `thisProject.value.autoPlugins` for
-      * a plugin whose class name is `org.scalajs.sbtplugin.ScalaJSPlugin`.
-      * This avoids making sbt-meltc itself depend on sbt-scalajs.
+      * Default: `None` — falls back to [[meltcHydration]] behaviour.
+      *
+      * {{{
+      * // build.sbt (JS platform of a crossProject):
+      * meltcHydrationRoot := Some("App"),
+      * scalaJSLinkerConfig ~= {
+      *   _.withModuleKind(ModuleKind.ESModule)
+      *     .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+      * }
+      * }}}
       */
-    val meltcMode =
-      settingKey[String]("Compilation mode: 'spa' or 'ssr' (auto-detected from platform)")
+    val meltcHydrationRoot =
+      settingKey[Option[String]](
+        "Root component name for full-page hydration (Approach A). " +
+          "When set, only this component emits a @JSExportTopLevel hydration entry."
+      )
 
     /** Directory that contains `.melt` source files.
       *
@@ -166,7 +177,7 @@ object MeltcPlugin extends AutoPlugin {
       *      client whenever the server needs to be compiled.
       *   2. Reads the resulting `Report.publicModules` and writes a
       *      Scala source exposing both a `ViteManifest` and the
-      *      absolute `clientDistDir: File` path.
+      *      absolute `clientDistDir: fs2.io.file.Path` path.
       *
       * Default: `None` — no manifest is generated, the project is
       * treated as a regular Melt server with no hydration client.
@@ -232,6 +243,22 @@ object MeltcPlugin extends AutoPlugin {
     val meltcViteDistDir =
       settingKey[File]("Path to the Vite dist directory")
 
+    /** Source `index.html` template to copy into `clientDistDir` at build time.
+      *
+      * [[meltkit.adapter.http4s.Http4sAdapter.spaRoutes]] reads
+      * `clientDistDir / "index.html"` via `fs2.io.file.Files` so that it
+      * works on both JVM and Node.js. Set this key to have sbt-meltc copy
+      * your template automatically on every compile.
+      *
+      * Default: auto-detected from `(Compile / resourceDirectory) / "index.html"`.
+      *
+      * {{{
+      * meltcIndexHtml := Some(baseDirectory.value / "index.html")
+      * }}}
+      */
+    val meltcIndexHtml =
+      settingKey[Option[File]]("Source index.html to copy into clientDistDir")
+
     /** Generates a `vite-inputs.json` file from the client's
       * `fullLinkJS` output. This JSON file is read by `vite.config.js`
       * as `rollupOptions.input` so that adding or removing a `.melt`
@@ -240,6 +267,41 @@ object MeltcPlugin extends AutoPlugin {
       */
     val meltcViteInputGenerate =
       taskKey[File]("Generate vite-inputs.json from the client's fullLinkJS Report")
+
+    /** Generates a `MeltKitConfig.scala` source for SSR projects.
+      *
+      * The generated object bundles the [[meltkit.ViteManifest]] reference,
+      * asset base path, and default language used by `ctx.melt()` to render
+      * SSR pages. The HTML template is read at startup via `fs2.io.file.Files`
+      * by the adapter, keeping the generated code platform-agnostic.
+      *
+      * Only generated when all of the following hold:
+      *   - [[meltcAssetManifestClient]] is set (a Scala.js client exists)
+      *   - the current project is a JVM project (no `ScalaJSPlugin`)
+      *
+      * The generated file lives alongside `AssetManifest.scala` in the
+      * same managed source directory and package.
+      */
+    val meltcMeltKitConfigGenerate =
+      taskKey[Seq[File]]("Generate MeltKitConfig.scala for SSR rendering via ctx.melt()")
+
+    /** Object name of the generated MeltKitConfig.
+      * Default: `"MeltKitConfig"`.
+      */
+    val meltcMeltKitConfigObject =
+      settingKey[String]("Object name for the auto-generated MeltKitConfig")
+
+    /** Default HTML `lang` attribute value for SSR pages.
+      * Default: `"en"`.
+      */
+    val meltcMeltKitConfigLang =
+      settingKey[String]("Default HTML lang attribute for SSR pages")
+
+    /** Asset base path used in [[meltkit.Template.render]] for SSR.
+      * Default: `"/assets"`.
+      */
+    val meltcMeltKitConfigBasePath =
+      settingKey[String]("Asset base path used in Template.render for SSR")
 
     /** Class name of the [[meltc.css.StylePreprocessor]] implementation to use
       * for stylesheet preprocessing in `.melt` files.
@@ -285,6 +347,23 @@ object MeltcPlugin extends AutoPlugin {
       */
     val SassPreprocessor: String = "meltc.sass.SassPreprocessor"
 
+    /** When `true` (the default), the plugin automatically adds `melt-codegen_3`
+      * to the `meltc-compiler` Ivy configuration so it is resolved and placed on
+      * [[meltcCompilerClasspath]].
+      *
+      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
+      * for example, in a monorepo where you wire the classpath directly from
+      * source projects:
+      * {{{
+      * meltcManageCompilerDeps    := false,
+      * meltcCompilerClasspath     := (codegen.jvm / Compile / fullClasspath).value.files
+      * }}}
+      */
+    val meltcManageCompilerDeps =
+      settingKey[Boolean](
+        "When true, automatically resolve melt-codegen_3 via Ivy. Set false when providing meltcCompilerClasspath manually."
+      )
+
     /** When `true` (the default), the plugin automatically adds the required
       * preprocessor JARs (e.g. `meltc-css_3`, `meltc-sass_3`) to the
       * `meltc-compiler` Ivy configuration so they are resolved and placed on
@@ -319,11 +398,10 @@ object MeltcPlugin extends AutoPlugin {
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    meltcMode := {
-      if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
-    },
     meltcHydration              := false,
+    meltcHydrationRoot          := None,
     meltcStylePreprocessor      := None,
+    meltcManageCompilerDeps     := true,
     meltcManagePreprocessorDeps := true,
     meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories      := {
@@ -336,9 +414,12 @@ object MeltcPlugin extends AutoPlugin {
     meltcCompilerVersion := sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT"),
 
     ivyConfigurations += MeltcCompilerConfig,
-    libraryDependencies += {
-      val v = meltcCompilerVersion.value
-      ("io.github.takapi327" % "meltc_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+    libraryDependencies ++= {
+      if (!meltcManageCompilerDeps.value) Seq.empty
+      else {
+        val v = meltcCompilerVersion.value
+        Seq(("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig)
+      }
     },
     libraryDependencies ++= {
       if (!meltcManagePreprocessorDeps.value) Seq.empty
@@ -358,15 +439,16 @@ object MeltcPlugin extends AutoPlugin {
     ),
 
     meltcGenerate := compileMeltFiles(
-      streams      = streams.value,
-      srcDirs      = meltcSourceDirectories.value,
-      outDir       = meltcOutputDirectory.value,
-      pkg          = meltcPackage.value,
-      mode         = meltcMode.value,
-      hydration    = meltcHydration.value,
-      preprocessor = meltcStylePreprocessor.value,
-      compilerCp   = meltcCompilerClasspath.value,
-      reporter     = (Compile / compile / bspReporter).value
+      streams       = streams.value,
+      srcDirs       = meltcSourceDirectories.value,
+      outDir        = meltcOutputDirectory.value,
+      pkg           = meltcPackage.value,
+      mode          = if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr",
+      hydration     = meltcHydration.value,
+      hydrationRoot = meltcHydrationRoot.value,
+      preprocessor  = meltcStylePreprocessor.value,
+      compilerCp    = meltcCompilerClasspath.value,
+      reporter      = (Compile / compile / bspReporter).value
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
@@ -377,6 +459,33 @@ object MeltcPlugin extends AutoPlugin {
     meltcProd             := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
     meltcViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
     meltcViteDistDir      := baseDirectory.value / ".." / "dist",
+    meltcIndexHtml        := {
+      val f = (Compile / resourceDirectory).value / "index.html"
+      if (f.exists()) Some(f) else None
+    },
+
+    meltcMeltKitConfigObject   := "MeltKitConfig",
+    meltcMeltKitConfigLang     := "en",
+    meltcMeltKitConfigBasePath := "/assets",
+
+    meltcMeltKitConfigGenerate := Def.taskDyn {
+      val client = meltcAssetManifestClient.value
+      if (client.isDefined && !hasScalaJSPlugin(thisProject.value))
+        Def.task {
+          generateMeltKitConfig(
+            streams        = streams.value,
+            outDir         = (Compile / sourceManaged).value / "generated",
+            pkgName        = meltcAssetManifestPackage.value,
+            objectName     = meltcMeltKitConfigObject.value,
+            manifestObject = meltcAssetManifestObject.value,
+            lang           = meltcMeltKitConfigLang.value,
+            basePath       = meltcMeltKitConfigBasePath.value
+          )
+        }
+      else
+        Def.task(Seq.empty[File])
+    }.value,
+    Compile / sourceGenerators += meltcMeltKitConfigGenerate.taskValue,
 
     meltcViteInputGenerate := Def.taskDyn {
       meltcAssetManifestClient.value match {
@@ -398,24 +507,28 @@ object MeltcPlugin extends AutoPlugin {
       meltcAssetManifestClient.value match {
         case Some(clientProject) if meltcProd.value =>
           Def.task {
+            val distDir = meltcViteDistDir.value
+            meltcIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
             generateAssetManifestFromVite(
               streams      = streams.value,
               outDir       = (Compile / sourceManaged).value / "generated",
               pkgName      = meltcAssetManifestPackage.value,
               objectName   = meltcAssetManifestObject.value,
               manifestPath = meltcViteManifestPath.value,
-              distDir      = meltcViteDistDir.value
+              distDir      = distDir
             )
           }
         case Some(clientProject) =>
           Def.task {
+            val distDir = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
+            meltcIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
             generateAssetManifest(
               streams    = streams.value,
               outDir     = (Compile / sourceManaged).value / "generated",
               pkgName    = meltcAssetManifestPackage.value,
               objectName = meltcAssetManifestObject.value,
               report     = (clientProject / Compile / fastLinkJS).value.data,
-              distDir    = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
+              distDir    = distDir
             )
           }
         case None =>
@@ -426,15 +539,16 @@ object MeltcPlugin extends AutoPlugin {
   )
 
   private def compileMeltFiles(
-    streams:      TaskStreams,
-    srcDirs:      Seq[File],
-    outDir:       File,
-    pkg:          String,
-    mode:         String,
-    hydration:    Boolean,
-    preprocessor: Option[String],
-    compilerCp:   Seq[File],
-    reporter:     xsbti.Reporter
+    streams:       TaskStreams,
+    srcDirs:       Seq[File],
+    outDir:        File,
+    pkg:           String,
+    mode:          String,
+    hydration:     Boolean,
+    hydrationRoot: Option[String],
+    preprocessor:  Option[String],
+    compilerCp:    Seq[File],
+    reporter:      xsbti.Reporter
   ): Seq[File] = {
     val log = streams.log
 
@@ -460,12 +574,7 @@ object MeltcPlugin extends AutoPlugin {
 
     val cpStr = compilerCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
-    val normalisedMode = mode.toLowerCase match {
-      case "spa" | "ssr" => mode.toLowerCase
-      case other         =>
-        log.warn(s"[sbt-meltc] unknown meltcMode '$other' — falling back to 'spa'")
-        "spa"
-    }
+    val normalisedMode = mode.toLowerCase
 
     meltFilesWithRoot.flatMap {
       case (meltFile, srcDir) =>
@@ -491,6 +600,14 @@ object MeltcPlugin extends AutoPlugin {
 
         log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
+        // Determine whether this component gets a hydration entry:
+        //   - Approach A (meltcHydrationRoot set): only the named root component
+        //   - Approach B (meltcHydration := true): all components
+        val emitHydration = hydrationRoot match {
+          case Some(root) => objectName == root
+          case None       => hydration
+        }
+
         val javaArgs = Seq(
           "-cp",
           cpStr,
@@ -501,7 +618,7 @@ object MeltcPlugin extends AutoPlugin {
           fullPkg,
           "--mode",
           normalisedMode
-        ) ++ (if (hydration) Seq("--hydration") else Seq.empty) ++
+        ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
           preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
 
         val exitCode = Fork.java(ForkOptions(), javaArgs)
@@ -586,12 +703,57 @@ object MeltcPlugin extends AutoPlugin {
       override def position(): xsbti.Position = mkPosition(absPath, lineNum)
     }
 
+  /** Writes a `MeltKitConfig` Scala source that bundles the [[meltkit.Template]],
+    * manifest reference, asset base path, and default language for SSR rendering.
+    *
+    * The generated object is placed in the same package as `AssetManifest` and
+    * references `AssetManifest.manifest` by name so that both objects are always
+    * in sync.
+    */
+  private def generateMeltKitConfig(
+    streams:        TaskStreams,
+    outDir:         File,
+    pkgName:        String,
+    objectName:     String,
+    manifestObject: String,
+    lang:           String,
+    basePath:       String
+  ): Seq[File] = {
+    val log = streams.log
+    IO.createDirectory(outDir)
+    val outFile = outDir / s"$objectName.scala"
+
+    val code =
+      s"""package $pkgName
+         |
+         |/** Auto-generated by sbt-meltc — do not edit.
+         |  *
+         |  * Bundles the [[meltkit.ViteManifest]] reference, asset base path,
+         |  * and default language used by `ctx.melt()` for SSR rendering.
+         |  *
+         |  * The HTML template (`index.html`) is intentionally excluded: it is
+         |  * read at server startup via `fs2.io.file.Files` so that the adapter
+         |  * works on both JVM and Node.js. To customise other values, override
+         |  * the `meltcMeltKitConfig*` settings in `build.sbt`.
+         |  */
+         |object $objectName {
+         |  val manifest: meltkit.ViteManifest = $manifestObject.manifest
+         |  val basePath: String               = "$basePath"
+         |  val lang:     String               = "$lang"
+         |}
+         |""".stripMargin
+
+    IO.write(outFile, code)
+    log.info(s"[sbt-meltc] generated ${ outFile.getName }")
+    Seq(outFile)
+  }
+
   /** Writes a `generated.AssetManifest` Scala source that exposes the
     * client project's Scala.js `fastLinkJS` output as a
-    * [[melt.runtime.ssr.ViteManifest]] plus the absolute filesystem
-    * path of the fastopt output directory. Regenerated on every
-    * compile so adding or removing a `.melt` component requires zero
-    * edits to this file.
+    * [[meltkit.ViteManifest]] plus the absolute filesystem
+    * path of the fastopt output directory as a [[fs2.io.file.Path]].
+    * Regenerated on every compile so adding or removing a `.melt`
+    * component requires zero edits to this file.
     */
   private def generateAssetManifest(
     streams:    TaskStreams,
@@ -618,8 +780,8 @@ object MeltcPlugin extends AutoPlugin {
     val code =
       s"""package $pkgName
          |
-         |import java.io.File
-         |import melt.runtime.ssr.ViteManifest
+         |import fs2.io.file.Path
+         |import meltkit.ViteManifest
          |
          |/** Auto-generated by sbt-meltc — do not edit.
          |  *
@@ -638,7 +800,7 @@ object MeltcPlugin extends AutoPlugin {
          |$entriesSrc
          |  ))
          |
-         |  val clientDistDir: File = new File("$distPathLit")
+         |  val clientDistDir: Path = Path("$distPathLit")
          |}
          |""".stripMargin
 
@@ -717,8 +879,10 @@ object MeltcPlugin extends AutoPlugin {
     val code =
       s"""package $pkgName
          |
-         |import java.io.File
-         |import melt.runtime.ssr.ViteManifest
+         |import fs2.io.file.Path
+         |import java.nio.charset.StandardCharsets
+         |import java.nio.file.{ Files, Paths }
+         |import meltkit.ViteManifest
          |
          |/** Auto-generated by sbt-meltc (prod mode) — do not edit.
          |  *
@@ -729,10 +893,11 @@ object MeltcPlugin extends AutoPlugin {
          |  * Regenerated when `MELT_PROD=true sbt compile` is run.
          |  */
          |object $objectName {
-         |  val manifest: ViteManifest =
-         |    ViteManifest.load("$manifestPathLit")
+         |  val manifest: ViteManifest = ViteManifest.fromString(
+         |    new String(Files.readAllBytes(Paths.get("$manifestPathLit")), StandardCharsets.UTF_8)
+         |  )
          |
-         |  val clientDistDir: File = new File("$distPathLit")
+         |  val clientDistDir: Path = Path("$distPathLit")
          |}
          |""".stripMargin
 

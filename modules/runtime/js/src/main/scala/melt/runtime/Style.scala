@@ -23,12 +23,18 @@ object Style:
 
   private val injected = mutable.Set.empty[String]
 
-  /** Injects `css` into `<head>` under the given `scopeId` (idempotent). */
+  /** Injects `css` into `<head>` under the given `scopeId` (idempotent).
+    *
+    * Checks `getElementById(scopeId)` first so that SSR-injected
+    * `<style id="melt-xxx">` elements are reused instead of duplicated.
+    */
   def inject(scopeId: String, css: String): Unit =
     if !injected.contains(scopeId) then
       injected += scopeId
-      val style = dom.document.createElement("style")
-      style.setAttribute("data-melt-scope", scopeId)
-      style.textContent = css
-      dom.document.head.appendChild(style)
+      if dom.document.getElementById(scopeId) == null then
+        val style = dom.document.createElement("style")
+        style.id = scopeId
+        style.setAttribute("data-melt-scope", scopeId)
+        style.textContent = css
+        dom.document.head.appendChild(style)
       ()

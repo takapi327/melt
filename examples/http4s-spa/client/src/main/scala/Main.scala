@@ -6,9 +6,30 @@
 
 import org.scalajs.dom
 
-import components.App
+import components.*
+import meltkit.{ *, given }
 
+/** SPA client entry point.
+  *
+  * Renders [[Layout]] once as a persistent shell, then routes URL changes
+  * to the matching page component via [[BrowserAdapter.mountWithShell]].
+  * The shell (navigation bar) stays in the DOM across navigations — only
+  * the `[data-melt-outlet]` element inside [[Layout]] is replaced.
+  *
+  * {{{ sbt "~http4s-spa-server/reStart" }}}
+  */
 object Main:
+
+  val userId = param[Int]("userId")
+
   def main(args: Array[String]): Unit =
-    val target = dom.document.getElementById("app")
-    App.mount(target, App.Props())
+    val rootEl = dom.document.getElementById("app")
+    BrowserAdapter.mountWithShell(buildApp(), rootEl, Layout())
+
+  private def buildApp(): MeltRouter =
+    val app = MeltRouter()
+    app.get("") { ctx => ctx.render(TodoPage()) }
+    app.get("counter") { ctx => ctx.render(CounterPage()) }
+    app.get("users") { ctx => ctx.render(UserPage()) }
+    app.get("users" / userId) { ctx => ctx.render(UserDetailPage(UserDetailPage.Props(userId = ctx.params.userId))) }
+    app

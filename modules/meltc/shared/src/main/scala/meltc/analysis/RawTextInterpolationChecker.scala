@@ -22,7 +22,7 @@ import meltc.CompileError
   * those positions.
   *
   * '''Exception''': `<title>` directly inside `<melt:head>` is special —
-  * `SsrRenderer.head.title` takes care of escaping it properly, so the
+  * `ServerRenderer.head.title` takes care of escaping it properly, so the
   * checker skips `<title>` whose parent is `Head`.
   */
 object RawTextInterpolationChecker:

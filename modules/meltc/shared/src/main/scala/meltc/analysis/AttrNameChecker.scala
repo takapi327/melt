@@ -19,7 +19,7 @@ import meltc.CompileError
   * quotes, `>`, `/`, `=`, or Unicode noncharacters).
   *
   * Dynamic attribute names arrive only through `Attr.Spread`; those are
-  * validated at runtime inside `SsrRenderer.spreadAttrs`. This checker
+  * validated at runtime inside `ServerRenderer.spreadAttrs`. This checker
   * only sees the static names that can be determined at compile time.
   */
 object AttrNameChecker:

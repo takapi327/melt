@@ -1,0 +1,105 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package meltkit
+
+import scala.NamedTuple.AnyNamedTuple
+
+import meltkit.codec.BodyEncoder
+
+/** The handler context provided to each route handler.
+  *
+  * Concrete implementations are provided by adapters
+  * (e.g. `Http4sMeltContext` in `meltkit-adapter-http4s`).
+  *
+  * For request-body access (`ctx.body` / `ctx.bodyOrBadRequest`) use
+  * [[ServerMeltContext]], which extends this trait and is provided to
+  * handlers registered via [[MeltKit.on]].
+  *
+  * @tparam F the effect type (e.g. `cats.effect.IO`)
+  * @tparam P the [[scala.NamedTuple]] of typed path parameters
+  * @tparam B the request body type (`Unit` = no body)
+  */
+trait MeltContext[F[_], P <: AnyNamedTuple, B]:
+
+  /** The typed path parameters extracted from the URL.
+    *
+    * {{{
+    * val id = param[Int]("id")
+    * app.on(Endpoint.get("users" / id).response[User]) { ctx =>
+    *   ctx.params.id  // Int
+    * }
+    * }}}
+    */
+  def params: P
+
+  /** The path component of the current request URL (e.g. `"/counter"`, `"/users/42"`).
+    *
+    * On the JVM (SSR) this is derived from the incoming HTTP request URI.
+    * In the browser it reflects `window.location.pathname`.
+    *
+    * Used internally by the JVM `ctx.melt()` extension to automatically set
+    * [[Router.currentPath]] for the duration of SSR rendering, so that
+    * components can read the correct path without any manual `Router.withPath`
+    * call in route handlers.
+    */
+  def requestPath: String
+
+  /** Returns the first value of the named query parameter, if present. */
+  def query(name: String): Option[String]
+
+  /** Renders a Melt component and returns a 200 response.
+    *
+    * On the JVM (SSR) this calls [[Template.render]] and returns an HTML response.
+    * On JS (SPA) this mounts the component into the root DOM element managed by
+    * [[BrowserAdapter]] and returns a no-content response.
+    *
+    * `.melt`-compiled components satisfy [[AsComponent]] via platform-specific
+    * given instances, so no explicit wrapping is needed:
+    *
+    * {{{
+    * // shared route handler — compiles and runs on both JVM and JS
+    * app.get("todos") { ctx => F.pure(ctx.render(TodoPage())) }
+    * }}}
+    *
+    * On the JVM: only available when using the class-based
+    * [[meltkit.adapter.http4s.Http4sAdapter]] (i.e. `Http4sAdapter(app, template, manifest).routes`).
+    * Calling this method when using the API-only `Http4sAdapter.routes(app)` raises an
+    * [[IllegalStateException]] at runtime.
+    */
+  def render(component: Component): PlainResponse
+
+  /** Builds a 200 OK JSON response. Requires a [[BodyEncoder]][A] in scope. */
+  def ok[A: BodyEncoder](value: A): PlainResponse
+
+  /** Builds a 201 Created JSON response. Requires a [[BodyEncoder]][A] in scope. */
+  def created[A: BodyEncoder](value: A): PlainResponse
+
+  /** Builds a 204 No Content response. */
+  def noContent: PlainResponse
+
+  /** Builds a plain-text 200 response. */
+  def text(value: String): PlainResponse
+
+  /** Builds a 200 application/json response from a raw JSON string. */
+  def json(value: String): PlainResponse
+
+  /** Builds a 400 Bad Request response from a [[BodyError]]. */
+  def badRequest(err: BodyError): BadRequest
+
+  /** Builds a 301 (permanent) or 302 (temporary) redirect response.
+    *
+    * Only relative paths are accepted (e.g. `"/dashboard"`, `"/users/1"`).
+    * Absolute URLs (`https://...`), protocol-relative URLs (`//...`), and
+    * other schemes are rejected with [[IllegalArgumentException]] to prevent
+    * open-redirect attacks when user-supplied input flows into this method.
+    *
+    * @throws IllegalArgumentException if `path` is an external URL
+    */
+  def redirect(path: String, permanent: Boolean = false): PlainResponse
+
+  /** Builds a 404 Not Found response. */
+  def notFound(message: String = "Not Found"): NotFound

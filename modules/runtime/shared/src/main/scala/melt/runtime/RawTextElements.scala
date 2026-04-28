@@ -15,7 +15,7 @@ package melt.runtime
   *
   * `SsrCodeGen` rejects `{expr}` inside any of these elements at compile
   * time, with the sole exception of `<title>` when it appears directly
-  * inside `<melt:head>` (handled by a dedicated `SsrRenderer.head.title`
+  * inside `<melt:head>` (handled by a dedicated `ServerRenderer.head.title`
   * helper that escapes the content correctly).
   *
   * '''Not raw-text''': `noscript`, `iframe`. Svelte 5 treats them as normal
