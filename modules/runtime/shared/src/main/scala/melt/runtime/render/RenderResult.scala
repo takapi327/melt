@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.runtime.ssr
+package melt.runtime.render
 
 /** The immutable outcome of an SSR render.
   *

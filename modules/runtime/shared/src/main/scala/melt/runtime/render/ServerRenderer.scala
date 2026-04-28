@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.runtime.ssr
+package melt.runtime.render
 
 import scala.collection.mutable
 
@@ -23,13 +23,13 @@ import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, UrlAttributes }
   *           HTML template and wires SSR rendering via `ctx.melt()`
   *         - `TrustedHtml` / `Escape.*` — explicit opt-in escalation paths
   *
-  *       Methods on `SsrRenderer` may change without notice between
+  *       Methods on `ServerRenderer` may change without notice between
   *       versions.
   *
   * @note Not thread-safe. `meltc`-generated code creates a fresh instance
   *       per `render()` call; never share an instance across requests.
   */
-final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.default):
+final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Config.default):
 
   private val bodyBuf        = new StringBuilder
   private val headBuf        = new StringBuilder
@@ -149,13 +149,42 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
         hydrationPropsMap.update(moduleId, json)
     }
 
+  /** Merges a child component's metadata (head, CSS, components, hydration
+    * props) into this renderer **without** appending `child.body` to the body
+    * buffer.
+    *
+    * Use this when the body is already being written via an intermediate
+    * `StringBuilder` (e.g. inside a conditional `if/else` expression) to avoid
+    * pushing the body twice.  The caller is responsible for appending
+    * `child.body` to its own string accumulator.
+    */
+  def mergeMeta(child: RenderResult): Unit =
+    trackSize(child.head)
+    headBuf ++= child.head
+    child.title.foreach(t => titleContent = Some(t))
+    child.metaTags.foreach {
+      case (name, content) =>
+        metaTagMap.update(name, content)
+    }
+    child.css.foreach { entry =>
+      if !cssSet.contains(entry) then
+        trackSize(entry.scopeId)
+        trackSize(entry.code)
+        cssSet += entry
+    }
+    usedComponents ++= child.components
+    child.hydrationProps.foreach {
+      case (moduleId, json) =>
+        hydrationPropsMap.update(moduleId, json)
+    }
+
   /** Increments the component nesting counter and throws
-    * [[MeltRenderException]] if the configured limit is exceeded.
+    * [[RenderException]] if the configured limit is exceeded.
     */
   def enterComponent(name: String): Unit =
     componentDepth += 1
     if componentDepth > config.maxComponentDepth then
-      throw new MeltRenderException(
+      throw new RenderException(
         s"Component nesting depth exceeded ${ config.maxComponentDepth } at '$name'. " +
           "This usually indicates infinite recursion in component references. " +
           "If intentional, increase the limit via MELT_MAX_COMPONENT_DEPTH env var."
@@ -171,7 +200,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     * Svelte 5 exposes `<svelte:boundary>` for the same purpose. Melt's
     * Phase C implementation is intentionally simple: the body lambda
     * runs immediately against this renderer, and any exception thrown
-    * — including `MeltRenderException` from the Phase A depth / size
+    * — including `RenderException` from the Phase A depth / size
     * guards — is caught and replaced by the fallback HTML.
     *
     * Implementation notes:
@@ -199,7 +228,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   def boundary(
     fallback: Throwable => String
   )(
-    body: SsrRenderer => Unit
+    body: ServerRenderer => Unit
   ): Unit =
     try body(this)
     catch
@@ -353,14 +382,14 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
     )
 
   /** Tracks output size (UTF-16 char × 2 approximation) and raises
-    * [[MeltRenderException]] if the limit is exceeded.
+    * [[RenderException]] if the limit is exceeded.
     */
   private def trackSize(s: String): Unit =
     if s == null then ()
     else
       outputBytes += s.length.toLong * 2L
       if outputBytes > config.maxOutputBytes then
-        throw new MeltRenderException(
+        throw new RenderException(
           s"Output size exceeded ${ config.maxOutputBytes } bytes " +
             s"(current: $outputBytes). " +
             "This usually indicates unbounded list rendering or an infinite loop. " +
@@ -374,7 +403,7 @@ final class SsrRenderer(val config: SsrRenderer.Config = SsrRenderer.Config.defa
   private def truncate(s: String, max: Int): String =
     if s.length <= max then s else s.substring(0, max) + "..."
 
-object SsrRenderer:
+object ServerRenderer:
 
   /** Per-renderer configuration. */
   final case class Config(

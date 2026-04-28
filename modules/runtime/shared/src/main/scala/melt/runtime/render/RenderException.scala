@@ -4,20 +4,20 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.runtime.ssr
+package melt.runtime.render
 
 /** Raised by the SSR runtime when a render cannot be completed.
   *
   * Used for:
-  *   - Component nesting depth exceeding [[SsrRenderer.Config.maxComponentDepth]]
+  *   - Component nesting depth exceeding [[ServerRenderer.Config.maxComponentDepth]]
   *     (`§12.2.1` — guards against runaway recursion)
-  *   - Output size exceeding [[SsrRenderer.Config.maxOutputBytes]]
+  *   - Output size exceeding [[ServerRenderer.Config.maxOutputBytes]]
   *     (`§12.2.2` — guards against unbounded list rendering)
   *   - A user-code `StackOverflowError` caught at the `render()` entry
   *     boundary and converted to a richer diagnostic
   *
   * Generally consumed at the HTTP handler layer — for example, an http4s
-  * route can catch `MeltRenderException` and return HTTP 500 without
+  * route can catch `RenderException` and return HTTP 500 without
   * destabilising the JVM.
   */
-class MeltRenderException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)
+class RenderException(message: String, cause: Throwable = null) extends RuntimeException(message, cause)
