@@ -20,8 +20,10 @@ import meltkit.codec.BodyEncoder
   * Created by [[BrowserAdapter]] for each URL change. Route handlers receive
   * this context and build responses using the standard `ctx.*` helpers.
   *
-  * `ctx.render(Component())` mounts the component into `rootEl`, replacing any
-  * previously mounted content.
+  * `ctx.render(Component())` replaces the outlet element's content with the
+  * given component. In [[BrowserAdapter.mount]] mode the outlet is `rootEl`
+  * itself; in [[BrowserAdapter.mountWithShell]] mode it is the
+  * `[data-melt-outlet]` element within the shell.
   *
   * Browser navigation routes carry no request body; use the [[Fetch]] client
   * for API calls from within components. Body access is available only on the
@@ -29,12 +31,13 @@ import meltkit.codec.BodyEncoder
   *
   * @param params      the decoded path parameters extracted from the URL
   * @param bodyDecoder the [[BodyDecoder]] bound to the endpoint's body type `B`
-  * @param rootEl      the DOM element used as the mount target for components
+  * @param outletEl    the DOM element to render into; either `rootEl` (full-replace
+  *                    mode) or the `[data-melt-outlet]` element (shell mode)
   */
 final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:              P,
   private val bodyDecoder: BodyDecoder[B],
-  private val rootEl:      dom.Element
+  private val outletEl:    dom.Element
 ) extends MeltContext[F, P, B]:
 
   override def requestPath: String = dom.window.location.pathname
@@ -47,21 +50,20 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
         case kv if kv.startsWith(s"$name=") => kv.drop(name.length + 1)
       }
 
-  /** Mounts the component into the root DOM element and returns a no-content response.
+  /** Replaces the outlet element's content with the given component.
     *
-    * Clears `rootEl.innerHTML` before mounting so that only the new component
-    * is visible. The [[Component]] wraps the `dom.Element` returned by the
-    * `.melt`-compiled component.
+    * Clears `outletEl.innerHTML` before mounting so that only the new
+    * component is visible. The [[Component]] wraps the `dom.Element`
+    * returned by the `.melt`-compiled component.
     *
     * {{{
-    * // shared route handler
-    * app.get("todos") { ctx => F.pure(ctx.melt(TodoPage())) }
+    * app.get("todos") { ctx => ctx.render(TodoPage()) }
     * }}}
     */
   override def render(component: Component): PlainResponse =
     val element = component.asInstanceOf[dom.Element]
-    rootEl.innerHTML = ""
-    Mount(rootEl, element)
+    outletEl.innerHTML = ""
+    Mount(outletEl, element)
     Response.noContent
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
@@ -78,7 +80,7 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
 
   override def badRequest(err: BodyError): BadRequest = Response.badRequest(err.message)
 
-  /** Navigates to `path` using [[BrowserRouter]] and returns a no-content response.
+  /** Navigates to `path` using [[Router]] and returns a no-content response.
     *
     * The URL change fires a `popstate` event which [[BrowserAdapter]] intercepts
     * to dispatch the new route.
