@@ -29,14 +29,14 @@ class SsrCodeGenSpec extends munit.FunSuite:
   test("SsrCodeGen imports the SSR runtime package") {
     val code = compile("<div></div>")
     assert(code.contains("import melt.runtime.*"), code)
-    assert(code.contains("import melt.runtime.ssr.*"), code)
+    assert(code.contains("import melt.runtime.render.*"), code)
   }
 
   test("SsrCodeGen emits apply() returning RenderResult") {
     val code = compile("<div></div>")
     assert(code.contains("def apply"), code)
     assert(code.contains(": RenderResult"), code)
-    assert(code.contains("SsrRenderer()"), code)
+    assert(code.contains("ServerRenderer()"), code)
     assert(code.contains("renderer.result()"), code)
   }
 
@@ -134,6 +134,25 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Child.Props("), code)
     assert(code.contains("name = \"Ada\""), code)
     assert(code.contains("age = props.age"), code)
+  }
+
+  test("component inside if/else branch uses mergeMeta to propagate CSS and hydration tracking") {
+    val src  = """<div>{if cond then <Child/> else <p>no</p>}</div>"""
+    val code = compile(src)
+    // The component call result is captured, mergeMeta is called (to propagate
+    // CSS + hydration component tracking), and the body is appended separately.
+    assert(code.contains("renderer.mergeMeta("), code)
+    assert(code.contains("_r.body"), code)
+    // The body must NOT be pushed via renderer.merge (which would double-push).
+    assert(!code.contains("renderer.merge(Child()"), code)
+  }
+
+  test("component inside if/else branch with props uses mergeMeta") {
+    val src  = """<div>{if x then <Child name="Ada"/> else <span>no</span>}</div>"""
+    val code = compile(src)
+    assert(code.contains("renderer.mergeMeta("), code)
+    assert(code.contains("Child.Props("), code)
+    assert(code.contains("_r.body"), code)
   }
 
   // ── §12.3.11 Props serialisation ───────────────────────────────────────
@@ -348,4 +367,56 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val bodyEnd  = code.indexOf("""renderer.push("</div>")""")
     val closeIdx = code.indexOf("""HydrationMarkers.close("counter")""")
     assert(bodyEnd >= 0 && closeIdx > bodyEnd, s"body-end at $bodyEnd, close at $closeIdx")
+  }
+
+  // ── Children / slot support ────────────────────────────────────────────
+
+  test("{children} expression adds children parameter to apply()") {
+    val code = compile("<div>{children}</div>")
+    assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
+  }
+
+  test("{children} expression emits renderer.merge(children())") {
+    val code = compile("<div>{children}</div>")
+    assert(code.contains("renderer.merge(children())"), code)
+  }
+
+  test("no {children} in template does not add children parameter") {
+    val code = compile("<div><p>hello</p></div>")
+    assert(!code.contains("children"), code)
+  }
+
+  test("{children} with props adds both params to apply()") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(title: String = "")
+        |</script>
+        |<div>{children}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("props: Props = Props()"), code)
+    assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
+  }
+
+  test("component call with children nodes generates children lambda") {
+    val code = compile("<div><Card><p>Content</p></Card></div>")
+    assert(code.contains("Card(children ="), code)
+    assert(!code.contains("Card.Props("), code)
+    assert(code.contains("() => {"), code)
+    assert(code.contains("\"<p\""), code)
+  }
+
+  test("component call with props and children generates correct call") {
+    val code = compile("""<div><Card title="T"><p>Body</p></Card></div>""")
+    assert(code.contains("Card(Card.Props("), code)
+    assert(code.contains("children ="), code)
+    assert(code.contains("\"<p\""), code)
+  }
+
+  test("{children} inside inline template appendNodeToSb path") {
+    val src =
+      """{items.map(item =>
+        |  <div>{children}</div>
+        |)}""".stripMargin
+    val code = compile(src)
+    assert(code.contains("children()"), code)
   }

@@ -131,11 +131,11 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("_root.appendChild"), code)
   }
 
-  // ── Expression nodes (reactive via Bind.text) ───���───────────────────────
+  // ── Expression nodes (reactive via Hydrating.text) ──────────────────────
 
-  test("expression node emits Bind.text for reactive binding") {
+  test("expression node emits Hydrating.text for reactive binding") {
     val code = compile("<p>{count}</p>")
-    assert(code.contains("Bind.text(count,"), code)
+    assert(code.contains("Hydrating.text(count,"), code)
     // Should NOT use static createTextNode for expressions
     assert(!code.contains("createTextNode((count).toString)"), code)
   }
@@ -395,7 +395,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("interleaved text and expression nodes") {
     val code = compile("<p>Hello {name} world</p>")
     assert(code.contains("createTextNode(\"Hello \")"), code)
-    assert(code.contains("Bind.text(name,"), code)
+    assert(code.contains("Hydrating.text(name,"), code)
     assert(code.contains("createTextNode(\" world\")"), code)
   }
 
@@ -468,8 +468,8 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |</div>""".stripMargin
     val code = compile(src, name = "Counter")
     // Reactive text bindings
-    assert(code.contains("Bind.text(count,"), code)
-    assert(code.contains("Bind.text(name,"), code)
+    assert(code.contains("Hydrating.text(count,"), code)
+    assert(code.contains("Hydrating.text(name,"), code)
     // Event handler
     assert(code.contains("""addEventListener("click","""), code)
     // Two-way bind:value
@@ -621,10 +621,12 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains(".set("), code)
   }
 
-  test("component with children generates children lambda") {
+  test("component with children generates children lambda outside Props") {
     val code = compile("<div><Card><p>Content</p></Card></div>")
-    assert(code.contains("Card(Card.Props(children ="), code)
-    assert(code.contains("() => {"), code)
+    // children is a separate parameter, not inside Props
+    assert(code.contains("Card(children = _children"), code)
+    assert(!code.contains("Card.Props(children ="), code)
+    assert(code.contains("() => dom.Node"), code)
     assert(code.contains("""createElement("p")"""), code)
   }
 
@@ -755,27 +757,27 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test(".map() expression with DOM body emits anchor + Bind.list") {
     val src  = "<ul>{items.map(item => { val li = dom.document.createElement(\"li\"); li })}</ul>"
     val code = compile(src)
-    assert(code.contains("createComment(\"melt\")"), code)
+    assert(code.contains("Hydrating.dynAnchor("), code)
     assert(code.contains("Bind.list(items,"), code)
   }
 
-  test(".map() expression without DOM body stays as Bind.text") {
+  test(".map() expression without DOM body stays as Hydrating.text") {
     val code = compile("<p>{items.map(_.size)}</p>")
-    assert(code.contains("Bind.text(items.map(_.size),"), code)
+    assert(code.contains("Hydrating.text(items.map(_.size),"), code)
     assert(!code.contains("Bind.list"), code)
   }
 
   test(".keyed().map() expression emits anchor + Bind.each") {
     val src  = "<ul>{items.keyed(_.id).map(item => { val li = dom.document.createElement(\"li\"); li })}</ul>"
     val code = compile(src)
-    assert(code.contains("createComment(\"melt\")"), code)
+    assert(code.contains("Hydrating.dynAnchor("), code)
     assert(code.contains("Bind.each(items,"), code)
     assert(code.contains("_.id"), code)
   }
 
-  test("plain text expression still uses Bind.text") {
+  test("plain text expression uses Hydrating.text") {
     val code = compile("<p>{name}</p>")
-    assert(code.contains("Bind.text(name,"), code)
+    assert(code.contains("Hydrating.text(name,"), code)
     assert(!code.contains("Bind.list"), code)
   }
 
@@ -789,7 +791,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("""createElement("li")"""), code)
     assert(code.contains("Bind.list(items,"), code)
-    assert(code.contains("Bind.text(item,"), code)
+    assert(code.contains("Hydrating.text(item,"), code)
   }
 
   test("inline HTML with attributes generates correct code") {
@@ -802,12 +804,12 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("""classList.add("entry")"""), code)
     assert(code.contains("""addEventListener("click", handler)"""), code)
-    assert(code.contains("Bind.text(item.name,"), code)
+    assert(code.contains("Hydrating.text(item.name,"), code)
   }
 
   test("expression without HTML stays as Expression node") {
     val code = compile("<p>{count + 1}</p>")
-    assert(code.contains("Bind.text(count + 1,"), code)
+    assert(code.contains("Hydrating.text(count + 1,"), code)
     assert(!code.contains("Bind.list"), code)
   }
 
@@ -818,13 +820,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
       """<div>{if visible then <p>Yes</p> else <span>No</span>}</div>"""
     val code = compile(src)
     assert(code.contains("Bind.show("), code)
-    assert(code.contains("createComment(\"melt\")"), code)
+    assert(code.contains("Hydrating.dynAnchor("), code)
   }
 
-  test("if/else with plain text stays as Bind.text") {
+  test("if/else with plain text uses Hydrating.text") {
     val src  = """<p>{if x > 0 then "positive" else "negative"}</p>"""
     val code = compile(src)
-    assert(code.contains("Bind.text("), code)
+    assert(code.contains("Hydrating.text("), code)
     assert(!code.contains("Bind.show"), code)
   }
 
@@ -1167,11 +1169,11 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""createTextNode("My App")"""), code)
   }
 
-  test("<melt:head> with reactive title emits Bind.text inside Head.appendChild") {
+  test("<melt:head> with reactive title emits Hydrating.text inside Head.appendChild") {
     val src  = "<melt:head><title>{pageTitle}</title></melt:head>"
     val code = compile(src)
     assert(code.contains("Head.appendChild("), code)
-    assert(code.contains("Bind.text(pageTitle,"), code)
+    assert(code.contains("Hydrating.text(pageTitle,"), code)
   }
 
   test("<melt:head> does not produce a root element itself") {
@@ -1406,7 +1408,8 @@ class SpaCodeGenSpec extends munit.FunSuite:
       code
     )
     assert(code.contains("_propsCodec.decode(SimpleJson.parse"), code)
-    assert(code.contains("Mount(host, apply(_props))"), code)
+    assert(code.contains("Hydrating.withCursor(cursor)"), code)
+    assert(code.contains("apply(_props)"), code)
   }
 
   test("hydration entry falls back to defaults when Props JSON is missing") {
@@ -1442,7 +1445,8 @@ class SpaCodeGenSpec extends munit.FunSuite:
     // should appear in the body.
     assert(!code.contains("_propsCodec"), code)
     assert(!code.contains("SimpleJson.parse"), code)
-    assert(code.contains("Mount(host, apply())"), code)
+    assert(code.contains("Hydrating.withCursor(cursor)"), code)
+    assert(code.contains("Hydrating.flush()"), code)
   }
 
   test("hydration entry is omitted when hydration flag is disabled") {
@@ -1681,12 +1685,12 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("""createElement("melt:key")"""), code)
   }
 
-  // G-5: reactive text expression child is emitted as Bind.text(v, _kFrag)
-  test("melt:key with reactive text expression uses Bind.text with _kFrag") {
+  // G-5: reactive text expression child is emitted as Hydrating.text(v, _kFrag)
+  test("melt:key with reactive text expression uses Hydrating.text with _kFrag") {
     val code = compile("<div><melt:key this={step}>{message}</melt:key></div>")
     assert(code.contains("_kFrag"), code)
     assert(code.contains("createDocumentFragment()"), code)
-    assert(code.contains("Bind.text(message, _kFrag)"), code)
+    assert(code.contains("Hydrating.text(message, _kFrag)"), code)
   }
 
   // G-5: static text child is appended to the DocumentFragment
@@ -1882,4 +1886,50 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("""createComment("melt-html")"""), code)
     assert(code.contains("Bind.htmlAnchor(flag,"), code)
+  }
+
+  // ── Children / slot support ────────────────────────────────────────────
+
+  test("{children} expression adds children parameter to apply()") {
+    val code = compile("<div>{children}</div>")
+    assert(code.contains("children: () => dom.Node"), code)
+    assert(code.contains("createDocumentFragment"), code)
+  }
+
+  test("{children} expression emits val _elN: dom.Node = children()") {
+    val code = compile("<div>{children}</div>")
+    assert(code.contains(": dom.Node = children()"), code)
+  }
+
+  test("no {children} in template does not add children parameter") {
+    val code = compile("<div><p>hello</p></div>")
+    assert(!code.contains("children"), code)
+  }
+
+  test("{children} with props adds both params to apply()") {
+    val src =
+      """<script lang="scala" props="Props">
+        |case class Props(title: String = "")
+        |</script>
+        |<div>{children}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("props: Props"), code)
+    assert(code.contains("children: () => dom.Node"), code)
+  }
+
+  test("component call with children nodes generates separate children arg") {
+    val code = compile("<div><Card><p>Content</p></Card></div>")
+    assert(code.contains("Card(children = _children"), code)
+    assert(!code.contains("Card.Props("), code)
+    assert(code.contains("() => dom.Node"), code)
+    assert(code.contains("""createElement("p")"""), code)
+    // Always uses DocumentFragment so reactive bindings get a parent node
+    assert(code.contains("createDocumentFragment"), code)
+  }
+
+  test("component call with props and children generates Props first, children second") {
+    val code = compile("""<div><Card title="T"><p>Body</p></Card></div>""")
+    assert(code.contains("Card(Card.Props("), code)
+    assert(code.contains("children = _children"), code)
+    assert(code.contains("""createElement("p")"""), code)
   }
