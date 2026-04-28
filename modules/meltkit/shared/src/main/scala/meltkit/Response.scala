@@ -118,12 +118,29 @@ object Response:
     PlainResponse(204, "text/plain", "")
 
   def redirect(location: String, permanent: Boolean = false): PlainResponse =
+    requireRelativePath(location)
     PlainResponse(
       if permanent then 301 else 302,
       "text/plain",
       "",
       Map("Location" -> location)
     )
+
+  /** Throws [[IllegalArgumentException]] if `path` looks like an absolute or
+    * protocol-relative URL.
+    *
+    * Allowed: paths that start with `/` but not `//`.
+    * Rejected: `http://...`, `https://...`, `//...`, `javascript:...`, etc.
+    *
+    * This mirrors the same-origin check in SvelteKit's `goto()` and prevents
+    * open-redirect attacks when user-supplied input flows into `ctx.redirect`.
+    */
+  private[meltkit] def requireRelativePath(path: String): Unit =
+    if path.startsWith("//") || path.contains("://") then
+      throw new IllegalArgumentException(
+        s"External redirects are not allowed: '$path'. " +
+          "Use a relative path (e.g. \"/dashboard\") to prevent open-redirect attacks."
+      )
 
   def badRequest(body: String): BadRequest =
     BadRequest(body)

@@ -90,7 +90,15 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B]:
   /** Builds a 400 Bad Request response from a [[BodyError]]. */
   def badRequest(err: BodyError): BadRequest
 
-  /** Builds a 301 or 302 redirect response. */
+  /** Builds a 301 (permanent) or 302 (temporary) redirect response.
+    *
+    * Only relative paths are accepted (e.g. `"/dashboard"`, `"/users/1"`).
+    * Absolute URLs (`https://...`), protocol-relative URLs (`//...`), and
+    * other schemes are rejected with [[IllegalArgumentException]] to prevent
+    * open-redirect attacks when user-supplied input flows into this method.
+    *
+    * @throws IllegalArgumentException if `path` is an external URL
+    */
   def redirect(path: String, permanent: Boolean = false): PlainResponse
 
   /** Builds a 404 Not Found response. */

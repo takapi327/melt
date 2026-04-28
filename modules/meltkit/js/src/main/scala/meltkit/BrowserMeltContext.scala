@@ -81,6 +81,7 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
     * to dispatch the new route.
     */
   override def redirect(path: String, permanent: Boolean = false): PlainResponse =
+    Response.requireRelativePath(path)
     Router.navigate(path)
     Response.noContent
 
