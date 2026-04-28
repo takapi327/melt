@@ -51,14 +51,14 @@
 
   <div class="user-grid">
     {users.value.map((u: User) =>
-      <div class="user-card" onclick={_ => meltkit.Router.navigate(s"/users/${u.id}")}>
+      <a class="user-card" href={s"/users/${u.id}"}>
         <div class="avatar">{u.name.take(1)}</div>
         <div class="info">
           <p class="name">{u.name}</p>
           <p class="email">{u.email}</p>
           <span class="role">{u.role}</span>
         </div>
-      </div>
+      </a>
     )}
   </div>
 </div>
@@ -113,6 +113,8 @@
   background: white;
   cursor: pointer;
   transition: box-shadow 0.15s;
+  text-decoration: none;
+  color: inherit;
 }
 .user-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .avatar { width: 40px; height: 40px; border-radius: 50%; background: #ff3e00; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }

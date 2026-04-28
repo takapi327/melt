@@ -37,7 +37,7 @@
 </script>
 
 <div class="user-detail">
-  <button class="btn-back" onclick={_ => meltkit.Router.navigate("/users")}>← Back to Users</button>
+  <a class="btn-back" href="/users">← Back to Users</a>
 
   {if !loaded then
     <p class="loading">Loading...</p>
@@ -106,14 +106,12 @@
 <style>
 .user-detail { max-width: 480px; }
 .btn-back {
-  background: none;
-  border: none;
   color: #ff3e00;
-  cursor: pointer;
   font-size: 0.9rem;
   padding: 0;
   margin-bottom: 1.5em;
   display: block;
+  text-decoration: none;
 }
 .btn-back:hover { text-decoration: underline; }
 .loading { color: #888; font-style: italic; }
