@@ -71,11 +71,28 @@ import meltkit.codec.BodyDecoder
   *
   * ==Link navigation==
   *
-  * Use [[Router.navigate]] in link handlers to trigger client-side
-  * navigation without a full page reload:
+  * Plain `<a href="...">` tags are intercepted automatically — no special
+  * component is needed. Same-origin links trigger client-side navigation via
+  * [[Router.navigate]] without a full page reload. The following links are
+  * intentionally left to the browser:
+  *
+  *   - Links with `rel="external"`
+  *   - Links with a `target` attribute (e.g. `target="_blank"`)
+  *   - Links with a `download` attribute
+  *   - Links to a different origin
+  *   - Non-HTTP(S) links (`mailto:`, `tel:`, …)
+  *   - Clicks with modifier keys (Ctrl / Meta / Shift / Alt)
   *
   * {{{
-  * <a onclick={_ => Router.navigate("/users/42")}>Alice</a>
+  * <!-- No special component needed — plain <a> just works -->
+  * <a href="/users/42">Alice</a>
+  * <a href="https://example.com" rel="external">External site</a>
+  * }}}
+  *
+  * To navigate programmatically, use [[Router.navigate]] directly:
+  *
+  * {{{
+  * Router.navigate("/users/42")
   * }}}
   */
 object BrowserAdapter:
@@ -91,6 +108,7 @@ object BrowserAdapter:
     * @param rootEl the DOM element used as the mount target for components
     */
   def mount[F[_]: EffectRunner](app: MeltKit[F], rootEl: dom.Element): Unit =
+    ensureLinkInterceptor()
     dispatch(app, rootEl, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
 
@@ -115,11 +133,69 @@ object BrowserAdapter:
     rootEl: dom.Element,
     shell:  dom.Element
   ): Unit =
+    ensureLinkInterceptor()
     rootEl.innerHTML = ""
     Mount(rootEl, shell)
     val outlet = Option(rootEl.querySelector("[data-melt-outlet]")).getOrElse(rootEl)
     dispatch(app, outlet, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, outlet, path) }
+
+  // ── Link interception ────────────────────────────────────────────────────
+
+  private var linkInterceptorInstalled = false
+
+  /** Registers the global click interceptor at most once per page lifetime. */
+  private def ensureLinkInterceptor(): Unit =
+    if !linkInterceptorInstalled then
+      linkInterceptorInstalled = true
+      dom.document.addEventListener("click", interceptLink)
+
+  /** Global click handler that intercepts same-origin `<a>` clicks and
+    * delegates them to [[Router.navigate]] instead of performing a full
+    * page reload.
+    *
+    * Walks up the DOM tree from the click target to find the nearest `<a>`
+    * and skips external, targeted, downloadable, and modifier-key clicks.
+    */
+  private val interceptLink: scalajs.js.Function1[dom.MouseEvent, Unit] = event =>
+    if event.button == 0
+      && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+      && !event.defaultPrevented
+    then
+      findAnchor(event).foreach { anchor =>
+        val href = anchor.getAttribute("href")
+        if href != null && href.nonEmpty then
+          val hasExternal = Option(anchor.getAttribute("rel"))
+                              .exists(_.split("\\s+").contains("external"))
+          val hasTarget   = Option(anchor.getAttribute("target")).exists(_.nonEmpty)
+          val hasDownload = anchor.hasAttribute("download")
+          if !hasExternal && !hasTarget && !hasDownload then
+            try
+              val url = new dom.URL(href, dom.window.location.href)
+              if (url.protocol == "https:" || url.protocol == "http:")
+                && url.origin == dom.window.location.origin
+              then
+                event.preventDefault()
+                val path = url.pathname + (if url.search.nonEmpty then url.search else "")
+                Router.navigate(path)
+            catch case _: Throwable => () // Invalid URL — let browser handle it
+      }
+
+  /** Walks up the DOM tree from the click target and returns the first
+    * `<a href>` ancestor, if any.
+    */
+  private def findAnchor(event: dom.MouseEvent): Option[dom.html.Anchor] =
+    @annotation.tailrec
+    def loop(node: dom.Node | Null): Option[dom.html.Anchor] =
+      if node == null then None
+      else node match
+        case a: dom.html.Anchor if a.hasAttribute("href") => Some(a)
+        case _                                             => loop(node.parentNode)
+    event.target match
+      case n: dom.Node => loop(n)
+      case _           => None
+
+  // ── Route dispatch ───────────────────────────────────────────────────────
 
   private def dispatch[F[_]: EffectRunner](app: MeltKit[F], outletEl: dom.Element, path: String): Unit =
     val segments = path.split("/").filter(_.nonEmpty).toList
