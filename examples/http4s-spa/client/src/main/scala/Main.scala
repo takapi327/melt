@@ -6,9 +6,8 @@
 
 import org.scalajs.dom
 
-import meltkit.*
-
 import components.*
+import meltkit.*
 
 /** SPA client entry point.
   *
@@ -29,8 +28,8 @@ object Main:
 
   private def buildApp(): MeltRouter =
     val app = MeltKit()
-    app.get("")                   { ctx => ctx.render(TodoPage()) }
-    app.get("counter")            { ctx => ctx.render(CounterPage()) }
-    app.get("users")              { ctx => ctx.render(UserPage()) }
-    app.get("users" / userId)     { ctx => ctx.render(UserDetailPage(UserDetailPage.Props(userId = ctx.params.userId))) }
+    app.get("") { ctx => ctx.render(TodoPage()) }
+    app.get("counter") { ctx => ctx.render(CounterPage()) }
+    app.get("users") { ctx => ctx.render(UserPage()) }
+    app.get("users" / userId) { ctx => ctx.render(UserDetailPage(UserDetailPage.Props(userId = ctx.params.userId))) }
     app

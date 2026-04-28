@@ -13,16 +13,15 @@ import com.comcast.ip4s.*
 import components.*
 import generated.AssetManifest
 import io.circe.Codec
-import org.http4s.*
-import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.server.staticcontent.*
-import org.http4s.server.Router
-
 import meltkit.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
+import org.http4s.*
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.server.staticcontent.*
+import org.http4s.server.Router
 
 /** SSR + Hydration server.
   *
@@ -176,7 +175,8 @@ object Server extends IOApp.Simple:
                    )
       userStore <- Ref.of[IO, List[User]](initialUsers)
       nextId    <- Ref.of[IO, Int](initialUsers.size + 1)
-      adapter   <- Http4sAdapter(buildApp(todoStore, userStore, nextId), AssetManifest.clientDistDir, AssetManifest.manifest)
+      adapter   <-
+        Http4sAdapter(buildApp(todoStore, userStore, nextId), AssetManifest.clientDistDir, AssetManifest.manifest)
       httpApp = Router(
                   "/assets" -> assetRoutes,
                   "/"       -> adapter.routes
