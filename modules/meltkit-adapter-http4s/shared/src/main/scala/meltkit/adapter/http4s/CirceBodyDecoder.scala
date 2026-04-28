@@ -29,4 +29,7 @@ import meltkit.BodyError
 object CirceBodyDecoder:
   given [A: Decoder]: BodyDecoder[A] with
     def decode(body: String): Either[BodyError, A] =
-      parser.decode[A](body).left.map(e => BodyError.DecodeError(e.getMessage))
+      parser.decode[A](body).left.map {
+        case e: io.circe.ParsingFailure  => BodyError.DecodeError("Invalid JSON", detail = Some(e.getMessage))
+        case e: io.circe.DecodingFailure => BodyError.DecodeError("Invalid request body", detail = Some(e.getMessage))
+      }

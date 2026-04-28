@@ -9,8 +9,14 @@ package meltkit
 /** Represents a failure that occurred while decoding a request body. */
 enum BodyError:
 
-  /** The raw body could not be parsed (e.g. malformed JSON). */
-  case DecodeError(message: String)
+  /** The raw body could not be parsed (e.g. malformed JSON).
+    *
+    * `message` is a safe, generic description suitable for returning to
+    * clients. `detail` holds the original library-level error message
+    * (e.g. Circe's internal description) and is intended for server-side
+    * logging only — never forward it to clients in production.
+    */
+  case DecodeError(message: String, detail: Option[String] = None)
 
   /** The body was parsed successfully but failed constraint validation. */
   case ValidationError(errors: List[String])
