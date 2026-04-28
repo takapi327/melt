@@ -49,6 +49,20 @@ object PathSpec:
   /** The NamedTuple type for a path with no dynamic parameters. */
   type Empty = NT[EmptyTuple, EmptyTuple]
 
+  /** The canonical empty-params value of type [[Empty]].
+    *
+    * `NamedTuple` is an `opaque type`, so outside its defining scope the
+    * compiler cannot prove that `EmptyTuple <: Empty` without a cast.
+    * The cast is safe because `NamedTuple[N, V]` erases to `V` at runtime,
+    * making `NamedTuple[EmptyTuple, EmptyTuple]` and `EmptyTuple` identical
+    * at the JVM / JS level.
+    *
+    * All internal code that needs an empty parameter tuple should use this
+    * value instead of writing `EmptyTuple.asInstanceOf[NamedTuple.Empty]`
+    * directly.
+    */
+  private[meltkit] val emptyValue: Empty = EmptyTuple.asInstanceOf[Empty]
+
   private final case class Impl[P <: AnyNamedTuple](
     segments:      List[PathSegment],
     paramDecoders: List[(String, PathParamDecoder[?])],
