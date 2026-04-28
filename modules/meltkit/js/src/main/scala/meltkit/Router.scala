@@ -11,22 +11,20 @@ import org.scalajs.dom
 import melt.runtime.Signal
 import melt.runtime.Var
 
-/** Client-side router backed by the History API.
+/** Client-side router backed by the browser History API.
   *
   * Tracks the current URL path as a reactive [[Signal]] and exposes
   * [[navigate]] / [[replace]] to change it programmatically.
   *
+  * Used by [[BrowserAdapter]] to react to URL changes, and by components
+  * to trigger client-side navigation without a full page reload.
+  *
   * {{{
-  * // .melt component
+  * // .melt component — read the current path reactively
   * val path = Router.currentPath
   *
-  * {if path.value == "/" then
-  *   <IndexPage />
-  * else if path.value.startsWith("/users/") then
-  *   <UserDetailPage />
-  * else
-  *   <NotFoundPage />
-  * }
+  * // Navigate programmatically
+  * Router.navigate("/users/42")
   * }}}
   */
 object Router:
@@ -41,12 +39,20 @@ object Router:
   /** A read-only reactive view of the current URL path. */
   val currentPath: Signal[String] = _path.signal
 
-  /** Pushes a new entry onto the history stack and updates [[currentPath]]. */
+  /** Pushes a new entry onto the history stack and updates [[currentPath]].
+    *
+    * `_path.set` notifies all subscribers (including [[BrowserAdapter]]) so
+    * there is no need to dispatch a synthetic `popstate` event.
+    */
   def navigate(path: String): Unit =
     dom.window.history.pushState(null, "", path)
     _path.set(path)
 
-  /** Replaces the current history entry and updates [[currentPath]]. */
+  /** Replaces the current history entry and updates [[currentPath]].
+    *
+    * Like [[navigate]] but replaces the current history entry instead of
+    * pushing a new one.
+    */
   def replace(path: String): Unit =
     dom.window.history.replaceState(null, "", path)
     _path.set(path)
