@@ -1,0 +1,67 @@
+<script lang="scala" props="Props">
+  case class Props(initialTodos: List[Todo] = Nil)
+
+  val todos   = Var(props.initialTodos)
+  val newText = Var("")
+  val loaded  = Var(props.initialTodos.nonEmpty)
+
+  val totalCount = todos.map(_.size)
+  val doneCount  = todos.map(_.count(_.done))
+
+  if !loaded.value then Api.fetchTodos(todos, loaded)
+
+  def toggleTodo(id: String): Unit =
+    todos.updateWhere(_.id == id)(t => t.copy(done = !t.done))
+
+  def deleteTodo(id: String): Unit =
+    todos.removeWhere(_.id == id)
+</script>
+
+<Layout>
+<div class="todo-page">
+  <h2>Todos</h2>
+
+  {if !loaded then
+    <p class="loading">Loading...</p>
+  else
+    <div class="add-form">
+      <input bind:value={newText} placeholder="What needs to be done?" />
+      <button class="btn-add" onclick={_ => { val text = newText.value.trim; if text.nonEmpty then { newText.set(""); Api.addTodo(text, todos) } }}>Add</button>
+    </div>
+  }
+
+  <ul>
+    {todos.value.map((t: Todo) =>
+      <li class:done={t.done}>
+        <button class="toggle" onclick={_ => { toggleTodo(t.id); Api.toggleTodo(t.id) }}>
+          {if t.done then "✓" else "○"}
+        </button>
+        <span class="todo-text">{t.text}</span>
+        <button class="delete" onclick={_ => { deleteTodo(t.id); Api.deleteTodo(t.id) }}>×</button>
+      </li>
+    )}
+  </ul>
+
+  <div class="footer">
+    <span class="summary">Total: {totalCount} / Done: {doneCount}</span>
+  </div>
+</div>
+</Layout>
+
+<style>
+.todo-page h2 { color: #333; margin: 0 0 1em; }
+.add-form { display: flex; gap: 0.5em; margin-bottom: 1em; }
+.add-form input { flex: 1; padding: 0.6em 0.8em; border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem; }
+.btn-add { padding: 0.6em 1.2em; background: #ff3e00; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+.btn-add:hover { background: #cc3200; }
+ul { list-style: none; padding: 0; margin: 0; }
+li { display: flex; align-items: center; gap: 0.5em; padding: 0.6em 0; border-bottom: 1px solid #eee; }
+li.done .todo-text { text-decoration: line-through; color: #999; }
+.todo-text { flex: 1; }
+.toggle { background: none; border: 1px solid #ddd; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 0.9rem; color: #999; }
+li.done .toggle { color: #4caf50; border-color: #4caf50; }
+.delete { background: none; border: none; color: #c00; cursor: pointer; font-size: 1.2em; padding: 0 0.3em; }
+.footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1em; padding-top: 0.5em; }
+.summary { color: #888; font-size: 0.9rem; }
+.loading { color: #888; font-style: italic; }
+</style>
