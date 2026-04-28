@@ -1,0 +1,67 @@
+<script lang="scala">
+val count   = Var(0)
+val doubled = count.map(_ * 2)
+val isEven  = memo(count)(_ % 2 == 0)
+
+def resetAll(): Unit =
+  count.set(0)
+</script>
+
+<div class="counter-page">
+  <h2>Counter</h2>
+
+  <div class="display">
+    <div class="stat">
+      <span class="label">Count</span>
+      <span class="value">{count}</span>
+    </div>
+    <div class="stat">
+      <span class="label">Doubled</span>
+      <span class="value">{doubled}</span>
+    </div>
+    <div class="stat">
+      <span class="label">Even?</span>
+      <span class="value">{isEven}</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick={_ => count -= 1}>-1</button>
+    <button onclick={_ => count += 1}>+1</button>
+    <button onclick={_ => count += 5}>+5</button>
+    <button onclick={_ => count *= 2}>×2</button>
+    <button class="btn-reset" onclick={_ => resetAll()}>Reset</button>
+  </div>
+
+</div>
+
+<style>
+.counter-page h2 { color: #333; margin: 0 0 1em; }
+.display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.75em;
+  margin-bottom: 1.5em;
+}
+.stat {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 0.8em;
+  text-align: center;
+}
+.stat .label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 0.3em; }
+.stat .value { display: block; font-size: 1.5rem; font-weight: 700; color: #333; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.5em; margin-bottom: 1.5em; }
+.controls button {
+  padding: 0.5em 1.2em;
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.controls button:hover { background: #cc3200; }
+.btn-reset { background: #666 !important; }
+.btn-reset:hover { background: #444 !important; }
+</style>

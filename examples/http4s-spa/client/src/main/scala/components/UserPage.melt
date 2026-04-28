@@ -1,0 +1,125 @@
+<script lang="scala">
+  val users    = Var(List.empty[User])
+  val loaded   = Var(false)
+  val newName  = Var("")
+  val newEmail = Var("")
+  val newRole  = Var("Developer")
+  val showForm = Var(false)
+
+  Api.fetchUsers(users, loaded)
+</script>
+
+<div class="user-page">
+  <div class="user-header">
+    <h2>Users</h2>
+    <button class="btn-add-user" onclick={_ => showForm.set(!showForm.value)}>
+      {if showForm.value then "Cancel" else "+ Add User"}
+    </button>
+  </div>
+
+  {if showForm.value then
+    <div class="add-form">
+      <input bind:value={newName} placeholder="Name" />
+      <input bind:value={newEmail} placeholder="Email" />
+      <select bind:value={newRole}>
+        <option value="Developer">Developer</option>
+        <option value="Designer">Designer</option>
+        <option value="Admin">Admin</option>
+        <option value="Manager">Manager</option>
+      </select>
+      <button class="btn-submit" onclick={_ => {
+        val n = newName.value.trim
+        val e = newEmail.value.trim
+        val r = newRole.value
+        if n.nonEmpty && e.nonEmpty then
+          Api.addUser(n, e, r, users)
+          newName.set("")
+          newEmail.set("")
+          newRole.set("Developer")
+          showForm.set(false)
+      }}>Save</button>
+    </div>
+  else
+    <span class="hidden" />
+  }
+
+  {if !loaded then
+    <p class="loading">Loading...</p>
+  else
+    <span class="hidden" />
+  }
+
+  <div class="user-grid">
+    {users.value.map((u: User) =>
+      <div class="user-card" onclick={_ => meltkit.Router.navigate(s"/users/${u.id}")}>
+        <div class="avatar">{u.name.take(1)}</div>
+        <div class="info">
+          <p class="name">{u.name}</p>
+          <p class="email">{u.email}</p>
+          <span class="role">{u.role}</span>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
+<style>
+.user-page h2 { color: #333; margin: 0 0 0.5em; }
+.user-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1em; }
+.btn-add-user {
+  padding: 0.4em 1em;
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-add-user:hover { background: #cc3200; }
+.add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  padding: 1em;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.add-form input, .add-form select {
+  flex: 1;
+  min-width: 140px;
+  padding: 0.5em 0.8em;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.btn-submit {
+  padding: 0.5em 1.2em;
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1em; }
+.user-card {
+  display: flex;
+  gap: 0.8em;
+  padding: 1em;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.user-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: #ff3e00; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; }
+.info { min-width: 0; }
+.info .name { margin: 0; font-weight: 600; color: #333; }
+.info .email { margin: 0.2em 0 0.4em; font-size: 0.85rem; color: #888; }
+.role { display: inline-block; padding: 0.15em 0.6em; background: #f0f0f0; border-radius: 12px; font-size: 0.75rem; color: #555; }
+.loading { color: #888; font-style: italic; }
+.hidden { display: none; }
+</style>

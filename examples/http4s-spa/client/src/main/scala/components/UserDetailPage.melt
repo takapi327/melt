@@ -1,0 +1,192 @@
+<script lang="scala" props="Props">
+  case class Props(userId: Int = 0)
+
+  val user      = Var(Option.empty[User])
+  val loaded    = Var(false)
+  val editing   = Var(false)
+  val editName  = Var("")
+  val editEmail = Var("")
+  val editRole  = Var("")
+
+  val userName:  Signal[String]  = user.map(_.map(_.name).getOrElse(""))
+  val userEmail: Signal[String]  = user.map(_.map(_.email).getOrElse(""))
+  val userRole:  Signal[String]  = user.map(_.map(_.role).getOrElse(""))
+  val userExists: Signal[Boolean] = user.map(_.isDefined)
+
+  Api.fetchUser(props.userId, user, loaded)
+
+  def startEdit(): Unit =
+    user.value.foreach { u =>
+      editName.set(u.name)
+      editEmail.set(u.email)
+      editRole.set(u.role)
+      editing.set(true)
+    }
+
+  def saveEdit(): Unit =
+    val n = editName.value.trim
+    val e = editEmail.value.trim
+    val r = editRole.value
+    if n.nonEmpty && e.nonEmpty then
+      Api.updateUser(props.userId, n, e, r, user)
+      editing.set(false)
+
+  def doDelete(): Unit =
+    Api.deleteUser(props.userId)
+    meltkit.Router.navigate("/users")
+</script>
+
+<div class="user-detail">
+  <button class="btn-back" onclick={_ => meltkit.Router.navigate("/users")}>← Back to Users</button>
+
+  {if !loaded then
+    <p class="loading">Loading...</p>
+  else
+    <span class="hidden" />
+  }
+
+  {if loaded && !userExists.value then
+    <p class="not-found">User not found.</p>
+  else
+    <span class="hidden" />
+  }
+
+  {if !editing.value then
+    <div class="profile">
+      <div class="profile-header">
+        <div class="avatar-lg">{userName}</div>
+        <div>
+          <h2>{userName}</h2>
+          <span class="role">{userRole}</span>
+        </div>
+      </div>
+      <div class="profile-body">
+        <div class="field-row">
+          <span class="field-label">Email</span>
+          <span>{userEmail}</span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">ID</span>
+          <span>#{props.userId}</span>
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn-edit" onclick={_ => startEdit()}>Edit</button>
+        <button class="btn-delete" onclick={_ => doDelete()}>Delete</button>
+      </div>
+    </div>
+  else
+    <div class="edit-form">
+      <h2>Edit User</h2>
+      <div class="field">
+        <label>Name</label>
+        <input bind:value={editName} />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input bind:value={editEmail} />
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <select bind:value={editRole}>
+          <option value="Developer">Developer</option>
+          <option value="Designer">Designer</option>
+          <option value="Admin">Admin</option>
+          <option value="Manager">Manager</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-save" onclick={_ => saveEdit()}>Save</button>
+        <button class="btn-cancel" onclick={_ => editing.set(false)}>Cancel</button>
+      </div>
+    </div>
+  }
+</div>
+
+<style>
+.user-detail { max-width: 480px; }
+.btn-back {
+  background: none;
+  border: none;
+  color: #ff3e00;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 1.5em;
+  display: block;
+}
+.btn-back:hover { text-decoration: underline; }
+.loading { color: #888; font-style: italic; }
+.not-found { color: #888; }
+.hidden { display: none; }
+.avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #ff3e00;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+.profile-header { display: flex; align-items: center; gap: 1em; margin-bottom: 1.5em; }
+.profile-header h2 { margin: 0 0 0.25em; color: #333; }
+.role { display: inline-block; padding: 0.15em 0.6em; background: #f0f0f0; border-radius: 12px; font-size: 0.8rem; color: #555; }
+.profile-body { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 1.5em; }
+.field-row { display: flex; padding: 0.75em 1em; border-bottom: 1px solid #eee; }
+.field-row:last-child { border-bottom: none; }
+.field-label { width: 80px; color: #888; font-size: 0.9rem; }
+.profile-actions { display: flex; gap: 0.5em; }
+.btn-edit {
+  padding: 0.5em 1.2em;
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-edit:hover { background: #cc3200; }
+.btn-delete {
+  padding: 0.5em 1.2em;
+  background: white;
+  color: #c00;
+  border: 1px solid #c00;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-delete:hover { background: #fff0f0; }
+.edit-form { display: flex; flex-direction: column; gap: 1em; }
+.edit-form h2 { color: #333; margin: 0 0 0.5em; }
+.field { display: flex; flex-direction: column; gap: 0.25em; }
+.field label { font-size: 0.85rem; color: #555; font-weight: 600; }
+.field input, .field select {
+  padding: 0.5em 0.8em;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+.form-actions { display: flex; gap: 0.5em; }
+.btn-save {
+  padding: 0.5em 1.2em;
+  background: #ff3e00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn-cancel {
+  padding: 0.5em 1.2em;
+  background: white;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+</style>
