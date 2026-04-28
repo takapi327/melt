@@ -59,7 +59,9 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       trackSize(html)
       headBuf ++= html
 
-    /** Sets the page title. Escapes `content` via [[Escape.html]].
+    /** Sets the page title. Stores the raw (unescaped) value; HTML-escaping
+      * is applied by [[Template]] when the value is substituted into
+      * `%melt.title%`.
       *
       * '''Dedup''': last call wins. Multiple components calling
       * `renderer.head.title(...)` all compete for the single `<title>`
@@ -70,8 +72,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       * `<title>{expr}</title>` element.
       */
     def title(content: Any): Unit =
-      val escaped = Escape.html(content)
-      titleContent = Some(escaped)
+      titleContent = Some(content.toString)
 
     /** Sets a `<meta name="...">` entry. Subsequent calls with the same
       * `name` overwrite the previous `content`.

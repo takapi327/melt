@@ -103,7 +103,8 @@ final class Template private[meltkit] (private val raw: String):
     lang:   String = "en",
     vars:   Map[String, String] = Map.empty
   ): String =
-    val effectiveTitle = if title.nonEmpty then Escape.html(title) else result.title.getOrElse("")
+    val rawTitle       = if title.nonEmpty then title else result.title.getOrElse("")
+    val effectiveTitle = Escape.html(rawTitle)
     renderInternal(result, effectiveTitle, lang, vars, extraHead = "", extraBody = "")
 
   // ── SSR with hydration ────────────────────────────────────────────────────
@@ -134,7 +135,8 @@ final class Template private[meltkit] (private val raw: String):
     basePath: String,
     vars:     Map[String, String]
   ): String =
-    val effectiveTitle = if title.nonEmpty then Escape.html(title) else result.title.getOrElse("")
+    val rawTitle       = if title.nonEmpty then title else result.title.getOrElse("")
+    val effectiveTitle = Escape.html(rawTitle)
 
     val jsChunks  = result.components.flatMap(manifest.chunksFor).toList.distinct
     val cssChunks = result.components.flatMap(manifest.cssFor).toList.distinct
