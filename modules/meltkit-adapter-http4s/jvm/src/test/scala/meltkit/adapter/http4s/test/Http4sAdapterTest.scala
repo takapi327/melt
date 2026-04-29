@@ -18,6 +18,7 @@ import meltkit.adapter.http4s.Http4sAdapter.given
 import meltkit.codec.*
 import org.http4s.*
 import org.http4s.implicits.*
+import org.typelevel.ci.*
 
 class Http4sAdapterTest extends CatsEffectSuite:
 
@@ -341,5 +342,110 @@ class Http4sAdapterTest extends CatsEffectSuite:
         resp.get.as[String].map { body =>
           assert(body.contains("a"))
           assert(body.contains("b"))
+        }
+      }
+
+  // ── Request header reading ────────────────────────────────────────────────
+
+  test("ctx.header reads named header from request"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("auth").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.header("Authorization").getOrElse("none")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/auth")
+      .withHeaders(Header.Raw(ci"Authorization", "Bearer token123"))
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("token123")))
+      }
+
+  test("ctx.header is case-insensitive"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("auth2").response[String]) { ctx =>
+      val lower = ctx.header("authorization").getOrElse("none")
+      val upper = ctx.header("AUTHORIZATION").getOrElse("none")
+      IO.pure(ctx.ok(s"$lower:$upper"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/auth2")
+      .withHeaders(Header.Raw(ci"Authorization", "Bearer abc"))
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("Bearer abc:Bearer abc")))
+      }
+
+  test("ctx.header returns None when header is absent"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("check").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.header("X-Missing").getOrElse("none")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/check")
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("none")))
+      }
+
+  test("ctx.headers returns all headers as lowercase-keyed Map"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("hdrs").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.headers.toList.sortBy(_._1).map(_._1).mkString(",")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/hdrs")
+      .withHeaders(
+        Header.Raw(ci"Authorization", "Bearer tok"),
+        Header.Raw(ci"X-Request-Id", "req-1")
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map { body =>
+          assert(body.contains("authorization"))
+          assert(body.contains("x-request-id"))
+        }
+      }
+
+  test("ctx.header joins duplicate header values with comma"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("accept").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.header("accept").getOrElse("none")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/accept")
+      .withHeaders(
+        Header.Raw(ci"Accept", "text/html"),
+        Header.Raw(ci"Accept", "application/json")
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map { body =>
+          assert(body.contains("text/html"))
+          assert(body.contains("application/json"))
         }
       }

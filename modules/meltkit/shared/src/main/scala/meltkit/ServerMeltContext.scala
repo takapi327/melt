@@ -57,3 +57,28 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * If the same cookie name appears more than once the last value wins.
     */
   def cookies: Map[String, String]
+
+  /** Returns the value of the named request header (case-insensitive).
+    *
+    * If the same header name appears more than once, values are joined with
+    * `", "` per RFC 7230 §3.2.2.
+    *
+    * {{{
+    * ctx.header("Authorization")  // Some("Bearer abc")
+    * ctx.header("authorization")  // Some("Bearer abc")  ← case-insensitive
+    * ctx.header("X-Missing")      // None
+    * }}}
+    */
+  def header(name: String): Option[String]
+
+  /** Returns all request headers as a `name → value` map.
+    *
+    * - Header names are normalized to **lowercase**.
+    * - If the same header name appears more than once, values are joined with `", "`.
+    *
+    * {{{
+    * ctx.headers                  // Map("authorization" -> "Bearer abc", "content-type" -> "application/json", ...)
+    * ctx.headers("authorization") // "Bearer abc"
+    * }}}
+    */
+  def headers: Map[String, String]

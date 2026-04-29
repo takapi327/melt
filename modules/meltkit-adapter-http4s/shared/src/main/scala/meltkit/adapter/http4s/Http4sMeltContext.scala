@@ -84,6 +84,18 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
   override def cookies: Map[String, String] = parsedCookies
 
+  // Parse all request headers once per request (lazy to avoid unnecessary work).
+  // Keys are normalized to lowercase; duplicate header names are joined with ", "
+  // per RFC 7230 §3.2.2.
+  private lazy val parsedHeaders: Map[String, String] =
+    request.headers.headers
+      .groupBy(_.name.toString.toLowerCase)
+      .map { case (name, vals) => name -> vals.map(_.value).mkString(", ") }
+
+  override def header(name: String): Option[String] = parsedHeaders.get(name.toLowerCase)
+
+  override def headers: Map[String, String] = parsedHeaders
+
   /** Evaluates `component` inside `Router.withPath(requestPath)` so that
     * `Router.currentPath` returns the correct path during SSR rendering.
     */
