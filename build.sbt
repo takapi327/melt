@@ -24,6 +24,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "meltkitJVM",
     "meltkitJS",
     "meltkit-browser",
+    "meltkit-node",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS"
   )
@@ -39,6 +40,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
   // Scala 3.8.3 runs on Java 17 only
@@ -62,7 +65,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
-    cond = Some("contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-adapter-http4sJS', matrix.project)")
+    cond = Some("contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)")
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/nativeLink"),
@@ -200,6 +203,20 @@ lazy val `meltkit-browser` = project
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % "1.2.4" % Test
     )
+  )
+  .dependsOn(meltkit.js)
+
+// ── MeltKit: Node.js server adapter (Scala.js only, Scala 3.8+) ──────────────
+lazy val `meltkit-node` = project
+  .in(file("modules/meltkit-node"))
+  .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name         := "meltkit-node",
+    scalaVersion := scala38,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.CommonJSModule)
+    }
   )
   .dependsOn(meltkit.js)
 
@@ -582,6 +599,7 @@ lazy val root = project
     meltkit.jvm,
     meltkit.js,
     `meltkit-browser`,
+    `meltkit-node`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
     `sbt-meltc`,
