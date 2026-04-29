@@ -59,7 +59,7 @@ import meltkit.codec.BodyDecoder
   * object Main:
   *   def main(args: Array[String]): Unit =
   *     val rootEl = dom.document.getElementById("app")
-  *     val app    = MeltRouter()
+  *     val app    = MeltKit()
   *     app.get("")         { ctx => ctx.render(TodoPage()) }
   *     app.get("counter")  { ctx => ctx.render(CounterPage()) }
   *     app.get("users")    { ctx => ctx.render(UserPage()) }

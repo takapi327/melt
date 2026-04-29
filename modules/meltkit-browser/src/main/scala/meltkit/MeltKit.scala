@@ -8,15 +8,15 @@ package meltkit
 
 import org.scalajs.dom
 
-/** Browser-specific [[MeltKit]] router with `C` fixed to [[org.scalajs.dom.Element]].
+/** Browser-specific [[MeltKit]] router with `F` fixed to [[Id]] and `C` fixed to [[org.scalajs.dom.Element]].
   *
   * {{{
-  * val app = MeltKit[Id]()
+  * val app = MeltKit()
   * app.get("todos") { ctx => ctx.render(TodoPage()) }
   * BrowserAdapter.mountWithShell(app, rootEl, Layout())
   * }}}
   */
-class MeltKit[F[_]] extends MeltKitPlatform[F, dom.Element]
+class MeltKit extends MeltKitPlatform[Id, dom.Element]
 
 object MeltKit:
-  def apply[F[_]](): MeltKit[F] = new MeltKit[F]()
+  def apply(): MeltKit = new MeltKit()

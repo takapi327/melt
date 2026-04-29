@@ -23,7 +23,7 @@ import org.scalajs.dom
   *
   * object Main:
   *   def main(args: Array[String]): Unit =
-  *     val app = MeltRouter()
+  *     val app = MeltKit()
   *     app.get("") { ctx => ctx.render(TodoPage()) }
   *     BrowserAdapter.mountWithShell(app, rootEl, Layout())
   * }}}
@@ -39,27 +39,3 @@ type Id = [A] =>> A
   */
 given EffectRunner[Id] with
   def runAndForget(fa: Response): Unit = ()
-
-/** Type alias for the browser router: `MeltKit[Id]`.
-  *
-  * Importing `meltkit.*` makes this alias available so that return-type
-  * annotations do not mention [[Id]] at all:
-  *
-  * {{{
-  * import meltkit.*
-  *
-  * def buildApp(): MeltRouter =
-  *   val app = MeltRouter()
-  *   app.get("") { ctx => ctx.render(TodoPage()) }
-  *   app
-  * }}}
-  */
-type MeltRouter = MeltKit[Id]
-
-/** Creates a [[MeltKit]] router for synchronous browser-side routing.
-  *
-  * Equivalent to `new MeltKit[Id]()` — the component type is fixed to
-  * `dom.Element` automatically so users do not need to know about it.
-  */
-object MeltRouter:
-  def apply(): MeltRouter = MeltKit[Id]()

@@ -42,7 +42,7 @@ private[meltkit] final class Route[F[_], C](
   * platform-specific [[MeltKit]] subclass, which fixes `C` automatically:
   *
   *   - JVM / Node.js — `MeltKit[IO]()` where `C = RenderResult`
-  *   - Browser       — `MeltKit[Id]()` where `C = dom.Element`
+  *   - Browser       — `MeltKit()` where `C = dom.Element`
   *
   * Register route handlers with [[get]], [[post]], [[put]], [[delete]], and
   * [[patch]]. Compose multiple routers with [[route]].
@@ -54,7 +54,7 @@ private[meltkit] final class Route[F[_], C](
   * app.get("todos")     { ctx => IO.delay(ctx.render(TodoPage())) }
   *
   * // Browser
-  * val app = MeltKit[Id]()
+  * val app = MeltKit()
   * app.get("todos") { ctx => ctx.render(TodoPage()) }
   * }}}
   *
