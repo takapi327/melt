@@ -18,8 +18,9 @@ import fs2.io.file.Files
 import fs2.io.file.Path
 import meltkit.*
 import meltkit.codec.BodyDecoder
+import org.http4s.ResponseCookie as Http4sResponseCookie
 import org.http4s.headers.`Content-Type`
-import org.http4s.headers.{`Set-Cookie` => Http4sSetCookie}
+import org.http4s.headers.`Set-Cookie` as Http4sSetCookie
 import org.http4s.server.staticcontent.fileService
 import org.http4s.server.staticcontent.FileService
 import org.http4s.server.Router
@@ -27,7 +28,6 @@ import org.http4s.Charset
 import org.http4s.Headers
 import org.http4s.HttpRoutes
 import org.http4s.MediaType
-import org.http4s.{ResponseCookie => Http4sResponseCookie}
 import org.http4s.Response as Http4sResponse
 import org.http4s.SameSite
 import org.http4s.Status

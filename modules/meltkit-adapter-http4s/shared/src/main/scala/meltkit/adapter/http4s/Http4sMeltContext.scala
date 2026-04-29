@@ -16,8 +16,8 @@ import cats.syntax.all.*
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
+import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.Request
-import org.http4s.headers.{Cookie => Http4sCookieHeader}
 
 /** An exception raised by [[Http4sMeltContext.bodyOrBadRequest]] when body
   * decoding fails. [[Http4sAdapter]] catches this and converts it to a 400

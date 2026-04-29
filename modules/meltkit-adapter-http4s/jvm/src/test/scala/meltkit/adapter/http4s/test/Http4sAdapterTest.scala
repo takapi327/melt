@@ -325,10 +325,12 @@ class Http4sAdapterTest extends CatsEffectSuite:
     }
 
     val req = Request[IO](method = Method.GET, uri = uri"/cookies")
-      .withHeaders(org.http4s.headers.Cookie(
-        org.http4s.RequestCookie("a", "1"),
-        org.http4s.RequestCookie("b", "2")
-      ))
+      .withHeaders(
+        org.http4s.headers.Cookie(
+          org.http4s.RequestCookie("a", "1"),
+          org.http4s.RequestCookie("b", "2")
+        )
+      )
 
     Http4sAdapter
       .routes(app)

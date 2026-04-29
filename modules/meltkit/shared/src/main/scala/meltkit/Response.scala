@@ -53,9 +53,9 @@ sealed trait Response:
   def withDeletedCookie(name: String, path: String = "/"): Response
 
 final case class NotFound(
-  message:         String              = "Not Found",
-  contentType:     String              = "text/plain; charset=utf-8",
-  headers:         Map[String, String] = Map.empty,
+  message:         String               = "Not Found",
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
   responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 404
@@ -64,7 +64,7 @@ final case class NotFound(
   override def withHeaders(h:      Map[String, String]):                        NotFound = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): NotFound =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   NotFound =
+  override def withDeletedCookie(name: String, path: String): NotFound =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class BadRequest(
@@ -79,7 +79,7 @@ final case class BadRequest(
   override def withHeaders(h:      Map[String, String]):                        BadRequest = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): BadRequest =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   BadRequest =
+  override def withDeletedCookie(name: String, path: String): BadRequest =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Unauthorized(
@@ -94,7 +94,7 @@ final case class Unauthorized(
   override def withHeaders(h:      Map[String, String]):                        Unauthorized = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): Unauthorized =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   Unauthorized =
+  override def withDeletedCookie(name: String, path: String): Unauthorized =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Forbidden(
@@ -109,7 +109,7 @@ final case class Forbidden(
   override def withHeaders(h:      Map[String, String]):                        Forbidden = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): Forbidden =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   Forbidden =
+  override def withDeletedCookie(name: String, path: String): Forbidden =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Conflict(
@@ -124,7 +124,7 @@ final case class Conflict(
   override def withHeaders(h:      Map[String, String]):                        Conflict = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): Conflict =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   Conflict =
+  override def withDeletedCookie(name: String, path: String): Conflict =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class UnprocessableEntity(
@@ -135,11 +135,11 @@ final case class UnprocessableEntity(
 ) extends Response:
   val status: StatusCode = 422
   val body = message
-  override def withContentType(ct: String):                                     UnprocessableEntity = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]):                        UnprocessableEntity = copy(headers = h)
+  override def withContentType(ct: String):              UnprocessableEntity = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): UnprocessableEntity = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): UnprocessableEntity =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   UnprocessableEntity =
+  override def withDeletedCookie(name: String, path: String): UnprocessableEntity =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 /** A general-purpose response for cases not covered by the typed subtypes. */
@@ -154,7 +154,7 @@ final case class PlainResponse(
   override def withHeaders(h:      Map[String, String]):                        PlainResponse = copy(headers = h)
   override def withCookie(name: String, value: String, options: CookieOptions): PlainResponse =
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
-  override def withDeletedCookie(name: String, path: String):                   PlainResponse =
+  override def withDeletedCookie(name: String, path: String): PlainResponse =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 object Response:
