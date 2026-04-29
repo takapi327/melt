@@ -9,8 +9,8 @@ package meltkit
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
 
-import melt.runtime.Signal
 import melt.runtime.impl.SupplierSignal
+import melt.runtime.Signal
 
 /** Facade for Node.js `AsyncLocalStorage` from `async_hooks`. */
 @js.native
@@ -52,4 +52,4 @@ object Router:
     _storage.run(path, () => f)
 
   def navigate(path: String): Unit = ()
-  def replace(path: String): Unit  = ()
+  def replace(path:  String): Unit = ()

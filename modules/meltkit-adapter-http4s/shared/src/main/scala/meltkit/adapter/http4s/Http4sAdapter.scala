@@ -8,13 +8,14 @@ package meltkit.adapter.http4s
 
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.render.RenderResult
+
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.Concurrent
 import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
-import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import org.http4s.headers.`Content-Type`
@@ -103,7 +104,10 @@ final class Http4sAdapter[F[_]: Concurrent] private (
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           val factory   = new MeltContextFactory[F, RenderResult]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
+            def build[P <: AnyNamedTuple, B](
+              params:      P,
+              bodyDecoder: BodyDecoder[B]
+            ): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
             def buildServer[P <: AnyNamedTuple, B](
               params:      P,
@@ -185,7 +189,10 @@ object Http4sAdapter:
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           val factory   = new MeltContextFactory[F, RenderResult]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
+            def build[P <: AnyNamedTuple, B](
+              params:      P,
+              bodyDecoder: BodyDecoder[B]
+            ): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder)
             def buildServer[P <: AnyNamedTuple, B](
               params:      P,

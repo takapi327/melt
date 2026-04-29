@@ -9,6 +9,7 @@ package meltkit
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
+
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
 
@@ -35,10 +36,10 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
   val requestPath:         String,
   private val queryParams: Map[String, String] = Map.empty,
   private val bodyDecoder: BodyDecoder[B],
-  private val templateOpt: Option[Template] = None,
-  private val manifest:    ViteManifest     = ViteManifest.empty,
-  private val lang:        String           = "en",
-  private val basePath:    String           = "/assets"
+  private val templateOpt: Option[Template]    = None,
+  private val manifest:    ViteManifest        = ViteManifest.empty,
+  private val lang:        String              = "en",
+  private val basePath:    String              = "/assets"
 ) extends MeltContext[F, P, B, RenderResult]:
 
   override def query(name: String): Option[String] = queryParams.get(name)

@@ -8,12 +8,13 @@ package server
 
 import java.util.UUID
 
+import melt.runtime.render.RenderResult
+
 import cats.effect.*
 import com.comcast.ip4s.*
 import components.*
 import generated.AssetManifest
 import io.circe.Codec
-import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given

@@ -8,9 +8,10 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
+import melt.runtime.render.RenderResult
+
 import cats.effect.IO
 import io.circe.Codec
-import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given

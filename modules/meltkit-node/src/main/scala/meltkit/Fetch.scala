@@ -71,6 +71,6 @@ object Fetch:
         ok         = res.ok,
         url        = res.url,
         headers    = Headers(headerMap.toMap),
-        _text = () => res.text().toFuture
+        _text      = () => res.text().toFuture
       )
     }
