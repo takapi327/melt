@@ -13,11 +13,7 @@ import scala.concurrent.Future
   *
   * MeltKit core depends only on this trait — not on any specific effect library.
   * A built-in instance for [[scala.concurrent.Future]] is provided in the companion object.
-  * For cats-based effects (e.g. `cats.effect.IO`), import the bridge given from the adapter:
-  *
-  * {{{
-  * import meltkit.adapter.http4s.Http4sAdapter.given
-  * }}}
+  * For cats-based effects (e.g. `cats.effect.IO`), import the bridge given from an adapter module.
   */
 trait Functor[F[_]]:
   def map[A, B](fa: F[A])(f: A => B): F[B]

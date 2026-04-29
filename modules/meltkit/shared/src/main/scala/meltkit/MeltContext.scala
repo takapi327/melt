@@ -12,8 +12,7 @@ import meltkit.codec.BodyEncoder
 
 /** The handler context provided to each route handler.
   *
-  * Concrete implementations are provided by adapters
-  * (e.g. `Http4sMeltContext` in `meltkit-adapter-http4s`).
+  * Concrete implementations are provided by adapter modules.
   *
   * For request-body access (`ctx.body` / `ctx.bodyOrBadRequest`) use
   * [[ServerMeltContext]], which extends this trait and is provided to
@@ -65,10 +64,8 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     * app.get("todos") { ctx => F.pure(ctx.render(TodoPage())) }
     * }}}
     *
-    * On JVM / Node.js: only available when using the class-based
-    * [[meltkit.adapter.http4s.Http4sAdapter]] (i.e. `Http4sAdapter(app, template, manifest).routes`).
-    * Calling this method when using the API-only `Http4sAdapter.routes(app)` raises an
-    * [[IllegalStateException]] at runtime.
+    * On JVM / Node.js: only available when the adapter is initialized with a [[Template]].
+    * Calling this method without a template raises an [[IllegalStateException]] at runtime.
     */
   def render(component: => C): PlainResponse
 

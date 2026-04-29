@@ -16,8 +16,7 @@ package meltkit
   * val invalid: StatusCode = 999  // ❌ compile error
   * }}}
   *
-  * `StatusCode` is a subtype of `Int`, so it can be passed wherever an `Int`
-  * is expected (e.g. `org.http4s.Status.fromInt`).
+  * `StatusCode` is a subtype of `Int`, so it can be passed wherever an `Int` is expected.
   */
 type StatusCode =
   // 2xx Success

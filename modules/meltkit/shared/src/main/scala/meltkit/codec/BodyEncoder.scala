@@ -9,14 +9,13 @@ package meltkit.codec
 /** Encodes a value of type `A` into a JSON string.
   *
   * `meltkit` defines only this interface; concrete implementations are provided
-  * by adapters (e.g. `meltkit-adapter-http4s` provides `CirceBodyEncoder`).
+  * by adapter modules.
   *
   * A `given BodyEncoder[String]` is provided in the companion object so that
   * raw JSON strings remain usable with [[meltkit.MeltContext.json]] without any import.
   *
   * {{{
-  * // Typed value (requires CirceBodyEncoder.given in scope):
-  * import meltkit.adapter.http4s.CirceBodyEncoder.given
+  * // Typed value (requires a BodyEncoder given from an adapter module in scope):
   * ctx.json(user)
   *
   * // Raw JSON string (always works):
