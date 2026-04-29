@@ -41,26 +41,32 @@ private[meltkit] final class Route[F[_], C](
   val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]]
 )
 
-/** The MeltKit routing DSL.
+/** The MeltKit routing DSL — platform-agnostic base trait.
+  *
+  * Users do not extend or instantiate this trait directly. Instead, use the
+  * platform-specific [[MeltKit]] subclass, which fixes `C` automatically:
+  *
+  *   - JVM / Node.js — `MeltKit[IO]()` where `C = RenderResult`
+  *   - Browser       — `MeltKit[Id]()` where `C = dom.Element`
   *
   * Register route handlers with [[get]], [[post]], [[put]], [[delete]], and
   * [[patch]]. Compose multiple routers with [[route]].
   *
   * {{{
   * // JVM / Node.js
-  * val app = NodeApp[IO]()
+  * val app = MeltKit[IO]()
   * app.get("api/todos") { ctx => IO.pure(ctx.ok(todos)) }
   * app.get("todos")     { ctx => IO.delay(ctx.render(TodoPage())) }
   *
   * // Browser
-  * val app = MeltRouter()
+  * val app = MeltKit[Id]()
   * app.get("todos") { ctx => ctx.render(TodoPage()) }
   * }}}
   *
   * @tparam F the effect type (e.g. `cats.effect.IO`, `Id`)
   * @tparam C the component type for this platform
   */
-class MeltKit[F[_], C]:
+trait MeltKitPlatform[F[_], C]:
   private val _routes = ListBuffer[Route[F, C]]()
 
   /** Returns all registered routes. Intended for adapter use only. */
@@ -181,14 +187,14 @@ class MeltKit[F[_], C]:
     * app.route("api", api)  // → GET /api/users
     * }}}
     */
-  def route(prefix: String, sub: MeltKit[F, C]): Unit =
+  def route(prefix: String, sub: MeltKitPlatform[F, C]): Unit =
     sub.routes.foreach { r =>
       _routes += Route(r.method, PathSegment.Static(prefix) :: r.segments, r.tryHandle)
     }
 
 /** Extracts a [[Response]] from a handler output `Out`.
   *
-  * Allows [[MeltKit.on]] to accept both `F[Response]` and `F[Either[E, Response]]`:
+  * Allows [[MeltKitPlatform.on]] to accept both `F[Response]` and `F[Either[E, Response]]`:
   *
   * {{{
   * // without errorOut — F[Response]

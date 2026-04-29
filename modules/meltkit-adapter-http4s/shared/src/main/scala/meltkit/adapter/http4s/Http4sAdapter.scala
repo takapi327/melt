@@ -38,7 +38,7 @@ import org.http4s.Status
   * ==API-only==
   *
   * {{{
-  * val app = MeltKit[IO, RenderResult]()
+  * val app = MeltKit[IO]()
   * app.get("api" / "users") { ctx => IO.pure(ctx.json("[...]")) }
   *
   * val httpApp = Http4sAdapter.routes(app).orNotFound
@@ -49,7 +49,7 @@ import org.http4s.Status
   * {{{
   * import generated.AssetManifest
   *
-  * val app = MeltKit[IO, RenderResult]()
+  * val app = MeltKit[IO]()
   * // define routes ...
   *
   * val httpApp = Http4sAdapter.spaRoutes(app, AssetManifest.clientDistDir, AssetManifest.manifest)
@@ -65,7 +65,7 @@ import org.http4s.Status
   * {{{
   * import generated.AssetManifest
   *
-  * val app = MeltKit[IO, RenderResult]()
+  * val app = MeltKit[IO]()
   * app.get("users" / userId) { ctx =>
   *   Database.findUser(ctx.params.userId).map(u => ctx.render(UserDetailPage(u)))
   * }
@@ -76,7 +76,7 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent] private (
-  private val app:      MeltKit[F, RenderResult],
+  private val app:      MeltKitPlatform[F, RenderResult],
   private val template: Template,
   private val manifest: ViteManifest,
   private val lang:     String,
@@ -154,7 +154,7 @@ object Http4sAdapter:
     * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
     */
   def apply[F[_]: Async: Files](
-    app:           MeltKit[F, RenderResult],
+    app:           MeltKitPlatform[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
@@ -173,7 +173,7 @@ object Http4sAdapter:
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
-  def routes[F[_]: Concurrent](app: MeltKit[F, RenderResult]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent](app: MeltKitPlatform[F, RenderResult]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
@@ -231,7 +231,7 @@ object Http4sAdapter:
     *                      `%melt.head%` (usually `AssetManifest.manifest`)
     */
   def spaRoutes[F[_]: Async: Files](
-    app:           MeltKit[F, RenderResult],
+    app:           MeltKitPlatform[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =

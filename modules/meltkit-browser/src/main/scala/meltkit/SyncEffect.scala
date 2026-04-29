@@ -40,10 +40,10 @@ type Id = [A] =>> A
 given EffectRunner[Id] with
   def runAndForget(fa: Response): Unit = ()
 
-/** Type alias for the browser router: `MeltKit[Id, dom.Element]`.
+/** Type alias for the browser router: `MeltKit[Id]`.
   *
   * Importing `meltkit.*` makes this alias available so that return-type
-  * annotations do not mention [[Id]] or `dom.Element` at all:
+  * annotations do not mention [[Id]] at all:
   *
   * {{{
   * import meltkit.*
@@ -54,12 +54,12 @@ given EffectRunner[Id] with
   *   app
   * }}}
   */
-type MeltRouter = MeltKit[Id, dom.Element]
+type MeltRouter = MeltKit[Id]
 
 /** Creates a [[MeltKit]] router for synchronous browser-side routing.
   *
-  * Equivalent to `new MeltKit[Id, dom.Element]()` — both type parameters are
-  * fixed automatically so users do not need to know about them.
+  * Equivalent to `new MeltKit[Id]()` — the component type is fixed to
+  * `dom.Element` automatically so users do not need to know about it.
   */
 object MeltRouter:
-  def apply(): MeltRouter = new MeltKit[Id, dom.Element]()
+  def apply(): MeltRouter = MeltKit[Id]()

@@ -103,7 +103,7 @@ object BrowserAdapter:
     * @param app    the [[MeltKit]] router whose routes will handle URL changes
     * @param rootEl the DOM element used as the mount target for components
     */
-  def mount[F[_]: EffectRunner](app: MeltKit[F, dom.Element], rootEl: dom.Element): Unit =
+  def mount[F[_]: EffectRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
     dispatch(app, rootEl, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
@@ -116,7 +116,7 @@ object BrowserAdapter:
     * @param shell  the persistent shell component (e.g. `Layout()`)
     */
   def mountWithShell[F[_]: EffectRunner](
-    app:    MeltKit[F, dom.Element],
+    app:    MeltKitPlatform[F, dom.Element],
     rootEl: dom.Element,
     shell:  dom.Element
   ): Unit =
@@ -175,7 +175,7 @@ object BrowserAdapter:
   // ── Route dispatch ───────────────────────────────────────────────────────
 
   private def dispatch[F[_]: EffectRunner](
-    app:      MeltKit[F, dom.Element],
+    app:      MeltKitPlatform[F, dom.Element],
     outletEl: dom.Element,
     path:     String
   ): Unit =

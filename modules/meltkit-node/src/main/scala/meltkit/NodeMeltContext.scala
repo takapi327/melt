@@ -18,7 +18,7 @@ import meltkit.codec.BodyEncoder
   * `render` evaluates the component inside `Router.withPath(requestPath)(...)`,
   * setting `Router.currentPath` for the duration of the synchronous render.
   *
-  * This context is used by [[NodeApp]] for Node.js server-side rendering without
+  * This context is used by [[MeltKit]] for Node.js server-side rendering without
   * the http4s adapter. For http4s-based Node.js servers, use
   * [[meltkit.adapter.http4s.Http4sMeltContext]] via [[meltkit-adapter-http4s]].
   *

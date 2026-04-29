@@ -8,8 +8,6 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
-import melt.runtime.render.RenderResult
-
 import cats.effect.IO
 import io.circe.Codec
 import meltkit.*
@@ -48,7 +46,7 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
   // ── static route ──────────────────────────────────────────────────────────
 
   test("GET /ping returns 200 text/plain"):
-    val app = MeltKit[IO, RenderResult]()
+    val app = MeltKit[IO]()
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/ping")
@@ -64,7 +62,7 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
   // ── typed path param ──────────────────────────────────────────────────────
 
   test("GET /users/42 extracts id as Int"):
-    val app = MeltKit[IO, RenderResult]()
+    val app = MeltKit[IO]()
     app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ ctx.params.id }")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/users/42")
@@ -82,7 +80,7 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
   // ── invalid param returns 404 (no match) ─────────────────────────────────
 
   test("GET /users/abc returns None when id is Int param"):
-    val app = MeltKit[IO, RenderResult]()
+    val app = MeltKit[IO]()
     app.get("users" / id) { ctx => IO.pure(ctx.text(s"User ${ ctx.params.id }")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/users/abc")
@@ -95,7 +93,7 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
   // ── two typed params ──────────────────────────────────────────────────────
 
   test("GET /users/1/posts/hello extracts both params"):
-    val app = MeltKit[IO, RenderResult]()
+    val app = MeltKit[IO]()
     app.get("users" / id / "posts" / postId) { ctx =>
       IO.pure(ctx.text(s"${ ctx.params.id }:${ ctx.params.postId }"))
     }
@@ -114,10 +112,10 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
   // ── sub-router prefix ─────────────────────────────────────────────────────
 
   test("route() prefix is prepended to sub-router paths"):
-    val api = MeltKit[IO, RenderResult]()
+    val api = MeltKit[IO]()
     api.get("users" / id) { ctx => IO.pure(ctx.text(s"${ ctx.params.id }")) }
 
-    val app = MeltKit[IO, RenderResult]()
+    val app = MeltKit[IO]()
     app.route("api", api)
 
     val req = Request[IO](method = Method.GET, uri = uri"/api/users/7")
@@ -135,7 +133,7 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
 
   test("Endpoint.get with response[Item] returns 200 JSON"):
     val getItem = Endpoint.get("items" / id).response[Item]
-    val app     = MeltKit[IO, RenderResult]()
+    val app     = MeltKit[IO]()
     app.on(getItem) { ctx => IO.pure(ctx.ok(Item(ctx.params.id, "apple"))) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/items/1")
@@ -150,8 +148,8 @@ class Http4sAdapterNodeTest extends CatsEffectSuite:
       }
       .map(body => assertEquals(body, """{"id":1,"name":"apple"}"""))
 
-  test("NodeApp type alias creates MeltKit[IO, RenderResult]"):
-    val app: NodeApp[IO] = NodeApp[IO]()
+  test("MeltKit[IO] routes requests on Node.js"):
+    val app = MeltKit[IO]()
     app.get("hello") { ctx => IO.pure(ctx.text("world")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/hello")
