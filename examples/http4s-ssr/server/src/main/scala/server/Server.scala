@@ -8,8 +8,6 @@ package server
 
 import java.util.UUID
 
-import melt.runtime.render.RenderResult
-
 import cats.effect.*
 import com.comcast.ip4s.*
 import components.*
@@ -55,8 +53,8 @@ object Server extends IOApp.Simple:
     todoStore: Ref[IO, List[Todo]],
     userStore: Ref[IO, List[User]],
     nextId:    Ref[IO, Int]
-  ): MeltKit[IO, RenderResult] =
-    val app = MeltKit[IO, RenderResult]()
+  ): MeltKit[IO] =
+    val app = MeltKit[IO]()
 
     val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
     val createUser = Endpoint.post("api/users").body[CreateUserBody]

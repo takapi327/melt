@@ -8,8 +8,6 @@ package server
 
 import java.util.UUID
 
-import melt.runtime.render.RenderResult
-
 import cats.effect.*
 import com.comcast.ip4s.*
 import generated.AssetManifest
@@ -48,8 +46,8 @@ object Server extends IOApp.Simple:
     todoStore: Ref[IO, List[Todo]],
     userStore: Ref[IO, List[User]],
     nextId:    Ref[IO, Int]
-  ): MeltKit[IO, RenderResult] =
-    val app    = MeltKit[IO, RenderResult]()
+  ): MeltKit[IO] =
+    val app    = MeltKit[IO]()
     val todoId = param[String]("id")
     val userId = param[Int]("id")
 
