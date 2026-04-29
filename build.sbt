@@ -23,6 +23,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "codegenJS",
     "meltkitJVM",
     "meltkitJS",
+    "meltkit-browser",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS"
   )
@@ -36,6 +37,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
   // Scala 3.8.3 runs on Java 17 only
@@ -59,7 +62,7 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
-    cond = Some("contains('meltcJS codegenJS meltkitJS meltkit-adapter-http4sJS', matrix.project)")
+    cond = Some("contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-adapter-http4sJS', matrix.project)")
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/nativeLink"),
@@ -185,6 +188,20 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
+
+// ── MeltKit: browser adapter (Scala.js only, Scala 3.8+) ─────────────────────
+lazy val `meltkit-browser` = project
+  .in(file("modules/meltkit-browser"))
+  .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name         := "meltkit-browser",
+    scalaVersion := scala38,
+    libraryDependencies ++= Seq(
+      "org.scalameta" %%% "munit" % "1.2.4" % Test
+    )
+  )
+  .dependsOn(meltkit.js)
 
 // ── MeltKit: http4s adapter (JVM + JS, Scala 3.8+) ───────────────────────────
 lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
@@ -473,7 +490,7 @@ lazy val `http4s-spa-client` = project
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(meltkit.js)
+  .dependsOn(`meltkit-browser`)
 
 lazy val `http4s-spa-server` = project
   .in(file("examples/http4s-spa/server"))
@@ -564,6 +581,7 @@ lazy val root = project
     `melt-testkit`,
     meltkit.jvm,
     meltkit.js,
+    `meltkit-browser`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
     `sbt-meltc`,
