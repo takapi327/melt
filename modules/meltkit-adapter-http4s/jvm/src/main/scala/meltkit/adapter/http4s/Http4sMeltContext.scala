@@ -11,6 +11,7 @@ import scala.NamedTuple.AnyNamedTuple
 
 import cats.effect.Concurrent
 import cats.syntax.all.*
+import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
@@ -22,12 +23,11 @@ import org.http4s.Request
   */
 private[http4s] final class BodyDecodeException(val error: BodyError) extends RuntimeException(error.message)
 
-/** http4s implementation of [[ServerMeltContext]].
+/** http4s implementation of [[ServerMeltContext]] for JVM SSR.
   *
-  * When `B = Unit` (routes registered via `app.get` / `app.post`), [[body]]
-  * and [[bodyOrBadRequest]] are unavailable at compile time.
-  * When `B` is a concrete type (routes registered via `app.on(endpoint)`),
-  * those methods decode the request body using the endpoint's [[BodyDecoder]].
+  * `C` is fixed to [[melt.runtime.render.RenderResult]].
+  * `render` evaluates the component inside `Router.withPath(requestPath)` so that
+  * `Router.currentPath` returns the correct value during SSR rendering.
   *
   * @param params      the decoded path parameters for this request
   * @param request     the underlying http4s [[Request]]
@@ -46,7 +46,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val manifest:    ViteManifest     = ViteManifest.empty,
   private val lang:        String           = "en",
   private val basePath:    String           = "/assets"
-) extends ServerMeltContext[F, P, B]:
+) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private def readBody: F[String] =
     request.body.through(fs2.text.utf8.decode).compile.string
@@ -65,7 +65,10 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
       case Left(err) => Concurrent[F].raiseError(BodyDecodeException(err))
     }
 
-  override def render(component: Component): PlainResponse =
+  /** Evaluates `component` inside `Router.withPath(requestPath)` so that
+    * `Router.currentPath` returns the correct path during SSR rendering.
+    */
+  override def render(component: => RenderResult): PlainResponse =
     templateOpt match
       case None =>
         throw new IllegalStateException(
@@ -73,7 +76,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
         )
       case Some(template) =>
-        val result = Component.unwrap(component)
+        val result = Router.withPath(requestPath)(component)
         Response.html(template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty))
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =

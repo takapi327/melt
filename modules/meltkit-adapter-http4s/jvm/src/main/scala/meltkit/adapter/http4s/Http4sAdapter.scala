@@ -14,6 +14,7 @@ import cats.effect.Concurrent
 import cats.syntax.all.*
 import fs2.io.file.Files
 import fs2.io.file.Path
+import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import org.http4s.headers.`Content-Type`
@@ -70,7 +71,7 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent] private (
-  private val app:      MeltKit[F],
+  private val app:      MeltKit[F, RenderResult],
   private val template: Template,
   private val manifest: ViteManifest,
   private val lang:     String,
@@ -97,13 +98,13 @@ final class Http4sAdapter[F[_]: Concurrent] private (
         case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val factory   = new MeltContextFactory[F]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
+          val factory   = new MeltContextFactory[F, RenderResult]:
+            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
             def buildServer[P <: AnyNamedTuple, B](
               params:      P,
               bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B]] =
+            ): Option[ServerMeltContext[F, P, B, RenderResult]] =
               Some(Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
@@ -145,7 +146,7 @@ object Http4sAdapter:
     * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
     */
   def apply[F[_]: Async: Files](
-    app:           MeltKit[F],
+    app:           MeltKit[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
@@ -164,7 +165,7 @@ object Http4sAdapter:
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
-  def routes[F[_]: Concurrent](app: MeltKit[F]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent](app: MeltKit[F, RenderResult]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
@@ -179,13 +180,13 @@ object Http4sAdapter:
         case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val factory   = new MeltContextFactory[F]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
+          val factory   = new MeltContextFactory[F, RenderResult]:
+            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder)
             def buildServer[P <: AnyNamedTuple, B](
               params:      P,
               bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B]] =
+            ): Option[ServerMeltContext[F, P, B, RenderResult]] =
               Some(Http4sMeltContext(params, request, bodyDecoder))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
@@ -219,7 +220,7 @@ object Http4sAdapter:
     *                      `%melt.head%` (usually `AssetManifest.manifest`)
     */
   def spaRoutes[F[_]: Async: Files](
-    app:           MeltKit[F],
+    app:           MeltKit[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =
