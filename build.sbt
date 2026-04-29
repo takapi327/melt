@@ -229,15 +229,17 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
     name         := "meltkit-adapter-http4s",
     scalaVersion := scala38,
     libraryDependencies ++= Seq(
-      "org.http4s"    %%% "http4s-core"       % "0.23.33",
-      "org.http4s"    %%% "http4s-server"     % "0.23.33",
-      "org.http4s"    %%% "http4s-circe"      % "0.23.33",
-      "io.circe"      %%% "circe-parser"      % "0.14.9",
-      "org.typelevel" %%% "munit-cats-effect" % "2.0.0" % Test
+      "org.http4s"    %%% "http4s-core"         % "0.23.33",
+      "org.http4s"    %%% "http4s-server"       % "0.23.33",
+      "org.http4s"    %%% "http4s-ember-server" % "0.23.33",
+      "org.http4s"    %%% "http4s-circe"        % "0.23.33",
+      "io.circe"      %%% "circe-parser"        % "0.14.9",
+      "org.typelevel" %%% "munit-cats-effect"   % "2.0.0" % Test
     )
   )
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(meltkit)
+  .jvmConfigure(_.dependsOn(meltkit.jvm))
+  .jsConfigure(_.dependsOn(`meltkit-node`))
 
 // ── sbt plugin ──
 // The plugin forks a JVM process to run meltc.MeltcMain, avoiding Scala 2.12/3 binary
@@ -551,6 +553,7 @@ lazy val `http4s-ssr-client` = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(meltkit)
+  .jsConfigure(_.dependsOn(`meltkit-browser`))
   .jsSettings(
     meltcHydration                  := true,
     scalaJSUseMainModuleInitializer := false,
