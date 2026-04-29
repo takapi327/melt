@@ -188,10 +188,5 @@ object BrowserAdapter:
       val factory   = new MeltContextFactory[F, dom.Element]:
         def build[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): MeltContext[F, P, B, dom.Element] =
           BrowserMeltContext[F, P, B](params, decoder, outletEl)
-        def buildServer[P <: AnyNamedTuple, B](
-          params:  P,
-          decoder: BodyDecoder[B]
-        ): Option[ServerMeltContext[F, P, B, dom.Element]] =
-          None
       route.tryHandle(rawValues, factory).foreach(summon[EffectRunner[F]].runAndForget)
     }

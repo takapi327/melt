@@ -109,11 +109,6 @@ final class Http4sAdapter[F[_]: Concurrent] private (
               bodyDecoder: BodyDecoder[B]
             ): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
-            def buildServer[P <: AnyNamedTuple, B](
-              params:      P,
-              bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B, RenderResult]] =
-              Some(Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
@@ -129,7 +124,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
 
 object Http4sAdapter:
 
-  /** Bridges [[cats.Functor]] to [[meltkit.Functor]] so that [[meltkit.MeltKit.on]]
+  /** Bridges [[cats.Functor]] to [[meltkit.Functor]] so that [[meltkit.ServerMeltKitPlatform.on]]
     * works with any `F` that has a cats `Functor` instance (e.g. `cats.effect.IO`).
     *
     * Import via:
@@ -194,11 +189,6 @@ object Http4sAdapter:
               bodyDecoder: BodyDecoder[B]
             ): MeltContext[F, P, B, RenderResult] =
               Http4sMeltContext(params, request, bodyDecoder)
-            def buildServer[P <: AnyNamedTuple, B](
-              params:      P,
-              bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B, RenderResult]] =
-              Some(Http4sMeltContext(params, request, bodyDecoder))
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>

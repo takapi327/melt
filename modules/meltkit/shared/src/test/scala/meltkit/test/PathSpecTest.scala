@@ -110,13 +110,13 @@ class PathSpecTest extends munit.FunSuite:
 
   // ── MeltKit.on with typed endpoint ────────────────────────────────────────
 
-  test("MeltKit.on registers route and maps response via Functor"):
+  test("ServerMeltKitPlatform.on registers route and maps response via Functor"):
     type Id = [A] =>> A
     given Functor[Id] with
       override def map[A, B](fa: A)(f: A => B): B = f(fa)
 
     val getUser = Endpoint.get("users" / id).response[String]
-    val app     = new MeltKitPlatform[Id, Nothing] {}
+    val app     = new ServerMeltKitPlatform[Id] {}
     app.on(getUser) { ctx => ctx.ok(s"user-${ ctx.params.id }") }
 
     val routes = app.routes

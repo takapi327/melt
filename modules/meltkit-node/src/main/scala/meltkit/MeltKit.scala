@@ -6,17 +6,16 @@
 
 package meltkit
 
-import melt.runtime.render.RenderResult
-
-/** Node.js-specific [[MeltKit]] router with `C` fixed to [[RenderResult]].
+/** Node.js-specific [[MeltKit]] router extending [[ServerMeltKitPlatform]].
   *
   * {{{
   * val app = MeltKit[IO]()
   * app.get("api/todos") { ctx => IO.pure(ctx.ok(todos)) }
   * app.get("todos")     { ctx => IO.delay(ctx.render(TodoPage())) }
+  * app.on(createTodo)   { ctx => ctx.bodyOrBadRequest.flatMap(...) }
   * }}}
   */
-class MeltKit[F[_]] extends MeltKitPlatform[F, RenderResult]
+class MeltKit[F[_]] extends ServerMeltKitPlatform[F]
 
 object MeltKit:
   def apply[F[_]](): MeltKit[F] = new MeltKit[F]()
