@@ -19,10 +19,10 @@ package meltkit
   * @param domain   cookie scope domain; `None` means current host only
   */
 final case class CookieOptions(
-  httpOnly: Boolean        = false,
-  secure:   Boolean        = false,
+  httpOnly: Boolean                   = false,
+  secure:   Boolean                   = false,
   sameSite: "Strict" | "Lax" | "None" = "Lax",
-  maxAge:   Option[Long]   = None,
-  path:     String         = "/",
-  domain:   Option[String] = None
+  maxAge:   Option[Long]              = None,
+  path:     String                    = "/",
+  domain:   Option[String]            = None
 )
