@@ -15,7 +15,7 @@ import melt.runtime.Mount
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
 
-/** Browser implementation of [[MeltContext]].
+/** Browser implementation of [[MeltContext]] with `C = dom.Element`.
   *
   * Created by [[BrowserAdapter]] for each URL change. Route handlers receive
   * this context and build responses using the standard `ctx.*` helpers.

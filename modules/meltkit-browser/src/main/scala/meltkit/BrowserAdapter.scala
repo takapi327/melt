@@ -59,7 +59,7 @@ import meltkit.codec.BodyDecoder
   * object Main:
   *   def main(args: Array[String]): Unit =
   *     val rootEl = dom.document.getElementById("app")
-  *     val app    = MeltKit[Id]()
+  *     val app    = MeltRouter()
   *     app.get("")         { ctx => ctx.render(TodoPage()) }
   *     app.get("counter")  { ctx => ctx.render(CounterPage()) }
   *     app.get("users")    { ctx => ctx.render(UserPage()) }
@@ -100,10 +100,6 @@ object BrowserAdapter:
   /** Mounts the [[MeltKit]] router to the browser, replacing the full `rootEl`
     * content on each navigation.
     *
-    * Dispatches the matching route for the current URL immediately, then listens
-    * for `popstate` events — fired by [[Router.navigate]], browser back /
-    * forward buttons — to re-dispatch on each navigation.
-    *
     * @param app    the [[MeltKit]] router whose routes will handle URL changes
     * @param rootEl the DOM element used as the mount target for components
     */
@@ -114,15 +110,6 @@ object BrowserAdapter:
 
   /** Renders `shell` once into `rootEl`, then routes future navigations into
     * the `[data-melt-outlet]` element found within the shell.
-    *
-    * The shell (layout, navigation bar, sidebar, …) is created once and
-    * stays in the DOM across navigations. Only the outlet's content is
-    * replaced when the URL changes, avoiding unnecessary re-creation of
-    * persistent UI elements and preserving their state.
-    *
-    * If no `[data-melt-outlet]` element is present inside the rendered
-    * shell, `rootEl` itself is used as the outlet (same behaviour as
-    * [[mount]]).
     *
     * @param app    the [[MeltKit]] router whose routes will handle URL changes
     * @param rootEl the DOM element to mount the shell into
@@ -144,19 +131,11 @@ object BrowserAdapter:
 
   private var linkInterceptorInstalled = false
 
-  /** Registers the global click interceptor at most once per page lifetime. */
   private def ensureLinkInterceptor(): Unit =
     if !linkInterceptorInstalled then
       linkInterceptorInstalled = true
       dom.document.addEventListener("click", interceptLink)
 
-  /** Global click handler that intercepts same-origin `<a>` clicks and
-    * delegates them to [[Router.navigate]] instead of performing a full
-    * page reload.
-    *
-    * Walks up the DOM tree from the click target to find the nearest `<a>`
-    * and skips external, targeted, downloadable, and modifier-key clicks.
-    */
   private val interceptLink: scalajs.js.Function1[dom.MouseEvent, Unit] = event =>
     if event.button == 0
       && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
@@ -181,9 +160,6 @@ object BrowserAdapter:
             catch case _: Throwable => () // Invalid URL — let browser handle it
       }
 
-  /** Walks up the DOM tree from the click target and returns the first
-    * `<a href>` ancestor, if any.
-    */
   private def findAnchor(event: dom.MouseEvent): Option[dom.html.Anchor] =
     @annotation.tailrec
     def loop(node: dom.Node | Null): Option[dom.html.Anchor] =
