@@ -83,7 +83,7 @@ class PathSpecTest extends munit.FunSuite:
 
   test("MeltKit registers route with correct method and segments"):
     type Id = [A] =>> A
-    val app = MeltKit[Id]()
+    val app = MeltKit[Id, Nothing]()
     app.get("users" / id) { ctx => ctx.text(s"User ${ ctx.params.id }") }
     val routes = app.routes
     assertEquals(routes.size, 1)
@@ -95,10 +95,10 @@ class PathSpecTest extends munit.FunSuite:
 
   test("MeltKit route() mounts sub-router with prefix"):
     type Id = [A] =>> A
-    val api = MeltKit[Id]()
+    val api = MeltKit[Id, Nothing]()
     api.get("users" / id) { ctx => ctx.text("ok") }
 
-    val app = MeltKit[Id]()
+    val app = MeltKit[Id, Nothing]()
     app.route("api", api)
 
     val routes = app.routes
@@ -116,7 +116,7 @@ class PathSpecTest extends munit.FunSuite:
       override def map[A, B](fa: A)(f: A => B): B = f(fa)
 
     val getUser = Endpoint.get("users" / id).response[String]
-    val app     = MeltKit[Id]()
+    val app     = MeltKit[Id, Nothing]()
     app.on(getUser) { ctx => ctx.ok(s"user-${ ctx.params.id }") }
 
     val routes = app.routes
@@ -129,10 +129,10 @@ class PathSpecTest extends munit.FunSuite:
 
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
-private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P, Unit]:
-  override def requestPath:                  String         = "/"
-  override def query(name:       String):    Option[String] = None
-  override def render(component: Component): PlainResponse  = ???
+private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P, Unit, Nothing]:
+  override def requestPath:               String         = "/"
+  override def query(name:   String):     Option[String] = None
+  override def render(component: => Nothing): PlainResponse = ???
   override def ok[A: BodyEncoder](value: A):      PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
   override def created[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))

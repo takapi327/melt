@@ -53,12 +53,12 @@ given EffectRunner[Id] with
   *   app
   * }}}
   */
-type MeltRouter = MeltKit[Id]
+type MeltRouter = MeltKit[Id, org.scalajs.dom.Element]
 
 /** Creates a [[MeltKit]] router for synchronous browser-side routing.
   *
-  * Equivalent to `new MeltKit[Id]()` — the [[Id]] type parameter is fixed
-  * automatically so users do not need to know about it:
+  * Equivalent to `new MeltKit[Id, dom.Element]()` — both type parameters are
+  * fixed automatically so users do not need to know about them:
   *
   * {{{
   * import meltkit.*
@@ -69,4 +69,4 @@ type MeltRouter = MeltKit[Id]
   * }}}
   */
 object MeltRouter:
-  def apply(): MeltRouter = new MeltKit[Id]()
+  def apply(): MeltRouter = new MeltKit[Id, org.scalajs.dom.Element]()

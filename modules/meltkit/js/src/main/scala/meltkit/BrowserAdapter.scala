@@ -107,7 +107,7 @@ object BrowserAdapter:
     * @param app    the [[MeltKit]] router whose routes will handle URL changes
     * @param rootEl the DOM element used as the mount target for components
     */
-  def mount[F[_]: EffectRunner](app: MeltKit[F], rootEl: dom.Element): Unit =
+  def mount[F[_]: EffectRunner](app: MeltKit[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
     dispatch(app, rootEl, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
@@ -129,7 +129,7 @@ object BrowserAdapter:
     * @param shell  the persistent shell component (e.g. `Layout()`)
     */
   def mountWithShell[F[_]: EffectRunner](
-    app:    MeltKit[F],
+    app:    MeltKit[F, dom.Element],
     rootEl: dom.Element,
     shell:  dom.Element
   ): Unit =
@@ -198,17 +198,21 @@ object BrowserAdapter:
 
   // ── Route dispatch ───────────────────────────────────────────────────────
 
-  private def dispatch[F[_]: EffectRunner](app: MeltKit[F], outletEl: dom.Element, path: String): Unit =
+  private def dispatch[F[_]: EffectRunner](
+    app:      MeltKit[F, dom.Element],
+    outletEl: dom.Element,
+    path:     String
+  ): Unit =
     val segments = path.split("/").filter(_.nonEmpty).toList
     val matched  = app.routes.find { r =>
       r.method == "GET" && PathSegment.matches(r.segments, segments)
     }
     matched.foreach { route =>
       val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-      val factory   = new MeltContextFactory[F]:
-        def build[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): MeltContext[F, P, B] =
+      val factory   = new MeltContextFactory[F, dom.Element]:
+        def build[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): MeltContext[F, P, B, dom.Element] =
           BrowserMeltContext[F, P, B](params, decoder, outletEl)
-        def buildServer[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]] =
+        def buildServer[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B, dom.Element]] =
           None
       route.tryHandle(rawValues, factory).foreach(summon[EffectRunner[F]].runAndForget)
     }
