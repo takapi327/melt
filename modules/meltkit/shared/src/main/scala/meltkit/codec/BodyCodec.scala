@@ -16,10 +16,7 @@ import meltkit.BodyError
   * == Creating a BodyCodec ==
   *
   * {{{
-  * // From separate given instances already in scope:
-  * import meltkit.adapter.http4s.CirceBodyDecoder.given
-  * import meltkit.adapter.http4s.CirceBodyEncoder.given
-  *
+  * // From separate given instances already in scope (import from your adapter module):
   * val todoCodec: BodyCodec[Todo] = BodyCodec.of[Todo]
   *
   * // From explicit decoder and encoder:

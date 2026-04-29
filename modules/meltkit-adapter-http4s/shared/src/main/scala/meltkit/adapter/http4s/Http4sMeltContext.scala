@@ -16,6 +16,7 @@ import cats.syntax.all.*
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
+import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.Request
 
 /** An exception raised by [[Http4sMeltContext.bodyOrBadRequest]] when body
@@ -69,6 +70,19 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
       case Right(b)  => Concurrent[F].pure(b)
       case Left(err) => Concurrent[F].raiseError(BodyDecodeException(err))
     }
+
+  // Parse the Cookie header once per request (lazy to avoid unnecessary work).
+  // For Recurring headers, get[H] returns Option[NonEmptyList[H]]; each Cookie
+  // wraps NonEmptyList[RequestCookie], so we flatten to collect all pairs.
+  // Duplicate names resolve to the last value, which is acceptable per RFC 6265.
+  private lazy val parsedCookies: Map[String, String] =
+    request.headers.get[Http4sCookieHeader] match
+      case None         => Map.empty
+      case Some(cookie) => cookie.values.toList.map(c => c.name -> c.content).toMap
+
+  override def cookie(name: String): Option[String] = parsedCookies.get(name)
+
+  override def cookies: Map[String, String] = parsedCookies
 
   /** Evaluates `component` inside `Router.withPath(requestPath)` so that
     * `Router.currentPath` returns the correct path during SSR rendering.

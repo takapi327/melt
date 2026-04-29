@@ -8,8 +8,7 @@ package meltkit
 
 /** A framework-independent HTTP response.
   *
-  * Adapters (e.g. `meltkit-adapter-http4s`) convert this to their own
-  * framework-specific response type.
+  * Adapter modules convert this to their own framework-specific response type.
   *
   * Built-in error subtypes (`NotFound`, `BadRequest`, etc.) can be used
   * directly as `errorOut` types in [[Endpoint]] definitions. User-defined
@@ -23,10 +22,11 @@ package meltkit
   * }}}
   */
 sealed trait Response:
-  def status:      StatusCode
-  def contentType: String
-  def body:        String
-  def headers:     Map[String, String]
+  def status:          StatusCode
+  def contentType:     String
+  def body:            String
+  def headers:         Map[String, String]
+  def responseCookies: List[ResponseCookie]
 
   /** Returns a copy with the given content-type. */
   def withContentType(ct: String): Response
@@ -34,75 +34,128 @@ sealed trait Response:
   /** Returns a copy with the given headers (replaces all existing headers). */
   def withHeaders(h: Map[String, String]): Response
 
+  /** Returns a copy with the given cookie appended to the response.
+    *
+    * Can be chained to add multiple cookies:
+    * {{{
+    * ctx.ok(data)
+    *   .withCookie("session_id", token, CookieOptions(httpOnly = true, secure = true))
+    *   .withCookie("csrf_token", csrf)
+    * }}}
+    */
+  def withCookie(name: String, value: String, options: CookieOptions = CookieOptions()): Response
+
+  /** Returns a copy with a cookie-deletion directive (`Max-Age=0`) appended.
+    *
+    * @param name cookie name to delete
+    * @param path must match the `Path` used when the cookie was originally set
+    */
+  def withDeletedCookie(name: String, path: String = "/"): Response
+
 final case class NotFound(
-  message:     String              = "Not Found",
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String               = "Not Found",
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 404
   val body = message
-  override def withContentType(ct: String):              NotFound = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): NotFound = copy(headers = h)
+  override def withContentType(ct: String):                                     NotFound = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        NotFound = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): NotFound =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): NotFound =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class BadRequest(
-  message:     String,
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String,
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 400
   val body = message
-  override def withContentType(ct: String):              BadRequest = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): BadRequest = copy(headers = h)
+  override def withContentType(ct: String):                                     BadRequest = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        BadRequest = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): BadRequest =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): BadRequest =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Unauthorized(
-  message:     String              = "Unauthorized",
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String               = "Unauthorized",
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 401
   val body = message
-  override def withContentType(ct: String):              Unauthorized = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): Unauthorized = copy(headers = h)
+  override def withContentType(ct: String):                                     Unauthorized = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        Unauthorized = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): Unauthorized =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): Unauthorized =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Forbidden(
-  message:     String              = "Forbidden",
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String               = "Forbidden",
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 403
   val body = message
-  override def withContentType(ct: String):              Forbidden = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): Forbidden = copy(headers = h)
+  override def withContentType(ct: String):                                     Forbidden = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        Forbidden = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): Forbidden =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): Forbidden =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class Conflict(
-  message:     String,
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String,
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 409
   val body = message
-  override def withContentType(ct: String):              Conflict = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): Conflict = copy(headers = h)
+  override def withContentType(ct: String):                                     Conflict = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        Conflict = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): Conflict =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): Conflict =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 final case class UnprocessableEntity(
-  message:     String,
-  contentType: String              = "text/plain; charset=utf-8",
-  headers:     Map[String, String] = Map.empty
+  message:         String,
+  contentType:     String               = "text/plain; charset=utf-8",
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
   val status: StatusCode = 422
   val body = message
   override def withContentType(ct: String):              UnprocessableEntity = copy(contentType = ct)
   override def withHeaders(h:      Map[String, String]): UnprocessableEntity = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): UnprocessableEntity =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): UnprocessableEntity =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 /** A general-purpose response for cases not covered by the typed subtypes. */
 final case class PlainResponse(
-  status:      StatusCode,
-  contentType: String,
-  body:        String,
-  headers:     Map[String, String] = Map.empty
+  status:          StatusCode,
+  contentType:     String,
+  body:            String,
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
 ) extends Response:
-  override def withContentType(ct: String):              PlainResponse = copy(contentType = ct)
-  override def withHeaders(h:      Map[String, String]): PlainResponse = copy(headers = h)
+  override def withContentType(ct: String):                                     PlainResponse = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]):                        PlainResponse = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): PlainResponse =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): PlainResponse =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
 object Response:
   def text(value: String): PlainResponse =

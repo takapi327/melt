@@ -11,12 +11,10 @@ import meltkit.BodyError
 /** Decodes a raw request body string into a value of type `A`.
   *
   * `meltkit` defines only this interface; concrete implementations are provided
-  * by adapters (e.g. `meltkit-adapter-http4s` provides `CirceBodyDecoder`).
+  * by adapter modules.
   *
   * {{{
-  * // In user code (after importing a given from the adapter):
-  * import meltkit.adapter.http4s.CirceBodyDecoder.given
-  *
+  * // In user code (after importing a BodyDecoder given from an adapter module):
   * app.post("users") { ctx =>
   *   ctx.body[CreateUserBody].flatMap {
   *     case Right(body) => ...

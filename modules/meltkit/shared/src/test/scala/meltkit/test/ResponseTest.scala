@@ -111,3 +111,61 @@ class ResponseTest extends munit.FunSuite:
   test("UnprocessableEntity.withHeaders preserves UnprocessableEntity type"):
     val r: UnprocessableEntity = UnprocessableEntity("invalid").withHeaders(Map("X-Field" -> "email"))
     assertEquals(r.status, (422: StatusCode))
+
+  // ── withCookie ────────────────────────────────────────────────────────────
+
+  test("PlainResponse.withCookie adds ResponseCookie"):
+    val r: PlainResponse = Response.json("{}").withCookie("a", "b", CookieOptions(httpOnly = true))
+    assertEquals(r.responseCookies.size, 1)
+    assertEquals(r.responseCookies.head.name, "a")
+    assertEquals(r.responseCookies.head.value, "b")
+    assertEquals(r.responseCookies.head.options.httpOnly, true)
+
+  test("withCookie can be chained to add multiple cookies"):
+    val r = Response.json("{}").withCookie("a", "1").withCookie("b", "2")
+    assertEquals(r.responseCookies.size, 2)
+    assertEquals(r.responseCookies.map(_.name), List("a", "b"))
+
+  test("withCookie uses CookieOptions.Lax as default sameSite"):
+    val r = Response.text("ok").withCookie("x", "y")
+    assertEquals(r.responseCookies.head.options.sameSite, "Lax")
+
+  test("NotFound.withCookie preserves status 404"):
+    val r: NotFound = NotFound().withCookie("a", "b")
+    assertEquals(r.status, (404: StatusCode))
+    assertEquals(r.responseCookies.size, 1)
+
+  test("Unauthorized.withCookie preserves status 401"):
+    val r: Unauthorized = Unauthorized().withCookie("tok", "val")
+    assertEquals(r.status, (401: StatusCode))
+    assertEquals(r.responseCookies.size, 1)
+
+  // ── withDeletedCookie ─────────────────────────────────────────────────────
+
+  test("withDeletedCookie sets maxAge=0 and empty value"):
+    val r = Response.json("{}").withDeletedCookie("session_id")
+    assertEquals(r.responseCookies.size, 1)
+    assertEquals(r.responseCookies.head.name, "session_id")
+    assertEquals(r.responseCookies.head.value, "")
+    assertEquals(r.responseCookies.head.options.maxAge, Some(0L))
+
+  test("withDeletedCookie uses default path /"):
+    val r = Response.json("{}").withDeletedCookie("tok")
+    assertEquals(r.responseCookies.head.options.path, "/")
+
+  test("withDeletedCookie accepts custom path"):
+    val r = Response.json("{}").withDeletedCookie("tok", path = "/api")
+    assertEquals(r.responseCookies.head.options.path, "/api")
+
+  test("withCookie and withDeletedCookie can be mixed"):
+    val r = Response.text("ok").withCookie("a", "1").withDeletedCookie("b")
+    assertEquals(r.responseCookies.size, 2)
+    assertEquals(r.responseCookies(1).options.maxAge, Some(0L))
+
+  // ── responseCookies default ───────────────────────────────────────────────
+
+  test("responseCookies is empty by default on PlainResponse"):
+    assertEquals(Response.json("{}").responseCookies, List.empty)
+
+  test("responseCookies is empty by default on NotFound"):
+    assertEquals(NotFound().responseCookies, List.empty)
