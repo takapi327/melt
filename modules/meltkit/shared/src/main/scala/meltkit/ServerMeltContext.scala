@@ -39,3 +39,21 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * Only available when `B ≠ Unit`.
     */
   def bodyOrBadRequest(using NotGiven[B =:= Unit]): F[B]
+
+  /** Returns the value of the named cookie from the request `Cookie` header, if present.
+    *
+    * {{{
+    * app.on(Endpoint.get("profile").response[Profile]) { ctx =>
+    *   ctx.cookie("session_id") match
+    *     case None     => IO.pure(Left(Unauthorized()))
+    *     case Some(id) => sessionStore.get(id).map(ctx.ok(_))
+    * }
+    * }}}
+    */
+  def cookie(name: String): Option[String]
+
+  /** Returns all cookies from the request `Cookie` header as a `name → value` map.
+    *
+    * If the same cookie name appears more than once the last value wins.
+    */
+  def cookies: Map[String, String]
