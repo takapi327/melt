@@ -202,3 +202,142 @@ class Http4sAdapterTest extends CatsEffectSuite:
   test("Endpoint.url with no params"):
     val getAll = Endpoint.get("items").response[List[Item]]
     assertEquals(getAll.url(EmptyTuple), "/items")
+
+  // ── Cookie: Set-Cookie in response ────────────────────────────────────────
+
+  test("withCookie adds Set-Cookie header to http4s response"):
+    val app = MeltKit[IO]()
+    app.get("login") { ctx =>
+      IO.pure(ctx.text("ok").withCookie("session_id", "tok", CookieOptions(httpOnly = true)))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/login")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val cookies = resp.get.headers.get[org.http4s.headers.`Set-Cookie`].map(_.toList).getOrElse(Nil)
+        assertEquals(cookies.size, 1)
+        assertEquals(cookies.head.cookie.name, "session_id")
+        assertEquals(cookies.head.cookie.content, "tok")
+        assertEquals(cookies.head.cookie.httpOnly, true)
+      }
+
+  test("multiple withCookie calls produce multiple Set-Cookie headers"):
+    val app = MeltKit[IO]()
+    app.get("multi") { ctx =>
+      IO.pure(ctx.text("ok").withCookie("a", "1").withCookie("b", "2"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/multi")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val cookies = resp.get.headers.get[org.http4s.headers.`Set-Cookie`].map(_.toList).getOrElse(Nil)
+        assertEquals(cookies.size, 2)
+        assertEquals(cookies.map(_.cookie.name).toSet, Set("a", "b"))
+      }
+
+  test("withDeletedCookie sets Max-Age=0 in Set-Cookie header"):
+    val app = MeltKit[IO]()
+    app.post("logout") { ctx =>
+      IO.pure(ctx.redirect("/login").withDeletedCookie("session_id"))
+    }
+
+    val req = Request[IO](method = Method.POST, uri = uri"/logout")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val cookies = resp.get.headers.get[org.http4s.headers.`Set-Cookie`].map(_.toList).getOrElse(Nil)
+        assertEquals(cookies.size, 1)
+        assertEquals(cookies.head.cookie.name, "session_id")
+        assertEquals(cookies.head.cookie.maxAge, Some(0L))
+      }
+
+  test("SameSite=None cookie gets Secure automatically"):
+    val app = MeltKit[IO]()
+    app.get("secure") { ctx =>
+      IO.pure(ctx.text("ok").withCookie("x", "y", CookieOptions(sameSite = "None", secure = false)))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/secure")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val cookies = resp.get.headers.get[org.http4s.headers.`Set-Cookie`].map(_.toList).getOrElse(Nil)
+        assertEquals(cookies.size, 1)
+        // http4s automatically adds Secure for SameSite=None per RFC 6265bis
+        assert(cookies.head.cookie.renderString.contains("Secure"), cookies.head.cookie.renderString)
+      }
+
+  // ── Cookie: reading from request ──────────────────────────────────────────
+
+  test("ctx.cookie reads named cookie from request Cookie header"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("whoami").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.cookie("user").getOrElse("anonymous")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/whoami")
+      .withHeaders(org.http4s.headers.Cookie(org.http4s.RequestCookie("user", "alice")))
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("alice")))
+      }
+
+  test("ctx.cookie returns None when cookie is absent"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("whoami").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.cookie("user").getOrElse("anonymous")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/whoami")
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assertEquals(body, """"anonymous""""))
+      }
+
+  test("ctx.cookies returns all cookies as Map"):
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("cookies").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.cookies.toList.sortBy(_._1).mkString(",")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/cookies")
+      .withHeaders(org.http4s.headers.Cookie(
+        org.http4s.RequestCookie("a", "1"),
+        org.http4s.RequestCookie("b", "2")
+      ))
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map { body =>
+          assert(body.contains("a"))
+          assert(body.contains("b"))
+        }
+      }

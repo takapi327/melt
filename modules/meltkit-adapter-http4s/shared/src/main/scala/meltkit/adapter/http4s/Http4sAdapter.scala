@@ -19,6 +19,7 @@ import fs2.io.file.Path
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import org.http4s.headers.`Content-Type`
+import org.http4s.headers.{`Set-Cookie` => Http4sSetCookie}
 import org.http4s.server.staticcontent.fileService
 import org.http4s.server.staticcontent.FileService
 import org.http4s.server.Router
@@ -26,7 +27,9 @@ import org.http4s.Charset
 import org.http4s.Headers
 import org.http4s.HttpRoutes
 import org.http4s.MediaType
+import org.http4s.{ResponseCookie => Http4sResponseCookie}
 import org.http4s.Response as Http4sResponse
+import org.http4s.SameSite
 import org.http4s.Status
 
 /** Converts a [[MeltKit]] router into an http4s [[HttpRoutes]].
@@ -261,6 +264,25 @@ object Http4sAdapter:
         }
       }
 
+  // Converts a meltkit.ResponseCookie (framework-independent) to an
+  // org.http4s.ResponseCookie so that http4s handles RFC-compliant serialization,
+  // including the automatic "; Secure" for SameSite=None (RFC 6265bis).
+  private[http4s] def toHttp4sResponseCookie(c: meltkit.ResponseCookie): Http4sResponseCookie =
+    val sameSite = c.options.sameSite match
+      case "Strict" => Some(SameSite.Strict)
+      case "None"   => Some(SameSite.None)
+      case _        => Some(SameSite.Lax)
+    Http4sResponseCookie(
+      name     = c.name,
+      content  = c.value,
+      maxAge   = c.options.maxAge,
+      domain   = c.options.domain,
+      path     = Some(c.options.path),
+      sameSite = sameSite,
+      secure   = c.options.secure,
+      httpOnly = c.options.httpOnly
+    )
+
   private[http4s] def toHttp4sResponse[F[_]](r: Response): Http4sResponse[F] =
     val status = Status.fromInt(r.status: Int).getOrElse(Status.InternalServerError)
     val ct     = MediaType.parse(r.contentType).toOption.map(`Content-Type`(_))
@@ -268,7 +290,11 @@ object Http4sAdapter:
       case (k, v) =>
         org.http4s.Header.Raw(org.typelevel.ci.CIString(k), v)
     }
-    val allHeaders: List[org.http4s.Header.ToRaw] = ct.toList.map(h => h: org.http4s.Header.ToRaw) ++ rawHeaders
+    val cookieHeaders: List[org.http4s.Header.ToRaw] = r.responseCookies.map { c =>
+      Http4sSetCookie(toHttp4sResponseCookie(c))
+    }
+    val allHeaders: List[org.http4s.Header.ToRaw] =
+      ct.toList.map(h => h: org.http4s.Header.ToRaw) ++ rawHeaders ++ cookieHeaders
     Http4sResponse(
       status  = status,
       headers = Headers(allHeaders*),
