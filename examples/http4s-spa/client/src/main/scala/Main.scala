@@ -26,8 +26,8 @@ object Main:
     val rootEl = dom.document.getElementById("app")
     BrowserAdapter.mountWithShell(buildApp(), rootEl, Layout())
 
-  private def buildApp(): MeltRouter =
-    val app = MeltRouter()
+  private def buildApp(): MeltKit =
+    val app = MeltKit()
     app.get("") { ctx => ctx.render(TodoPage()) }
     app.get("counter") { ctx => ctx.render(CounterPage()) }
     app.get("users") { ctx => ctx.render(UserPage()) }

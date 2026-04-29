@@ -16,7 +16,7 @@ import org.scalajs.dom
 
 import meltkit.fetch.{ Headers, RequestInit, Response }
 
-/** Cross-platform HTTP client matching the Node.js `fetch` API — JS implementation.
+/** Cross-platform HTTP client matching the Node.js `fetch` API — browser implementation.
   *
   * Wraps `org.scalajs.dom.fetch` and follows the same two-phase model as the
   * Node.js fetch API:

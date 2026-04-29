@@ -15,7 +15,7 @@ import melt.runtime.Mount
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
 
-/** Browser implementation of [[MeltContext]].
+/** Browser implementation of [[MeltContext]] with `C = dom.Element`.
   *
   * Created by [[BrowserAdapter]] for each URL change. Route handlers receive
   * this context and build responses using the standard `ctx.*` helpers.
@@ -38,26 +38,18 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:              P,
   private val bodyDecoder: BodyDecoder[B],
   private val outletEl:    dom.Element
-) extends MeltContext[F, P, B]:
+) extends MeltContext[F, P, B, dom.Element]:
 
   override def requestPath: String = dom.window.location.pathname
 
   override def query(name: String): Option[String] =
     Option(new dom.URLSearchParams(dom.window.location.search).get(name))
 
-  /** Replaces the outlet element's content with the given component.
-    *
-    * Clears `outletEl.innerHTML` before mounting so that only the new
-    * component is visible. The [[Component]] wraps the `dom.Element`
-    * returned by the `.melt`-compiled component.
-    *
-    * {{{
-    * app.get("todos") { ctx => ctx.render(TodoPage()) }
-    * }}}
-    */
-  override def render(component: Component): PlainResponse =
+  /** Evaluates `component` immediately and mounts it into `outletEl`. */
+  override def render(component: => dom.Element): PlainResponse =
+    val el = component
     outletEl.innerHTML = ""
-    Mount(outletEl, Component.unwrap(component))
+    Mount(outletEl, el)
     Response.noContent
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =

@@ -23,8 +23,9 @@ import scala.NamedTuple.AnyNamedTuple
   * @tparam F the effect type (e.g. `cats.effect.IO`)
   * @tparam P the [[scala.NamedTuple]] of typed path parameters
   * @tparam B the request body type (`Unit` = no body)
+  * @tparam C the component type for this platform
   */
-trait ServerMeltContext[F[_], P <: AnyNamedTuple, B] extends MeltContext[F, P, B]:
+trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P, B, C]:
 
   /** Reads and decodes the request body using the endpoint's [[codec.BodyDecoder]].
     *

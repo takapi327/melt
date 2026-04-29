@@ -8,15 +8,16 @@ package melt.runtime.impl
 
 import melt.runtime.Signal
 
-/** JVM Signal backed by a `() => A` supplier function.
+/** A [[Signal]] backed by a `() => A` supplier function.
   *
-  * Unlike [[JvmSignal]], `value` calls the supplier on every access so that
-  * the underlying source (e.g. a `ThreadLocal`) can change between SSR renders.
+  * Unlike a reactive [[melt.runtime.Var]], `value` calls the supplier on every
+  * access so that the underlying source (e.g. a `ThreadLocal` on the JVM or an
+  * `AsyncLocalStorage` on Node.js) can change between SSR renders.
   * All subscription / notification methods are no-ops — reactivity is not
-  * needed on the JVM since each SSR render is a single synchronous snapshot.
+  * needed on the server side since each SSR render is a single synchronous snapshot.
   *
-  * Used by [[meltkit.Router]] on the JVM to expose the per-request path as a
-  * `Signal[String]` without breaking the cross-platform API.
+  * Used by [[meltkit.Router]] on the JVM and Node.js to expose the per-request
+  * path as a `Signal[String]` without breaking the cross-platform API.
   */
 final class SupplierSignal[A](supplier: () => A) extends Signal[A]:
   def value:                         A          = supplier()

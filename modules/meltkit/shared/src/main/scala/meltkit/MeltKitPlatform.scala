@@ -9,76 +9,72 @@ package meltkit
 import scala.collection.mutable.ListBuffer
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.render.RenderResult
+
 import meltkit.codec.BodyDecoder
 import meltkit.codec.PathParamDecoder
 
-/** Adapter-supplied factory that constructs a [[MeltContext]] from decoded
-  * path parameters and a body decoder.
+/** Adapter-supplied factory that constructs a [[MeltContext]] for each request.
   *
-  * Each adapter implements this once per incoming request, capturing any
-  * adapter-specific data (e.g. the http4s `Request[F]`) in the closure.
-  * The shared routing core calls [[build]] with the already-decoded,
-  * typed parameter tuple and the endpoint's [[BodyDecoder]];
-  * the adapter returns the concrete context.
-  *
-  * For routes without a body (old-style `app.get` / `app.post`),
-  * `B = Unit` and `bodyDecoder = summon[BodyDecoder[Unit]]`.
+  * @tparam F the effect type
+  * @tparam C the component type for this platform
   */
-private[meltkit] trait MeltContextFactory[F[_]]:
-  def build[P <: AnyNamedTuple, B](params:       P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B]
-  def buildServer[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): Option[ServerMeltContext[F, P, B]]
+private[meltkit] trait MeltContextFactory[F[_], C]:
+  def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, C]
 
-/** Internal representation of a registered route.
+/** A registered route entry.
   *
-  * [[tryHandle]] is a closure produced at registration time that already
-  * captures the typed handler and parameter decoders.  Adapters supply:
-  *
-  *   - `rawValues` — the raw path-parameter strings extracted from the
-  *     request URI (in declaration order, one per `param[T]("name")` in
-  *     the route's [[PathSpec]])
-  *   - `factory`   — an adapter-specific [[MeltContextFactory]] that
-  *     builds the concrete [[MeltContext]] from the decoded params
-  *
-  * Returns `None` when any parameter fails to decode (the route should be
-  * treated as unmatched), or `Some(F[Response])` on success.
+  * @tparam F the effect type
+  * @tparam C the component type for this platform
   */
-private[meltkit] final class Route[F[_]](
+private[meltkit] final class Route[F[_], C](
   val method:    HttpMethod,
   val segments:  List[PathSegment],
-  val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]]
-)
+  val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]]
+):
+  /** Returns a copy of this route with `prefix` prepended to its segments. */
+  private[meltkit] def withPrefix(prefix: String): Route[F, C] =
+    Route(method, PathSegment.Static(prefix) :: segments, tryHandle)
 
-/** The MeltKit routing DSL.
+/** The MeltKit routing DSL — platform-agnostic base trait.
+  *
+  * Users do not extend or instantiate this trait directly. Instead, use the
+  * platform-specific [[MeltKit]] subclass, which fixes `C` automatically:
+  *
+  *   - JVM / Node.js — `MeltKit[IO]()` where `C = RenderResult`
+  *   - Browser       — `MeltKit()` where `C = dom.Element`
   *
   * Register route handlers with [[get]], [[post]], [[put]], [[delete]], and
   * [[patch]]. Compose multiple routers with [[route]].
   *
   * {{{
+  * // JVM / Node.js
   * val app = MeltKit[IO]()
+  * app.get("api/todos") { ctx => IO.pure(ctx.ok(todos)) }
+  * app.get("todos")     { ctx => IO.delay(ctx.render(TodoPage())) }
   *
-  * val id = param[Int]("id")
-  *
-  * app.get("users" / id) { ctx =>
-  *   IO.pure(ctx.text(s"User \${ctx.params.id}"))
-  * }
-  *
-  * // mount a sub-router
-  * val api = MeltKit[IO]()
-  * api.get("ping") { ctx => IO.pure(ctx.text("pong")) }
-  * app.route("api", api)
+  * // Browser
+  * val app = MeltKit()
+  * app.get("todos") { ctx => ctx.render(TodoPage()) }
   * }}}
+  *
+  * @tparam F the effect type (e.g. `cats.effect.IO`, `Id`)
+  * @tparam C the component type for this platform
   */
-class MeltKit[F[_]]:
-  private val _routes = ListBuffer[Route[F]]()
+trait MeltKitPlatform[F[_], C]:
+  private val _routes = ListBuffer[Route[F, C]]()
 
   /** Returns all registered routes. Intended for adapter use only. */
-  private[meltkit] def routes: List[Route[F]] = _routes.toList
+  private[meltkit] def routes: List[Route[F, C]] = _routes.toList
+
+  /** Adds a route. Used by [[ServerMeltKitPlatform]] to register typed endpoints. */
+  private[meltkit] def addRoute(r: Route[F, C]): Unit = _routes += r
 
   private def register[P <: AnyNamedTuple](
     method: HttpMethod,
     spec:   PathSpec[P]
-  )(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
+  )(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
+    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]] =
       (rawValues, factory) =>
         val results = spec.paramDecoders.zip(rawValues).map {
           case ((_, dec), raw) =>
@@ -91,10 +87,10 @@ class MeltKit[F[_]]:
         else None
     _routes += Route(method, spec.segments, tryHandle)
 
-  def get[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
+  def get[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("GET", spec)(handler)
 
-  def get(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
+  def get(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
     register("GET", PathSpec.fromString(path))(handler)
 
   /** Registers a catch-all GET handler that matches any path not already
@@ -111,34 +107,64 @@ class MeltKit[F[_]]:
     * }
     * }}}
     */
-  def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit] => F[Response]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
+  def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit, C] => F[Response]): Unit =
+    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]] =
       (_, factory) => Some(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
     _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
 
-  def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
+  def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("POST", spec)(handler)
 
-  def post(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
+  def post(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
     register("POST", PathSpec.fromString(path))(handler)
 
-  def put[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
+  def put[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("PUT", spec)(handler)
 
-  def put(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
+  def put(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
     register("PUT", PathSpec.fromString(path))(handler)
 
-  def delete[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
+  def delete[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("DELETE", spec)(handler)
 
-  def delete(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
+  def delete(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
     register("DELETE", PathSpec.fromString(path))(handler)
 
-  def patch[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit] => F[Response]): Unit =
+  def patch[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("PATCH", spec)(handler)
 
-  def patch(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit] => F[Response]): Unit =
+  def patch(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
     register("PATCH", PathSpec.fromString(path))(handler)
+
+  /** Mounts a sub-router under a static path prefix.
+    *
+    * {{{
+    * val api = MeltKit[IO]()
+    * api.get("users") { ctx => ... }
+    *
+    * app.route("api", api)  // → GET /api/users
+    * }}}
+    */
+  def route(prefix: String, sub: MeltKitPlatform[F, C]): Unit =
+    sub.routes.foreach { r => _routes += r.withPrefix(prefix) }
+
+/** Server-specific extension of [[MeltKitPlatform]] that adds typed endpoint
+  * support via [[on]].
+  *
+  * Extended by the JVM and Node.js platform [[MeltKit]] subclasses only.
+  * Browser routing does not support request bodies, so [[on]] is intentionally
+  * absent from the browser [[MeltKit]].
+  *
+  * {{{
+  * val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
+  * app.on(createTodo) { ctx =>
+  *   ctx.bodyOrBadRequest.flatMap { body =>
+  *     todoStore.update(_ :+ Todo(body.text)).as(ctx.ok(todo))
+  *   }
+  * }
+  * }}}
+  */
+trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
   /** Registers a typed endpoint handler.
     *
@@ -163,9 +189,9 @@ class MeltKit[F[_]]:
     * }}}
     */
   def on[P <: AnyNamedTuple, B, E <: Response, Out](ep: Endpoint[P, B, E, ?])(
-    handler: ServerMeltContext[F, P, B] => F[Out]
+    handler: ServerMeltContext[F, P, B, RenderResult] => F[Out]
   )(using functor: Functor[F], lift: ResponseLift[E, Out]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F]) => Option[F[Response]] =
+    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[F[Response]] =
       (rawValues, factory) =>
         val results = ep.spec.paramDecoders.zip(rawValues).map {
           case ((_, dec), raw) =>
@@ -174,29 +200,14 @@ class MeltKit[F[_]]:
         if results.forall(_.isRight) then
           val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
-          factory.buildServer(params, ep.bodyDecoder).map { ctx =>
-            functor.map(handler(ctx))(lift.lift)
-          }
+          val ctx     = factory.build(params, ep.bodyDecoder).asInstanceOf[ServerMeltContext[F, P, B, RenderResult]]
+          Some(functor.map(handler(ctx))(lift.lift))
         else None
-    _routes += Route(ep.method, ep.spec.segments, tryHandle)
-
-  /** Mounts a sub-router under a static path prefix.
-    *
-    * {{{
-    * val api = MeltKit[IO]()
-    * api.get("users") { ctx => ... }
-    *
-    * app.route("api", api)  // → GET /api/users
-    * }}}
-    */
-  def route(prefix: String, sub: MeltKit[F]): Unit =
-    sub.routes.foreach { r =>
-      _routes += Route(r.method, PathSegment.Static(prefix) :: r.segments, r.tryHandle)
-    }
+    addRoute(Route(ep.method, ep.spec.segments, tryHandle))
 
 /** Extracts a [[Response]] from a handler output `Out`.
   *
-  * Allows [[MeltKit.on]] to accept both `F[Response]` and `F[Either[E, Response]]`:
+  * Allows [[ServerMeltKitPlatform.on]] to accept both `F[Response]` and `F[Either[E, Response]]`:
   *
   * {{{
   * // without errorOut — F[Response]

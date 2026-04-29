@@ -22,8 +22,10 @@ import meltkit.codec.BodyEncoder
   * @tparam F the effect type (e.g. `cats.effect.IO`)
   * @tparam P the [[scala.NamedTuple]] of typed path parameters
   * @tparam B the request body type (`Unit` = no body)
+  * @tparam C the component type for this platform
+  *           (`dom.Element` on browser, `RenderResult` on JVM / Node.js)
   */
-trait MeltContext[F[_], P <: AnyNamedTuple, B]:
+trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
 
   /** The typed path parameters extracted from the URL.
     *
@@ -53,24 +55,22 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B]:
 
   /** Renders a Melt component and returns a 200 response.
     *
-    * On the JVM (SSR) this calls [[Template.render]] and returns an HTML response.
-    * On JS (SPA) this mounts the component into the root DOM element managed by
-    * [[BrowserAdapter]] and returns a no-content response.
-    *
-    * `.melt`-compiled components satisfy [[AsComponent]] via platform-specific
-    * given instances, so no explicit wrapping is needed:
+    * The `component` parameter is by-name so that server-side implementations
+    * can evaluate it inside `Router.withPath(requestPath)(...)`, ensuring that
+    * `Router.currentPath` returns the correct value during SSR rendering.
+    * Browser implementations evaluate `component` immediately.
     *
     * {{{
-    * // shared route handler — compiles and runs on both JVM and JS
+    * // shared route handler — works on both browser and server
     * app.get("todos") { ctx => F.pure(ctx.render(TodoPage())) }
     * }}}
     *
-    * On the JVM: only available when using the class-based
+    * On JVM / Node.js: only available when using the class-based
     * [[meltkit.adapter.http4s.Http4sAdapter]] (i.e. `Http4sAdapter(app, template, manifest).routes`).
     * Calling this method when using the API-only `Http4sAdapter.routes(app)` raises an
     * [[IllegalStateException]] at runtime.
     */
-  def render(component: Component): PlainResponse
+  def render(component: => C): PlainResponse
 
   /** Builds a 200 OK JSON response. Requires a [[BodyEncoder]][A] in scope. */
   def ok[A: BodyEncoder](value: A): PlainResponse

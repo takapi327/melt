@@ -8,6 +8,8 @@ package meltkit.adapter.http4s
 
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.render.RenderResult
+
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.Concurrent
@@ -28,6 +30,10 @@ import org.http4s.Response as Http4sResponse
 import org.http4s.Status
 
 /** Converts a [[MeltKit]] router into an http4s [[HttpRoutes]].
+  *
+  * Works on both JVM and Node.js (v18+). On JVM, `Router.withPath` uses
+  * `ThreadLocal`; on Node.js it uses `AsyncLocalStorage` — resolved via the
+  * platform-specific dependency configured in `build.sbt`.
   *
   * ==API-only==
   *
@@ -50,7 +56,7 @@ import org.http4s.Status
   *   .map(_.orNotFound)
   * }}}
   *
-  * ==SSR (server-side rendered pages via ctx.melt())==
+  * ==SSR (server-side rendered pages via ctx.render())==
   *
   * `index.html` is read from `clientDistDir / "index.html"` at startup via
   * [[fs2.io.file.Files]], so this works on both JVM and Node.js.
@@ -61,7 +67,7 @@ import org.http4s.Status
   *
   * val app = MeltKit[IO]()
   * app.get("users" / userId) { ctx =>
-  *   Database.findUser(ctx.params.userId).map(u => ctx.melt(UserDetailPage(u)))
+  *   Database.findUser(ctx.params.userId).map(u => ctx.render(UserDetailPage(u)))
   * }
   *
   * val httpApp =
@@ -70,7 +76,7 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent] private (
-  private val app:      MeltKit[F],
+  private val app:      MeltKitPlatform[F, RenderResult],
   private val template: Template,
   private val manifest: ViteManifest,
   private val lang:     String,
@@ -79,7 +85,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
 
   /** Builds [[HttpRoutes]] from the [[MeltKit]] router with SSR support.
     *
-    * Route handlers may call `ctx.melt(result)` to render Melt components
+    * Route handlers may call `ctx.render(result)` to render Melt components
     * server-side and return the resulting HTML response.
     */
   def routes: HttpRoutes[F] =
@@ -97,14 +103,12 @@ final class Http4sAdapter[F[_]: Concurrent] private (
         case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val factory   = new MeltContextFactory[F]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
-              Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
-            def buildServer[P <: AnyNamedTuple, B](
+          val factory   = new MeltContextFactory[F, RenderResult]:
+            def build[P <: AnyNamedTuple, B](
               params:      P,
               bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B]] =
-              Some(Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath))
+            ): MeltContext[F, P, B, RenderResult] =
+              Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
@@ -120,7 +124,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
 
 object Http4sAdapter:
 
-  /** Bridges [[cats.Functor]] to [[meltkit.Functor]] so that [[meltkit.MeltKit.on]]
+  /** Bridges [[cats.Functor]] to [[meltkit.Functor]] so that [[meltkit.ServerMeltKitPlatform.on]]
     * works with any `F` that has a cats `Functor` instance (e.g. `cats.effect.IO`).
     *
     * Import via:
@@ -145,7 +149,7 @@ object Http4sAdapter:
     * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
     */
   def apply[F[_]: Async: Files](
-    app:           MeltKit[F],
+    app:           MeltKitPlatform[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
@@ -160,11 +164,11 @@ object Http4sAdapter:
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
     *
-    * `ctx.melt()` is **not** available in route handlers registered via this
+    * `ctx.render()` is **not** available in route handlers registered via this
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
-  def routes[F[_]: Concurrent](app: MeltKit[F]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent](app: MeltKitPlatform[F, RenderResult]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
@@ -179,14 +183,12 @@ object Http4sAdapter:
         case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val factory   = new MeltContextFactory[F]:
-            def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B] =
-              Http4sMeltContext(params, request, bodyDecoder)
-            def buildServer[P <: AnyNamedTuple, B](
+          val factory   = new MeltContextFactory[F, RenderResult]:
+            def build[P <: AnyNamedTuple, B](
               params:      P,
               bodyDecoder: BodyDecoder[B]
-            ): Option[ServerMeltContext[F, P, B]] =
-              Some(Http4sMeltContext(params, request, bodyDecoder))
+            ): MeltContext[F, P, B, RenderResult] =
+              Http4sMeltContext(params, request, bodyDecoder)
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
@@ -219,7 +221,7 @@ object Http4sAdapter:
     *                      `%melt.head%` (usually `AssetManifest.manifest`)
     */
   def spaRoutes[F[_]: Async: Files](
-    app:           MeltKit[F],
+    app:           MeltKitPlatform[F, RenderResult],
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =
@@ -260,7 +262,6 @@ object Http4sAdapter:
       }
 
   private[http4s] def toHttp4sResponse[F[_]](r: Response): Http4sResponse[F] =
-    // StatusCode <: Int so fromInt accepts it directly
     val status = Status.fromInt(r.status: Int).getOrElse(Status.InternalServerError)
     val ct     = MediaType.parse(r.contentType).toOption.map(`Content-Type`(_))
     val rawHeaders: List[org.http4s.Header.ToRaw] = r.headers.toList.map {
