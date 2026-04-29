@@ -216,7 +216,8 @@ lazy val `meltkit-node` = project
     scalaVersion := scala38,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.CommonJSModule)
-    }
+    },
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
   .dependsOn(meltkit.js)
 
@@ -240,6 +241,12 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(AutomateHeaderPlugin)
   .jvmConfigure(_.dependsOn(meltkit.jvm))
   .jsConfigure(_.dependsOn(`meltkit-node`))
+  .jsSettings(
+    // Node.js: AsyncLocalStorage uses @JSImport which requires module support
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    // Tests require Node.js (cats-effect IO runtime + AsyncLocalStorage for Router)
+    jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv()
+  )
 
 // ── sbt plugin ──
 // The plugin forks a JVM process to run meltc.MeltcMain, avoiding Scala 2.12/3 binary
