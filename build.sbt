@@ -65,7 +65,9 @@ ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
-    cond = Some("contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)")
+    cond = Some(
+      "contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
+    )
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/nativeLink"),
