@@ -12,6 +12,7 @@ import cats.effect.*
 import com.comcast.ip4s.*
 import generated.AssetManifest
 import io.circe.Codec
+import melt.runtime.render.RenderResult
 import meltkit.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
@@ -46,8 +47,8 @@ object Server extends IOApp.Simple:
     todoStore: Ref[IO, List[Todo]],
     userStore: Ref[IO, List[User]],
     nextId:    Ref[IO, Int]
-  ): MeltKit[IO] =
-    val app    = MeltKit[IO]()
+  ): MeltKit[IO, RenderResult] =
+    val app    = MeltKit[IO, RenderResult]()
     val todoId = param[String]("id")
     val userId = param[Int]("id")
 
