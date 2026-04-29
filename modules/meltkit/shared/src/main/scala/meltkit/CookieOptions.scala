@@ -10,7 +10,7 @@ package meltkit
   *
   * @param httpOnly prevents JavaScript access to the cookie
   * @param secure   only sent over HTTPS
-  * @param sameSite `"Strict"`, `"Lax"`, or `"None"`.
+  * @param sameSite one of `"Strict"`, `"Lax"`, or `"None"` (compile-time checked).
   *                 Note: `"None"` requires a secure context per RFC 6265bis;
   *                 the server adapter automatically adds `; Secure` when
   *                 `sameSite = "None"` regardless of the [[secure]] field.
@@ -21,7 +21,7 @@ package meltkit
 final case class CookieOptions(
   httpOnly: Boolean        = false,
   secure:   Boolean        = false,
-  sameSite: String         = "Lax",
+  sameSite: "Strict" | "Lax" | "None" = "Lax",
   maxAge:   Option[Long]   = None,
   path:     String         = "/",
   domain:   Option[String] = None

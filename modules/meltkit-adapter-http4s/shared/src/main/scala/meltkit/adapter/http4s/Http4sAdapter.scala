@@ -270,8 +270,8 @@ object Http4sAdapter:
   private[http4s] def toHttp4sResponseCookie(c: meltkit.ResponseCookie): Http4sResponseCookie =
     val sameSite = c.options.sameSite match
       case "Strict" => Some(SameSite.Strict)
+      case "Lax"    => Some(SameSite.Lax)
       case "None"   => Some(SameSite.None)
-      case _        => Some(SameSite.Lax)
     Http4sResponseCookie(
       name     = c.name,
       content  = c.value,
