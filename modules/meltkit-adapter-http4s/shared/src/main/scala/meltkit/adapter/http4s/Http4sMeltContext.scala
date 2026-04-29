@@ -23,11 +23,15 @@ import org.http4s.Request
   */
 private[http4s] final class BodyDecodeException(val error: BodyError) extends RuntimeException(error.message)
 
-/** http4s implementation of [[ServerMeltContext]] for JVM SSR.
+/** http4s implementation of [[ServerMeltContext]] for SSR (JVM and Node.js).
   *
   * `C` is fixed to [[melt.runtime.render.RenderResult]].
   * `render` evaluates the component inside `Router.withPath(requestPath)` so that
   * `Router.currentPath` returns the correct value during SSR rendering.
+  *
+  * On JVM, `Router` is backed by `ThreadLocal`; on Node.js it is backed by
+  * `AsyncLocalStorage` — both are resolved via the platform-specific dependency
+  * wired in `build.sbt` (`.jvmConfigure` / `.jsConfigure`).
   *
   * @param params      the decoded path parameters for this request
   * @param request     the underlying http4s [[Request]]

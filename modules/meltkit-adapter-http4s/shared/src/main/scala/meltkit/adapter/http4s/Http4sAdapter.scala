@@ -30,10 +30,14 @@ import org.http4s.Status
 
 /** Converts a [[MeltKit]] router into an http4s [[HttpRoutes]].
   *
+  * Works on both JVM and Node.js (v18+). On JVM, `Router.withPath` uses
+  * `ThreadLocal`; on Node.js it uses `AsyncLocalStorage` — resolved via the
+  * platform-specific dependency configured in `build.sbt`.
+  *
   * ==API-only==
   *
   * {{{
-  * val app = MeltKit[IO]()
+  * val app = MeltKit[IO, RenderResult]()
   * app.get("api" / "users") { ctx => IO.pure(ctx.json("[...]")) }
   *
   * val httpApp = Http4sAdapter.routes(app).orNotFound
@@ -44,14 +48,14 @@ import org.http4s.Status
   * {{{
   * import generated.AssetManifest
   *
-  * val app = MeltKit[IO]()
+  * val app = MeltKit[IO, RenderResult]()
   * // define routes ...
   *
   * val httpApp = Http4sAdapter.spaRoutes(app, AssetManifest.clientDistDir, AssetManifest.manifest)
   *   .map(_.orNotFound)
   * }}}
   *
-  * ==SSR (server-side rendered pages via ctx.melt())==
+  * ==SSR (server-side rendered pages via ctx.render())==
   *
   * `index.html` is read from `clientDistDir / "index.html"` at startup via
   * [[fs2.io.file.Files]], so this works on both JVM and Node.js.
@@ -60,9 +64,9 @@ import org.http4s.Status
   * {{{
   * import generated.AssetManifest
   *
-  * val app = MeltKit[IO]()
+  * val app = MeltKit[IO, RenderResult]()
   * app.get("users" / userId) { ctx =>
-  *   Database.findUser(ctx.params.userId).map(u => ctx.melt(UserDetailPage(u)))
+  *   Database.findUser(ctx.params.userId).map(u => ctx.render(UserDetailPage(u)))
   * }
   *
   * val httpApp =
@@ -80,7 +84,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
 
   /** Builds [[HttpRoutes]] from the [[MeltKit]] router with SSR support.
     *
-    * Route handlers may call `ctx.melt(result)` to render Melt components
+    * Route handlers may call `ctx.render(result)` to render Melt components
     * server-side and return the resulting HTML response.
     */
   def routes: HttpRoutes[F] =
@@ -161,7 +165,7 @@ object Http4sAdapter:
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
     *
-    * `ctx.melt()` is **not** available in route handlers registered via this
+    * `ctx.render()` is **not** available in route handlers registered via this
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
@@ -261,7 +265,6 @@ object Http4sAdapter:
       }
 
   private[http4s] def toHttp4sResponse[F[_]](r: Response): Http4sResponse[F] =
-    // StatusCode <: Int so fromInt accepts it directly
     val status = Status.fromInt(r.status: Int).getOrElse(Status.InternalServerError)
     val ct     = MediaType.parse(r.contentType).toOption.map(`Content-Type`(_))
     val rawHeaders: List[org.http4s.Header.ToRaw] = r.headers.toList.map {
