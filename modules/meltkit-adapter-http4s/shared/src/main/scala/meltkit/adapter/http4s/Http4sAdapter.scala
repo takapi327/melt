@@ -20,6 +20,7 @@ import meltkit.*
 import meltkit.codec.BodyDecoder
 import org.http4s.headers.`Content-Type`
 import org.http4s.headers.`Set-Cookie` as Http4sSetCookie
+import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.server.staticcontent.fileService
 import org.http4s.server.staticcontent.FileService
 import org.http4s.server.Router
@@ -79,7 +80,7 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent] private (
-  private val app:      MeltKitPlatform[F, RenderResult],
+  private val app:      ServerMeltKitPlatform[F],
   private val template: Template,
   private val manifest: ViteManifest,
   private val lang:     String,
@@ -115,14 +116,13 @@ final class Http4sAdapter[F[_]: Concurrent] private (
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
-              OptionT.liftF(
-                effect
-                  .map(Http4sAdapter.toHttp4sResponse[F])
-                  .handleErrorWith {
-                    case e: BodyDecodeException =>
-                      Concurrent[F].pure(Http4sAdapter.toHttp4sResponse(Response.badRequest(e.error.message)))
-                  }
-              )
+              val info      = Http4sAdapter.buildRequestInfo(request)
+              val rawEffect = effect.handleErrorWith {
+                case e: BodyDecodeException =>
+                  Concurrent[F].pure(Response.badRequest(e.error.message))
+              }
+              val wrapped = app.middlewares.foldRight(rawEffect) { (mw, acc) => mw(info, acc) }
+              OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
     }
 
 object Http4sAdapter:
@@ -152,7 +152,7 @@ object Http4sAdapter:
     * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
     */
   def apply[F[_]: Async: Files](
-    app:           MeltKitPlatform[F, RenderResult],
+    app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
@@ -171,7 +171,7 @@ object Http4sAdapter:
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
-  def routes[F[_]: Concurrent](app: MeltKitPlatform[F, RenderResult]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent](app: ServerMeltKitPlatform[F]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
@@ -195,14 +195,13 @@ object Http4sAdapter:
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
-              OptionT.liftF(
-                effect
-                  .map(toHttp4sResponse[F])
-                  .handleErrorWith {
-                    case e: BodyDecodeException =>
-                      Concurrent[F].pure(toHttp4sResponse(Response.badRequest(e.error.message)))
-                  }
-              )
+              val info      = buildRequestInfo(request)
+              val rawEffect = effect.handleErrorWith {
+                case e: BodyDecodeException =>
+                  Concurrent[F].pure(Response.badRequest(e.error.message))
+              }
+              val wrapped = app.middlewares.foldRight(rawEffect) { (mw, acc) => mw(info, acc) }
+              OptionT.liftF(wrapped.map(toHttp4sResponse[F]))
     }
 
   /** Builds [[HttpRoutes]] for a full SPA setup:
@@ -224,7 +223,7 @@ object Http4sAdapter:
     *                      `%melt.head%` (usually `AssetManifest.manifest`)
     */
   def spaRoutes[F[_]: Async: Files](
-    app:           MeltKitPlatform[F, RenderResult],
+    app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =
@@ -235,6 +234,30 @@ object Http4sAdapter:
     }
 
   // ── private helpers ────────────────────────────────────────────────────────
+
+  private[http4s] def buildRequestInfo[F2[_]](request: org.http4s.Request[F2]): RequestInfo =
+    new RequestInfo:
+      val method      = request.method.name
+      val requestPath = request.uri.path.renderString
+
+      def query(name: String): Option[String] =
+        request.uri.query.params.get(name)
+
+      private lazy val parsedCookies: Map[String, String] =
+        request.headers.get[Http4sCookieHeader] match
+          case None         => Map.empty
+          case Some(cookie) => cookie.values.toList.map(c => c.name -> c.content).toMap
+
+      def cookie(name: String): Option[String]      = parsedCookies.get(name)
+      val cookies:              Map[String, String] = parsedCookies
+
+      private lazy val parsedHeaders: Map[String, String] =
+        request.headers.headers
+          .groupBy(_.name.toString.toLowerCase)
+          .map { case (name, vals) => name -> vals.map(_.value).mkString(", ") }
+
+      def header(name: String): Option[String]      = parsedHeaders.get(name.toLowerCase)
+      val headers:              Map[String, String] = parsedHeaders
 
   /** Reads `index.html` from the filesystem once at startup and serves it
     * for every GET request that no other route handles.

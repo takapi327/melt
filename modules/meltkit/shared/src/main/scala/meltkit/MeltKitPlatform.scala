@@ -166,6 +166,25 @@ trait MeltKitPlatform[F[_], C]:
   */
 trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
+  private val _middlewares = ListBuffer[Middleware[F]]()
+
+  /** Registers a middleware to run around every matched route handler.
+    *
+    * Middlewares run in registration order (first registered = outermost).
+    *
+    * {{{
+    * app.use { (info, next) =>
+    *   info.cookie("session_id") match
+    *     case None     => IO.pure(Unauthorized())
+    *     case Some(_)  => next
+    * }
+    * }}}
+    */
+  def use(middleware: Middleware[F]): Unit =
+    _middlewares += middleware
+
+  private[meltkit] def middlewares: List[Middleware[F]] = _middlewares.toList
+
   /** Registers a typed endpoint handler.
     *
     * The handler must return `F[Response]` (no errorOut) or

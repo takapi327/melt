@@ -426,6 +426,114 @@ class Http4sAdapterTest extends CatsEffectSuite:
         }
       }
 
+  // ── Middleware ────────────────────────────────────────────────────────────
+
+  test("middleware runs before and after handler"):
+    val app = MeltKit[IO]()
+    val log = scala.collection.mutable.ListBuffer[String]()
+    app.use { (info, next) => IO(log += "before") *> next.flatMap(r => IO(log += "after").as(r)) }
+    app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/ping")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(log.toList, List("before", "after"))
+      }
+
+  test("middleware can short-circuit handler"):
+    val app = MeltKit[IO]()
+    app.use { (info, next) => IO.pure(Unauthorized()) }
+    app.get("secret") { ctx => IO.pure(ctx.text("secret data")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/secret")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.Unauthorized)
+      }
+
+  test("middleware can modify response headers"):
+    val app = MeltKit[IO]()
+    app.use { (info, next) => next.map(_.withHeaders(Map("X-Test" -> "mw"))) }
+    app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/ping")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val h = resp.get.headers.get(ci"X-Test").map(_.map(_.value).toList).getOrElse(Nil)
+        assertEquals(h, List("mw"))
+      }
+
+  test("multiple middlewares apply in registration order"):
+    val app   = MeltKit[IO]()
+    val order = scala.collection.mutable.ListBuffer[Int]()
+    app.use { (_, next) => IO(order += 1) *> next }
+    app.use { (_, next) => IO(order += 2) *> next }
+    app.use { (_, next) => IO(order += 3) *> next }
+    app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/ping")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { _ => assertEquals(order.toList, List(1, 2, 3)) }
+
+  test("middleware receives RequestInfo with correct values"):
+    var capturedPath   = ""
+    var capturedMethod = ""
+    var capturedHeader = Option.empty[String]
+
+    val app = MeltKit[IO]()
+    app.use { (info, next) =>
+      capturedPath   = info.requestPath
+      capturedMethod = info.method
+      capturedHeader = info.header("x-trace")
+      next
+    }
+    app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/ping")
+      .withHeaders(Header.Raw(ci"X-Trace", "abc123"))
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { _ =>
+        assertEquals(capturedPath, "/ping")
+        assertEquals(capturedMethod, "GET")
+        assertEquals(capturedHeader, Some("abc123"))
+      }
+
+  test("Middleware.sequence composes middlewares in order"):
+    val app   = MeltKit[IO]()
+    val order = scala.collection.mutable.ListBuffer[Int]()
+    val mw    = Middleware.sequence[IO](
+      (_, next) => IO(order += 1) *> next,
+      (_, next) => IO(order += 2) *> next
+    )
+    app.use(mw)
+    app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/ping")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { _ => assertEquals(order.toList, List(1, 2)) }
+
   test("ctx.header joins duplicate header values with comma"):
     val app = MeltKit[IO]()
     app.on(Endpoint.get("accept").response[String]) { ctx =>
