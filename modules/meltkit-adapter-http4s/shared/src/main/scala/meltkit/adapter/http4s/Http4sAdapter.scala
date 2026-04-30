@@ -248,16 +248,16 @@ object Http4sAdapter:
           case None         => Map.empty
           case Some(cookie) => cookie.values.toList.map(c => c.name -> c.content).toMap
 
-      def cookie(name: String): Option[String] = parsedCookies.get(name)
-      val cookies: Map[String, String]          = parsedCookies
+      def cookie(name: String): Option[String]      = parsedCookies.get(name)
+      val cookies:              Map[String, String] = parsedCookies
 
       private lazy val parsedHeaders: Map[String, String] =
         request.headers.headers
           .groupBy(_.name.toString.toLowerCase)
           .map { case (name, vals) => name -> vals.map(_.value).mkString(", ") }
 
-      def header(name: String): Option[String] = parsedHeaders.get(name.toLowerCase)
-      val headers: Map[String, String]          = parsedHeaders
+      def header(name: String): Option[String]      = parsedHeaders.get(name.toLowerCase)
+      val headers:              Map[String, String] = parsedHeaders
 
   /** Reads `index.html` from the filesystem once at startup and serves it
     * for every GET request that no other route handles.

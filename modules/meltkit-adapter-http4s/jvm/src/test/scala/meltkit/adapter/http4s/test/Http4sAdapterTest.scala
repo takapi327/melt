@@ -512,7 +512,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
       .run(req)
       .value
       .map { _ =>
-        assertEquals(capturedPath,   "/ping")
+        assertEquals(capturedPath, "/ping")
         assertEquals(capturedMethod, "GET")
         assertEquals(capturedHeader, Some("abc123"))
       }

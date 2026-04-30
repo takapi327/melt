@@ -78,6 +78,4 @@ object Middleware:
     * }}}
     */
   def sequence[F[_]](ms: Middleware[F]*): Middleware[F] =
-    ms.toList.foldRight[Middleware[F]]((_, next) => next) { (mw, acc) =>
-      (info, next) => mw(info, acc(info, next))
-    }
+    ms.toList.foldRight[Middleware[F]]((_, next) => next) { (mw, acc) => (info, next) => mw(info, acc(info, next)) }
