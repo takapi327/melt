@@ -192,8 +192,9 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
         if results.forall(_.isRight) then
           val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
-          val ctx     = factory.build(params, summon[BodyDecoder[Unit]])
-                          .asInstanceOf[ServerMeltContext[F, P, Unit, RenderResult]]
+          val ctx     = factory
+            .build(params, summon[BodyDecoder[Unit]])
+            .asInstanceOf[ServerMeltContext[F, P, Unit, RenderResult]]
           Some(handler(ctx))
         else None
     addRoute(Route(method, spec.segments, tryHandle))

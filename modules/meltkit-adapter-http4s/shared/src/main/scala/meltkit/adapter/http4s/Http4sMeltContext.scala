@@ -6,8 +6,8 @@
 
 package meltkit.adapter.http4s
 
-import scala.NamedTuple.AnyNamedTuple
 import scala.util.NotGiven
+import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
@@ -55,9 +55,11 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private val cachedBody: F[String] =
-    Concurrent[F].memoize(
-      request.body.through(fs2.text.utf8.decode).compile.string
-    ).flatten
+    Concurrent[F]
+      .memoize(
+        request.body.through(fs2.text.utf8.decode).compile.string
+      )
+      .flatten
 
   override def requestPath: String = request.uri.path.renderString
 
