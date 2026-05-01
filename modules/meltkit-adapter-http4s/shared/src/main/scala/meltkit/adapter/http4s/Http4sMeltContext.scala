@@ -6,8 +6,8 @@
 
 package meltkit.adapter.http4s
 
-import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
+import scala.util.NotGiven
 
 import melt.runtime.render.RenderResult
 
@@ -19,7 +19,7 @@ import meltkit.codec.BodyEncoder
 import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.Request
 
-/** An exception raised by [[Http4sMeltContext.bodyOrBadRequest]] when body
+/** An exception raised by [[RequestBody.decodeOrBadRequest]] when body
   * decoding fails. [[Http4sAdapter]] catches this and converts it to a 400
   * Bad Request response.
   */
@@ -54,22 +54,31 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val basePath:    String           = "/assets"
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
-  private def readBody: F[String] =
-    request.body.through(fs2.text.utf8.decode).compile.string
+  private val cachedBody: F[String] =
+    Concurrent[F].memoize(
+      request.body.through(fs2.text.utf8.decode).compile.string
+    ).flatten
 
   override def requestPath: String = request.uri.path.renderString
 
   override def query(name: String): Option[String] =
     request.uri.query.params.get(name)
 
-  override def body(using NotGiven[B =:= Unit]): F[Either[BodyError, B]] =
-    readBody.map(bodyDecoder.decode)
+  override val body: RequestBody[F, B] = new RequestBody[F, B]:
 
-  override def bodyOrBadRequest(using NotGiven[B =:= Unit]): F[B] =
-    body.flatMap {
-      case Right(b)  => Concurrent[F].pure(b)
-      case Left(err) => Concurrent[F].raiseError(BodyDecodeException(err))
-    }
+    def text: F[String] = cachedBody
+
+    def json[A](using dec: BodyDecoder[A]): F[Either[BodyError, A]] =
+      cachedBody.map(dec.decode)
+
+    def decode(using NotGiven[B =:= Unit]): F[Either[BodyError, B]] =
+      cachedBody.map(bodyDecoder.decode)
+
+    def decodeOrBadRequest(using NotGiven[B =:= Unit]): F[B] =
+      decode.flatMap {
+        case Right(b)  => Concurrent[F].pure(b)
+        case Left(err) => Concurrent[F].raiseError(BodyDecodeException(err))
+      }
 
   // Parse the Cookie header once per request (lazy to avoid unnecessary work).
   // For Recurring headers, get[H] returns Option[NonEmptyList[H]]; each Cookie
