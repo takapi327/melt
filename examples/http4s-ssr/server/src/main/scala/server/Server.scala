@@ -68,7 +68,7 @@ object Server extends IOApp.Simple:
 
     app.on(createTodo) { ctx =>
       for
-        body <- ctx.bodyOrBadRequest
+        body <- ctx.body.decodeOrBadRequest
         resp <-
           if body.text.nonEmpty then
             val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
@@ -103,7 +103,7 @@ object Server extends IOApp.Simple:
 
     app.on(createUser) { ctx =>
       for
-        body <- ctx.bodyOrBadRequest
+        body <- ctx.body.decodeOrBadRequest
         resp <-
           if body.name.nonEmpty && body.email.nonEmpty then
             for
@@ -117,7 +117,7 @@ object Server extends IOApp.Simple:
 
     app.on(updateUser) { ctx =>
       for
-        body <- ctx.bodyOrBadRequest
+        body <- ctx.body.decodeOrBadRequest
         resp <- userStore.modify { users =>
                   users.find(_.id == ctx.params.id) match
                     case None    => (users, ctx.notFound(s"User ${ ctx.params.id } not found"))

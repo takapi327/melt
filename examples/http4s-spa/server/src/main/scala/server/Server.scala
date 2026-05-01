@@ -16,13 +16,16 @@ import meltkit.*
 import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
 import meltkit.adapter.http4s.Http4sAdapter
-import meltkit.adapter.http4s.Http4sAdapter.given
 import org.http4s.ember.server.EmberServerBuilder
 
 /** Pure SPA server — no server-side rendering.
   *
   * Serves a static HTML shell, Scala.js assets, and JSON API endpoints
   * via the MeltKit routing DSL.
+  *
+  * This example uses `ctx.body.json[A]` for body access without defining
+  * [[Endpoint]] values, demonstrating the simplified S-14 API.
+  * The SSR example (`http4s-ssr`) uses `Endpoint.on` for comparison.
   *
   * {{{ sbt "~http4s-spa-server/reStart" }}}
   */
@@ -51,25 +54,22 @@ object Server extends IOApp.Simple:
     val todoId = param[String]("id")
     val userId = param[Int]("id")
 
-    val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
-    val createUser = Endpoint.post("api/users").body[CreateUserBody]
-    val updateUser = Endpoint.put("api/users" / userId).body[UpdateUserBody]
-
     // ── Todo API ──────────────────────────────────────────────────────────
 
     app.get("api/todos") { ctx =>
       todoStore.get.map(ctx.ok(_))
     }
 
-    app.on(createTodo) { ctx =>
-      for
-        body <- ctx.bodyOrBadRequest
-        resp <-
-          if body.text.nonEmpty then
-            val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
-            todoStore.update(_ :+ todo).as(ctx.ok(todo))
-          else IO.pure(ctx.badRequest(BodyError.DecodeError("text must not be empty")))
-      yield resp
+    app.post("api/todos") { ctx =>
+      ctx.body.json[CreateTodoBody].flatMap {
+        case Right(body) if body.text.nonEmpty =>
+          val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
+          todoStore.update(_ :+ todo).as(ctx.ok(todo))
+        case Right(_) =>
+          IO.pure(ctx.badRequest(BodyError.DecodeError("text must not be empty")))
+        case Left(err) =>
+          IO.pure(ctx.badRequest(err))
+      }
     }
 
     app.post("api/todos" / todoId / "toggle") { ctx =>
@@ -96,31 +96,34 @@ object Server extends IOApp.Simple:
       }
     }
 
-    app.on(createUser) { ctx =>
-      for
-        body <- ctx.bodyOrBadRequest
-        resp <-
-          if body.name.nonEmpty && body.email.nonEmpty then
-            for
-              id <- nextId.getAndUpdate(_ + 1)
-              user = User(id = id, name = body.name, email = body.email, role = body.role)
-              _ <- userStore.update(_ :+ user)
-            yield ctx.ok(user)
-          else IO.pure(ctx.badRequest(BodyError.DecodeError("name and email must not be empty")))
-      yield resp
+    app.post("api/users") { ctx =>
+      ctx.body.json[CreateUserBody].flatMap {
+        case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
+          for
+            id <- nextId.getAndUpdate(_ + 1)
+            user = User(id = id, name = body.name, email = body.email, role = body.role)
+            _ <- userStore.update(_ :+ user)
+          yield ctx.ok(user)
+        case Right(_) =>
+          IO.pure(ctx.badRequest(BodyError.DecodeError("name and email must not be empty")))
+        case Left(err) =>
+          IO.pure(ctx.badRequest(err))
+      }
     }
 
-    app.on(updateUser) { ctx =>
-      for
-        body <- ctx.bodyOrBadRequest
-        resp <- userStore.modify { users =>
-                  users.find(_.id == ctx.params.id) match
-                    case None    => (users, ctx.notFound(s"User ${ ctx.params.id } not found"))
-                    case Some(u) =>
-                      val updated = u.copy(name = body.name, email = body.email, role = body.role)
-                      (users.map(x => if x.id == ctx.params.id then updated else x), ctx.ok(updated))
-                }
-      yield resp
+    app.put("api/users" / userId) { ctx =>
+      ctx.body.json[UpdateUserBody].flatMap {
+        case Right(body) =>
+          userStore.modify { users =>
+            users.find(_.id == ctx.params.id) match
+              case None    => (users, ctx.notFound(s"User ${ ctx.params.id } not found"))
+              case Some(u) =>
+                val updated = u.copy(name = body.name, email = body.email, role = body.role)
+                (users.map(x => if x.id == ctx.params.id then updated else x), ctx.ok(updated))
+          }
+        case Left(err) =>
+          IO.pure(ctx.badRequest(err))
+      }
     }
 
     app.delete("api/users" / userId) { ctx =>
