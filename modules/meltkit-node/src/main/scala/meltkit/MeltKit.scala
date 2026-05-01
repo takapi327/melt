@@ -12,7 +12,7 @@ package meltkit
   * val app = MeltKit[IO]()
   * app.get("api/todos") { ctx => IO.pure(ctx.ok(todos)) }
   * app.get("todos")     { ctx => IO.delay(ctx.render(TodoPage())) }
-  * app.on(createTodo)   { ctx => ctx.bodyOrBadRequest.flatMap(...) }
+  * app.on(createTodo)   { ctx => ctx.body.decodeOrBadRequest.flatMap(...) }
   * }}}
   */
 class MeltKit[F[_]] extends ServerMeltKitPlatform[F]
