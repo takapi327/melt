@@ -6,7 +6,6 @@
 
 package meltkit
 
-import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
 /** Server-side extension of [[MeltContext]] that adds request-body access.
@@ -15,10 +14,10 @@ import scala.NamedTuple.AnyNamedTuple
   * The browser adapter (`BrowserMeltContext`) extends [[MeltContext]] only,
   * because browser navigation routes carry no request body.
   *
-  * Route handlers registered with [[MeltKit.on]] receive a `ServerMeltContext`
-  * so they can safely call [[body]] / [[bodyOrBadRequest]].
-  * Handlers registered with `app.get` / `app.post` / … receive a plain
-  * [[MeltContext]] and cannot access the body at compile time.
+  * Route handlers registered with [[MeltKit.on]] and `app.post` / `app.put` /
+  * `app.patch` / `app.delete` receive a `ServerMeltContext` so they can access
+  * the request body via [[body]], as well as cookies and headers.
+  * Handlers registered with `app.get` receive a plain [[MeltContext]].
   *
   * @tparam F the effect type (e.g. `cats.effect.IO`)
   * @tparam P the [[scala.NamedTuple]] of typed path parameters
@@ -27,18 +26,24 @@ import scala.NamedTuple.AnyNamedTuple
   */
 trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P, B, C]:
 
-  /** Reads and decodes the request body using the endpoint's [[codec.BodyDecoder]].
+  /** Format-specific access to the request body.
     *
-    * Only available when `B ≠ Unit` (i.e. the endpoint declares a body type
-    * via `.body[B]`).  Returns `Left` when the raw body cannot be decoded.
-    */
-  def body(using NotGiven[B =:= Unit]): F[Either[BodyError, B]]
-
-  /** Like [[body]], but automatically raises a 400 Bad Request when decoding fails.
+    * Provides methods to read the body as raw text, JSON, or using the
+    * endpoint's [[codec.BodyDecoder]]:
     *
-    * Only available when `B ≠ Unit`.
+    * {{{
+    * // Raw text
+    * ctx.body.text                     // F[String]
+    *
+    * // JSON (requires a BodyDecoder in scope)
+    * ctx.body.json[CreateTodo]         // F[Either[BodyError, CreateTodo]]
+    *
+    * // Endpoint's decoder (only when B ≠ Unit)
+    * ctx.body.decode                   // F[Either[BodyError, B]]
+    * ctx.body.decodeOrBadRequest       // F[B]
+    * }}}
     */
-  def bodyOrBadRequest(using NotGiven[B =:= Unit]): F[B]
+  def body: RequestBody[F, B]
 
   /** Returns the value of the named cookie from the request `Cookie` header, if present.
     *

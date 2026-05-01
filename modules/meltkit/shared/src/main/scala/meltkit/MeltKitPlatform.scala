@@ -44,8 +44,10 @@ private[meltkit] final class Route[F[_], C](
   *   - JVM / Node.js — `MeltKit[IO]()` where `C = RenderResult`
   *   - Browser       — `MeltKit()` where `C = dom.Element`
   *
-  * Register route handlers with [[get]], [[post]], [[put]], [[delete]], and
-  * [[patch]]. Compose multiple routers with [[route]].
+  * GET navigation routes are registered here via [[get]] / [[getAll]].
+  * Data-mutation routes (`post` / `put` / `patch` / `delete`) are defined
+  * in [[ServerMeltKitPlatform]] because they require server-side body access
+  * and are not used by the browser router (which handles GET navigation only).
   *
   * {{{
   * // JVM / Node.js
@@ -70,7 +72,7 @@ trait MeltKitPlatform[F[_], C]:
   /** Adds a route. Used by [[ServerMeltKitPlatform]] to register typed endpoints. */
   private[meltkit] def addRoute(r: Route[F, C]): Unit = _routes += r
 
-  private def register[P <: AnyNamedTuple](
+  private[meltkit] def register[P <: AnyNamedTuple](
     method: HttpMethod,
     spec:   PathSpec[P]
   )(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
@@ -112,30 +114,6 @@ trait MeltKitPlatform[F[_], C]:
       (_, factory) => Some(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
     _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
 
-  def post[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
-    register("POST", spec)(handler)
-
-  def post(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
-    register("POST", PathSpec.fromString(path))(handler)
-
-  def put[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
-    register("PUT", spec)(handler)
-
-  def put(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
-    register("PUT", PathSpec.fromString(path))(handler)
-
-  def delete[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
-    register("DELETE", spec)(handler)
-
-  def delete(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
-    register("DELETE", PathSpec.fromString(path))(handler)
-
-  def patch[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
-    register("PATCH", spec)(handler)
-
-  def patch(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
-    register("PATCH", PathSpec.fromString(path))(handler)
-
   /** Mounts a sub-router under a static path prefix.
     *
     * {{{
@@ -148,17 +126,31 @@ trait MeltKitPlatform[F[_], C]:
   def route(prefix: String, sub: MeltKitPlatform[F, C]): Unit =
     sub.routes.foreach { r => _routes += r.withPrefix(prefix) }
 
-/** Server-specific extension of [[MeltKitPlatform]] that adds typed endpoint
-  * support via [[on]].
+/** Server-specific extension of [[MeltKitPlatform]] that adds data-mutation
+  * routes (`post` / `put` / `patch` / `delete`) and typed endpoint support
+  * via [[on]].
   *
   * Extended by the JVM and Node.js platform [[MeltKit]] subclasses only.
-  * Browser routing does not support request bodies, so [[on]] is intentionally
-  * absent from the browser [[MeltKit]].
+  * Browser routing handles GET navigation only, so these methods are
+  * intentionally absent from the browser [[MeltKit]].
+  *
+  * Handlers registered here receive a [[ServerMeltContext]] which provides
+  * access to the request body (`ctx.body.json[A]`, `ctx.body.text`, …),
+  * cookies (`ctx.cookie`), and headers (`ctx.header`).
   *
   * {{{
+  * // Simple route with body access
+  * app.post("api/todos") { ctx =>
+  *   ctx.body.json[CreateTodo].flatMap {
+  *     case Right(todo) => todoStore.create(todo).map(ctx.created(_))
+  *     case Left(err)   => IO.pure(ctx.badRequest(err))
+  *   }
+  * }
+  *
+  * // Typed endpoint
   * val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
   * app.on(createTodo) { ctx =>
-  *   ctx.bodyOrBadRequest.flatMap { body =>
+  *   ctx.body.decodeOrBadRequest.flatMap { body =>
   *     todoStore.update(_ :+ Todo(body.text)).as(ctx.ok(todo))
   *   }
   * }
@@ -184,6 +176,69 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     _middlewares += middleware
 
   private[meltkit] def middlewares: List[Middleware[F]] = _middlewares.toList
+
+  // ── Data-mutation routes ────────────────────────────────────────────────
+
+  private def registerServer[P <: AnyNamedTuple](
+    method: HttpMethod,
+    spec:   PathSpec[P]
+  )(handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]): Unit =
+    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[F[Response]] =
+      (rawValues, factory) =>
+        val results = spec.paramDecoders.zip(rawValues).map {
+          case ((_, dec), raw) =>
+            dec.asInstanceOf[PathParamDecoder[Any]].decode(raw)
+        }
+        if results.forall(_.isRight) then
+          val decoded = results.collect { case Right(v) => v }
+          val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
+          val ctx     = factory.build(params, summon[BodyDecoder[Unit]])
+                          .asInstanceOf[ServerMeltContext[F, P, Unit, RenderResult]]
+          Some(handler(ctx))
+        else None
+    addRoute(Route(method, spec.segments, tryHandle))
+
+  def post[P <: AnyNamedTuple](spec: PathSpec[P])(
+    handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("POST", spec)(handler)
+
+  def post(path: String)(
+    handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("POST", PathSpec.fromString(path))(handler)
+
+  def put[P <: AnyNamedTuple](spec: PathSpec[P])(
+    handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("PUT", spec)(handler)
+
+  def put(path: String)(
+    handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("PUT", PathSpec.fromString(path))(handler)
+
+  def delete[P <: AnyNamedTuple](spec: PathSpec[P])(
+    handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("DELETE", spec)(handler)
+
+  def delete(path: String)(
+    handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("DELETE", PathSpec.fromString(path))(handler)
+
+  def patch[P <: AnyNamedTuple](spec: PathSpec[P])(
+    handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("PATCH", spec)(handler)
+
+  def patch(path: String)(
+    handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    registerServer("PATCH", PathSpec.fromString(path))(handler)
+
+  // ── Typed endpoints ─────────────────────────────────────────────────────
 
   /** Registers a typed endpoint handler.
     *

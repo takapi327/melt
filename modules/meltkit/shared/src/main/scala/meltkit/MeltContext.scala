@@ -14,9 +14,10 @@ import meltkit.codec.BodyEncoder
   *
   * Concrete implementations are provided by adapter modules.
   *
-  * For request-body access (`ctx.body` / `ctx.bodyOrBadRequest`) use
+  * For request-body access (`ctx.body.json[A]` / `ctx.body.decode`) use
   * [[ServerMeltContext]], which extends this trait and is provided to
-  * handlers registered via [[MeltKit.on]].
+  * handlers registered via `app.post` / `app.put` / `app.patch` /
+  * `app.delete` and [[MeltKit.on]].
   *
   * @tparam F the effect type (e.g. `cats.effect.IO`)
   * @tparam P the [[scala.NamedTuple]] of typed path parameters
