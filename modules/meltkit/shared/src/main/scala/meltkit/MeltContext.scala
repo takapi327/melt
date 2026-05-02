@@ -70,6 +70,21 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     */
   def render(component: => C): PlainResponse
 
+  /** Renders a Melt component and returns a response with the given status code.
+    *
+    * Use this to render error pages with the appropriate HTTP status:
+    *
+    * {{{
+    * app.get("products" / productId) { ctx =>
+    *   productStore.find(ctx.params.id).map {
+    *     case Some(product) => ctx.render(ProductPage(product))
+    *     case None          => ctx.render(NotFoundPage(), 404)
+    *   }
+    * }
+    * }}}
+    */
+  def render(component: => C, status: StatusCode): PlainResponse
+
   /** Builds a 200 OK JSON response. Requires a [[BodyEncoder]][A] in scope. */
   def ok[A: BodyEncoder](value: A): PlainResponse
 

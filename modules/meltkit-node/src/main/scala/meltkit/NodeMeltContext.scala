@@ -48,6 +48,9 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
     * `Router.currentPath` returns the correct path during SSR rendering.
     */
   override def render(component: => RenderResult): PlainResponse =
+    render(component, 200)
+
+  override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
       case None =>
         throw new IllegalStateException(
@@ -55,7 +58,8 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
         )
       case Some(template) =>
         val result = Router.withPath(requestPath)(component)
-        Response.html(template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty))
+        val html   = template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty)
+        PlainResponse(status, "text/html; charset=utf-8", html)
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))

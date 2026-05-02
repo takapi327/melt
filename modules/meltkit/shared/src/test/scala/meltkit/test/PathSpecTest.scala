@@ -130,9 +130,10 @@ class PathSpecTest extends munit.FunSuite:
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
 private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P, Unit, Nothing]:
-  override def requestPath:                   String         = "/"
-  override def query(name:       String):     Option[String] = None
-  override def render(component: => Nothing): PlainResponse  = ???
+  override def requestPath:                                       String         = "/"
+  override def query(name:       String):                         Option[String] = None
+  override def render(component: => Nothing):                     PlainResponse  = ???
+  override def render(component: => Nothing, status: StatusCode): PlainResponse  = ???
   override def ok[A: BodyEncoder](value: A):      PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
   override def created[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))
