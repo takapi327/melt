@@ -592,7 +592,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     val app = MeltKit[IO]()
     app.post("login") { ctx =>
       ctx.body.form[Login].map {
-        case Right(form) => ctx.text(s"${form.username}:${form.password}")
+        case Right(form) => ctx.text(s"${ form.username }:${ form.password }")
         case Left(_)     => ctx.text("error")
       }
     }
@@ -621,7 +621,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     app.post("login") { ctx =>
       ctx.body.form[Login].map {
         case Right(_)  => ctx.text("ok")
-        case Left(err) => ctx.text(s"error:${err.message}")
+        case Left(err) => ctx.text(s"error:${ err.message }")
       }
     }
 
@@ -646,7 +646,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
       for
         raw  <- ctx.body.text
         form <- ctx.body.form
-      yield ctx.text(s"raw=$raw,form=${form.toOption.flatMap(_.get("a")).getOrElse("?")}")
+      yield ctx.text(s"raw=$raw,form=${ form.toOption.flatMap(_.get("a")).getOrElse("?") }")
     }
 
     val req = Request[IO](method = Method.POST, uri = uri"/dual")
