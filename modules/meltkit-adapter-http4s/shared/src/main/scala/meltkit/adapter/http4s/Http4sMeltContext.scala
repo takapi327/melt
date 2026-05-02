@@ -66,6 +66,12 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   override def query(name: String): Option[String] =
     request.uri.query.params.get(name)
 
+  override def queryAll(name: String): List[String] =
+    request.uri.query.multiParams.getOrElse(name, Nil).toList
+
+  override def queryParams: Map[String, List[String]] =
+    request.uri.query.multiParams.map { case (k, v) => k -> v.toList }
+
   override val body: RequestBody[F, B] = new RequestBody[F, B]:
 
     def text: F[String] = cachedBody

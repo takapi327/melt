@@ -45,6 +45,21 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   override def query(name: String): Option[String] =
     Option(new dom.URLSearchParams(dom.window.location.search).get(name))
 
+  override def queryAll(name: String): List[String] =
+    new dom.URLSearchParams(dom.window.location.search).getAll(name).toList
+
+  override def queryParams: Map[String, List[String]] =
+    val params  = new dom.URLSearchParams(dom.window.location.search)
+    val result  = scala.collection.mutable.Map.empty[String, List[String]]
+    val entries = params.entries()
+    var entry   = entries.next()
+    while !entry.done do
+      val key   = entry.value(0)
+      val value = entry.value(1)
+      result.update(key, result.getOrElse(key, Nil) :+ value)
+      entry = entries.next()
+    result.toMap
+
   /** Evaluates `component` immediately and mounts it into `outletEl`. */
   override def render(component: => dom.Element): PlainResponse =
     val el = component
