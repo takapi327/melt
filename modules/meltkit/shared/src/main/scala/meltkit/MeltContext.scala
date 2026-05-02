@@ -53,6 +53,25 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 
+  /** Returns all values of the named query parameter.
+    *
+    * {{{
+    * // URL: /articles?tag=scala&tag=fp&tag=cats
+    * ctx.queryAll("tag")     // List("scala", "fp", "cats")
+    * ctx.queryAll("missing") // List()
+    * }}}
+    */
+  def queryAll(name: String): List[String]
+
+  /** Returns all query parameters as a multi-valued map.
+    *
+    * {{{
+    * // URL: /articles?tag=scala&tag=fp&page=1
+    * ctx.queryParams  // Map("tag" -> List("scala", "fp"), "page" -> List("1"))
+    * }}}
+    */
+  def queryParams: Map[String, List[String]]
+
   /** Renders a Melt component and returns a 200 response.
     *
     * The `component` parameter is by-name so that server-side implementations
