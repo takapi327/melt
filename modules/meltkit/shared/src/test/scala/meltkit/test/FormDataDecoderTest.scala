@@ -65,9 +65,9 @@ class FormDataDecoderTest extends munit.FunSuite:
 
   // ── derived: Boolean ──────────────────────────────────────────────────────
 
-  test("decodes Boolean field with 'on' value"):
+  test("decodes Boolean field with 'true' value"):
     val result = FormDataDecoder[CheckboxForm].decode(
-      FormData.parse("name=alice&agree=on").toOption.get
+      FormData.parse("name=alice&agree=true").toOption.get
     )
     assertEquals(result, Right(CheckboxForm("alice", true)))
 
