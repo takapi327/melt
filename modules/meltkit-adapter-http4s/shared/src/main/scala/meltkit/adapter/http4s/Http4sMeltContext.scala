@@ -70,6 +70,12 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
     def text: F[String] = cachedBody
 
+    def form: F[Either[BodyError, FormData]] =
+      cachedBody.map(FormData.parse)
+
+    def form[A](using fdd: codec.FormDataDecoder[A]): F[Either[BodyError, A]] =
+      cachedBody.map(raw => FormData.parse(raw).flatMap(fdd.decode))
+
     def json[A](using dec: BodyDecoder[A]): F[Either[BodyError, A]] =
       cachedBody.map(dec.decode)
 

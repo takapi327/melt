@@ -557,3 +557,109 @@ class Http4sAdapterTest extends CatsEffectSuite:
           assert(body.contains("application/json"))
         }
       }
+
+  // ── ctx.body.form — FormData parsing ───────────────────────────────────
+
+  test("ctx.body.form parses url-encoded body"):
+    val app = MeltKit[IO]()
+    app.post("login") { ctx =>
+      ctx.body.form.map {
+        case Right(form) => ctx.text(form.get("username").getOrElse("none"))
+        case Left(_)     => ctx.text("error")
+      }
+    }
+
+    val req = Request[IO](method = Method.POST, uri = uri"/login")
+      .withEntity("username=alice&password=secret")(
+        org.http4s.EntityEncoder.stringEncoder[IO]
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assertEquals(body, "alice"))
+
+  test("ctx.body.form[A] decodes to case class via FormDataDecoder"):
+    import meltkit.codec.FormDataDecoder
+
+    case class Login(username: String, password: String) derives FormDataDecoder
+
+    val app = MeltKit[IO]()
+    app.post("login") { ctx =>
+      ctx.body.form[Login].map {
+        case Right(form) => ctx.text(s"${ form.username }:${ form.password }")
+        case Left(_)     => ctx.text("error")
+      }
+    }
+
+    val req = Request[IO](method = Method.POST, uri = uri"/login")
+      .withEntity("username=bob&password=pass123")(
+        org.http4s.EntityEncoder.stringEncoder[IO]
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assertEquals(body, "bob:pass123"))
+
+  test("ctx.body.form[A] returns Left for missing required fields"):
+    import meltkit.codec.FormDataDecoder
+
+    case class Login(username: String, password: String) derives FormDataDecoder
+
+    val app = MeltKit[IO]()
+    app.post("login") { ctx =>
+      ctx.body.form[Login].map {
+        case Right(_)  => ctx.text("ok")
+        case Left(err) => ctx.text(s"error:${ err.message }")
+      }
+    }
+
+    val req = Request[IO](method = Method.POST, uri = uri"/login")
+      .withEntity("username=bob")(
+        org.http4s.EntityEncoder.stringEncoder[IO]
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assert(body.contains("password"), s"Expected 'password' in: $body"))
+
+  test("ctx.body.text and ctx.body.form can both be called (memoize)"):
+    val app = MeltKit[IO]()
+    app.post("dual") { ctx =>
+      for
+        raw  <- ctx.body.text
+        form <- ctx.body.form
+      yield ctx.text(s"raw=$raw,form=${ form.toOption.flatMap(_.get("a")).getOrElse("?") }")
+    }
+
+    val req = Request[IO](method = Method.POST, uri = uri"/dual")
+      .withEntity("a=1&b=2")(
+        org.http4s.EntityEncoder.stringEncoder[IO]
+      )
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assertEquals(body, "raw=a=1&b=2,form=1"))
