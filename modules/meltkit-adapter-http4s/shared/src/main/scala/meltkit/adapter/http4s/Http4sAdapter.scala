@@ -6,7 +6,6 @@
 
 package meltkit.adapter.http4s
 
-import scala.NamedTuple
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
@@ -116,9 +115,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
           app.notFoundHandler match
             case None          => OptionT.none
             case Some(handler) =>
-              val ctx = factory
-                .build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
-                .asInstanceOf[ServerMeltContext[F, NamedTuple.Empty, Unit, RenderResult]]
+              val ctx     = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
               val info    = Http4sAdapter.buildRequestInfo(request)
               val effect  = handler(ctx)
               val wrapped = app.middlewares.foldRight(effect) { (mw, acc) => mw(info, acc) }
@@ -134,11 +131,9 @@ final class Http4sAdapter[F[_]: Concurrent] private (
                   Concurrent[F].pure(Response.badRequest(e.error.message))
                 case e: Throwable =>
                   app.errorHandler match
-                    case None          => Concurrent[F].raiseError(e)
+                    case None => Concurrent[F].raiseError(e)
                     case Some(handler) =>
-                      val errorCtx = factory
-                        .build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
-                        .asInstanceOf[ServerMeltContext[F, NamedTuple.Empty, Unit, RenderResult]]
+                      val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
                       handler(errorCtx, e).handleErrorWith { _ =>
                         Concurrent[F].pure(PlainResponse(500, "text/plain; charset=utf-8", "Internal Server Error"))
                       }
