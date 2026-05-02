@@ -8,7 +8,7 @@ package meltkit
 
 import scala.util.NotGiven
 
-import meltkit.codec.BodyDecoder
+import meltkit.codec.{ BodyDecoder, FormDataDecoder }
 
 /** Provides format-specific access to the request body.
   *
@@ -16,14 +16,15 @@ import meltkit.codec.BodyDecoder
   * string and parses it according to the specified format.
   *
   * This follows the same pattern as the Web standard `Request` API:
+  *   - `request.formData()` → `ctx.body.form` / `ctx.body.form[A]`
   *   - `request.json()`     → `ctx.body.json[A]`
   *   - `request.text()`     → `ctx.body.text`
   *
   * {{{
   * app.post("login") { ctx =>
-  *   ctx.body.json[LoginRequest].flatMap {
-  *     case Right(req) => authenticate(req.username, req.password)
-  *     case Left(err)  => IO.pure(ctx.badRequest(err))
+  *   ctx.body.form[LoginForm].flatMap {
+  *     case Right(form) => authenticate(form.username, form.password)
+  *     case Left(err)   => IO.pure(ctx.badRequest(err))
   *   }
   * }
   * }}}
@@ -35,6 +36,36 @@ trait RequestBody[F[_], B]:
 
   /** Returns the raw body as a UTF-8 string. */
   def text: F[String]
+
+  /** Parses the body as `application/x-www-form-urlencoded` and returns [[FormData]].
+    *
+    * {{{
+    * app.post("login") { ctx =>
+    *   ctx.body.form.flatMap {
+    *     case Right(formData) =>
+    *       val username = formData.get("username")
+    *       ...
+    *     case Left(err) => IO.pure(ctx.badRequest(err))
+    *   }
+    * }
+    * }}}
+    */
+  def form: F[Either[BodyError, FormData]]
+
+  /** Parses the body as `application/x-www-form-urlencoded` and decodes it into `A`.
+    *
+    * {{{
+    * case class LoginForm(username: String, password: String) derives FormDataDecoder
+    *
+    * app.post("login") { ctx =>
+    *   ctx.body.form[LoginForm].flatMap {
+    *     case Right(form) => authenticate(form.username, form.password)
+    *     case Left(err)   => IO.pure(ctx.badRequest(err))
+    *   }
+    * }
+    * }}}
+    */
+  def form[A](using FormDataDecoder[A]): F[Either[BodyError, A]]
 
   /** Parses the body as JSON and decodes it into `A` using the [[BodyDecoder]] in scope.
     *
