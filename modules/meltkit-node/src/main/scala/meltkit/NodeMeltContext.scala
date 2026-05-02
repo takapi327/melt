@@ -32,17 +32,23 @@ import meltkit.codec.BodyEncoder
   * @param basePath    the asset base path passed to [[Template.render]]
   */
 final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
-  val params:              P,
-  val requestPath:         String,
-  private val queryParams: Map[String, String] = Map.empty,
-  private val bodyDecoder: BodyDecoder[B],
-  private val templateOpt: Option[Template]    = None,
-  private val manifest:    ViteManifest        = ViteManifest.empty,
-  private val lang:        String              = "en",
-  private val basePath:    String              = "/assets"
+  val params:               P,
+  val requestPath:          String,
+  private val _queryParams: Map[String, List[String]] = Map.empty,
+  private val bodyDecoder:  BodyDecoder[B],
+  private val templateOpt:  Option[Template]          = None,
+  private val manifest:     ViteManifest              = ViteManifest.empty,
+  private val lang:         String                    = "en",
+  private val basePath:     String                    = "/assets"
 ) extends MeltContext[F, P, B, RenderResult]:
 
-  override def query(name: String): Option[String] = queryParams.get(name)
+  override def query(name: String): Option[String] =
+    _queryParams.get(name).flatMap(_.headOption)
+
+  override def queryAll(name: String): List[String] =
+    _queryParams.getOrElse(name, Nil)
+
+  override def queryParams: Map[String, List[String]] = _queryParams
 
   /** Evaluates `component` inside `Router.withPath(requestPath)` so that
     * `Router.currentPath` returns the correct path during SSR rendering.

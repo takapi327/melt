@@ -260,6 +260,12 @@ object Http4sAdapter:
       def query(name: String): Option[String] =
         request.uri.query.params.get(name)
 
+      def queryAll(name: String): List[String] =
+        request.uri.query.multiParams.getOrElse(name, Nil).toList
+
+      val queryParams: Map[String, List[String]] =
+        request.uri.query.multiParams.map { case (k, v) => k -> v.toList }
+
       private lazy val parsedCookies: Map[String, String] =
         request.headers.get[Http4sCookieHeader] match
           case None         => Map.empty

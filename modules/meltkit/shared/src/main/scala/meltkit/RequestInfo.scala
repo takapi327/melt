@@ -23,6 +23,12 @@ trait RequestInfo:
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 
+  /** Returns all values of the named query parameter. */
+  def queryAll(name: String): List[String]
+
+  /** Returns all query parameters as a multi-valued map. */
+  def queryParams: Map[String, List[String]]
+
   /** Returns the value of the named request header (case-insensitive).
     *
     * If the same header appears more than once, values are joined with `", "`.
