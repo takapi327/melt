@@ -131,7 +131,7 @@ final class Http4sAdapter[F[_]: Concurrent] private (
                   Concurrent[F].pure(Response.badRequest(e.error.message))
                 case e: Throwable =>
                   app.errorHandler match
-                    case None => Concurrent[F].raiseError(e)
+                    case None          => Concurrent[F].raiseError(e)
                     case Some(handler) =>
                       val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
                       handler(errorCtx, e).handleErrorWith { _ =>

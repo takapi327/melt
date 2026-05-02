@@ -162,8 +162,8 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
   // var + Option: handlers are single (overwrite), unlike middlewares (accumulate).
   private var _notFoundHandler: Option[MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]] = None
-  private var _errorHandler
-    : Option[(MeltContext[F, NamedTuple.Empty, Unit, RenderResult], Throwable) => F[Response]] = None
+  private var _errorHandler: Option[(MeltContext[F, NamedTuple.Empty, Unit, RenderResult], Throwable) => F[Response]] =
+    None
 
   /** Registers a middleware to run around every matched route handler.
     *
@@ -197,8 +197,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def onNotFound(handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]): Unit =
     _notFoundHandler = Some(handler)
 
-  private[meltkit] def notFoundHandler
-    : Option[MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]] =
+  private[meltkit] def notFoundHandler: Option[MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]] =
     _notFoundHandler
 
   /** Registers a handler for unhandled exceptions in route handlers.
