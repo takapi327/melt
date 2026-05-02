@@ -81,7 +81,7 @@ object FormData:
           .toList
           .map { pair =>
             pair.indexOf('=') match
-              case -1  => decodeComponent(pair) -> ""
+              case -1  => decodeComponent(pair)                   -> ""
               case idx => decodeComponent(pair.substring(0, idx)) -> decodeComponent(pair.substring(idx + 1))
           }
           .groupBy(_._1)
@@ -89,10 +89,12 @@ object FormData:
         Right(FormData(fields))
       catch
         case e: IllegalArgumentException =>
-          Left(BodyError.DecodeError(
-            "Invalid form data",
-            detail = Some(e.getMessage)
-          ))
+          Left(
+            BodyError.DecodeError(
+              "Invalid form data",
+              detail = Some(e.getMessage)
+            )
+          )
 
   private def decodeComponent(s: String): String =
     java.net.URLDecoder.decode(s, "UTF-8")

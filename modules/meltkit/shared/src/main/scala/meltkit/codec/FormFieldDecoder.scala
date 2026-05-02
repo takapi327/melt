@@ -47,10 +47,10 @@ object FormFieldDecoder:
   given FormFieldDecoder[Boolean] with
     def decode(name: String, form: FormData): Either[String, Boolean] =
       form.get(name) match
-        case None                                                    => Right(false) // unchecked checkbox = absent
-        case Some("true") | Some("on") | Some("1")                  => Right(true)
-        case Some("false") | Some("off") | Some("0") | Some("")     => Right(false)
-        case Some(v) => Left(s"Field '$name' is not a valid boolean: $v")
+        case None                                               => Right(false) // unchecked checkbox = absent
+        case Some("true") | Some("on") | Some("1")              => Right(true)
+        case Some("false") | Some("off") | Some("0") | Some("") => Right(false)
+        case Some(v)                                            => Left(s"Field '$name' is not a valid boolean: $v")
 
   /** Optional fields: missing -> `None`, present -> `Some(decoded)`. */
   given [A](using inner: FormFieldDecoder[A]): FormFieldDecoder[Option[A]] with
@@ -61,7 +61,7 @@ object FormFieldDecoder:
   /** Multi-value fields: `<select multiple>`, repeated checkboxes. */
   given [A](using inner: FormFieldDecoder[A]): FormFieldDecoder[List[A]] with
     def decode(name: String, form: FormData): Either[String, List[A]] =
-      val values = form.getAll(name)
+      val values  = form.getAll(name)
       val results = values.map { v =>
         inner.decode(name, FormData(Map(name -> List(v))))
       }
