@@ -6,6 +6,7 @@
 
 package meltkit.adapter.http4s
 
+import scala.NamedTuple
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
@@ -103,16 +104,26 @@ final class Http4sAdapter[F[_]: Concurrent] private (
         }
       }
 
+      val factory = new MeltContextFactory[F, RenderResult]:
+        def build[P <: AnyNamedTuple, B](
+          params:      P,
+          bodyDecoder: BodyDecoder[B]
+        ): MeltContext[F, P, B, RenderResult] =
+          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
+
       matched match
-        case None        => OptionT.none
+        case None =>
+          app.notFoundHandler match
+            case None => OptionT.none
+            case Some(handler) =>
+              val ctx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
+                          .asInstanceOf[ServerMeltContext[F, NamedTuple.Empty, Unit, RenderResult]]
+              val info    = Http4sAdapter.buildRequestInfo(request)
+              val effect  = handler(ctx)
+              val wrapped = app.middlewares.foldRight(effect) { (mw, acc) => mw(info, acc) }
+              OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val factory   = new MeltContextFactory[F, RenderResult]:
-            def build[P <: AnyNamedTuple, B](
-              params:      P,
-              bodyDecoder: BodyDecoder[B]
-            ): MeltContext[F, P, B, RenderResult] =
-              Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
           route.tryHandle(rawValues, factory) match
             case None         => OptionT.none
             case Some(effect) =>
@@ -120,6 +131,15 @@ final class Http4sAdapter[F[_]: Concurrent] private (
               val rawEffect = effect.handleErrorWith {
                 case e: BodyDecodeException =>
                   Concurrent[F].pure(Response.badRequest(e.error.message))
+                case e: Throwable =>
+                  app.errorHandler match
+                    case None => Concurrent[F].raiseError(e)
+                    case Some(handler) =>
+                      val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
+                                       .asInstanceOf[ServerMeltContext[F, NamedTuple.Empty, Unit, RenderResult]]
+                      handler(errorCtx, e).handleErrorWith { _ =>
+                        Concurrent[F].pure(PlainResponse(500, "text/plain; charset=utf-8", "Internal Server Error"))
+                      }
               }
               val wrapped = app.middlewares.foldRight(rawEffect) { (mw, acc) => mw(info, acc) }
               OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
