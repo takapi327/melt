@@ -103,5 +103,5 @@ final class Locals:
     store -= key
 
   // Package-private aliases used by LocalsOps to wrap in F[Unit].
-  private[meltkit] def unsafeSet[A](key: LocalKey[A], value: A): Unit   = set(key, value)
-  private[meltkit] def unsafeRemove[A](key: LocalKey[A]): Unit          = remove(key)
+  private[meltkit] def unsafeSet[A](key:    LocalKey[A], value: A): Unit = set(key, value)
+  private[meltkit] def unsafeRemove[A](key: LocalKey[A]):           Unit = remove(key)
