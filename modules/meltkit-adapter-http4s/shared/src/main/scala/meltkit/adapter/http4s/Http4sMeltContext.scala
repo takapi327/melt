@@ -52,7 +52,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val manifest:    ViteManifest     = ViteManifest.empty,
   private val lang:        String           = "en",
   private val basePath:    String           = "/assets",
-  override val locals:     Locals           = new Locals()
+  override val locals:     Locals           = new Locals(),
+  private val nonce:       Option[String]   = None
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private val cachedBody: F[String] =
@@ -135,7 +136,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
         )
       case Some(template) =>
         val result = Router.withPath(requestPath)(component)
-        val html   = template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty)
+        val html   = template.render(result, manifest, title = "", lang = lang,
+                                     basePath = basePath, vars = Map.empty, nonce = nonce)
         PlainResponse(status, "text/html; charset=utf-8", html)
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
