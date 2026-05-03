@@ -30,7 +30,7 @@ private[meltkit] trait MeltContextFactory[F[_], C]:
 private[meltkit] final class Route[F[_], C](
   val method:    HttpMethod,
   val segments:  List[PathSegment],
-  val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]]
+  val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]]
 ):
   /** Returns a copy of this route with `prefix` prepended to its segments. */
   private[meltkit] def withPrefix(prefix: String): Route[F, C] =
@@ -76,7 +76,7 @@ trait MeltKitPlatform[F[_], C]:
     method: HttpMethod,
     spec:   PathSpec[P]
   )(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]] =
+    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]] =
       (rawValues, factory) =>
         val results = spec.paramDecoders.zip(rawValues).map {
           case ((_, dec), raw) =>
@@ -85,7 +85,7 @@ trait MeltKitPlatform[F[_], C]:
         if results.forall(_.isRight) then
           val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
-          Some(handler(factory.build(params, summon[BodyDecoder[Unit]])))
+          Some(() => handler(factory.build(params, summon[BodyDecoder[Unit]])))
         else None
     _routes += Route(method, spec.segments, tryHandle)
 
@@ -110,8 +110,8 @@ trait MeltKitPlatform[F[_], C]:
     * }}}
     */
   def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit, C] => F[Response]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[F[Response]] =
-      (_, factory) => Some(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
+    val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]] =
+      (_, factory) => Some(() => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
     _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
 
   /** Mounts a sub-router under a static path prefix.
@@ -223,7 +223,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     method: HttpMethod,
     spec:   PathSpec[P]
   )(handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[F[Response]] =
+    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[() => F[Response]] =
       (rawValues, factory) =>
         val results = spec.paramDecoders.zip(rawValues).map {
           case ((_, dec), raw) =>
@@ -235,7 +235,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
           val ctx     = factory
             .build(params, summon[BodyDecoder[Unit]])
             .asInstanceOf[ServerMeltContext[F, P, Unit, RenderResult]]
-          Some(handler(ctx))
+          Some(() => handler(ctx))
         else None
     addRoute(Route(method, spec.segments, tryHandle))
 
@@ -306,7 +306,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def on[P <: AnyNamedTuple, B, E <: Response, Out](ep: Endpoint[P, B, E, ?])(
     handler: ServerMeltContext[F, P, B, RenderResult] => F[Out]
   )(using functor: Functor[F], lift: ResponseLift[E, Out]): Unit =
-    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[F[Response]] =
+    val tryHandle: (List[String], MeltContextFactory[F, RenderResult]) => Option[() => F[Response]] =
       (rawValues, factory) =>
         val results = ep.spec.paramDecoders.zip(rawValues).map {
           case ((_, dec), raw) =>
@@ -316,7 +316,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
           val decoded = results.collect { case Right(v) => v }
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
           val ctx     = factory.build(params, ep.bodyDecoder).asInstanceOf[ServerMeltContext[F, P, B, RenderResult]]
-          Some(functor.map(handler(ctx))(lift.lift))
+          Some(() => functor.map(handler(ctx))(lift.lift))
         else None
     addRoute(Route(ep.method, ep.spec.segments, tryHandle))
 

@@ -15,6 +15,7 @@ import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
+// import meltkit.adapter.http4s.LocalsOps.*
 import meltkit.codec.*
 import org.http4s.*
 import org.http4s.implicits.*
@@ -639,6 +640,86 @@ class Http4sAdapterTest extends CatsEffectSuite:
         resp.get.as[String]
       }
       .map(body => assert(body.contains("password"), s"Expected 'password' in: $body"))
+
+  // ── Locals ────────────────────────────────────────────────────────────────
+
+  test("middleware sets local and handler reads it"):
+    val key = LocalKey.make[String]
+    val app = MeltKit[IO]()
+    app.use { (info, next) => IO { info.locals.set(key, "from-mw") } *> next }
+    app.on(Endpoint.get("whoami").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.locals.get(key).getOrElse("missing")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/whoami")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("from-mw"), body))
+      }
+
+  test("multiple middlewares can each set different locals"):
+    val keyA = LocalKey.make[String]
+    val keyB = LocalKey.make[Int]
+    val app  = MeltKit[IO]()
+    app.use { (info, next) => IO { info.locals.set(keyA, "alpha") } *> next }
+    app.use { (info, next) => IO { info.locals.set(keyB, 42) } *> next }
+    app.on(Endpoint.get("both").response[String]) { ctx =>
+      IO.pure(ctx.ok(s"${ ctx.locals.get(keyA).getOrElse("?") }:${ ctx.locals.get(keyB).getOrElse(-1) }"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/both")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("alpha:42"), body))
+      }
+
+  test("locals returns None when key is not set"):
+    val key = LocalKey.make[String]
+    val app = MeltKit[IO]()
+    app.on(Endpoint.get("nolocal").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.locals.get(key).getOrElse("absent")))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/nolocal")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String].map(body => assert(body.contains("absent"), body))
+      }
+
+  test("locals are isolated per request"):
+    val key = LocalKey.make[String]
+    val app = MeltKit[IO]()
+    app.use { (info, next) =>
+      val id = info.header("x-id").getOrElse("none")
+      IO { info.locals.set(key, id) } *> next
+    }
+    app.on(Endpoint.get("id").response[String]) { ctx =>
+      IO.pure(ctx.ok(ctx.locals.get(key).getOrElse("missing")))
+    }
+
+    def request(id: String) =
+      Request[IO](method = Method.GET, uri = uri"/id")
+        .withHeaders(Header.Raw(ci"X-Id", id))
+
+    val routes = Http4sAdapter.routes(app)
+    for
+      r1 <- routes.run(request("req-1")).value.flatMap(_.get.as[String])
+      r2 <- routes.run(request("req-2")).value.flatMap(_.get.as[String])
+    yield
+      assert(r1.contains("req-1"), r1)
+      assert(r2.contains("req-2"), r2)
 
   test("ctx.body.text and ctx.body.form can both be called (memoize)"):
     val app = MeltKit[IO]()
