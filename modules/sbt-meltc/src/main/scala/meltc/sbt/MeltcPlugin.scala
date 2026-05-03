@@ -606,57 +606,56 @@ object MeltcPlugin extends AutoPlugin {
         val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
         val cacheDir = streams.cacheDirectory / "meltc" / safeKey
 
-        val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) {
-          (_: Set[File]) =>
-            log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
+        val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
+          log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
-            // Determine whether this component gets a hydration entry:
-            //   - Approach A (meltcHydrationRoot set): only the named root component
-            //   - Approach B (meltcHydration := true): all components
-            val emitHydration = hydrationRoot match {
-              case Some(root) => objectName == root
-              case None       => hydration
-            }
+          // Determine whether this component gets a hydration entry:
+          //   - Approach A (meltcHydrationRoot set): only the named root component
+          //   - Approach B (meltcHydration := true): all components
+          val emitHydration = hydrationRoot match {
+            case Some(root) => objectName == root
+            case None       => hydration
+          }
 
-            val javaArgs = Seq(
-              "-cp",
-              cpStr,
-              "meltc.MeltcMain",
-              meltFile.getAbsolutePath,
-              outFile.getAbsolutePath,
-              objectName,
-              fullPkg,
-              "--mode",
-              normalisedMode
-            ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
-              preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
+          val javaArgs = Seq(
+            "-cp",
+            cpStr,
+            "meltc.MeltcMain",
+            meltFile.getAbsolutePath,
+            outFile.getAbsolutePath,
+            objectName,
+            fullPkg,
+            "--mode",
+            normalisedMode
+          ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
+            preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
 
-            val exitCode = Fork.java(ForkOptions(), javaArgs)
+          val exitCode = Fork.java(ForkOptions(), javaArgs)
 
-            // ── Read structured diagnostics written by MeltcMain ──────────
-            val (errors, warnings) = readDiagnostics(diagFile)
-            IO.delete(diagFile)
+          // ── Read structured diagnostics written by MeltcMain ──────────
+          val (errors, warnings) = readDiagnostics(diagFile)
+          IO.delete(diagFile)
 
-            // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
-            warnings.foreach {
+          // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
+          warnings.foreach {
+            case (path, lineNum, col, msg) =>
+              try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
+              catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
+          }
+
+          if (exitCode != 0) {
+            errors.foreach {
               case (path, lineNum, col, msg) =>
-                try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
-                catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
+                try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
+                catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
             }
+            throw new MessageOnlyException(
+              s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
+            )
+          }
 
-            if (exitCode != 0) {
-              errors.foreach {
-                case (path, lineNum, col, msg) =>
-                  try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
-                  catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
-              }
-              throw new MessageOnlyException(
-                s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
-              )
-            }
-
-            log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
-            Set(outFile)
+          log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
+          Set(outFile)
         }
 
         cachedCompile(Set(meltFile)).toSeq
