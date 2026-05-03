@@ -598,55 +598,67 @@ object MeltcPlugin extends AutoPlugin {
         val outFile  = outSubDir / s"$objectName.scala"
         val diagFile = new File(outFile.getAbsolutePath + ".diag")
 
-        log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
+        // ── Incremental compilation cache ─────────────────────────────────
+        // Use a per-file cache directory keyed on the output file's relative
+        // path so that two components with the same base name in different
+        // sub-packages each get an independent cache entry.
+        val relPath  = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
+        val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
+        val cacheDir = streams.cacheDirectory / "meltc" / safeKey
 
-        // Determine whether this component gets a hydration entry:
-        //   - Approach A (meltcHydrationRoot set): only the named root component
-        //   - Approach B (meltcHydration := true): all components
-        val emitHydration = hydrationRoot match {
-          case Some(root) => objectName == root
-          case None       => hydration
-        }
+        val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
+          log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
-        val javaArgs = Seq(
-          "-cp",
-          cpStr,
-          "meltc.MeltcMain",
-          meltFile.getAbsolutePath,
-          outFile.getAbsolutePath,
-          objectName,
-          fullPkg,
-          "--mode",
-          normalisedMode
-        ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
-          preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
-
-        val exitCode = Fork.java(ForkOptions(), javaArgs)
-
-        // ── Read structured diagnostics written by MeltcMain ──────────────
-        val (errors, warnings) = readDiagnostics(diagFile)
-        IO.delete(diagFile)
-
-        // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
-        warnings.foreach {
-          case (path, lineNum, col, msg) =>
-            try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
-            catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
-        }
-
-        if (exitCode != 0) {
-          errors.foreach {
-            case (path, lineNum, col, msg) =>
-              try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
-              catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
+          // Determine whether this component gets a hydration entry:
+          //   - Approach A (meltcHydrationRoot set): only the named root component
+          //   - Approach B (meltcHydration := true): all components
+          val emitHydration = hydrationRoot match {
+            case Some(root) => objectName == root
+            case None       => hydration
           }
-          throw new MessageOnlyException(
-            s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
-          )
+
+          val javaArgs = Seq(
+            "-cp",
+            cpStr,
+            "meltc.MeltcMain",
+            meltFile.getAbsolutePath,
+            outFile.getAbsolutePath,
+            objectName,
+            fullPkg,
+            "--mode",
+            normalisedMode
+          ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
+            preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
+
+          val exitCode = Fork.java(ForkOptions(), javaArgs)
+
+          // ── Read structured diagnostics written by MeltcMain ──────────
+          val (errors, warnings) = readDiagnostics(diagFile)
+          IO.delete(diagFile)
+
+          // Report diagnostics via BSP reporter (IDE integration + sbt terminal)
+          warnings.foreach {
+            case (path, lineNum, col, msg) =>
+              try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
+              catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
+          }
+
+          if (exitCode != 0) {
+            errors.foreach {
+              case (path, lineNum, col, msg) =>
+                try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
+                catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
+            }
+            throw new MessageOnlyException(
+              s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
+            )
+          }
+
+          log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
+          Set(outFile)
         }
 
-        log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
-        Seq(outFile)
+        cachedCompile(Set(meltFile)).toSeq
     }
   }
 
