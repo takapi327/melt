@@ -26,6 +26,8 @@ import melt.runtime.Escape
   *                      bootstrap scripts (SSR only)
   *   - `%melt.title%` — replaced with the HTML-escaped `title` argument (SSR only)
   *   - `%melt.lang%`  — replaced with the attribute-escaped `lang` argument (SSR only)
+  *   - `%melt.nonce%` — replaced with the CSP nonce value (SSR only, no escaping applied);
+  *                      replaced with an empty string when no nonce is provided
   *   - `%melt.X%`     — replaced with the HTML-escaped value of key `X`
   *                      in the `vars` map (SSR only)
   *
@@ -106,7 +108,7 @@ final class Template private[meltkit] (private val raw: String):
     val effectiveTitle =
       if title.nonEmpty then Escape.html(title)
       else result.title.getOrElse("")
-    renderInternal(result, effectiveTitle, lang, vars, extraHead = "", extraBody = "")
+    renderInternal(result, effectiveTitle, lang, vars, extraHead = "", extraBody = "", nonce = None)
 
   // ── SSR with hydration ────────────────────────────────────────────────────
 
@@ -121,11 +123,13 @@ final class Template private[meltkit] (private val raw: String):
     *     into `%melt.body%`
     */
   def render(result: RenderResult, manifest: ViteManifest): String =
-    render(result, manifest, title = "", lang = "en", basePath = "/assets", vars = Map.empty)
+    render(result, manifest, title = "", lang = "en", basePath = "/assets",
+           vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and an explicit title. */
   def render(result: RenderResult, manifest: ViteManifest, title: String): String =
-    render(result, manifest, title, lang = "en", basePath = "/assets", vars = Map.empty)
+    render(result, manifest, title, lang = "en", basePath = "/assets",
+           vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and full control over all options. */
   def render(
@@ -135,6 +139,27 @@ final class Template private[meltkit] (private val raw: String):
     lang:     String,
     basePath: String,
     vars:     Map[String, String]
+  ): String =
+    render(result, manifest, title, lang, basePath, vars, nonce = None)
+
+  /** Renders with hydration asset injection, full control over all options, and CSP nonce support.
+    *
+    * When `nonce` is provided:
+    *   - Each `<script type="module">` bootstrap tag receives a `nonce="..."` attribute.
+    *   - `%melt.nonce%` placeholders in the template are replaced with the nonce value
+    *     (no HTML escaping; URL-safe Base64 characters are safe in HTML attributes).
+    *
+    * @param nonce CSP nonce to inject into inline scripts; `None` produces the same
+    *              output as the 6-argument overload
+    */
+  def render(
+    result:   RenderResult,
+    manifest: ViteManifest,
+    title:    String,
+    lang:     String,
+    basePath: String,
+    vars:     Map[String, String],
+    nonce:    Option[String]
   ): String =
     val effectiveTitle =
       if title.nonEmpty then Escape.html(title)
@@ -153,10 +178,11 @@ final class Template private[meltkit] (private val raw: String):
       .map(f => s"""<link rel="modulepreload" href="$strippedBase/$f">""")
       .mkString("\n")
 
+    val nonceAttr = nonce.fold("")(n => s""" nonce="$n"""")
     val bootstrap = result.components.toList.distinct
       .flatMap { moduleId =>
         manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
-          s"""<script type="module">import("$strippedBase/$entryChunk").then(m => m.hydrate?.())</script>"""
+          s"""<script type="module"$nonceAttr>import("$strippedBase/$entryChunk").then(m => m.hydrate?.())</script>"""
         }
       }
       .mkString("\n")
@@ -173,7 +199,7 @@ final class Template private[meltkit] (private val raw: String):
     val extraHead = List(stylesheets, preloads).filter(_.nonEmpty).mkString("\n")
     val extraBody = List(propsBlobs, bootstrap).filter(_.nonEmpty).mkString("\n")
 
-    renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody)
+    renderInternal(result, effectiveTitle, lang, vars, extraHead, extraBody, nonce)
 
   private def renderInternal(
     result:         RenderResult,
@@ -181,7 +207,8 @@ final class Template private[meltkit] (private val raw: String):
     lang:           String,
     vars:           Map[String, String],
     extraHead:      String,
-    extraBody:      String
+    extraBody:      String,
+    nonce:          Option[String] = None
   ): String =
     val headContent =
       if extraHead.isEmpty then result.head
@@ -193,13 +220,17 @@ final class Template private[meltkit] (private val raw: String):
       else s"${ result.body }\n$extraBody"
 
     var out = raw
-    out = out.replace("%melt.lang%", Escape.attr(lang))
+    out = out.replace("%melt.lang%",  Escape.attr(lang))
     out = out.replace("%melt.title%", effectiveTitle)
-    out = out.replace("%melt.head%", headContent)
-    out = out.replace("%melt.body%", bodyContent)
+    out = out.replace("%melt.head%",  headContent)
+    out = out.replace("%melt.body%",  bodyContent)
+    // Nonce is replaced without HTML escaping: URL-safe Base64 chars are safe in HTML attributes.
+    // Replaced with empty string when no nonce is configured (e.g. SPA mode or CSP disabled).
+    out = out.replace("%melt.nonce%", nonce.getOrElse(""))
     vars.foreach {
       case (k, v) =>
-        if k != "head" && k != "body" && k != "title" && k != "lang" then
+        // "nonce" is reserved; user-supplied vars must not override the nonce placeholder.
+        if k != "head" && k != "body" && k != "title" && k != "lang" && k != "nonce" then
           out = out.replace(s"%melt.$k%", Escape.html(v))
     }
     out
