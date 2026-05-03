@@ -39,5 +39,5 @@ object CspNonce:
     val uint8 = new Uint8Array(16)
     js.Dynamic.global.crypto.getRandomValues(uint8)
     val bytes = new Array[Byte](16)
-    for i <- 0 until 16 do bytes(i) = (uint8(i) & 0xFF).toByte
+    for i <- 0 until 16 do bytes(i) = (uint8(i) & 0xff).toByte
     java.util.Base64.getUrlEncoder.withoutPadding().encodeToString(bytes)
