@@ -43,9 +43,9 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
       "img-src"    -> List("'self'", "data:")
     )
     val value = Http4sAdapter.buildCspValue(directives, "tok")
-    assert(value.contains("script-src 'self' 'nonce-tok'"),  s"script-src missing nonce: $value")
-    assert(value.contains("style-src 'self' 'nonce-tok'"),   s"style-src missing nonce: $value")
-    assert(value.contains("img-src 'self' data:"),           s"img-src should not have nonce: $value")
+    assert(value.contains("script-src 'self' 'nonce-tok'"), s"script-src missing nonce: $value")
+    assert(value.contains("style-src 'self' 'nonce-tok'"), s"style-src missing nonce: $value")
+    assert(value.contains("img-src 'self' data:"), s"img-src should not have nonce: $value")
     assert(!value.contains("img-src 'self' data: 'nonce-"), s"img-src must not have nonce: $value")
 
   test("buildCspValue with empty directives returns empty string"):
@@ -56,7 +56,7 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
   private def makeAdapter(cspConfig: Option[CspConfig]): IO[Http4sAdapter[IO]] =
     import fs2.io.file.Files
     import fs2.io.file.Path
-    import java.nio.file.{Files => JFiles}
+    import java.nio.file.Files as JFiles
     val dir   = JFiles.createTempDirectory("meltkit-csp-test")
     val index = dir.resolve("index.html")
     JFiles.writeString(index, "<html><body>%melt.body%</body></html>")
@@ -75,19 +75,20 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
       // Build a fresh adapter wired to `app`
       import fs2.io.file.Files
       import fs2.io.file.Path
-      import java.nio.file.{Files => JFiles}
+      import java.nio.file.Files as JFiles
       val dir   = JFiles.createTempDirectory("meltkit-csp-test2")
       val index = dir.resolve("index.html")
       JFiles.writeString(index, "<html><body>%melt.body%</body></html>")
-      Http4sAdapter[IO](app, Path.fromNioPath(dir), ViteManifest.empty,
-                        cspConfig = Some(config)).flatMap { a =>
+      Http4sAdapter[IO](app, Path.fromNioPath(dir), ViteManifest.empty, cspConfig = Some(config)).flatMap { a =>
         val req = Request[IO](method = Method.GET, uri = uri"/ping")
         a.routes.run(req).value.map { resp =>
           assert(resp.isDefined)
           val header = resp.get.headers.get(ci"Content-Security-Policy")
           assert(header.isDefined, "Expected Content-Security-Policy header")
-          assert(header.get.head.value.startsWith("script-src 'self' 'nonce-"),
-            s"Unexpected CSP value: ${header.get.head.value}")
+          assert(
+            header.get.head.value.startsWith("script-src 'self' 'nonce-"),
+            s"Unexpected CSP value: ${ header.get.head.value }"
+          )
         }
       }
     }
@@ -95,8 +96,8 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
   test("Content-Security-Policy header is absent when cspConfig is None"):
     import fs2.io.file.Files
     import fs2.io.file.Path
-    import java.nio.file.{Files => JFiles}
-    val app   = new ServerMeltKitPlatform[IO] {}
+    import java.nio.file.Files as JFiles
+    val app = new ServerMeltKitPlatform[IO] {}
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
     val dir   = JFiles.createTempDirectory("meltkit-csp-test3")
     val index = dir.resolve("index.html")
@@ -106,16 +107,18 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
         val req = Request[IO](method = Method.GET, uri = uri"/ping")
         a.routes.run(req).value.map { resp =>
           assert(resp.isDefined)
-          assert(resp.get.headers.get(ci"Content-Security-Policy").isEmpty,
-            "Expected no Content-Security-Policy header")
+          assert(
+            resp.get.headers.get(ci"Content-Security-Policy").isEmpty,
+            "Expected no Content-Security-Policy header"
+          )
         }
       }
 
   test("Content-Security-Policy-Report-Only header is set when reportOnly = true"):
     import fs2.io.file.Files
     import fs2.io.file.Path
-    import java.nio.file.{Files => JFiles}
-    val app    = new ServerMeltKitPlatform[IO] {}
+    import java.nio.file.Files as JFiles
+    val app = new ServerMeltKitPlatform[IO] {}
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
     val config = CspConfig(directives = Map("script-src" -> List("'self'")), reportOnly = true)
     val dir    = JFiles.createTempDirectory("meltkit-csp-test4")
@@ -126,8 +129,7 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
         val req = Request[IO](method = Method.GET, uri = uri"/ping")
         a.routes.run(req).value.map { resp =>
           assert(resp.isDefined)
-          assert(resp.get.headers.get(ci"Content-Security-Policy").isEmpty,
-            "Expected no enforcing CSP header")
+          assert(resp.get.headers.get(ci"Content-Security-Policy").isEmpty, "Expected no enforcing CSP header")
           val reportOnly = resp.get.headers.get(ci"Content-Security-Policy-Report-Only")
           assert(reportOnly.isDefined, "Expected Content-Security-Policy-Report-Only header")
         }
@@ -136,10 +138,10 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
   test("nonce in locals matches nonce in Content-Security-Policy header"):
     import fs2.io.file.Files
     import fs2.io.file.Path
-    import java.nio.file.{Files => JFiles}
-    val config = CspConfig(directives = Map("script-src" -> List("'self'")))
+    import java.nio.file.Files as JFiles
+    val config        = CspConfig(directives = Map("script-src" -> List("'self'")))
     val capturedNonce = scala.collection.mutable.Buffer.empty[String]
-    val app    = new ServerMeltKitPlatform[IO] {}
+    val app           = new ServerMeltKitPlatform[IO] {}
     app.use { (info, next) =>
       info.locals.get(CspNonce.localsKey).foreach(capturedNonce += _)
       next
@@ -156,7 +158,6 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
           val cspValue = resp.get.headers.get(ci"Content-Security-Policy").get.head.value
           assert(capturedNonce.nonEmpty, "Expected nonce to be stored in locals")
           val nonce = capturedNonce.head
-          assert(cspValue.contains(s"'nonce-$nonce'"),
-            s"Expected nonce '$nonce' in CSP header: $cspValue")
+          assert(cspValue.contains(s"'nonce-$nonce'"), s"Expected nonce '$nonce' in CSP header: $cspValue")
         }
       }

@@ -17,8 +17,7 @@ class CspNonceTest extends munit.FunSuite:
 
   test("generate returns only URL-safe Base64 characters (no +, /, or =)"):
     val nonce = CspNonce.generate()
-    assert(nonce.forall(c => c.isLetterOrDigit || c == '-' || c == '_'),
-      s"nonce contains unexpected character: $nonce")
+    assert(nonce.forall(c => c.isLetterOrDigit || c == '-' || c == '_'), s"nonce contains unexpected character: $nonce")
 
   test("generate returns different values on each call"):
     val n1 = CspNonce.generate()
