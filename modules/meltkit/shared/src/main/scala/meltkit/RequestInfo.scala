@@ -95,3 +95,98 @@ object Middleware:
     */
   def sequence[F[_]](ms: Middleware[F]*): Middleware[F] =
     ms.toList.foldRight[Middleware[F]]((_, next) => next) { (mw, acc) => (info, next) => mw(info, acc(info, next)) }
+
+  /** Middleware that validates the `Origin` header on form requests to prevent CSRF attacks.
+    *
+    * Validation logic:
+    *   1. `config.enabled = false` → skip
+    *   2. Not a form Content-Type (`application/json`, etc.) → skip (protected by CORS preflight)
+    *   3. Safe method (`GET`/`HEAD`/`OPTIONS`/`TRACE`) → skip
+    *   4. Path matches `exemptPaths` (path-separator-aware) → skip
+    *   5. `Origin` header is absent → reject (browsers always send Origin on form submissions)
+    *   6. `Origin` matches server origin (protocol + host + port) → allow
+    *   7. `Origin` is in `trustedOrigins` → allow
+    *   8. Otherwise → 403 Forbidden
+    *
+    * {{{
+    * // Basic usage
+    * app.use(Middleware.csrf())
+    *
+    * // Allow form submissions from an external SPA
+    * app.use(Middleware.csrf(CsrfConfig(
+    *   trustedOrigins = Set("https://app.example.com")
+    * )))
+    *
+    * // Exclude webhook endpoints
+    * app.use(Middleware.csrf(CsrfConfig(
+    *   exemptPaths = List("/api/webhook/")
+    * )))
+    * }}}
+    */
+  def csrf[F[_]: Pure](config: CsrfConfig = CsrfConfig.default): Middleware[F] =
+    (info, next) =>
+      if !config.enabled then next
+      else if !isFormContentType(info) then next // application/json and similar are protected by CORS preflight
+      else
+        val method = info.method.toUpperCase
+        if !Set("POST", "PUT", "PATCH", "DELETE").contains(method) then next
+        else if isExemptPath(info.requestPath, config.exemptPaths) then next
+        else
+          info.header("Origin") match
+            case None =>
+              // Browsers always include Origin on form submissions.
+              // A missing Origin is not legitimate browser behaviour → reject.
+              Pure[F].pure(Forbidden("CSRF check failed: missing Origin header"))
+            case Some(origin) =>
+              val serverOrigin = resolveServerOrigin(info, config.trustForwardedHost)
+              if origin == serverOrigin || config.trustedOrigins.contains(origin) then next
+              else Pure[F].pure(Forbidden("CSRF check failed: Origin mismatch"))
+
+  /** Returns true if the request has a form Content-Type that is subject to CSRF attacks.
+    *
+    * Only Content-Types that browsers can send without a CORS preflight are CSRF targets:
+    *   - `application/x-www-form-urlencoded`
+    *   - `multipart/form-data`
+    *   - `text/plain`
+    *
+    * `application/json` requires a CORS preflight, so it is not a CSRF target.
+    */
+  private def isFormContentType(info: RequestInfo): Boolean =
+    info.header("Content-Type").exists { ct =>
+      val base = ct.split(';').head.trim.toLowerCase
+      base == "application/x-www-form-urlencoded" ||
+      base == "multipart/form-data" ||
+      base == "text/plain"
+    }
+
+  /** Returns true if `requestPath` matches any entry in `exemptPaths`.
+    *
+    * Uses prefix matching with path-separator awareness:
+    *   - `exemptPath = "/api/webhook"` matches `"/api/webhook"` and `"/api/webhook/"`
+    *   - `exemptPath = "/api/webhook"` does NOT match `"/api/webhook-other"`
+    */
+  private def isExemptPath(requestPath: String, exemptPaths: List[String]): Boolean =
+    exemptPaths.exists { exemptPath =>
+      requestPath == exemptPath ||
+      requestPath.startsWith(exemptPath.stripSuffix("/") + "/")
+    }
+
+  /** Builds the server's own origin string (protocol + host + port).
+    *
+    * The `Origin` header uses the full form `"https://example.com"`.
+    * The protocol is inferred from the `Host` header (`"example.com"` or `"example.com:8080"`).
+    *
+    * Protocol resolution order:
+    *   - `X-Forwarded-Proto` header if present
+    *   - `https` if the host ends with `:443`
+    *   - `https` otherwise (production assumed)
+    */
+  private def resolveServerOrigin(info: RequestInfo, trustForwardedHost: Boolean): String =
+    val host =
+      if trustForwardedHost then info.header("X-Forwarded-Host").orElse(info.header("Host")).getOrElse("")
+      else info.header("Host").getOrElse("")
+    val proto = info
+      .header("X-Forwarded-Proto")
+      .orElse(if host.endsWith(":443") then Some("https") else None)
+      .getOrElse("https")
+    s"$proto://$host"
