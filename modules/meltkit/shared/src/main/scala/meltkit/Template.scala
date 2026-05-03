@@ -123,13 +123,11 @@ final class Template private[meltkit] (private val raw: String):
     *     into `%melt.body%`
     */
   def render(result: RenderResult, manifest: ViteManifest): String =
-    render(result, manifest, title = "", lang = "en", basePath = "/assets",
-           vars = Map.empty, nonce = None)
+    render(result, manifest, title = "", lang = "en", basePath = "/assets", vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and an explicit title. */
   def render(result: RenderResult, manifest: ViteManifest, title: String): String =
-    render(result, manifest, title, lang = "en", basePath = "/assets",
-           vars = Map.empty, nonce = None)
+    render(result, manifest, title, lang = "en", basePath = "/assets", vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and full control over all options. */
   def render(
@@ -220,10 +218,10 @@ final class Template private[meltkit] (private val raw: String):
       else s"${ result.body }\n$extraBody"
 
     var out = raw
-    out = out.replace("%melt.lang%",  Escape.attr(lang))
+    out = out.replace("%melt.lang%", Escape.attr(lang))
     out = out.replace("%melt.title%", effectiveTitle)
-    out = out.replace("%melt.head%",  headContent)
-    out = out.replace("%melt.body%",  bodyContent)
+    out = out.replace("%melt.head%", headContent)
+    out = out.replace("%melt.body%", bodyContent)
     // Nonce is replaced without HTML escaping: URL-safe Base64 chars are safe in HTML attributes.
     // Replaced with empty string when no nonce is configured (e.g. SPA mode or CSP disabled).
     out = out.replace("%melt.nonce%", nonce.getOrElse(""))

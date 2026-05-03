@@ -115,18 +115,18 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
           params:      P,
           bodyDecoder: BodyDecoder[B]
         ): MeltContext[F, P, B, RenderResult] =
-          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest,
-                            lang, basePath, locals, nonce)
+          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath, locals, nonce)
 
       // Attach the Content-Security-Policy header to the response after the handler completes.
       def withCspHeader(effect: F[Response]): F[Response] =
-        cspConfig.zip(nonce).fold(effect) { case (cfg, n) =>
-          effect.map { response =>
-            val headerName  = if cfg.reportOnly then "Content-Security-Policy-Report-Only"
-                              else "Content-Security-Policy"
-            val headerValue = Http4sAdapter.buildCspValue(cfg.directives, n)
-            response.withHeaders(response.headers + (headerName -> headerValue))
-          }
+        cspConfig.zip(nonce).fold(effect) {
+          case (cfg, n) =>
+            effect.map { response =>
+              val headerName = if cfg.reportOnly then "Content-Security-Policy-Report-Only"
+              else "Content-Security-Policy"
+              val headerValue = Http4sAdapter.buildCspValue(cfg.directives, n)
+              response.withHeaders(response.headers + (headerName -> headerValue))
+            }
         }
 
       matched match
@@ -210,8 +210,8 @@ object Http4sAdapter:
     app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest,
-    lang:          String            = "en",
-    basePath:      String            = "/assets",
+    lang:          String = "en",
+    basePath:      String = "/assets",
     cspConfig:     Option[CspConfig] = None
   ): F[Http4sAdapter[F]] =
     Files[F]
@@ -219,8 +219,7 @@ object Http4sAdapter:
       .through(fs2.text.utf8.decode)
       .compile
       .string
-      .map(content => new Http4sAdapter(app, Template.fromString(content), manifest,
-                                        lang, basePath, cspConfig))
+      .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath, cspConfig))
 
   /** Builds the `Content-Security-Policy` header value.
     *
@@ -230,12 +229,15 @@ object Http4sAdapter:
   private[http4s] def buildCspValue(directives: Map[String, List[String]], nonce: String): String =
     val nonceToken   = s"'nonce-$nonce'"
     val nonceTargets = Set("script-src", "style-src")
-    directives.map { case (directive, values) =>
-      val finalValues =
-        if nonceTargets.contains(directive) then values :+ nonceToken
-        else values
-      s"$directive ${finalValues.mkString(" ")}"
-    }.mkString("; ")
+    directives
+      .map {
+        case (directive, values) =>
+          val finalValues =
+            if nonceTargets.contains(directive) then values :+ nonceToken
+            else values
+          s"$directive ${ finalValues.mkString(" ") }"
+      }
+      .mkString("; ")
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
     *

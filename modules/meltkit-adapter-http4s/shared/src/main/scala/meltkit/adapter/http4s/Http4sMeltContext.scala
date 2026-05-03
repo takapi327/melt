@@ -136,8 +136,15 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
         )
       case Some(template) =>
         val result = Router.withPath(requestPath)(component)
-        val html   = template.render(result, manifest, title = "", lang = lang,
-                                     basePath = basePath, vars = Map.empty, nonce = nonce)
+        val html   = template.render(
+          result,
+          manifest,
+          title    = "",
+          lang     = lang,
+          basePath = basePath,
+          vars     = Map.empty,
+          nonce    = nonce
+        )
         PlainResponse(status, "text/html; charset=utf-8", html)
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
