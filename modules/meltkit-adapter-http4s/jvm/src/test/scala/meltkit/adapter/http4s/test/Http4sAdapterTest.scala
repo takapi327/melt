@@ -15,7 +15,6 @@ import meltkit.adapter.http4s.CirceBodyDecoder.given
 import meltkit.adapter.http4s.CirceBodyEncoder.given
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
-// import meltkit.adapter.http4s.LocalsOps.*
 import meltkit.codec.*
 import org.http4s.*
 import org.http4s.implicits.*
