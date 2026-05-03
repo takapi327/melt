@@ -80,11 +80,12 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
-  private val app:      ServerMeltKitPlatform[F],
-  private val template: Template,
-  private val manifest: ViteManifest,
-  private val lang:     String,
-  private val basePath: String
+  private val app:       ServerMeltKitPlatform[F],
+  private val template:  Template,
+  private val manifest:  ViteManifest,
+  private val lang:      String,
+  private val basePath:  String,
+  private val cspConfig: Option[CspConfig] = None
 ):
 
   /** Builds [[HttpRoutes]] from the [[MeltKit]] router with SSR support.
@@ -103,13 +104,30 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
         }
       }
 
-      val locals  = new Locals()
+      val locals = new Locals()
+
+      // Generate a per-request nonce when CSP is configured and store it in locals.
+      val nonce = cspConfig.map(_ => CspNonce.generate())
+      nonce.foreach(n => locals.set(CspNonce.localsKey, n))
+
       val factory = new MeltContextFactory[F, RenderResult]:
         def build[P <: AnyNamedTuple, B](
           params:      P,
           bodyDecoder: BodyDecoder[B]
         ): MeltContext[F, P, B, RenderResult] =
-          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath, locals)
+          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath, locals, nonce)
+
+      // Attach the Content-Security-Policy header to the response after the handler completes.
+      def withCspHeader(effect: F[Response]): F[Response] =
+        cspConfig.zip(nonce).fold(effect) {
+          case (cfg, n) =>
+            effect.map { response =>
+              val headerName = if cfg.reportOnly then "Content-Security-Policy-Report-Only"
+              else "Content-Security-Policy"
+              val headerValue = Http4sAdapter.buildCspValue(cfg.directives, n)
+              response.withHeaders(response.headers + (headerName -> headerValue))
+            }
+        }
 
       matched match
         case None =>
@@ -121,7 +139,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
                 handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]]))
               }
               val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
-              OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
+              OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           route.tryHandle(rawValues, factory) match
@@ -143,7 +161,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
                 }
               }
               val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
-              OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
+              OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
     }
 
 object Http4sAdapter:
@@ -193,14 +211,33 @@ object Http4sAdapter:
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
-    basePath:      String = "/assets"
+    basePath:      String = "/assets",
+    cspConfig:     Option[CspConfig] = None
   ): F[Http4sAdapter[F]] =
     Files[F]
       .readAll(clientDistDir / "index.html")
       .through(fs2.text.utf8.decode)
       .compile
       .string
-      .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath))
+      .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath, cspConfig))
+
+  /** Builds the `Content-Security-Policy` header value.
+    *
+    * Appends `'nonce-{value}'` to `script-src` and `style-src` directives when present.
+    * Other directives (including `default-src`) are left unchanged.
+    */
+  private[http4s] def buildCspValue(directives: Map[String, List[String]], nonce: String): String =
+    val nonceToken   = s"'nonce-$nonce'"
+    val nonceTargets = Set("script-src", "style-src")
+    directives
+      .map {
+        case (directive, values) =>
+          val finalValues =
+            if nonceTargets.contains(directive) then values :+ nonceToken
+            else values
+          s"$directive ${ finalValues.mkString(" ") }"
+      }
+      .mkString("; ")
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
     *
