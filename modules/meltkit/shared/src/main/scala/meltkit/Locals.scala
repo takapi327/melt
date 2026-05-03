@@ -6,6 +6,8 @@
 
 package meltkit
 
+import scala.collection.mutable
+
 /** A type-safe key for a request-scoped local value.
   *
   * Each call to [[LocalKey.make]] produces a distinct key.
@@ -61,7 +63,6 @@ object LocalKey:
   */
 final class Locals:
 
-  import scala.collection.mutable
   private val store = mutable.HashMap.empty[LocalKey[?], Any]
 
   /** Returns the value associated with `key`, or `None` if not set. */
