@@ -87,3 +87,4 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * }}}
     */
   def headers: Map[String, String]
+
