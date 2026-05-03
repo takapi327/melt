@@ -159,6 +159,14 @@ object Http4sAdapter:
   given [F[_]: cats.Functor]: meltkit.Functor[F] with
     override def map[A, B](fa: F[A])(f: A => B): F[B] = cats.Functor[F].map(fa)(f)
 
+  /** Bridges cats [[cats.Applicative]] to [[meltkit.Pure]].
+    *
+    * Any `F` that has a cats `Applicative` instance (e.g. `cats.effect.IO`) gets
+    * a `Pure[F]` automatically when `Http4sAdapter.given` is imported.
+    */
+  given [F[_]: cats.Applicative]: meltkit.Pure[F] with
+    override def pure[A](a: A): F[A] = cats.Applicative[F].pure(a)
+
   /** Bridges cats-effect [[cats.effect.kernel.Sync]] to [[meltkit.Defer]].
     *
     * Any `F` that has a cats-effect `Sync` instance (e.g. `cats.effect.IO`) gets
