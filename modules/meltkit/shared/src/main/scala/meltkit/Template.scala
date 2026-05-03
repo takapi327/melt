@@ -90,8 +90,8 @@ final class Template private[meltkit] (private val raw: String):
   /** Renders the template with SSR output, without hydration asset injection.
     *
     * @param result the component render result
-    * @param title  page title; if empty, `result.title` is used instead.
-    *               The final value is HTML-escaped before substitution.
+    * @param title  page title; if non-empty, HTML-escaped before substitution.
+    *               If empty, `result.title` is used directly (already escaped).
     * @param lang   value for `%melt.lang%`, default `"en"`
     * @param vars   extra placeholder values; each `k -> v` replaces
     *               `%melt.k%` with `Escape.html(v)`. Reserved names
@@ -103,8 +103,9 @@ final class Template private[meltkit] (private val raw: String):
     lang:   String = "en",
     vars:   Map[String, String] = Map.empty
   ): String =
-    val rawTitle       = if title.nonEmpty then title else result.title.getOrElse("")
-    val effectiveTitle = Escape.html(rawTitle)
+    val effectiveTitle =
+      if title.nonEmpty then Escape.html(title)
+      else result.title.getOrElse("")
     renderInternal(result, effectiveTitle, lang, vars, extraHead = "", extraBody = "")
 
   // ── SSR with hydration ────────────────────────────────────────────────────
@@ -135,8 +136,9 @@ final class Template private[meltkit] (private val raw: String):
     basePath: String,
     vars:     Map[String, String]
   ): String =
-    val rawTitle       = if title.nonEmpty then title else result.title.getOrElse("")
-    val effectiveTitle = Escape.html(rawTitle)
+    val effectiveTitle =
+      if title.nonEmpty then Escape.html(title)
+      else result.title.getOrElse("")
 
     val jsChunks  = result.components.flatMap(manifest.chunksFor).toList.distinct
     val cssChunks = result.components.flatMap(manifest.cssFor).toList.distinct
