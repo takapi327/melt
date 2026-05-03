@@ -46,8 +46,9 @@ object Server extends IOApp.Simple:
     User(5, "Eve", "eve@example.com", "Manager")
   )
 
-  private val todoId = param[String]("id")
-  private val userId = param[Int]("id")
+  private val todoId    = param[String]("id")
+  private val userId    = param[Int]("id")
+  private val requestId = LocalKey.make[String]
 
   private def buildApp(
     todoStore: Ref[IO, List[Todo]],
@@ -56,9 +57,24 @@ object Server extends IOApp.Simple:
   ): MeltKit[IO] =
     val app = MeltKit[IO]()
 
+    // Locals example: attach a request-id to every request via middleware,
+    // then read it in a handler using IO.pure (works because of Defer).
+    app.use { (info, next) =>
+      val id = info.header("x-request-id").getOrElse(java.util.UUID.randomUUID().toString)
+      IO { info.locals.set(requestId, id) } *> next
+    }
+
     val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
     val createUser = Endpoint.post("api/users").body[CreateUserBody]
     val updateUser = Endpoint.put("api/users" / userId).body[UpdateUserBody]
+
+    // ── Debug / locals verification ───────────────────────────────────────
+    // Reads the request-id local set by middleware. Uses IO.pure intentionally
+    // to verify the Defer fix: handler is invoked lazily after middleware runs.
+
+    app.get("api/request-id") { ctx =>
+      IO.pure(ctx.ok(ctx.locals.get(requestId).getOrElse("(not set)")))
+    }
 
     // ── Todo API ──────────────────────────────────────────────────────────
 
