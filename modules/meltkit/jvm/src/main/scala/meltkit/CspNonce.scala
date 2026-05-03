@@ -28,7 +28,7 @@ object CspNonce:
     *
     * Uses URL-safe Base64 (`-` and `_` instead of `+` and `/`) so the result is safe
     * in HTML attributes, URLs, and HTTP headers without escaping.
-    * Uses [[java.security.SecureRandom]], which is available on both JVM and Scala.js/Node.js.
+    * Backed by [[java.security.SecureRandom]] on the JVM.
     *
     * Example output: `"dGhpcyBpcyBhIG5vbmNl"`
     */
