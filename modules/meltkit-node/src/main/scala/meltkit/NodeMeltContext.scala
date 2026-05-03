@@ -42,6 +42,8 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
   private val basePath:     String                    = "/assets"
 ) extends MeltContext[F, P, B, RenderResult]:
 
+  override val locals: Locals = new Locals()
+
   override def query(name: String): Option[String] =
     _queryParams.get(name).flatMap(_.headOption)
 

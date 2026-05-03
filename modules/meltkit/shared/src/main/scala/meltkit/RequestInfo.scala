@@ -44,6 +44,16 @@ trait RequestInfo:
   /** Returns all cookies from the `Cookie` header as a name→value map. */
   def cookies: Map[String, String]
 
+  /** The request-scoped local store.
+    *
+    * Middleware writes values here before calling `next`;
+    * they are visible to subsequent middleware and the route handler.
+    *
+    * Write operations (`set`, `remove`) are provided by the adapter as
+    * `F[Unit]`-returning extension methods (e.g. `LocalsOps` in the http4s adapter).
+    */
+  def locals: Locals
+
 /** A function that wraps a route handler effect.
   *
   * {{{

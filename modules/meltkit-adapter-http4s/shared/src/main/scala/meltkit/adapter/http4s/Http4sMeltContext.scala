@@ -51,7 +51,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val templateOpt: Option[Template] = None,
   private val manifest:    ViteManifest     = ViteManifest.empty,
   private val lang:        String           = "en",
-  private val basePath:    String           = "/assets"
+  private val basePath:    String           = "/assets",
+  override val locals:     Locals           = new Locals()
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private val cachedBody: F[String] =

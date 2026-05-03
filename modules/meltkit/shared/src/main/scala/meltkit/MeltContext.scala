@@ -50,6 +50,30 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     */
   def requestPath: String
 
+  /** The request-scoped local store, populated by middleware.
+    *
+    * One [[Locals]] instance is created per matched request and shared between
+    * all middleware (via [[RequestInfo.locals]]) and the route handler.
+    * On the browser there is no middleware, so this map is always empty.
+    *
+    * {{{
+    * val userKey = LocalKey.make[AuthUser]
+    *
+    * // middleware (server only) — sets the value
+    * app.use { (info, next) =>
+    *   verifyToken(info.header("Authorization")) match
+    *     case None       => IO.pure(Unauthorized())
+    *     case Some(user) => IO { info.locals.set(userKey, user) } *> next
+    * }
+    *
+    * // GET handler — reads the value set by middleware
+    * app.get("profile") { ctx =>
+    *   IO.pure(ctx.ok(ctx.locals.get(userKey).getOrElse("guest")))
+    * }
+    * }}}
+    */
+  def locals: Locals
+
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 

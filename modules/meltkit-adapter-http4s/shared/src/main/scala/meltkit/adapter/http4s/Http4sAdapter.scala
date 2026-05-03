@@ -79,7 +79,7 @@ import org.http4s.Status
   *     .map(_.routes.orNotFound)
   * }}}
   */
-final class Http4sAdapter[F[_]: Concurrent] private (
+final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
   private val app:      ServerMeltKitPlatform[F],
   private val template: Template,
   private val manifest: ViteManifest,
@@ -103,42 +103,46 @@ final class Http4sAdapter[F[_]: Concurrent] private (
         }
       }
 
+      val locals  = new Locals()
       val factory = new MeltContextFactory[F, RenderResult]:
         def build[P <: AnyNamedTuple, B](
           params:      P,
           bodyDecoder: BodyDecoder[B]
         ): MeltContext[F, P, B, RenderResult] =
-          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath)
+          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath, locals)
 
       matched match
         case None =>
           app.notFoundHandler match
             case None          => OptionT.none
             case Some(handler) =>
-              val ctx     = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
-              val info    = Http4sAdapter.buildRequestInfo(request)
-              val effect  = handler(ctx)
-              val wrapped = app.middlewares.foldRight(effect) { (mw, acc) => mw(info, acc) }
+              val info       = Http4sAdapter.buildRequestInfo(request, locals)
+              val lazyEffect = meltkit.Defer[F].defer {
+                handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]]))
+              }
+              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
               OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           route.tryHandle(rawValues, factory) match
-            case None         => OptionT.none
-            case Some(effect) =>
-              val info      = Http4sAdapter.buildRequestInfo(request)
-              val rawEffect = effect.handleErrorWith {
-                case e: BodyDecodeException =>
-                  Concurrent[F].pure(Response.badRequest(e.error.message))
-                case e: Throwable =>
-                  app.errorHandler match
-                    case None          => Concurrent[F].raiseError(e)
-                    case Some(handler) =>
-                      val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
-                      handler(errorCtx, e).handleErrorWith { _ =>
-                        Concurrent[F].pure(PlainResponse(500, "text/plain; charset=utf-8", "Internal Server Error"))
-                      }
+            case None        => OptionT.none
+            case Some(thunk) =>
+              val info       = Http4sAdapter.buildRequestInfo(request, locals)
+              val lazyEffect = meltkit.Defer[F].defer {
+                thunk().handleErrorWith {
+                  case e: BodyDecodeException =>
+                    Concurrent[F].pure(Response.badRequest(e.error.message))
+                  case e: Throwable =>
+                    app.errorHandler match
+                      case None             => Concurrent[F].raiseError(e)
+                      case Some(errHandler) =>
+                        val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
+                        errHandler(errorCtx, e).handleErrorWith { _ =>
+                          Concurrent[F].pure(PlainResponse(500, "text/plain; charset=utf-8", "Internal Server Error"))
+                        }
+                }
               }
-              val wrapped = app.middlewares.foldRight(rawEffect) { (mw, acc) => mw(info, acc) }
+              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
               OptionT.liftF(wrapped.map(Http4sAdapter.toHttp4sResponse[F]))
     }
 
@@ -155,6 +159,14 @@ object Http4sAdapter:
   given [F[_]: cats.Functor]: meltkit.Functor[F] with
     override def map[A, B](fa: F[A])(f: A => B): F[B] = cats.Functor[F].map(fa)(f)
 
+  /** Bridges cats-effect [[cats.effect.kernel.Sync]] to [[meltkit.Defer]].
+    *
+    * Any `F` that has a cats-effect `Sync` instance (e.g. `cats.effect.IO`) gets
+    * a `Defer[F]` automatically when `Http4sAdapter.given` is imported.
+    */
+  given [F[_]](using S: cats.effect.kernel.Sync[F]): meltkit.Defer[F] with
+    def defer[A](fa: => F[A]): F[A] = S.defer(fa)
+
   /** Creates an [[Http4sAdapter]] for SSR rendering.
     *
     * Reads `index.html` from `clientDistDir / "index.html"` once at startup
@@ -168,7 +180,7 @@ object Http4sAdapter:
     * @param lang          default HTML `lang` attribute (default `"en"`)
     * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
     */
-  def apply[F[_]: Async: Files](
+  def apply[F[_]: Async: Files: meltkit.Defer](
     app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest,
@@ -188,7 +200,7 @@ object Http4sAdapter:
     * method. For SSR rendering use `Http4sAdapter(app, template, manifest).routes`.
     * For a complete SPA setup use [[spaRoutes]].
     */
-  def routes[F[_]: Concurrent](app: ServerMeltKitPlatform[F]): HttpRoutes[F] =
+  def routes[F[_]: Concurrent: meltkit.Defer](app: ServerMeltKitPlatform[F]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
@@ -203,21 +215,24 @@ object Http4sAdapter:
         case None        => OptionT.none
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
+          val locals    = new Locals()
           val factory   = new MeltContextFactory[F, RenderResult]:
             def build[P <: AnyNamedTuple, B](
               params:      P,
               bodyDecoder: BodyDecoder[B]
             ): MeltContext[F, P, B, RenderResult] =
-              Http4sMeltContext(params, request, bodyDecoder)
+              Http4sMeltContext(params, request, bodyDecoder, locals = locals)
           route.tryHandle(rawValues, factory) match
-            case None         => OptionT.none
-            case Some(effect) =>
-              val info      = buildRequestInfo(request)
-              val rawEffect = effect.handleErrorWith {
-                case e: BodyDecodeException =>
-                  Concurrent[F].pure(Response.badRequest(e.error.message))
+            case None        => OptionT.none
+            case Some(thunk) =>
+              val info       = buildRequestInfo(request, locals)
+              val lazyEffect = meltkit.Defer[F].defer {
+                thunk().handleErrorWith {
+                  case e: BodyDecodeException =>
+                    Concurrent[F].pure(Response.badRequest(e.error.message))
+                }
               }
-              val wrapped = app.middlewares.foldRight(rawEffect) { (mw, acc) => mw(info, acc) }
+              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
               OptionT.liftF(wrapped.map(toHttp4sResponse[F]))
     }
 
@@ -239,7 +254,7 @@ object Http4sAdapter:
     * @param manifest      the asset manifest used to inject script tags into
     *                      `%melt.head%` (usually `AssetManifest.manifest`)
     */
-  def spaRoutes[F[_]: Async: Files](
+  def spaRoutes[F[_]: Async: Files: meltkit.Defer](
     app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest
@@ -252,10 +267,11 @@ object Http4sAdapter:
 
   // ── private helpers ────────────────────────────────────────────────────────
 
-  private[http4s] def buildRequestInfo[F2[_]](request: org.http4s.Request[F2]): RequestInfo =
+  private[http4s] def buildRequestInfo[F2[_]](request: org.http4s.Request[F2], sharedLocals: Locals): RequestInfo =
     new RequestInfo:
       val method      = request.method.name
       val requestPath = request.uri.path.renderString
+      val locals      = sharedLocals
 
       def query(name: String): Option[String] =
         request.uri.query.params.get(name)

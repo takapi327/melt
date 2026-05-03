@@ -130,6 +130,7 @@ class PathSpecTest extends munit.FunSuite:
 // ── Minimal MeltContext stub for tests ────────────────────────────────────────
 
 private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltContext[[A] =>> A, P, Unit, Nothing]:
+  override val locals:                                            Locals                    = new Locals()
   override def requestPath:                                       String                    = "/"
   override def query(name:       String):                         Option[String]            = None
   override def queryAll(name:    String):                         List[String]              = Nil
