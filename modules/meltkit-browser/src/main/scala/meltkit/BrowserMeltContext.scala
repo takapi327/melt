@@ -40,6 +40,9 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   private val outletEl:    dom.Element
 ) extends MeltContext[F, P, B, dom.Element]:
 
+  /** Always empty on the browser — no server middleware sets locals here. */
+  override val locals: Locals = new Locals()
+
   override def requestPath: String = dom.window.location.pathname
 
   override def query(name: String): Option[String] =
