@@ -6,7 +6,6 @@
 
 package meltkit
 
-
 /** A read-only view of an incoming request, passed to each [[Middleware]].
   *
   * Abstracts over the adapter-specific request type and the route-specific
@@ -126,16 +125,12 @@ object Middleware:
     */
   def csrf[F[_]: Pure](config: CsrfConfig = CsrfConfig.default): Middleware[F] =
     (info, next) =>
-      if !config.enabled then
-        next
-      else if !isFormContentType(info) then
-        next  // application/json and similar are protected by CORS preflight
+      if !config.enabled then next
+      else if !isFormContentType(info) then next // application/json and similar are protected by CORS preflight
       else
         val method = info.method.toUpperCase
-        if !Set("POST", "PUT", "PATCH", "DELETE").contains(method) then
-          next
-        else if isExemptPath(info.requestPath, config.exemptPaths) then
-          next
+        if !Set("POST", "PUT", "PATCH", "DELETE").contains(method) then next
+        else if isExemptPath(info.requestPath, config.exemptPaths) then next
         else
           info.header("Origin") match
             case None =>
@@ -144,10 +139,8 @@ object Middleware:
               Pure[F].pure(Forbidden("CSRF check failed: missing Origin header"))
             case Some(origin) =>
               val serverOrigin = resolveServerOrigin(info, config.trustForwardedHost)
-              if origin == serverOrigin || config.trustedOrigins.contains(origin) then
-                next
-              else
-                Pure[F].pure(Forbidden("CSRF check failed: Origin mismatch"))
+              if origin == serverOrigin || config.trustedOrigins.contains(origin) then next
+              else Pure[F].pure(Forbidden("CSRF check failed: Origin mismatch"))
 
   /** Returns true if the request has a form Content-Type that is subject to CSRF attacks.
     *
@@ -162,7 +155,7 @@ object Middleware:
     info.header("Content-Type").exists { ct =>
       val base = ct.split(';').head.trim.toLowerCase
       base == "application/x-www-form-urlencoded" ||
-      base == "multipart/form-data"                ||
+      base == "multipart/form-data" ||
       base == "text/plain"
     }
 
@@ -190,11 +183,10 @@ object Middleware:
     */
   private def resolveServerOrigin(info: RequestInfo, trustForwardedHost: Boolean): String =
     val host =
-      if trustForwardedHost then
-        info.header("X-Forwarded-Host").orElse(info.header("Host")).getOrElse("")
-      else
-        info.header("Host").getOrElse("")
-    val proto = info.header("X-Forwarded-Proto")
+      if trustForwardedHost then info.header("X-Forwarded-Host").orElse(info.header("Host")).getOrElse("")
+      else info.header("Host").getOrElse("")
+    val proto = info
+      .header("X-Forwarded-Proto")
       .orElse(if host.endsWith(":443") then Some("https") else None)
       .getOrElse("https")
     s"$proto://$host"
