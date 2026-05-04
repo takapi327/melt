@@ -27,7 +27,7 @@ class MalformedExpressionCheckerSpec extends munit.FunSuite:
     assert(result.errors.nonEmpty, "expected a MalformedExpression error")
     assert(
       result.errors.exists(_.message.contains("</")),
-      s"error should mention '</', got: ${result.errors.map(_.message)}"
+      s"error should mention '</', got: ${ result.errors.map(_.message) }"
     )
   }
 
@@ -45,30 +45,30 @@ class MalformedExpressionCheckerSpec extends munit.FunSuite:
 
   test("properly closed expression does not produce an error") {
     val result = compile("<div>{x}</div>")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }
 
   test("closing tag in a double-quoted string literal does not trigger error") {
     val result = compile("""<div>{"</div>"}</div>""")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }
 
   test("closing tag in a triple-quoted string literal does not trigger error") {
     val result = compile("""<div>{s"</span>"}</div>""")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }
 
   test("closing tag in a line comment does not trigger error") {
     val result = compile("<div>{x // </div>\n}</div>")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }
 
   test("closing tag in a block comment does not trigger error") {
     val result = compile("<div>{x /* </div> */}</div>")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }
 
   test("empty template has no errors") {
     val result = compile("<div></div>")
-    assert(result.errors.isEmpty, s"unexpected errors: ${result.errors.map(_.message)}")
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors.map(_.message) }")
   }

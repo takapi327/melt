@@ -33,7 +33,7 @@ object MalformedExpressionChecker:
     ast:               MeltFile,
     filename:          String,
     templateSource:    String = "",
-    templateStartLine: Int    = 1
+    templateStartLine: Int = 1
   ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
     ast.template.foreach(node => walk(node, errors, filename, templateSource, templateStartLine))

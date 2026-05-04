@@ -101,8 +101,9 @@ class MetalsBridge:
     * stale data does not leak into a future re-open.
     */
   def closeDoc(meltUri: String): Unit =
-    Option(openDocs.remove(meltUri)).foreach { case (virtualUri, _) =>
-      if capturingClient != null then capturingClient.dropUri(virtualUri)
+    Option(openDocs.remove(meltUri)).foreach {
+      case (virtualUri, _) =>
+        if capturingClient != null then capturingClient.dropUri(virtualUri)
     }
 
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
