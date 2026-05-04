@@ -66,9 +66,9 @@ class MetalsBridge:
   private val srcDir:       Path = workspaceDir.resolve("src")
   private val bloopDir:     Path = workspaceDir.resolve(".bloop")
 
-  private var metalsProcess:   Option[Process]        = None
-  private var metalsServer:    Option[LanguageServer] = None
-  private var listenerFuture:  Option[Future[Void]]   = None
+  private var metalsProcess:   Option[Process]               = None
+  private var metalsServer:    Option[LanguageServer]        = None
+  private var listenerFuture:  Option[Future[Void]]          = None
   private var capturingClient: Option[CapturingMetalsClient] = None
 
   /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
@@ -208,31 +208,33 @@ class MetalsBridge:
   ): List[Diagnostic] =
     // capturingClient と metalsServer は同じライフサイクルを持つため、
     // 両方 Some の場合のみ診断を実行する。
-    metalsServer.flatMap { server =>
-      capturingClient.map { cc =>
-        val virtualUri = toVirtualUri(meltUri)
-        val promise    = CompletableFuture[List[Diagnostic]]()
+    metalsServer
+      .flatMap { server =>
+        capturingClient.map { cc =>
+          val virtualUri = toVirtualUri(meltUri)
+          val promise    = CompletableFuture[List[Diagnostic]]()
 
-        // expectDiagnostics cancels any pending debounce for this URI *before*
-        // registering the new promise, so an old compilation's debounce cannot
-        // race in and complete the new promise with stale diagnostics.
-        cc.expectDiagnostics(virtualUri, promise)
+          // expectDiagnostics cancels any pending debounce for this URI *before*
+          // registering the new promise, so an old compilation's debounce cannot
+          // race in and complete the new promise with stale diagnostics.
+          cc.expectDiagnostics(virtualUri, promise)
 
-        Try { syncVirtualDoc(server, meltUri, vf) } match
-          case scala.util.Failure(_) =>
-            cc.dropUri(virtualUri)
-            Nil
-          case scala.util.Success(_) =>
-            try promise.get(timeoutSec, TimeUnit.SECONDS)
-            catch
-              case _: java.util.concurrent.TimeoutException =>
-                // Remove the orphaned promise so the next call starts clean.
-                cc.dropUri(virtualUri)
-                Nil
-              case _: Throwable =>
-                Nil
+          Try { syncVirtualDoc(server, meltUri, vf) } match
+            case scala.util.Failure(_) =>
+              cc.dropUri(virtualUri)
+              Nil
+            case scala.util.Success(_) =>
+              try promise.get(timeoutSec, TimeUnit.SECONDS)
+              catch
+                case _: java.util.concurrent.TimeoutException =>
+                  // Remove the orphaned promise so the next call starts clean.
+                  cc.dropUri(virtualUri)
+                  Nil
+                case _: Throwable =>
+                  Nil
+        }
       }
-    }.getOrElse(Nil)
+      .getOrElse(Nil)
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
