@@ -143,10 +143,13 @@ object SsrCodeGen extends CodeGen:
     tracker ++= "}\n"
 
     // ── Source-map metadata block ─────────────────────────────────────────────
-    val linesStr = tracker.linesMetadata()
-    val meta     =
+    // sourcePath is sanitized to prevent a path containing "*/" from prematurely
+    // closing the block comment and leaking content into compiled Scala code.
+    val linesStr       = tracker.linesMetadata()
+    val safeSourcePath = sourcePath.replace("*/", "*\\/")
+    val meta           =
       if sourcePath.nonEmpty && linesStr.nonEmpty then
-        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $sourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
+        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
       else ""
 
     tracker.result() + meta

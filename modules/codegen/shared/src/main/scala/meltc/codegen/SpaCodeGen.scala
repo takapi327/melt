@@ -185,10 +185,13 @@ object SpaCodeGen extends CodeGen:
     // ── Source-map metadata block ─────────────────────────────────────────────
     // Appended after the Scala code so scalac never sees it.  The sbt plugin
     // reads this comment to remap error positions back to the original .melt file.
-    val linesStr = tracker.linesMetadata()
-    val meta     =
+    // sourcePath is sanitized to prevent a path containing "*/" from prematurely
+    // closing the block comment and leaking content into compiled Scala code.
+    val linesStr       = tracker.linesMetadata()
+    val safeSourcePath = sourcePath.replace("*/", "*\\/")
+    val meta           =
       if sourcePath.nonEmpty && linesStr.nonEmpty then
-        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $sourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
+        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
       else ""
 
     tracker.result() + meta
