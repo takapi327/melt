@@ -9,7 +9,7 @@ package meltc.lsp
 import java.util.concurrent.CompletableFuture
 import java.util.Collections
 
-import scala.concurrent.{ blocking, Future, ExecutionContext }
+import scala.concurrent.{ blocking, ExecutionContext, Future }
 import scala.jdk.CollectionConverters.*
 
 import org.eclipse.lsp4j.*
@@ -88,8 +88,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val doc = params.getTextDocument
     documents(doc.getUri) = doc.getText
     fastValidate(doc.getUri, doc.getText)
-    Future(blocking(fullValidate(doc.getUri, doc.getText)))
-      .failed
+    Future(blocking(fullValidate(doc.getUri, doc.getText))).failed
       .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for ${ doc.getUri }: $e"))
 
   override def didChange(params: DidChangeTextDocumentParams): Unit =
@@ -110,8 +109,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     // includeText=true guarantees getText() is non-null, but fall back to the last known text from didChange just in case.
     val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
     documents(uri) = text
-    Future(blocking(fullValidate(uri, text)))
-      .failed
+    Future(blocking(fullValidate(uri, text))).failed
       .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for $uri: $e"))
 
   /** Returns a hover tooltip describing the section the cursor is in. */
