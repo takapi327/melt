@@ -206,8 +206,8 @@ class MetalsBridge:
     vf:         VirtualFile,
     timeoutSec: Int = 30
   ): List[Diagnostic] =
-    // capturingClient と metalsServer は同じライフサイクルを持つため、
-    // 両方 Some の場合のみ診断を実行する。
+    // capturingClient and metalsServer share the same lifecycle:
+    // both are set together in tryStart() and cleared together in shutdown().
     metalsServer
       .flatMap { server =>
         capturingClient.map { cc =>

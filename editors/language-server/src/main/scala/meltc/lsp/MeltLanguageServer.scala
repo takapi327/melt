@@ -107,7 +107,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   override def didSave(params: DidSaveTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
-    // includeText=true なので getText() でテキストを得られるが、didChange で既に最新に保っているので fallback として使う
+    // includeText=true guarantees getText() is non-null, but fall back to the last known text from didChange just in case.
     val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
     documents(uri) = text
     Future(blocking(fullValidate(uri, text)))
@@ -189,8 +189,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
-  /** meltc の構文・セマンティックチェックのみ実行する (高速)。
-    * タイプ中のリアルタイムフィードバックに使用する。
+  /** Runs meltc syntax and semantic checks only (fast path).
+    * Used for real-time feedback while the user is typing.
     */
   private def fastValidate(uri: String, content: String): Unit =
     client.foreach { c =>
@@ -202,17 +202,19 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       c.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
     }
 
-  /** meltc チェック + Metals 型チェックを実行する (低速)。
-    * didOpen / didSave 時に非同期で実行する。
+  /** Runs meltc checks followed by Metals type-checking (slow path).
+    * Executed asynchronously on didOpen / didSave.
     *
-    * meltc エラーがある場合は Metals チェックをスキップする。
-    * 仮想ファイルも壊れている可能性があり、無意味な型エラーが大量に出るため。
+    * Metals type-checking is skipped when meltc reports errors, because the
+    * generated virtual file may also be broken, producing a flood of spurious
+    * type errors.
     *
-    * didClose と非同期実行の競合を防ぐため、実行開始時と診断送信直前の2箇所で
-    * ドキュメントがまだ開かれているかを確認する。
+    * The document is checked for presence at both the start and just before
+    * publishing to guard against a concurrent didClose racing with this
+    * long-running async operation.
     */
   private def fullValidate(uri: String, content: String): Unit =
-    // 非同期実行と didClose の競合対策: client 未接続またはドキュメントが閉じられていたらスキップ。
+    // Guard against races with didClose: skip if the client is not yet connected or the document is already closed.
     client.filter(_ => documents.contains(uri)).foreach { c =>
       val filename = uriToFilename(uri)
       val result   = meltc.MeltCompiler.compile(content, filename)
@@ -227,8 +229,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
           val vf = VirtualFileGenerator.generate(content)
           metals.diagnosticsForScript(uri, vf)
 
-      // Metals の型チェック (diagnosticsForScript) が長時間ブロックする間に
-      // didClose が来る場合があるため、送信直前にも確認する。
+      // Re-check before publishing: diagnosticsForScript may block for up to 30 s,
+      // during which the editor may have closed the document.
       if documents.contains(uri) then
         c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
     }
