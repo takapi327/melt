@@ -52,9 +52,17 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── LanguageServer lifecycle ──────────────────────────────────────────────
 
   override def initialize(params: InitializeParams): CompletableFuture[InitializeResult] =
-    val _    = scala.concurrent.Future(metals.startIfAvailable())(scala.concurrent.ExecutionContext.global)
+    val _ = scala.concurrent.Future(metals.startIfAvailable())(scala.concurrent.ExecutionContext.global)
+
+    // Use TextDocumentSyncOptions (not the bare enum) so that the `save` capability
+    // is registered. Without this, LSP clients do not send textDocument/didSave.
+    val syncOpts = TextDocumentSyncOptions()
+    syncOpts.setChange(TextDocumentSyncKind.Full)
+    syncOpts.setOpenClose(true)
+    syncOpts.setSave(SaveOptions(true)) // includeText=true
+
     val caps = ServerCapabilities()
-    caps.setTextDocumentSync(TextDocumentSyncKind.Full)
+    caps.setTextDocumentSync(JEither.forRight(syncOpts))
     caps.setHoverProvider(true)
     caps.setDefinitionProvider(true)
     caps.setCompletionProvider(CompletionOptions(false, List(".", " ", "<", "{").asJava))
@@ -76,21 +84,31 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def didOpen(params: DidOpenTextDocumentParams): Unit =
     val doc = params.getTextDocument
     documents(doc.getUri) = doc.getText
-    validate(doc.getUri, doc.getText)
+    fastValidate(doc.getUri, doc.getText)
+    scala.concurrent.Future {
+      fullValidate(doc.getUri, doc.getText)
+    }(scala.concurrent.ExecutionContext.global)
 
   override def didChange(params: DidChangeTextDocumentParams): Unit =
     val changes = params.getContentChanges
     if !changes.isEmpty then
       val text = changes.get(0).getText
       documents(params.getTextDocument.getUri) = text
-      validate(params.getTextDocument.getUri, text)
+      fastValidate(params.getTextDocument.getUri, text)
 
   override def didClose(params: DidCloseTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
     documents.remove(uri)
     if client != null then client.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList()))
 
-  override def didSave(params: DidSaveTextDocumentParams): Unit = ()
+  override def didSave(params: DidSaveTextDocumentParams): Unit =
+    val uri = params.getTextDocument.getUri
+    // includeText=true なので getText() でテキストを得られるが、didChange で既に最新に保っているので fallback として使う
+    val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
+    documents(uri) = text
+    scala.concurrent.Future {
+      fullValidate(uri, text)
+    }(scala.concurrent.ExecutionContext.global)
 
   /** Returns a hover tooltip describing the section the cursor is in. */
   override def hover(params: HoverParams): CompletableFuture[Hover] =
@@ -167,7 +185,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
-  private def validate(uri: String, content: String): Unit =
+  /** meltc の構文・セマンティックチェックのみ実行する (高速)。
+    * タイプ中のリアルタイムフィードバックに使用する。
+    */
+  private def fastValidate(uri: String, content: String): Unit =
     if client == null then return
     val filename = uriToFilename(uri)
     val result   = meltc.MeltCompiler.compile(content, filename)
@@ -175,6 +196,30 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
         result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
     client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
+
+  /** meltc チェック + Metals 型チェックを実行する (低速)。
+    * didOpen / didSave 時に非同期で実行する。
+    *
+    * meltc エラーがある場合は Metals チェックをスキップする。
+    * 仮想ファイルも壊れている可能性があり、無意味な型エラーが大量に出るため。
+    */
+  private def fullValidate(uri: String, content: String): Unit =
+    if client == null then return
+    val filename = uriToFilename(uri)
+    val result   = meltc.MeltCompiler.compile(content, filename)
+
+    val meltcDiags =
+      result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
+        result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
+
+    val metalsDiags: List[Diagnostic] =
+      if result.errors.nonEmpty then Nil
+      else
+        val vf = VirtualFileGenerator.generate(content)
+        metals.diagnosticsForScript(uri, vf)
+
+    val allDiags = meltcDiags ++ metalsDiags
+    client.publishDiagnostics(PublishDiagnosticsParams(uri, allDiags.asJava))
 
   private def makeDiagnostic(message: String, line: Int, severity: DiagnosticSeverity): Diagnostic =
     val zeroLine = math.max(0, line - 1)
