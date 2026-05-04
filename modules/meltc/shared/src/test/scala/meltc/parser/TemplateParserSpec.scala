@@ -1435,3 +1435,21 @@ class TemplateParserSpec extends munit.FunSuite:
     val el     = result.head.asInstanceOf[TemplateNode.DynamicElement]
     assertEquals(el.tagExpr, "null")
   }
+
+  // ── Malformed attribute warnings ──────────────────────────────────────────
+
+  test("unquoted attribute value with trailing double-quote emits warning") {
+    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class=value">{x}</span>""")
+    assert(warnings.exists(_._1.contains("Malformed attribute")), s"no warning: $warnings")
+    assert(warnings.exists(_._1.contains("""class="value"""")), s"suggestion missing: $warnings")
+  }
+
+  test("unquoted attribute value with single-quote emits warning") {
+    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class=value'>{x}</span>""")
+    assert(warnings.exists(_._1.contains("Malformed attribute")), s"no warning: $warnings")
+  }
+
+  test("properly quoted attribute does not emit malformed-attribute warning") {
+    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class="value">{x}</span>""")
+    assert(!warnings.exists(_._1.contains("Malformed attribute")), s"unexpected warning: $warnings")
+  }

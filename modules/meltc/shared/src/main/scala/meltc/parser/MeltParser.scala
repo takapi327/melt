@@ -7,6 +7,7 @@
 package meltc.parser
 
 import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
+import meltc.SourcePosition
 
 /** Top-level parser for `.melt` files.
   *
@@ -21,8 +22,22 @@ import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
   */
 object MeltParser:
 
-  /** Result of parsing a `.melt` file, containing both the AST and any warnings. */
-  case class ParseResult(ast: MeltFile, warnings: List[(String, Int)])
+  /** Result of parsing a `.melt` file, containing both the AST and any warnings.
+    *
+    * @param ast              the parsed component AST
+    * @param warnings         parser warnings with their character offsets
+    * @param scriptBodyLine   1-based line in the original `.melt` source where the
+    *                         script body (inside `<script lang="scala">`) begins
+    * @param templateStartLine 1-based line in the original `.melt` source where
+    *                          the HTML template section begins
+    */
+  case class ParseResult(
+    ast:               MeltFile,
+    warnings:          List[(String, Int)],
+    scriptBodyLine:    Int    = 1,
+    templateStartLine: Int    = 1,
+    templateSource:    String = ""
+  )
 
   def parse(source: String): Either[String, MeltFile] =
     parseWithWarnings(source).map(_.ast)
@@ -36,5 +51,18 @@ object MeltParser:
         template = nodes,
         style    = sections.style.map((content, lang) => StyleSection(content, lang))
       )
-      ParseResult(ast, templateWarnings)
+
+      // ── Source-position bookmarks (used for source-map LINES metadata) ────
+      // We locate each section in the original source via a short-prefix search
+      // rather than tracking byte offsets through the splitter transformations.
+      // This is correct for the common case; edge-cases (e.g. duplicated content)
+      // are tolerated as approximations.
+      val scriptBodyLine: Int = sections.rawScript match
+        case None     => 1
+        case Some(rs) => SourcePosition.searchLine(source, rs.code.trim, default = 1)
+
+      val templateStartLine: Int =
+        SourcePosition.searchLine(source, sections.templateSource, default = 1)
+
+      ParseResult(ast, templateWarnings, scriptBodyLine, templateStartLine, sections.templateSource)
     }
