@@ -69,7 +69,7 @@ class MetalsBridge:
   private var metalsProcess:   Option[Process]        = None
   private var metalsServer:    Option[LanguageServer] = None
   private var listenerFuture:  Option[Future[Void]]   = None
-  private var capturingClient: CapturingMetalsClient  = scala.compiletime.uninitialized
+  private var capturingClient: Option[CapturingMetalsClient] = None
 
   /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
   private val openDocs = ConcurrentHashMap[String, (String, Int)]()
@@ -87,10 +87,7 @@ class MetalsBridge:
     * @return true if Metals was found and successfully initialised
     */
   def startIfAvailable(): Boolean =
-    if metalsServer.isDefined then return true
-    findMetalsCommand() match
-      case None      => false
-      case Some(cmd) => tryStart(cmd)
+    metalsServer.isDefined || findMetalsCommand().exists(tryStart)
 
   /** Removes the virtual doc entry for a closed .melt file.
     *
@@ -103,7 +100,7 @@ class MetalsBridge:
   def closeDoc(meltUri: String): Unit =
     Option(openDocs.remove(meltUri)).foreach {
       case (virtualUri, _) =>
-        if capturingClient != null then capturingClient.dropUri(virtualUri)
+        capturingClient.foreach(_.dropUri(virtualUri))
     }
 
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
@@ -113,13 +110,13 @@ class MetalsBridge:
     Try { listenerFuture.foreach(_.cancel(true)) }
     Try { metalsProcess.foreach(_.destroyForcibly()) }
     // Stop the scheduler first so no new debounce tasks fire after we clear the maps.
-    Try { if capturingClient != null then capturingClient.shutdownScheduler() }
-    Try { if capturingClient != null then capturingClient.dropAll() }
+    Try { capturingClient.foreach(_.shutdownScheduler()) }
+    Try { capturingClient.foreach(_.dropAll()) }
     openDocs.clear()
     metalsServer    = None
     metalsProcess   = None
     listenerFuture  = None
-    capturingClient = null.asInstanceOf[CapturingMetalsClient]
+    capturingClient = None
 
   // ── Completions ───────────────────────────────────────────────────────────
 
@@ -209,31 +206,33 @@ class MetalsBridge:
     vf:         VirtualFile,
     timeoutSec: Int = 30
   ): List[Diagnostic] =
-    metalsServer
-      .map { server =>
+    // capturingClient と metalsServer は同じライフサイクルを持つため、
+    // 両方 Some の場合のみ診断を実行する。
+    metalsServer.flatMap { server =>
+      capturingClient.map { cc =>
         val virtualUri = toVirtualUri(meltUri)
         val promise    = CompletableFuture[List[Diagnostic]]()
 
         // expectDiagnostics cancels any pending debounce for this URI *before*
         // registering the new promise, so an old compilation's debounce cannot
         // race in and complete the new promise with stale diagnostics.
-        capturingClient.expectDiagnostics(virtualUri, promise)
+        cc.expectDiagnostics(virtualUri, promise)
 
         Try { syncVirtualDoc(server, meltUri, vf) } match
           case scala.util.Failure(_) =>
-            capturingClient.dropUri(virtualUri)
+            cc.dropUri(virtualUri)
             Nil
           case scala.util.Success(_) =>
             try promise.get(timeoutSec, TimeUnit.SECONDS)
             catch
               case _: java.util.concurrent.TimeoutException =>
                 // Remove the orphaned promise so the next call starts clean.
-                capturingClient.dropUri(virtualUri)
+                cc.dropUri(virtualUri)
                 Nil
               case _: Throwable =>
                 Nil
       }
-      .getOrElse(Nil)
+    }.getOrElse(Nil)
 
   // ── Private helpers ───────────────────────────────────────────────────────
 
@@ -291,10 +290,11 @@ class MetalsBridge:
         .start()
       metalsProcess = Some(process)
 
-      capturingClient = new CapturingMetalsClient()
+      val cc = new CapturingMetalsClient()
+      capturingClient = Some(cc)
 
       val launcher = LSPLauncher.createClientLauncher(
-        capturingClient,
+        cc,
         process.getInputStream,
         process.getOutputStream
       )

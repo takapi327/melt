@@ -38,8 +38,8 @@ import org.eclipse.lsp4j.services.*
   */
 class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocumentService, WorkspaceService:
 
-  private var client: LanguageClient = scala.compiletime.uninitialized
-  private val metals: MetalsBridge   = MetalsBridge()
+  private var client: Option[LanguageClient] = None
+  private val metals: MetalsBridge           = MetalsBridge()
 
   /** Open documents: URI → current .melt source text. */
   private val documents = scala.collection.concurrent.TrieMap.empty[String, String]
@@ -47,7 +47,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── LanguageClientAware ───────────────────────────────────────────────────
 
   override def connect(languageClient: LanguageClient): Unit =
-    this.client = languageClient
+    this.client = Some(languageClient)
 
   // ── LanguageServer lifecycle ──────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val uri = params.getTextDocument.getUri
     documents.remove(uri)
     metals.closeDoc(uri)
-    if client != null then client.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList()))
+    client.foreach(_.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList())))
 
   override def didSave(params: DidSaveTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
@@ -200,13 +200,14 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     * タイプ中のリアルタイムフィードバックに使用する。
     */
   private def fastValidate(uri: String, content: String): Unit =
-    if client != null then
+    client.foreach { c =>
       val filename = uriToFilename(uri)
       val result   = meltc.MeltCompiler.compile(content, filename)
       val diags    =
         result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
           result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
-      client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
+      c.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
+    }
 
   /** meltc チェック + Metals 型チェックを実行する (低速)。
     * didOpen / didSave 時に非同期で実行する。
@@ -219,7 +220,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     */
   private def fullValidate(uri: String, content: String): Unit =
     // 非同期実行と didClose の競合対策: client 未接続またはドキュメントが閉じられていたらスキップ。
-    if client != null && documents.contains(uri) then
+    client.filter(_ => documents.contains(uri)).foreach { c =>
       val filename = uriToFilename(uri)
       val result   = meltc.MeltCompiler.compile(content, filename)
 
@@ -236,7 +237,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       // Metals の型チェック (diagnosticsForScript) が長時間ブロックする間に
       // didClose が来る場合があるため、送信直前にも確認する。
       if documents.contains(uri) then
-        client.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
+        c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
+    }
 
   private def makeDiagnostic(message: String, line: Int, severity: DiagnosticSeverity): Diagnostic =
     val zeroLine = math.max(0, line - 1)
