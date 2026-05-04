@@ -85,11 +85,12 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val doc = params.getTextDocument
     documents(doc.getUri) = doc.getText
     fastValidate(doc.getUri, doc.getText)
-    scala.concurrent.Future {
-      scala.concurrent.blocking { fullValidate(doc.getUri, doc.getText) }
-    }(scala.concurrent.ExecutionContext.global)
+    scala.concurrent
+      .Future {
+        scala.concurrent.blocking { fullValidate(doc.getUri, doc.getText) }
+      }(scala.concurrent.ExecutionContext.global)
       .failed
-      .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for ${doc.getUri}: $e"))(
+      .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for ${ doc.getUri }: $e"))(
         scala.concurrent.ExecutionContext.global
       )
 
@@ -111,9 +112,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     // includeText=true なので getText() でテキストを得られるが、didChange で既に最新に保っているので fallback として使う
     val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
     documents(uri) = text
-    scala.concurrent.Future {
-      scala.concurrent.blocking { fullValidate(uri, text) }
-    }(scala.concurrent.ExecutionContext.global)
+    scala.concurrent
+      .Future {
+        scala.concurrent.blocking { fullValidate(uri, text) }
+      }(scala.concurrent.ExecutionContext.global)
       .failed
       .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for $uri: $e"))(
         scala.concurrent.ExecutionContext.global

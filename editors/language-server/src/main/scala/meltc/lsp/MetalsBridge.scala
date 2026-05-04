@@ -528,8 +528,7 @@ private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageCli
           TimeUnit.MILLISECONDS
         )
         pendingTasks.put(uri, task)
-      catch
-        case _: java.util.concurrent.RejectedExecutionException => () // scheduler already shut down
+      catch case _: java.util.concurrent.RejectedExecutionException => () // scheduler already shut down
     }
 
   /** Stops the debounce scheduler. Called from [[MetalsBridge.shutdown]]. */
