@@ -42,16 +42,18 @@ object MeltGeneratedSource {
     * no `-- MELT GENERATED --` block (e.g. was compiled without a `sourcePath`).
     */
   def read(generatedFile: File): Option[Meta] = {
-    if (!generatedFile.exists()) return None
-    val content =
-      try {
-        val src = scala.io.Source.fromFile(generatedFile, "UTF-8")
-        try src.mkString
-        finally src.close()
-      } catch {
-        case _: Exception => return None
-      }
-    parse(content)
+    if (!generatedFile.exists()) None
+    else {
+      val contentOpt =
+        try {
+          val src = scala.io.Source.fromFile(generatedFile, "UTF-8")
+          try Some(src.mkString)
+          finally src.close()
+        } catch {
+          case _: Exception => None
+        }
+      contentOpt.flatMap(parse)
+    }
   }
 
   /** Parses the source-map block from a generated Scala source string.
@@ -62,49 +64,52 @@ object MeltGeneratedSource {
     * (e.g. `val s = "-- MELT GENERATED --"`).
     */
   def parse(content: String): Option[Meta] = {
-    val blockEnd = content.lastIndexOf(BlockStart)
-    if (blockEnd < 0) return None
-    val blockStart = content.lastIndexOf(BlockStart, blockEnd - 1)
-    if (blockStart < 0) return None
+    val blockEnd   = content.lastIndexOf(BlockStart)
+    val blockStart = if (blockEnd >= 0) content.lastIndexOf(BlockStart, blockEnd - 1) else -1
 
-    val block = content.substring(blockStart, blockEnd + BlockStart.length)
+    if (blockEnd < 0 || blockStart < 0) None
+    else {
+      val block = content.substring(blockStart, blockEnd + BlockStart.length)
 
-    val sourcePath: String = {
-      val idx = block.indexOf(SourceKey)
-      if (idx < 0) return None
-      val afterKey = block.substring(idx + SourceKey.length)
-      val end      = afterKey.indexOf('\n')
-      if (end < 0) afterKey.trim else afterKey.substring(0, end).trim
-    }
-
-    val lines: IndexedSeq[(Int, Int)] = {
-      val idx = block.indexOf(LinesKey)
-      if (idx < 0) IndexedSeq.empty
-      else {
-        val afterKey = block.substring(idx + LinesKey.length)
-        val end      = afterKey.indexOf('\n')
-        val raw      = if (end < 0) afterKey.trim else afterKey.substring(0, end).trim
-        if (raw.isEmpty) IndexedSeq.empty
-        else
-          raw
-            .split('|')
-            .flatMap { pair =>
-              val arrow = pair.indexOf("->")
-              if (arrow < 0) None
-              else
-                try {
-                  val gen = pair.substring(0, arrow).trim.toInt
-                  val src = pair.substring(arrow + 2).trim.toInt
-                  Some((gen, src))
-                } catch {
-                  case _: NumberFormatException => None
-                }
-            }
-            .toIndexedSeq
+      val sourcePathOpt: Option[String] = {
+        val idx = block.indexOf(SourceKey)
+        if (idx < 0) None
+        else {
+          val afterKey = block.substring(idx + SourceKey.length)
+          val end      = afterKey.indexOf('\n')
+          Some(if (end < 0) afterKey.trim else afterKey.substring(0, end).trim)
+        }
       }
-    }
 
-    Some(Meta(sourcePath, lines))
+      val lines: IndexedSeq[(Int, Int)] = {
+        val idx = block.indexOf(LinesKey)
+        if (idx < 0) IndexedSeq.empty
+        else {
+          val afterKey = block.substring(idx + LinesKey.length)
+          val end      = afterKey.indexOf('\n')
+          val raw      = if (end < 0) afterKey.trim else afterKey.substring(0, end).trim
+          if (raw.isEmpty) IndexedSeq.empty
+          else
+            raw
+              .split('|')
+              .flatMap { pair =>
+                val arrow = pair.indexOf("->")
+                if (arrow < 0) None
+                else
+                  try {
+                    val gen = pair.substring(0, arrow).trim.toInt
+                    val src = pair.substring(arrow + 2).trim.toInt
+                    Some((gen, src))
+                  } catch {
+                    case _: NumberFormatException => None
+                  }
+              }
+              .toIndexedSeq
+        }
+      }
+
+      sourcePathOpt.map(sourcePath => Meta(sourcePath, lines))
+    }
   }
 
   /** Maps `generatedLine` to the corresponding source line using nearest-neighbor
@@ -119,20 +124,22 @@ object MeltGeneratedSource {
     */
   def mapLine(meta: Meta, generatedLine: Int): Option[Int] = {
     val entries = meta.lines
-    if (entries.isEmpty) return None
-    // Binary search for the largest entry._1 <= generatedLine
-    var lo = 0
-    var hi = entries.length - 1
-    var result: Option[(Int, Int)] = None
-    while (lo <= hi) {
-      val mid = (lo + hi) >>> 1
-      if (entries(mid)._1 <= generatedLine) {
-        result = Some(entries(mid))
-        lo     = mid + 1
-      } else {
-        hi = mid - 1
+    if (entries.isEmpty) None
+    else {
+      // Binary search for the largest entry._1 <= generatedLine
+      var lo = 0
+      var hi = entries.length - 1
+      var result: Option[(Int, Int)] = None
+      while (lo <= hi) {
+        val mid = (lo + hi) >>> 1
+        if (entries(mid)._1 <= generatedLine) {
+          result = Some(entries(mid))
+          lo     = mid + 1
+        } else {
+          hi = mid - 1
+        }
       }
+      result.map(_._2)
     }
-    result.map(_._2)
   }
 }

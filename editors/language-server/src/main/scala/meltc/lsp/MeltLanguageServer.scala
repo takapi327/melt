@@ -198,13 +198,13 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     * タイプ中のリアルタイムフィードバックに使用する。
     */
   private def fastValidate(uri: String, content: String): Unit =
-    if client == null then return
-    val filename = uriToFilename(uri)
-    val result   = meltc.MeltCompiler.compile(content, filename)
-    val diags    =
-      result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
-        result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
-    client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
+    if client != null then
+      val filename = uriToFilename(uri)
+      val result   = meltc.MeltCompiler.compile(content, filename)
+      val diags    =
+        result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
+      client.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
 
   /** meltc チェック + Metals 型チェックを実行する (低速)。
     * didOpen / didSave 時に非同期で実行する。
@@ -216,27 +216,25 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     * ドキュメントがまだ開かれているかを確認する。
     */
   private def fullValidate(uri: String, content: String): Unit =
-    if client == null then return
-    // 非同期実行と didClose の競合対策: ドキュメントが既に閉じられていたらスキップ。
-    if !documents.contains(uri) then return
-    val filename = uriToFilename(uri)
-    val result   = meltc.MeltCompiler.compile(content, filename)
+    // 非同期実行と didClose の競合対策: client 未接続またはドキュメントが閉じられていたらスキップ。
+    if client != null && documents.contains(uri) then
+      val filename = uriToFilename(uri)
+      val result   = meltc.MeltCompiler.compile(content, filename)
 
-    val meltcDiags =
-      result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
-        result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
+      val meltcDiags =
+        result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
 
-    val metalsDiags: List[Diagnostic] =
-      if result.errors.nonEmpty then Nil
-      else
-        val vf = VirtualFileGenerator.generate(content)
-        metals.diagnosticsForScript(uri, vf)
+      val metalsDiags: List[Diagnostic] =
+        if result.errors.nonEmpty then Nil
+        else
+          val vf = VirtualFileGenerator.generate(content)
+          metals.diagnosticsForScript(uri, vf)
 
-    // Metals の型チェック (diagnosticsForScript) が長時間ブロックする間に
-    // didClose が来る場合があるため、送信直前にも確認する。
-    if !documents.contains(uri) then return
-    val allDiags = meltcDiags ++ metalsDiags
-    client.publishDiagnostics(PublishDiagnosticsParams(uri, allDiags.asJava))
+      // Metals の型チェック (diagnosticsForScript) が長時間ブロックする間に
+      // didClose が来る場合があるため、送信直前にも確認する。
+      if documents.contains(uri) then
+        client.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
 
   private def makeDiagnostic(message: String, line: Int, severity: DiagnosticSeverity): Diagnostic =
     val zeroLine = math.max(0, line - 1)
