@@ -211,19 +211,27 @@ class MetalsBridge:
   ): List[Diagnostic] =
     metalsServer
       .map { server =>
-        Try {
-          val virtualUri = toVirtualUri(meltUri)
-          val promise    = CompletableFuture[List[Diagnostic]]()
+        val virtualUri = toVirtualUri(meltUri)
+        val promise    = CompletableFuture[List[Diagnostic]]()
 
-          // expectDiagnostics cancels any pending debounce for this URI *before*
-          // registering the new promise, so an old compilation's debounce cannot
-          // race in and complete the new promise with stale diagnostics.
-          capturingClient.expectDiagnostics(virtualUri, promise)
+        // expectDiagnostics cancels any pending debounce for this URI *before*
+        // registering the new promise, so an old compilation's debounce cannot
+        // race in and complete the new promise with stale diagnostics.
+        capturingClient.expectDiagnostics(virtualUri, promise)
 
-          syncVirtualDoc(server, meltUri, vf)
-
-          promise.get(timeoutSec, TimeUnit.SECONDS)
-        }.getOrElse(Nil)
+        Try { syncVirtualDoc(server, meltUri, vf) } match
+          case scala.util.Failure(_) =>
+            capturingClient.dropUri(virtualUri)
+            Nil
+          case scala.util.Success(_) =>
+            try promise.get(timeoutSec, TimeUnit.SECONDS)
+            catch
+              case _: java.util.concurrent.TimeoutException =>
+                // Remove the orphaned promise so the next call starts clean.
+                capturingClient.dropUri(virtualUri)
+                Nil
+              case _: Throwable =>
+                Nil
       }
       .getOrElse(Nil)
 
@@ -419,6 +427,15 @@ class MetalsBridge:
   * promise has been replaced or removed (concurrent close/shutdown), the removal
   * returns `null` and nothing is completed.
   *
+  * ==Thread safety==
+  * [[expectDiagnostics]] (called from the Melt LSP thread) and [[publishDiagnostics]]
+  * (called from the Metals LSP4J launcher thread) both modify [[pendingTasks]] and
+  * [[pendingPromises]]. They are synchronised on [[lock]] to prevent the following race:
+  *   1. `expectDiagnostics` removes the old task from `pendingTasks` and cancels it.
+  *   2. (interleave) `publishDiagnostics` schedules a new task and puts it in `pendingTasks`.
+  *   3. `expectDiagnostics` puts the new promise in `pendingPromises`.
+  *   4. The new task fires and completes the new promise with stale diagnostics.
+  *
   * @param debounceMs idle period after the last notification before settling (default 800ms)
   */
 private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageClient:
@@ -440,17 +457,25 @@ private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageCli
   /** Pending debounce tasks per URI. Replaced on each new notification. */
   private val pendingTasks = ConcurrentHashMap[String, ScheduledFuture[?]]()
 
+  /** Guards [[pendingTasks]] and [[pendingPromises]] modifications in both
+    * [[expectDiagnostics]] and [[publishDiagnostics]] to prevent the race described
+    * in the class scaladoc.
+    */
+  private val lock = new Object
+
   /** Registers `promise` as the recipient of the next settled diagnostics for `uri`.
     *
     * Any pending debounce task for `uri` is cancelled first so that a debounce from
     * a previous compilation cannot race in and complete `promise` with stale data.
     */
   def expectDiagnostics(uri: String, promise: CompletableFuture[List[Diagnostic]]): Unit =
-    // Cancel the pending debounce (if any) BEFORE storing the promise.
-    // This ensures the old compilation's debounce cannot fire after we register.
-    Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
-    // Replace any previous (now-cancelled) promise.
-    Option(pendingPromises.put(uri, promise)).foreach(_.cancel(false))
+    lock.synchronized {
+      // Cancel the pending debounce (if any) BEFORE storing the promise.
+      // This ensures the old compilation's debounce cannot fire after we register.
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      // Replace any previous (now-cancelled) promise.
+      Option(pendingPromises.put(uri, promise)).foreach(_.cancel(false))
+    }
 
   /** Removes all diagnostic state for `uri`.
     *
@@ -459,15 +484,19 @@ private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageCli
     */
   def dropUri(uri: String): Unit =
     latestDiags.remove(uri)
-    Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
-    Option(pendingPromises.remove(uri)).foreach(_.cancel(false))
+    lock.synchronized {
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      Option(pendingPromises.remove(uri)).foreach(_.cancel(false))
+    }
 
   /** Cancels all pending promises and debounce tasks. Called on shutdown. */
   def dropAll(): Unit =
-    pendingTasks.values().forEach(_.cancel(false))
-    pendingTasks.clear()
-    pendingPromises.values().forEach(_.cancel(false))
-    pendingPromises.clear()
+    lock.synchronized {
+      pendingTasks.values().forEach(_.cancel(false))
+      pendingTasks.clear()
+      pendingPromises.values().forEach(_.cancel(false))
+      pendingPromises.clear()
+    }
     latestDiags.clear()
 
   override def telemetryEvent(obj: Any):                        Unit                                 = ()
@@ -482,19 +511,26 @@ private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageCli
     latestDiags.put(uri, diags)
 
     // Cancel the previous debounce task (if any) and schedule a new one.
-    Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
-    val task: ScheduledFuture[?] = scheduler.schedule(
-      new Runnable:
-        def run(): Unit =
-          val settled = latestDiags.getOrDefault(uri, Nil)
-          // Remove the promise atomically; if it was already replaced or dropped,
-          // remove returns null and nothing is completed.
-          Option(pendingPromises.remove(uri)).foreach(_.complete(settled))
-      ,
-      debounceMs,
-      TimeUnit.MILLISECONDS
-    )
-    pendingTasks.put(uri, task)
+    // Wrapped in lock to prevent a race with expectDiagnostics (see class scaladoc).
+    // Wrapped in try/catch to handle RejectedExecutionException after shutdownNow().
+    lock.synchronized {
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      try
+        val task: ScheduledFuture[?] = scheduler.schedule(
+          new Runnable:
+            def run(): Unit =
+              val settled = latestDiags.getOrDefault(uri, Nil)
+              // Remove the promise atomically; if it was already replaced or dropped,
+              // remove returns null and nothing is completed.
+              Option(pendingPromises.remove(uri)).foreach(_.complete(settled))
+          ,
+          debounceMs,
+          TimeUnit.MILLISECONDS
+        )
+        pendingTasks.put(uri, task)
+      catch
+        case _: java.util.concurrent.RejectedExecutionException => () // scheduler already shut down
+    }
 
   /** Stops the debounce scheduler. Called from [[MetalsBridge.shutdown]]. */
   def shutdownScheduler(): Unit =

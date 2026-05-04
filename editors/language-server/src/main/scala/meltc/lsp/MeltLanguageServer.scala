@@ -88,6 +88,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     scala.concurrent.Future {
       scala.concurrent.blocking { fullValidate(doc.getUri, doc.getText) }
     }(scala.concurrent.ExecutionContext.global)
+      .failed
+      .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for ${doc.getUri}: $e"))(
+        scala.concurrent.ExecutionContext.global
+      )
 
   override def didChange(params: DidChangeTextDocumentParams): Unit =
     val changes = params.getContentChanges
@@ -110,6 +114,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     scala.concurrent.Future {
       scala.concurrent.blocking { fullValidate(uri, text) }
     }(scala.concurrent.ExecutionContext.global)
+      .failed
+      .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for $uri: $e"))(
+        scala.concurrent.ExecutionContext.global
+      )
 
   /** Returns a hover tooltip describing the section the cursor is in. */
   override def hover(params: HoverParams): CompletableFuture[Hover] =
@@ -203,9 +211,14 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     *
     * meltc エラーがある場合は Metals チェックをスキップする。
     * 仮想ファイルも壊れている可能性があり、無意味な型エラーが大量に出るため。
+    *
+    * didClose と非同期実行の競合を防ぐため、実行開始時と診断送信直前の2箇所で
+    * ドキュメントがまだ開かれているかを確認する。
     */
   private def fullValidate(uri: String, content: String): Unit =
     if client == null then return
+    // 非同期実行と didClose の競合対策: ドキュメントが既に閉じられていたらスキップ。
+    if !documents.contains(uri) then return
     val filename = uriToFilename(uri)
     val result   = meltc.MeltCompiler.compile(content, filename)
 
@@ -219,6 +232,9 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
         val vf = VirtualFileGenerator.generate(content)
         metals.diagnosticsForScript(uri, vf)
 
+    // Metals の型チェック (diagnosticsForScript) が長時間ブロックする間に
+    // didClose が来る場合があるため、送信直前にも確認する。
+    if !documents.contains(uri) then return
     val allDiags = meltcDiags ++ metalsDiags
     client.publishDiagnostics(PublishDiagnosticsParams(uri, allDiags.asJava))
 
