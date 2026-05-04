@@ -86,7 +86,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     documents(doc.getUri) = doc.getText
     fastValidate(doc.getUri, doc.getText)
     scala.concurrent.Future {
-      fullValidate(doc.getUri, doc.getText)
+      scala.concurrent.blocking { fullValidate(doc.getUri, doc.getText) }
     }(scala.concurrent.ExecutionContext.global)
 
   override def didChange(params: DidChangeTextDocumentParams): Unit =
@@ -99,6 +99,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def didClose(params: DidCloseTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
     documents.remove(uri)
+    metals.closeDoc(uri)
     if client != null then client.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList()))
 
   override def didSave(params: DidSaveTextDocumentParams): Unit =
@@ -107,7 +108,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
     documents(uri) = text
     scala.concurrent.Future {
-      fullValidate(uri, text)
+      scala.concurrent.blocking { fullValidate(uri, text) }
     }(scala.concurrent.ExecutionContext.global)
 
   /** Returns a hover tooltip describing the section the cursor is in. */

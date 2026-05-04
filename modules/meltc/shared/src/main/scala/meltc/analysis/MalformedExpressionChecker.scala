@@ -23,8 +23,6 @@ import meltc.CompileError
   */
 object MalformedExpressionChecker:
 
-  private val htmlClosingTagPattern = "</".r
-
   def check(ast: MeltFile, filename: String): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
     ast.template.foreach(node => walk(node, errors, filename))
@@ -58,6 +56,20 @@ object MalformedExpressionChecker:
     case TemplateNode.DynamicElement(_, _, children) =>
       children.foreach(c => walk(c, errors, filename))
 
+    case TemplateNode.SnippetDef(_, _, children) =>
+      children.foreach(c => walk(c, errors, filename))
+
+    case TemplateNode.KeyBlock(_, children) =>
+      children.foreach(c => walk(c, errors, filename))
+
+    case TemplateNode.Boundary(_, children, pending, failed) =>
+      children.foreach(c => walk(c, errors, filename))
+      pending.foreach(_.children.foreach(c => walk(c, errors, filename)))
+      failed.foreach(_.children.foreach(c => walk(c, errors, filename)))
+
+    case TemplateNode.RenderCall(expr) =>
+      if containsHtmlClosingTag(expr) then errors += malformedError(filename)
+
     case _ => ()
 
   /** Returns true if `code` contains `</` outside of string literals. */
@@ -67,9 +79,10 @@ object MalformedExpressionChecker:
   private def containsHtmlClosingTagInStripped(code: String): Boolean =
     code.contains("</")
 
-  /** Replaces the contents of string literals with spaces so that `</`
-    * inside a string (e.g. `"</span>"`) does not trigger a false positive.
-    * Handles both `"..."` and `"""..."""` (triple-quoted) forms.
+  /** Replaces the contents of string literals and comments with spaces so that
+    * `</` inside a string (e.g. `"</span>"`) or comment (e.g. `// </div>`) does
+    * not trigger a false positive.
+    * Handles `"..."`, `"""..."""` (triple-quoted), `//` line comments, and `/* */` block comments.
     */
   private def stripStringLiterals(src: String): String =
     val sb  = StringBuilder(src.length)
@@ -100,6 +113,26 @@ object MalformedExpressionChecker:
           else if src(i) == '"' then
             sb.append('"')
             i += 1
+            closed = true
+          else
+            sb.append(' ')
+            i += 1
+      else if i + 1 < len && src(i) == '/' && src(i + 1) == '/' then
+        // Line comment — skip to end of line
+        sb.append("//")
+        i += 2
+        while i < len && src(i) != '\n' do
+          sb.append(' ')
+          i += 1
+      else if i + 1 < len && src(i) == '/' && src(i + 1) == '*' then
+        // Block comment — skip to */
+        sb.append("/*")
+        i += 2
+        var closed = false
+        while i < len && !closed do
+          if i + 1 < len && src(i) == '*' && src(i + 1) == '/' then
+            sb.append("*/")
+            i += 2
             closed = true
           else
             sb.append(' ')

@@ -8,6 +8,7 @@ package meltc.sbt
 
 import java.io.File
 import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 
 import xsbti.Position
 
@@ -26,6 +27,13 @@ import xsbti.Position
   */
 object MeltSourceMap {
 
+  /** Cache keyed by (file, lastModified) to avoid re-reading the same generated
+    * `.scala` file for every error reported by scalac in a single compilation.
+    * The lastModified timestamp invalidates stale entries across recompilations.
+    */
+  private val cache =
+    new ConcurrentHashMap[(File, Long), Option[MeltGeneratedSource.Meta]]()
+
   /** Maps a scalac position in a generated `.scala` file to the corresponding
     * position in the original `.melt` file.
     *
@@ -42,7 +50,17 @@ object MeltSourceMap {
       val genFile = pos.sourceFile().get()
       if (!genFile.getName.endsWith(".scala")) None
       else {
-        MeltGeneratedSource.read(genFile) match {
+        val cacheKey = (genFile, genFile.lastModified())
+        val meta = {
+          val cached = cache.get(cacheKey)
+          if (cached != null) cached
+          else {
+            val result = MeltGeneratedSource.read(genFile)
+            cache.put(cacheKey, result)
+            result
+          }
+        }
+        meta match {
           case None       => None
           case Some(meta) =>
             val meltFile = new File(meta.sourcePath)

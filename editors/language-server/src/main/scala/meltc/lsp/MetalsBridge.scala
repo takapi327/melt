@@ -92,6 +92,16 @@ class MetalsBridge:
       case None      => false
       case Some(cmd) => tryStart(cmd)
 
+  /** Removes the virtual doc entry for a closed .melt file.
+    *
+    * Called when the editor sends `textDocument/didClose` for a .melt URI.
+    * Clears the persistent [[openDocs]] entry so that if the file is reopened
+    * later a fresh `didOpen` is sent to Metals rather than a stale `didChange`.
+    */
+  def closeDoc(meltUri: String): Unit =
+    openDocs.remove(meltUri)
+    ()
+
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
   def shutdown(): Unit =
     Try { metalsServer.foreach(_.shutdown().get(5, TimeUnit.SECONDS)) }
@@ -195,7 +205,11 @@ class MetalsBridge:
         Try {
           val virtualUri = toVirtualUri(meltUri)
 
-          // Register the promise BEFORE syncing to avoid the race where the debounce
+          // Cancel any existing promise for the same URI (e.g. from a concurrent save)
+          // to prevent it blocking for the full timeout after being overwritten.
+          Option(pendingDiagFutures.get(virtualUri)).foreach(_.cancel(false))
+
+          // Register the new promise BEFORE syncing to avoid the race where the debounce
           // fires (from a previous compilation) before we start waiting.
           val promise = CompletableFuture[List[Diagnostic]]()
           pendingDiagFutures.put(virtualUri, promise)
