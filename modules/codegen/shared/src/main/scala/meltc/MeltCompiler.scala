@@ -94,7 +94,7 @@ object MeltCompiler:
               CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
             case Right(processedStyle) =>
               val processedAst = ast.copy(style = processedStyle)
-              val code = codegen.generate(
+              val code         = codegen.generate(
                 processedAst,
                 objectName,
                 pkg,

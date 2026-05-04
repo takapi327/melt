@@ -50,10 +50,10 @@ object SsrCodeGen extends CodeGen:
     pkg:               String,
     scopeId:           String,
     hydration:         Boolean = false,
-    sourcePath:        String  = "",
-    scriptBodyLine:    Int     = 1,
-    templateStartLine: Int     = 1,
-    templateSource:    String  = ""
+    sourcePath:        String = "",
+    scriptBodyLine:    Int = 1,
+    templateStartLine: Int = 1,
+    templateSource:    String = ""
   ): String =
     val _       = hydration
     val tracker = new LineTracker
@@ -144,7 +144,7 @@ object SsrCodeGen extends CodeGen:
 
     // ── Source-map metadata block ─────────────────────────────────────────────
     val linesStr = tracker.linesMetadata()
-    val meta =
+    val meta     =
       if sourcePath.nonEmpty && linesStr.nonEmpty then
         s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $sourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
       else ""
@@ -567,7 +567,7 @@ object SsrCodeGen extends CodeGen:
       // Emit children as multi-line lambda so each node gets its own generated
       // line and markSourceLine can map it back to the original .melt source.
       val propsStr = if args.nonEmpty then s"$name.Props(${ args.mkString(", ") }), " else ""
-      buf ++= s"${ pad }renderer.merge($name(${propsStr}children = () => {\n"
+      buf ++= s"${ pad }renderer.merge($name(${ propsStr }children = () => {\n"
       buf ++= s"${ pad }  val _sb = new StringBuilder\n"
       childNodes.foreach(c => emitNodeToSb(c, buf, s"$pad  ", scopeId, nodeLineOf))
       buf ++= s"${ pad }  RenderResult(_sb.toString, \"\")\n"
@@ -909,15 +909,13 @@ object SsrCodeGen extends CodeGen:
     node match
       case TemplateNode.Text(content) =>
         val escaped = escapeString(htmlEscapeLiteral(content))
-        if escaped.nonEmpty then buf ++= s"""${pad}_sb ++= "$escaped"\n"""
+        if escaped.nonEmpty then buf ++= s"""${ pad }_sb ++= "$escaped"\n"""
 
       case TemplateNode.Expression(code) =>
         if code.trim == "children" then
-          buf ++= s"""${pad}{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"""
-        else if code.trim.contains("TrustedHtml") then
-          buf ++= s"""${pad}_sb ++= ($code).value\n"""
-        else
-          buf ++= s"""${pad}_sb ++= Escape.html($code)\n"""
+          buf ++= s"""${ pad }{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"""
+        else if code.trim.contains("TrustedHtml") then buf ++= s"""${ pad }_sb ++= ($code).value\n"""
+        else buf ++= s"""${ pad }_sb ++= Escape.html($code)\n"""
 
       case TemplateNode.Element(tag, attrs, children) =>
         // Build opening tag (with all attributes) as a single line, then recurse
@@ -932,7 +930,7 @@ object SsrCodeGen extends CodeGen:
           val condParts = classBindings.map { case (n, e) => s"""(if ($e) " $n" else "")""" }.mkString(" + ")
           open ++= s"""; _sb ++= " class=\\"${ escapeString(baseClass) }" + $condParts + "\\""; """
         attrs.foreach {
-          case Attr.Static("class", _) => ()
+          case Attr.Static("class", _)  => ()
           case Attr.Static(name, value) =>
             val lit = escapeString(s""" $name=\"${ htmlAttrEscapeLiteral(value) }\"""")
             open ++= s"""; _sb ++= "$lit""""
@@ -950,16 +948,16 @@ object SsrCodeGen extends CodeGen:
           case _ => ()
         }
         open ++= s"""; _sb ++= ">""""
-        buf ++= s"$pad${open.toString}\n"
+        buf ++= s"$pad${ open.toString }\n"
         children.foreach(c => emitNodeToSb(c, buf, pad, scopeId, nodeLineOf))
-        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}_sb ++= "</$tag>"\n"""
+        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }_sb ++= "</$tag>"\n"""
 
       case _ =>
         // Fall back to inline style for Component, InlineTemplate, etc.
         val nodeSb = new StringBuilder
         appendNodeToSb(node, nodeSb, scopeId)
         val inline = nodeSb.toString
-        if inline.nonEmpty then buf ++= s"$pad${inline.stripSuffix("; ")}\n"
+        if inline.nonEmpty then buf ++= s"$pad${ inline.stripSuffix("; ") }\n"
 
   /** Returns `true` if `nodes` (or any of their descendants) contain
     * `{children}` — i.e. a [[TemplateNode.Expression]] whose code is

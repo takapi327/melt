@@ -43,7 +43,7 @@ object MeltSourceMap {
       if (!genFile.getName.endsWith(".scala")) None
       else {
         MeltGeneratedSource.read(genFile) match {
-          case None => None
+          case None       => None
           case Some(meta) =>
             val meltFile = new File(meta.sourcePath)
             if (!meltFile.exists()) None
@@ -66,11 +66,11 @@ object MeltSourceMap {
     new xsbti.Position {
       override def line(): Optional[Integer] =
         Optional.of(srcLine.asInstanceOf[Integer])
-      override def lineContent(): String               = ""
-      override def offset(): Optional[Integer]         = Optional.empty()
-      override def pointer(): Optional[Integer]        = Optional.empty()
-      override def pointerSpace(): Optional[String]    = Optional.empty()
-      override def sourcePath(): Optional[String]      = Optional.of(file.getAbsolutePath)
-      override def sourceFile(): Optional[java.io.File] = Optional.of(file)
+      override def lineContent():  String                 = ""
+      override def offset():       Optional[Integer]      = Optional.empty()
+      override def pointer():      Optional[Integer]      = Optional.empty()
+      override def pointerSpace(): Optional[String]       = Optional.empty()
+      override def sourcePath():   Optional[String]       = Optional.of(file.getAbsolutePath)
+      override def sourceFile():   Optional[java.io.File] = Optional.of(file)
     }
 }

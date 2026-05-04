@@ -36,14 +36,12 @@ object MalformedExpressionChecker:
     filename: String
   ): Unit = node match
     case TemplateNode.Expression(code) =>
-      if containsHtmlClosingTag(code) then
-        errors += malformedError(filename)
+      if containsHtmlClosingTag(code) then errors += malformedError(filename)
 
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
         case InlineTemplatePart.Code(code) =>
-          if containsHtmlClosingTag(code) then
-            errors += malformedError(filename)
+          if containsHtmlClosingTag(code) then errors += malformedError(filename)
         case InlineTemplatePart.Html(nodes) =>
           nodes.foreach(n => walk(n, errors, filename))
       }
@@ -113,10 +111,9 @@ object MalformedExpressionChecker:
 
   private def malformedError(filename: String): CompileError =
     CompileError(
-      message =
-        "Template expression contains a raw HTML closing tag ('</'), which usually means " +
-          "a `{` in your template is missing its closing `}`. " +
-          "Check that every `{...}` expression has a matching `}`.",
+      message = "Template expression contains a raw HTML closing tag ('</'), which usually means " +
+        "a `{` in your template is missing its closing `}`. " +
+        "Check that every `{...}` expression has a matching `}`.",
       line     = 0,
       column   = 0,
       filename = filename

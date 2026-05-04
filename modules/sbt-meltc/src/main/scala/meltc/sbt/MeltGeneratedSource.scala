@@ -30,7 +30,7 @@ object MeltGeneratedSource {
   /** Parsed metadata from the `-- MELT GENERATED --` block. */
   final case class Meta(
     sourcePath: String,
-    lines:      IndexedSeq[(Int, Int)]  // (generatedLine, sourceLine), ascending
+    lines:      IndexedSeq[(Int, Int)] // (generatedLine, sourceLine), ascending
   )
 
   private val BlockStart = "-- MELT GENERATED --"
@@ -80,18 +80,21 @@ object MeltGeneratedSource {
         val raw      = if (end < 0) afterKey.trim else afterKey.substring(0, end).trim
         if (raw.isEmpty) IndexedSeq.empty
         else
-          raw.split('|').flatMap { pair =>
-            val arrow = pair.indexOf("->")
-            if (arrow < 0) None
-            else
-              try {
-                val gen = pair.substring(0, arrow).trim.toInt
-                val src = pair.substring(arrow + 2).trim.toInt
-                Some((gen, src))
-              } catch {
-                case _: NumberFormatException => None
-              }
-          }.toIndexedSeq
+          raw
+            .split('|')
+            .flatMap { pair =>
+              val arrow = pair.indexOf("->")
+              if (arrow < 0) None
+              else
+                try {
+                  val gen = pair.substring(0, arrow).trim.toInt
+                  val src = pair.substring(arrow + 2).trim.toInt
+                  Some((gen, src))
+                } catch {
+                  case _: NumberFormatException => None
+                }
+            }
+            .toIndexedSeq
       }
     }
 
@@ -119,7 +122,7 @@ object MeltGeneratedSource {
       val mid = (lo + hi) >>> 1
       if (entries(mid)._1 <= generatedLine) {
         result = Some(entries(mid))
-        lo = mid + 1
+        lo     = mid + 1
       } else {
         hi = mid - 1
       }

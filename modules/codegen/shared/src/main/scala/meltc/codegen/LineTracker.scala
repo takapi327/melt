@@ -46,10 +46,8 @@ final class LineTracker:
     */
   def markSourceLine(sourceLine: Int): Unit =
     if sourceLine <= 0 then return
-    if entries.nonEmpty && entries.last._1 == currentLine then
-      entries(entries.length - 1) = (currentLine, sourceLine)
-    else
-      entries += ((currentLine, sourceLine))
+    if entries.nonEmpty && entries.last._1 == currentLine then entries(entries.length - 1) = (currentLine, sourceLine)
+    else entries += ((currentLine, sourceLine))
 
   /** Returns the accumulated source string. */
   def result(): String = buf.result()

@@ -67,8 +67,8 @@ trait CodeGen:
     pkg:               String,
     scopeId:           String,
     hydration:         Boolean = false,
-    sourcePath:        String  = "",
-    scriptBodyLine:    Int     = 1,
-    templateStartLine: Int     = 1,
-    templateSource:    String  = ""
+    sourcePath:        String = "",
+    scriptBodyLine:    Int = 1,
+    templateStartLine: Int = 1,
+    templateSource:    String = ""
   ): String
