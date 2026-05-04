@@ -7,8 +7,8 @@
 package meltc.sbt
 
 import java.io.File
-import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Optional
 
 import xsbti.Position
 
@@ -51,7 +51,7 @@ object MeltSourceMap {
       if (!genFile.getName.endsWith(".scala")) None
       else {
         val cacheKey = (genFile, genFile.lastModified())
-        val meta = {
+        val meta     = {
           val cached = cache.get(cacheKey)
           if (cached != null) cached
           else {
