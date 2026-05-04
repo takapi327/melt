@@ -45,28 +45,32 @@ object SsrCodeGen extends CodeGen:
     SpaCodeGen.scopeIdFor(objectName, filePath)
 
   def generate(
-    ast:        MeltFile,
-    objectName: String,
-    pkg:        String,
-    scopeId:    String,
-    hydration:  Boolean = false
+    ast:               MeltFile,
+    objectName:        String,
+    pkg:               String,
+    scopeId:           String,
+    hydration:         Boolean = false,
+    sourcePath:        String  = "",
+    scriptBodyLine:    Int     = 1,
+    templateStartLine: Int     = 1,
+    templateSource:    String  = ""
   ): String =
-    val _   = hydration
-    val buf = new StringBuilder
-    if pkg.nonEmpty then buf ++= s"package $pkg\n\n"
+    val _       = hydration
+    val tracker = new LineTracker
+    if pkg.nonEmpty then tracker ++= s"package $pkg\n\n"
 
-    buf ++= "import scala.language.implicitConversions\n"
-    buf ++= "import melt.runtime.*\n"
-    if ast.script.flatMap(_.propsType).isDefined then buf ++= "import melt.runtime.json.PropsCodec\n"
-    buf ++= "import melt.runtime.render.*\n\n"
+    tracker ++= "import scala.language.implicitConversions\n"
+    tracker ++= "import melt.runtime.*\n"
+    if ast.script.flatMap(_.propsType).isDefined then tracker ++= "import melt.runtime.json.PropsCodec\n"
+    tracker ++= "import melt.runtime.render.*\n\n"
 
-    buf ++= s"object $objectName {\n\n"
-    buf ++= s"""  private val _scopeId = "$scopeId"\n\n"""
+    tracker ++= s"object $objectName {\n\n"
+    tracker ++= s"""  private val _scopeId = "$scopeId"\n\n"""
 
     val hasCss = ast.style.isDefined
     ast.style.foreach { s =>
       val scoped = CssScoper.scope(s.content, scopeId)
-      buf ++= s"""  private val _css =\n    "${ escapeString(scoped) }"\n\n"""
+      tracker ++= s"""  private val _css =\n    "${ escapeString(scoped) }"\n\n"""
     }
 
     val propsType = ast.script.flatMap(_.propsType)
@@ -76,9 +80,9 @@ object SsrCodeGen extends CodeGen:
     val (typeDecls, scriptBodyRest) = splitTypeDecls(scriptBody)
     typeDecls.foreach { decl =>
       decl.linesIterator.foreach { line =>
-        buf ++= "  " + line + "\n"
+        tracker ++= "  " + line + "\n"
       }
-      buf ++= "\n"
+      tracker ++= "\n"
     }
 
     // When the user chose a type name other than "Props", generate a
@@ -88,70 +92,88 @@ object SsrCodeGen extends CodeGen:
       val baseName = extractBaseName(typeName)
       if baseName != "Props" then
         val tp = extractTypeParams(typeName)
-        buf ++= s"  val Props = $baseName\n"
-        if tp.nonEmpty then buf ++= s"  type Props$tp = $typeName\n"
-        else buf ++= s"  type Props = $baseName\n"
-        buf += '\n'
+        tracker ++= s"  val Props = $baseName\n"
+        if tp.nonEmpty then tracker ++= s"  type Props$tp = $typeName\n"
+        else tracker ++= s"  type Props = $baseName\n"
+        tracker += '\n'
     }
 
     propsType.foreach { tpe =>
       if extractTypeParams(tpe).isEmpty then // skip for generic — PropsCodec.derived doesn't support type params
-        buf ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
+        tracker ++= s"  private val _propsCodec: PropsCodec[$tpe] = PropsCodec.derived\n\n"
     }
 
     val _tp         = propsType.map(extractTypeParams).getOrElse("")
     val hasChildren = hasChildrenRef(ast.template)
-    buf ++= s"  def apply$_tp(${ renderParams(propsType, hasChildren) }): RenderResult = {\n"
-    buf ++= "    val renderer = ServerRenderer()\n"
+    tracker ++= s"  def apply$_tp(${ renderParams(propsType, hasChildren) }): RenderResult = {\n"
+    tracker ++= "    val renderer = ServerRenderer()\n"
     val moduleId = kebabCase(objectName)
-    buf ++= s"""    renderer.trackComponent("$moduleId")\n"""
+    tracker ++= s"""    renderer.trackComponent("$moduleId")\n"""
     if propsType.exists(extractTypeParams(_).isEmpty) then
-      buf ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
-    if hasCss then buf ++= "    renderer.css.add(_scopeId, _css)\n"
-    buf ++= "\n"
+      tracker ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
+    if hasCss then tracker ++= "    renderer.css.add(_scopeId, _css)\n"
+    tracker ++= "\n"
 
+    // ── Script body section — mark source line for position mapping ─────────
     if scriptBodyRest.nonEmpty then
-      buf ++= "    // ── User script section ──\n"
+      tracker ++= "    // ── User script section ──\n"
+      tracker.markSourceLine(scriptBodyLine)
       scriptBodyRest.linesIterator.foreach { line =>
-        if line.trim.isEmpty then buf ++= "\n"
-        else buf ++= s"    $line\n"
+        if line.trim.isEmpty then tracker ++= "\n"
+        else tracker ++= s"    $line\n"
       }
-      buf ++= "\n"
+      tracker ++= "\n"
 
-    buf ++= s"""    renderer.push(HydrationMarkers.open("$moduleId"))\n"""
+    tracker ++= s"""    renderer.push(HydrationMarkers.open("$moduleId"))\n"""
 
-    buf ++= "    // ── Template ──\n"
-    ast.template.foreach(node => emitNode(node, buf, indent = 4, scopeId))
+    // ── Template section — emit directly into tracker with per-node line marks ─
+    // nodeLineOf converts a node's _pos (offset in the template source string) to
+    // the corresponding 1-based line number in the original .melt file.
+    val nodeLineOf: TemplateNode => Int = node =>
+      if node._pos <= 0 || templateSource.isEmpty then templateStartLine
+      else templateStartLine + templateSource.take(node._pos).count(_ == '\n')
 
-    buf ++= s"""    renderer.push(HydrationMarkers.close("$moduleId"))\n"""
+    tracker ++= "    // ── Template ──\n"
+    ast.template.foreach(node => emitNode(node, tracker, indent = 4, scopeId, nodeLineOf = nodeLineOf))
 
-    buf ++= "\n    renderer.result()\n"
-    buf ++= "  }\n"
-    buf ++= "}\n"
+    tracker ++= s"""    renderer.push(HydrationMarkers.close("$moduleId"))\n"""
 
-    buf.toString
+    tracker ++= "\n    renderer.result()\n"
+    tracker ++= "  }\n"
+    tracker ++= "}\n"
+
+    // ── Source-map metadata block ─────────────────────────────────────────────
+    val linesStr = tracker.linesMetadata()
+    val meta =
+      if sourcePath.nonEmpty && linesStr.nonEmpty then
+        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $sourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
+      else ""
+
+    tracker.result() + meta
 
   private def emitNode(
     node:           TemplateNode,
-    buf:            StringBuilder,
+    buf:            LineTracker,
     indent:         Int,
     scopeId:        String,
-    selectBindExpr: Option[String] = None
+    selectBindExpr: Option[String] = None,
+    nodeLineOf:     TemplateNode => Int = _ => 1
   ): Unit =
+    buf.markSourceLine(nodeLineOf(node))
     val pad = " " * indent
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         tag.toLowerCase match
           case "textarea" if hasBindValue(attrs) =>
-            emitTextareaBindValue(attrs, children, buf, indent, scopeId)
+            emitTextareaBindValue(attrs, children, buf, indent, scopeId, nodeLineOf)
           case "select" if hasBindValue(attrs) =>
-            emitSelectBindValue(tag, attrs, children, buf, indent, scopeId)
+            emitSelectBindValue(tag, attrs, children, buf, indent, scopeId, nodeLineOf)
           case "input" if hasBindGroup(attrs) =>
             emitInputBindGroup(attrs, buf, indent, scopeId)
           case _ if hasBindInnerHtml(attrs) || hasBindTextContent(attrs) =>
             emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
           case _ =>
-            emitGenericElement(tag, attrs, children, buf, indent, scopeId, selectBindExpr)
+            emitGenericElement(tag, attrs, children, buf, indent, scopeId, selectBindExpr, nodeLineOf)
 
       case TemplateNode.Text(content) =>
         val escaped = htmlEscapeLiteral(content)
@@ -161,10 +183,10 @@ object SsrCodeGen extends CodeGen:
         emitExpression(code, buf, indent, scopeId)
 
       case TemplateNode.Component(name, attrs, childNodes) =>
-        emitComponentCall(name, attrs, buf, indent, childNodes, scopeId)
+        emitComponentCall(name, attrs, buf, indent, childNodes, scopeId, nodeLineOf)
 
       case TemplateNode.Head(children) =>
-        children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
+        children.foreach(c => emitHeadNode(c, buf, indent, scopeId, nodeLineOf))
 
       case TemplateNode.Window(_) | TemplateNode.Body(_) | TemplateNode.Document(_) =>
         ()
@@ -176,10 +198,10 @@ object SsrCodeGen extends CodeGen:
         buf ++= s"${ pad }// TODO(SSR Phase C): DynamicElement\n"
 
       case TemplateNode.Boundary(_, children, _, _) =>
-        children.foreach(c => emitNode(c, buf, indent, scopeId))
+        children.foreach(c => emitNode(c, buf, indent, scopeId, nodeLineOf = nodeLineOf))
 
       case TemplateNode.KeyBlock(_, children) =>
-        children.foreach(c => emitNode(c, buf, indent, scopeId))
+        children.foreach(c => emitNode(c, buf, indent, scopeId, nodeLineOf = nodeLineOf))
 
       case TemplateNode.SnippetDef(_, _, _) => () // SSR: snippets not yet supported
 
@@ -195,10 +217,11 @@ object SsrCodeGen extends CodeGen:
     tag:            String,
     attrs:          List[Attr],
     children:       List[TemplateNode],
-    buf:            StringBuilder,
+    buf:            LineTracker,
     indent:         Int,
     scopeId:        String,
-    selectBindExpr: Option[String]
+    selectBindExpr: Option[String],
+    nodeLineOf:     TemplateNode => Int = _ => 1
   ): Unit =
     val pad = " " * indent
 
@@ -213,7 +236,7 @@ object SsrCodeGen extends CodeGen:
     if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
       buf ++= s"""${ pad }renderer.push(">")\n"""
-      children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr))
+      children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr, nodeLineOf))
       buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   /** Returns a Scala expression (as a string) for the `value` of an
@@ -258,11 +281,12 @@ object SsrCodeGen extends CodeGen:
     * browsers populate a textarea's displayed text.
     */
   private def emitTextareaBindValue(
-    attrs:    List[Attr],
-    children: List[TemplateNode],
-    buf:      StringBuilder,
-    indent:   Int,
-    scopeId:  String
+    attrs:      List[Attr],
+    children:   List[TemplateNode],
+    buf:        LineTracker,
+    indent:     Int,
+    scopeId:    String,
+    nodeLineOf: TemplateNode => Int = _ => 1
   ): Unit =
     val pad      = " " * indent
     val bindExpr = attrs
@@ -278,7 +302,7 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart("textarea", restAttrs, buf, indent, scopeId)
     buf ++= s"""${ pad }renderer.push(">")\n"""
-    children.foreach(c => emitNode(c, buf, indent, scopeId))
+    children.foreach(c => emitNode(c, buf, indent, scopeId, nodeLineOf = nodeLineOf))
     buf ++= s"""${ pad }renderer.push(Escape.html($bindExpr))\n"""
     buf ++= s"""${ pad }renderer.push("</textarea>")\n"""
 
@@ -290,12 +314,13 @@ object SsrCodeGen extends CodeGen:
     * so that `emitGenericElement` adds the comparison for each option.
     */
   private def emitSelectBindValue(
-    tag:      String,
-    attrs:    List[Attr],
-    children: List[TemplateNode],
-    buf:      StringBuilder,
-    indent:   Int,
-    scopeId:  String
+    tag:        String,
+    attrs:      List[Attr],
+    children:   List[TemplateNode],
+    buf:        LineTracker,
+    indent:     Int,
+    scopeId:    String,
+    nodeLineOf: TemplateNode => Int = _ => 1
   ): Unit =
     val pad      = " " * indent
     val bindExpr = attrs
@@ -311,7 +336,7 @@ object SsrCodeGen extends CodeGen:
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
     buf ++= s"""${ pad }renderer.push(">")\n"""
-    children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr = Some(bindExpr)))
+    children.foreach(c => emitNode(c, buf, indent, scopeId, selectBindExpr = Some(bindExpr), nodeLineOf = nodeLineOf))
     buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   /** `<input type="radio|checkbox" bind:group={arr|single}>` — SSR.
@@ -327,7 +352,7 @@ object SsrCodeGen extends CodeGen:
     */
   private def emitInputBindGroup(
     attrs:   List[Attr],
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -379,7 +404,7 @@ object SsrCodeGen extends CodeGen:
   private def emitElementWithBindContent(
     tag:     String,
     attrs:   List[Attr],
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -421,7 +446,7 @@ object SsrCodeGen extends CodeGen:
   private def emitElementStart(
     tag:     String,
     attrs:   List[Attr],
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -438,7 +463,7 @@ object SsrCodeGen extends CodeGen:
   private def emitScopedClassAttr(
     tag:     String,
     attrs:   List[Attr],
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -465,7 +490,7 @@ object SsrCodeGen extends CodeGen:
   private def emitAttr(
     tag:    String,
     attr:   Attr,
-    buf:    StringBuilder,
+    buf:    LineTracker,
     indent: Int
   ): Unit =
     val pad = " " * indent
@@ -511,14 +536,20 @@ object SsrCodeGen extends CodeGen:
           case _ =>
             ()
 
-  /** Emits a `<Child ... />` component invocation. */
+  /** Emits a `<Child ... />` component invocation.
+    *
+    * When `childNodes` is non-empty the children lambda is emitted as
+    * multi-line code so that [[LineTracker.markSourceLine]] calls inside
+    * [[emitNodeToSb]] can produce one LINES entry per node.
+    */
   private def emitComponentCall(
     name:       String,
     attrs:      List[Attr],
-    buf:        StringBuilder,
+    buf:        LineTracker,
     indent:     Int,
     childNodes: List[TemplateNode] = Nil,
-    scopeId:    String = ""
+    scopeId:    String = "",
+    nodeLineOf: TemplateNode => Int = _ => 1
   ): Unit =
     val pad  = " " * indent
     val args = attrs.flatMap {
@@ -529,14 +560,18 @@ object SsrCodeGen extends CodeGen:
       case _                  => None
     }
 
-    val childrenArg: Option[String] =
-      if childNodes.nonEmpty then Some(s"children = ${ buildSsrChildrenLambdaExpr(childNodes, scopeId) }")
-      else None
-
-    if args.isEmpty && childrenArg.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
-    else if args.isEmpty then buf ++= s"${ pad }renderer.merge($name(${ childrenArg.get }))\n"
-    else if childrenArg.isEmpty then buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
-    else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") }), ${ childrenArg.get }))\n"
+    if childNodes.isEmpty then
+      if args.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
+      else buf ++= s"${ pad }renderer.merge($name($name.Props(${ args.mkString(", ") })))\n"
+    else
+      // Emit children as multi-line lambda so each node gets its own generated
+      // line and markSourceLine can map it back to the original .melt source.
+      val propsStr = if args.nonEmpty then s"$name.Props(${ args.mkString(", ") }), " else ""
+      buf ++= s"${ pad }renderer.merge($name(${propsStr}children = () => {\n"
+      buf ++= s"${ pad }  val _sb = new StringBuilder\n"
+      childNodes.foreach(c => emitNodeToSb(c, buf, s"$pad  ", scopeId, nodeLineOf))
+      buf ++= s"${ pad }  RenderResult(_sb.toString, \"\")\n"
+      buf ++= s"${ pad }}))\n"
 
   /** Emits a `TemplateNode.Expression`.
     *
@@ -554,7 +589,7 @@ object SsrCodeGen extends CodeGen:
     */
   private def emitExpression(
     code:    String,
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -585,7 +620,7 @@ object SsrCodeGen extends CodeGen:
     */
   private def emitInlineTemplate(
     parts:   List[InlineTemplatePart],
-    buf:     StringBuilder,
+    buf:     LineTracker,
     indent:  Int,
     scopeId: String
   ): Unit =
@@ -753,10 +788,11 @@ object SsrCodeGen extends CodeGen:
     * in `renderer.head` rather than the body buffer.
     */
   private def emitHeadNode(
-    node:    TemplateNode,
-    buf:     StringBuilder,
-    indent:  Int,
-    scopeId: String
+    node:       TemplateNode,
+    buf:        LineTracker,
+    indent:     Int,
+    scopeId:    String,
+    nodeLineOf: TemplateNode => Int = _ => 1
   ): Unit =
     val pad = " " * indent
     node match
@@ -785,7 +821,7 @@ object SsrCodeGen extends CodeGen:
         if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.head.push(">")\n"""
         else
           buf ++= s"""${ pad }renderer.head.push(">")\n"""
-          children.foreach(c => emitHeadNode(c, buf, indent, scopeId))
+          children.foreach(c => emitHeadNode(c, buf, indent, scopeId, nodeLineOf))
           buf ++= s"""${ pad }renderer.head.push("</$tag>")\n"""
 
       case TemplateNode.Text(content) =>
@@ -852,6 +888,78 @@ object SsrCodeGen extends CodeGen:
     childNodes.foreach(n => appendNodeToSb(n, sb, scopeId))
     sb ++= "RenderResult(_sb.toString, \"\") }"
     sb.toString
+
+  /** Emits a single template node into `buf` as `_sb ++=` statements, one per
+    * generated line, calling [[LineTracker.markSourceLine]] before each node so
+    * that the source-map `LINES:` field contains per-node entries.
+    *
+    * Used inside component children lambdas emitted by [[emitComponentCall]].
+    * For node types that are complex to expand (Component, InlineTemplate, …),
+    * the method falls back to the [[appendNodeToSb]] inline style so that
+    * correctness is preserved even if per-node granularity is lost.
+    */
+  private def emitNodeToSb(
+    node:       TemplateNode,
+    buf:        LineTracker,
+    pad:        String,
+    scopeId:    String,
+    nodeLineOf: TemplateNode => Int
+  ): Unit =
+    buf.markSourceLine(nodeLineOf(node))
+    node match
+      case TemplateNode.Text(content) =>
+        val escaped = escapeString(htmlEscapeLiteral(content))
+        if escaped.nonEmpty then buf ++= s"""${pad}_sb ++= "$escaped"\n"""
+
+      case TemplateNode.Expression(code) =>
+        if code.trim == "children" then
+          buf ++= s"""${pad}{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"""
+        else if code.trim.contains("TrustedHtml") then
+          buf ++= s"""${pad}_sb ++= ($code).value\n"""
+        else
+          buf ++= s"""${pad}_sb ++= Escape.html($code)\n"""
+
+      case TemplateNode.Element(tag, attrs, children) =>
+        // Build opening tag (with all attributes) as a single line, then recurse
+        // into children so each gets its own line and source-map entry.
+        val open          = new StringBuilder
+        val staticClass   = attrs.collectFirst { case Attr.Static("class", v) => v }
+        val classBindings = attrs.collect { case Attr.Directive("class", name, Some(expr), _) => (name, expr) }
+        val baseClass     = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
+        open ++= s"""_sb ++= "<$tag""""
+        if classBindings.isEmpty then open ++= s"""; _sb ++= " class=\\"${ escapeString(baseClass) }\\""; """
+        else
+          val condParts = classBindings.map { case (n, e) => s"""(if ($e) " $n" else "")""" }.mkString(" + ")
+          open ++= s"""; _sb ++= " class=\\"${ escapeString(baseClass) }" + $condParts + "\\""; """
+        attrs.foreach {
+          case Attr.Static("class", _) => ()
+          case Attr.Static(name, value) =>
+            val lit = escapeString(s""" $name=\"${ htmlAttrEscapeLiteral(value) }\"""")
+            open ++= s"""; _sb ++= "$lit""""
+          case Attr.BooleanAttr(name) =>
+            val lit = escapeString(s" $name")
+            open ++= s"""; _sb ++= "$lit""""
+          case Attr.Dynamic(name, expr) =>
+            if UrlAttributesForCodegen.isUrlAttribute(tag, name) then
+              open ++= s"""; _sb ++= s\" $name=\\\"\" + Escape.url($expr) + \"\\\"\""""
+            else open ++= s"""; _sb ++= s\" $name=\\\"\" + Escape.attr($expr) + \"\\\"\""""
+          case Attr.Shorthand(varName) =>
+            if UrlAttributesForCodegen.isUrlAttribute(tag, varName) then
+              open ++= s"""; _sb ++= s\" $varName=\\\"\" + Escape.url($varName) + \"\\\"\""""
+            else open ++= s"""; _sb ++= s\" $varName=\\\"\" + Escape.attr($varName) + \"\\\"\""""
+          case _ => ()
+        }
+        open ++= s"""; _sb ++= ">""""
+        buf ++= s"$pad${open.toString}\n"
+        children.foreach(c => emitNodeToSb(c, buf, pad, scopeId, nodeLineOf))
+        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}_sb ++= "</$tag>"\n"""
+
+      case _ =>
+        // Fall back to inline style for Component, InlineTemplate, etc.
+        val nodeSb = new StringBuilder
+        appendNodeToSb(node, nodeSb, scopeId)
+        val inline = nodeSb.toString
+        if inline.nonEmpty then buf ++= s"$pad${inline.stripSuffix("; ")}\n"
 
   /** Returns `true` if `nodes` (or any of their descendants) contain
     * `{children}` — i.e. a [[TemplateNode.Expression]] whose code is

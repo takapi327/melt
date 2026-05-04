@@ -405,6 +405,18 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("\"<p\""), code)
   }
 
+  test("element in children lambda has correctly closed class attribute") {
+    // Regression: emitNodeToSb used to produce class=\"value" (missing closing \")
+    val code = compile("""<div><Card><p class="foo">x</p></Card></div>""")
+    // The generated _sb ++= string must close the HTML attribute: class=\"foo scopeId\"
+    // If the closing \" is missing, the string literal would be: " class=\"foo scopeId"
+    // (only one trailing quote instead of two).
+    assert(code.contains("""class=\""""), code)
+    // Verify the attribute value is properly closed: should have \" before the string-close "
+    // i.e., the pattern \\" followed immediately by " closes the attribute
+    assert(code.contains("\\\"\""), code)
+  }
+
   test("component call with props and children generates correct call") {
     val code = compile("""<div><Card title="T"><p>Body</p></Card></div>""")
     assert(code.contains("Card(Card.Props("), code)
