@@ -74,6 +74,12 @@ class MetalsBridge:
   /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
   private val openDocs = ConcurrentHashMap[String, (String, Int)]()
 
+  /** Lock that serialises [[syncVirtualDoc]] calls to prevent TOCTOU races
+    * on the document version counter when completions/definitions and diagnostics
+    * are requested concurrently for the same .melt file.
+    */
+  private val syncLock = new Object
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   /** Attempts to find and start a `metals` binary.
@@ -95,9 +101,9 @@ class MetalsBridge:
     * stale data does not leak into a future re-open.
     */
   def closeDoc(meltUri: String): Unit =
-    openDocs.remove(meltUri)
-    if capturingClient != null then capturingClient.dropUri(toVirtualUri(meltUri))
-    ()
+    Option(openDocs.remove(meltUri)).foreach { case (virtualUri, _) =>
+      if capturingClient != null then capturingClient.dropUri(virtualUri)
+    }
 
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
   def shutdown(): Unit =
@@ -105,12 +111,14 @@ class MetalsBridge:
     Try { metalsServer.foreach(_.exit()) }
     Try { listenerFuture.foreach(_.cancel(true)) }
     Try { metalsProcess.foreach(_.destroyForcibly()) }
-    Try { if capturingClient != null then capturingClient.dropAll() }
+    // Stop the scheduler first so no new debounce tasks fire after we clear the maps.
     Try { if capturingClient != null then capturingClient.shutdownScheduler() }
+    Try { if capturingClient != null then capturingClient.dropAll() }
     openDocs.clear()
-    metalsServer   = None
-    metalsProcess  = None
-    listenerFuture = None
+    metalsServer    = None
+    metalsProcess   = None
+    listenerFuture  = None
+    capturingClient = null.asInstanceOf[CapturingMetalsClient]
 
   // ── Completions ───────────────────────────────────────────────────────────
 
@@ -225,24 +233,32 @@ class MetalsBridge:
     * First call: `textDocument/didOpen` with version 1.
     * Subsequent calls: `textDocument/didChange` with an incremented version.
     * Returns the virtual file URI.
+    *
+    * The entire read-modify-write on [[openDocs]] is serialised by [[syncLock]]
+    * to prevent a TOCTOU race when completions/definitions and diagnostics are
+    * requested concurrently for the same URI: without the lock both callers could
+    * read the same version number and send two `didChange` notifications with
+    * identical version counters, which violates the LSP specification.
     */
   private def syncVirtualDoc(server: LanguageServer, meltUri: String, vf: VirtualFile): String =
-    val virtualUri = toVirtualUri(meltUri)
-    Option(openDocs.get(meltUri)) match
-      case None =>
-        val docItem = TextDocumentItem(virtualUri, "scala", 1, vf.content)
-        server.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
-        openDocs.put(meltUri, (virtualUri, 1))
-      case Some((_, ver)) =>
-        val nextVer      = ver + 1
-        val change       = TextDocumentContentChangeEvent(vf.content)
-        val changeParams = DidChangeTextDocumentParams(
-          VersionedTextDocumentIdentifier(virtualUri, nextVer),
-          List(change).asJava
-        )
-        server.getTextDocumentService.didChange(changeParams)
-        openDocs.put(meltUri, (virtualUri, nextVer))
-    virtualUri
+    syncLock.synchronized {
+      val virtualUri = toVirtualUri(meltUri)
+      Option(openDocs.get(meltUri)) match
+        case None =>
+          val docItem = TextDocumentItem(virtualUri, "scala", 1, vf.content)
+          server.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
+          openDocs.put(meltUri, (virtualUri, 1))
+        case Some((_, ver)) =>
+          val nextVer      = ver + 1
+          val change       = TextDocumentContentChangeEvent(vf.content)
+          val changeParams = DidChangeTextDocumentParams(
+            VersionedTextDocumentIdentifier(virtualUri, nextVer),
+            List(change).asJava
+          )
+          server.getTextDocumentService.didChange(changeParams)
+          openDocs.put(meltUri, (virtualUri, nextVer))
+      virtualUri
+    }
 
   /** Syncs the virtual .scala doc and runs [body] with (server, virtualUri).
     * Returns None if Metals is unavailable or on any exception.
