@@ -54,12 +54,18 @@ object MeltGeneratedSource {
     parse(content)
   }
 
-  /** Parses the source-map block from a generated Scala source string. */
+  /** Parses the source-map block from a generated Scala source string.
+    *
+    * The block is always appended at the end of the file, so we search from
+    * the tail using [[String#lastIndexOf]] to avoid false-positive matches on
+    * user code that happens to contain the sentinel string as a string literal
+    * (e.g. `val s = "-- MELT GENERATED --"`).
+    */
   def parse(content: String): Option[Meta] = {
-    val blockStart = content.indexOf(BlockStart)
-    if (blockStart < 0) return None
-    val blockEnd = content.indexOf(BlockStart, blockStart + BlockStart.length)
+    val blockEnd = content.lastIndexOf(BlockStart)
     if (blockEnd < 0) return None
+    val blockStart = content.lastIndexOf(BlockStart, blockEnd - 1)
+    if (blockStart < 0) return None
 
     val block = content.substring(blockStart, blockEnd + BlockStart.length)
 
