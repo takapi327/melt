@@ -10,6 +10,7 @@ import meltc.analysis.{
   A11yChecker,
   AttrNameChecker,
   BindingContextChecker,
+  MalformedExpressionChecker,
   RawTextInterpolationChecker,
   SecurityChecker,
   TagNameChecker
@@ -58,7 +59,8 @@ object MeltCompiler:
           AttrNameChecker.check(ast, filename) ++
             TagNameChecker.check(ast, filename) ++
             RawTextInterpolationChecker.check(ast, filename) ++
-            BindingContextChecker.check(ast, filename)
+            BindingContextChecker.check(ast, filename) ++
+            MalformedExpressionChecker.check(ast, filename)
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
           case (msg, line) =>
