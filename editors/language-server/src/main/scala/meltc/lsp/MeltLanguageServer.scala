@@ -56,8 +56,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   override def initialize(params: InitializeParams): CompletableFuture[InitializeResult] =
     // Start Metals in the background so initialize() returns immediately.
-    Future(metals.startIfAvailable())
-      .failed
+    Future(metals.startIfAvailable()).failed
       .foreach(e => System.err.println(s"[melt-lsp] Metals startup error: $e"))
 
     // Use TextDocumentSyncOptions (not the bare enum) so that the `save` capability
