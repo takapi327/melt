@@ -74,12 +74,6 @@ class MetalsBridge:
   /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
   private val openDocs = ConcurrentHashMap[String, (String, Int)]()
 
-  /** Pending diagnostics futures keyed by virtualUri.
-    * Registered by [[diagnosticsForScript]] before triggering compilation,
-    * completed by [[CapturingMetalsClient]] when the debounce settles.
-    */
-  private val pendingDiagFutures = ConcurrentHashMap[String, CompletableFuture[List[Diagnostic]]]()
-
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   /** Attempts to find and start a `metals` binary.
@@ -97,9 +91,12 @@ class MetalsBridge:
     * Called when the editor sends `textDocument/didClose` for a .melt URI.
     * Clears the persistent [[openDocs]] entry so that if the file is reopened
     * later a fresh `didOpen` is sent to Metals rather than a stale `didChange`.
+    * Also drops all cached diagnostic state in [[CapturingMetalsClient]] so
+    * stale data does not leak into a future re-open.
     */
   def closeDoc(meltUri: String): Unit =
     openDocs.remove(meltUri)
+    if capturingClient != null then capturingClient.dropUri(toVirtualUri(meltUri))
     ()
 
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
@@ -108,9 +105,9 @@ class MetalsBridge:
     Try { metalsServer.foreach(_.exit()) }
     Try { listenerFuture.foreach(_.cancel(true)) }
     Try { metalsProcess.foreach(_.destroyForcibly()) }
+    Try { if capturingClient != null then capturingClient.dropAll() }
     Try { if capturingClient != null then capturingClient.shutdownScheduler() }
     openDocs.clear()
-    pendingDiagFutures.clear()
     metalsServer   = None
     metalsProcess  = None
     listenerFuture = None
@@ -187,8 +184,11 @@ class MetalsBridge:
     * calls use `didChange`). After the content is synced, the method blocks until
     * [[CapturingMetalsClient]] delivers debounced diagnostics or `timeoutSec` elapses.
     *
-    * The pending future is registered *before* syncing the virtual doc to avoid a race
-    * where Metals sends diagnostics (debounce fires) before the future is registered.
+    * Race-condition handling: the promise is registered via
+    * [[CapturingMetalsClient.expectDiagnostics]], which atomically cancels any
+    * in-flight debounce task for the same URI before storing the promise.
+    * This prevents a debounce from a *previous* compilation completing the
+    * promise for the *current* one with stale diagnostics.
     *
     * @param meltUri    file URI of the .melt document
     * @param vf         [[VirtualFile]] generated from the current .melt source
@@ -204,15 +204,12 @@ class MetalsBridge:
       .map { server =>
         Try {
           val virtualUri = toVirtualUri(meltUri)
+          val promise    = CompletableFuture[List[Diagnostic]]()
 
-          // Cancel any existing promise for the same URI (e.g. from a concurrent save)
-          // to prevent it blocking for the full timeout after being overwritten.
-          Option(pendingDiagFutures.get(virtualUri)).foreach(_.cancel(false))
-
-          // Register the new promise BEFORE syncing to avoid the race where the debounce
-          // fires (from a previous compilation) before we start waiting.
-          val promise = CompletableFuture[List[Diagnostic]]()
-          pendingDiagFutures.put(virtualUri, promise)
+          // expectDiagnostics cancels any pending debounce for this URI *before*
+          // registering the new promise, so an old compilation's debounce cannot
+          // race in and complete the new promise with stale diagnostics.
+          capturingClient.expectDiagnostics(virtualUri, promise)
 
           syncVirtualDoc(server, meltUri, vf)
 
@@ -269,11 +266,7 @@ class MetalsBridge:
         .start()
       metalsProcess = Some(process)
 
-      capturingClient = new CapturingMetalsClient(
-        onDiagnosticsSettled = (virtualUri, diags) => {
-          Option(pendingDiagFutures.remove(virtualUri)).foreach(_.complete(diags))
-        }
-      )
+      capturingClient = new CapturingMetalsClient()
 
       val launcher = LSPLauncher.createClientLauncher(
         capturingClient,
@@ -395,24 +388,29 @@ class MetalsBridge:
 
 /** Captures `publishDiagnostics` notifications from Metals and debounces them.
   *
-  * Metals sends diagnostics multiple times per compilation (initial clear → presentation
-  * compiler result → Bloop result). Debouncing ensures that only the final settled
-  * result is delivered to [[MetalsBridge.diagnosticsForScript]].
+  * Metals sends diagnostics multiple times per compilation (initial clear →
+  * presentation compiler result → Bloop result). Debouncing ensures that only the
+  * final settled result is delivered to [[MetalsBridge.diagnosticsForScript]].
   *
-  * After each `publishDiagnostics` call, any pending debounce task for that URI is
-  * cancelled and a new one is scheduled for `debounceMs` milliseconds later. When the
-  * task fires, `onDiagnosticsSettled` is called with the latest cached diagnostics.
+  * ==Promise lifecycle==
+  * Callers register interest via [[expectDiagnostics]], which:
+  *   1. Cancels any pending debounce task for the URI (prevents a stale debounce
+  *      from a previous compilation completing the new promise with old data).
+  *   2. Stores the promise in [[pendingPromises]].
   *
-  * @param onDiagnosticsSettled callback invoked with (virtualUri, diagnostics) when settled
-  * @param debounceMs           idle period after the last notification before settling (default 800ms)
+  * When a debounce task fires, it removes and completes the stored promise.  If the
+  * promise has been replaced or removed (concurrent close/shutdown), the removal
+  * returns `null` and nothing is completed.
+  *
+  * @param debounceMs idle period after the last notification before settling (default 800ms)
   */
-private class CapturingMetalsClient(
-  onDiagnosticsSettled: (String, List[Diagnostic]) => Unit,
-  debounceMs:           Long = 800L
-) extends LanguageClient:
+private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageClient:
 
   /** Latest diagnostics per virtualUri (may be replaced before debounce fires). */
   private val latestDiags = ConcurrentHashMap[String, List[Diagnostic]]()
+
+  /** Promises registered by [[MetalsBridge.diagnosticsForScript]], keyed by virtualUri. */
+  private val pendingPromises = ConcurrentHashMap[String, CompletableFuture[List[Diagnostic]]]()
 
   /** Single-threaded debounce scheduler (daemon thread so it doesn't block JVM exit). */
   private val scheduler: ScheduledExecutorService =
@@ -425,6 +423,36 @@ private class CapturingMetalsClient(
   /** Pending debounce tasks per URI. Replaced on each new notification. */
   private val pendingTasks = ConcurrentHashMap[String, ScheduledFuture[?]]()
 
+  /** Registers `promise` as the recipient of the next settled diagnostics for `uri`.
+    *
+    * Any pending debounce task for `uri` is cancelled first so that a debounce from
+    * a previous compilation cannot race in and complete `promise` with stale data.
+    */
+  def expectDiagnostics(uri: String, promise: CompletableFuture[List[Diagnostic]]): Unit =
+    // Cancel the pending debounce (if any) BEFORE storing the promise.
+    // This ensures the old compilation's debounce cannot fire after we register.
+    Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+    // Replace any previous (now-cancelled) promise.
+    Option(pendingPromises.put(uri, promise)).foreach(_.cancel(false))
+
+  /** Removes all diagnostic state for `uri`.
+    *
+    * Called when the editor closes a .melt document. Cancels any in-flight
+    * debounce task and drops the pending promise (if any) without completing it.
+    */
+  def dropUri(uri: String): Unit =
+    latestDiags.remove(uri)
+    Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+    Option(pendingPromises.remove(uri)).foreach(_.cancel(false))
+
+  /** Cancels all pending promises and debounce tasks. Called on shutdown. */
+  def dropAll(): Unit =
+    pendingTasks.values().forEach(_.cancel(false))
+    pendingTasks.clear()
+    pendingPromises.values().forEach(_.cancel(false))
+    pendingPromises.clear()
+    latestDiags.clear()
+
   override def telemetryEvent(obj: Any):                        Unit                                 = ()
   override def showMessage(p:      MessageParams):              Unit                                 = ()
   override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
@@ -436,11 +464,15 @@ private class CapturingMetalsClient(
     val diags = p.getDiagnostics.asScala.toList
     latestDiags.put(uri, diags)
 
-    // Cancel the previous debounce task (if any) and schedule a new one
+    // Cancel the previous debounce task (if any) and schedule a new one.
     Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
     val task: ScheduledFuture[?] = scheduler.schedule(
       new Runnable:
-        def run(): Unit = onDiagnosticsSettled(uri, latestDiags.getOrDefault(uri, Nil))
+        def run(): Unit =
+          val settled = latestDiags.getOrDefault(uri, Nil)
+          // Remove the promise atomically; if it was already replaced or dropped,
+          // remove returns null and nothing is completed.
+          Option(pendingPromises.remove(uri)).foreach(_.complete(settled))
       ,
       debounceMs,
       TimeUnit.MILLISECONDS

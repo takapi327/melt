@@ -68,7 +68,12 @@ object MeltCompiler:
             TagNameChecker.check(ast, filename) ++
             RawTextInterpolationChecker.check(ast, filename) ++
             BindingContextChecker.check(ast, filename) ++
-            MalformedExpressionChecker.check(ast, filename)
+            MalformedExpressionChecker.check(
+              ast,
+              filename,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            )
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
           case (msg, line) =>

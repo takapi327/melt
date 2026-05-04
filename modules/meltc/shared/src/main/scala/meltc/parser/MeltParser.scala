@@ -30,6 +30,10 @@ object MeltParser:
     *                         script body (inside `<script lang="scala">`) begins
     * @param templateStartLine 1-based line in the original `.melt` source where
     *                          the HTML template section begins
+    * @param templateSource   raw text of the HTML template section as extracted by
+    *                         [[SectionSplitter]]. Passed to code generators so that
+    *                         each template node's `_pos` offset can be converted to
+    *                         a 1-based line number for the source-map `LINES:` field.
     */
   case class ParseResult(
     ast:               MeltFile,

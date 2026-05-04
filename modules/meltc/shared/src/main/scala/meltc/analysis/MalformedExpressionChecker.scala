@@ -23,54 +23,77 @@ import meltc.CompileError
   */
 object MalformedExpressionChecker:
 
-  def check(ast: MeltFile, filename: String): List[CompileError] =
+  /** @param templateSource    raw text of the template section extracted from the `.melt` file.
+    *                         Used together with each node's `_pos` offset to compute
+    *                         the 1-based line in the original file for error messages.
+    * @param templateStartLine 1-based line in the original `.melt` source where the
+    *                         template section begins.
+    */
+  def check(
+    ast:               MeltFile,
+    filename:          String,
+    templateSource:    String = "",
+    templateStartLine: Int    = 1
+  ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, errors, filename))
+    ast.template.foreach(node => walk(node, errors, filename, templateSource, templateStartLine))
     errors.toList
 
   private def walk(
-    node:     TemplateNode,
-    errors:   mutable.ListBuffer[CompileError],
-    filename: String
+    node:              TemplateNode,
+    errors:            mutable.ListBuffer[CompileError],
+    filename:          String,
+    templateSource:    String,
+    templateStartLine: Int
   ): Unit = node match
     case TemplateNode.Expression(code) =>
-      if containsHtmlClosingTag(code) then errors += malformedError(filename)
+      if containsHtmlClosingTag(code) then
+        errors += malformedError(filename, lineOf(node, templateSource, templateStartLine))
 
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
         case InlineTemplatePart.Code(code) =>
-          if containsHtmlClosingTag(code) then errors += malformedError(filename)
+          if containsHtmlClosingTag(code) then
+            errors += malformedError(filename, lineOf(node, templateSource, templateStartLine))
         case InlineTemplatePart.Html(nodes) =>
-          nodes.foreach(n => walk(n, errors, filename))
+          nodes.foreach(n => walk(n, errors, filename, templateSource, templateStartLine))
       }
 
     case TemplateNode.Element(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.Component(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.Head(children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.DynamicElement(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.SnippetDef(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.KeyBlock(_, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
 
     case TemplateNode.Boundary(_, children, pending, failed) =>
-      children.foreach(c => walk(c, errors, filename))
-      pending.foreach(_.children.foreach(c => walk(c, errors, filename)))
-      failed.foreach(_.children.foreach(c => walk(c, errors, filename)))
+      children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine))
+      pending.foreach(_.children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine)))
+      failed.foreach(_.children.foreach(c => walk(c, errors, filename, templateSource, templateStartLine)))
 
     case TemplateNode.RenderCall(expr) =>
-      if containsHtmlClosingTag(expr) then errors += malformedError(filename)
+      if containsHtmlClosingTag(expr) then
+        errors += malformedError(filename, lineOf(node, templateSource, templateStartLine))
 
     case _ => ()
+
+  /** Converts a node's `_pos` offset (relative to the template source string) to the
+    * 1-based line number in the original `.melt` file.
+    */
+  private def lineOf(node: TemplateNode, templateSource: String, templateStartLine: Int): Int =
+    if templateSource.isEmpty || node._pos <= 0 then templateStartLine
+    else templateStartLine + templateSource.take(node._pos).count(_ == '\n')
 
   /** Returns true if `code` contains `</` outside of string literals. */
   private def containsHtmlClosingTag(code: String): Boolean =
@@ -142,12 +165,12 @@ object MalformedExpressionChecker:
         i += 1
     sb.toString
 
-  private def malformedError(filename: String): CompileError =
+  private def malformedError(filename: String, line: Int): CompileError =
     CompileError(
       message = "Template expression contains a raw HTML closing tag ('</'), which usually means " +
         "a `{` in your template is missing its closing `}`. " +
         "Check that every `{...}` expression has a matching `}`.",
-      line     = 0,
+      line     = line,
       column   = 0,
       filename = filename
     )

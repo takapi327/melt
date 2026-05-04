@@ -457,6 +457,7 @@ object MeltcPlugin extends AutoPlugin {
     // original `.melt` source files using the `-- MELT GENERATED --` comment
     // block that meltc appends to every generated file.
     Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
+    Test    / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
 
     meltcAssetManifestClient  := None,
     meltcAssetManifestPackage := "generated",
