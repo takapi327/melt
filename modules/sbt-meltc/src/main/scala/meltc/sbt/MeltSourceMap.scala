@@ -27,12 +27,12 @@ import xsbti.Position
   */
 object MeltSourceMap {
 
-  /** Cache keyed by (file, lastModified) to avoid re-reading the same generated
-    * `.scala` file for every error reported by scalac in a single compilation.
-    * The lastModified timestamp invalidates stale entries across recompilations.
+  /** Cache keyed by File with the lastModified timestamp stored in the value.
+    * Limits the map to one entry per generated `.scala` file while still
+    * invalidating stale entries when the file changes across recompilations.
     */
   private val cache =
-    new ConcurrentHashMap[(File, Long), Option[MeltGeneratedSource.Meta]]()
+    new ConcurrentHashMap[File, (Option[MeltGeneratedSource.Meta], Long)]()
 
   /** Maps a scalac position in a generated `.scala` file to the corresponding
     * position in the original `.melt` file.
@@ -50,13 +50,13 @@ object MeltSourceMap {
       val genFile = pos.sourceFile().get()
       if (!genFile.getName.endsWith(".scala")) None
       else {
-        val cacheKey = (genFile, genFile.lastModified())
-        val meta     = {
-          val cached = cache.get(cacheKey)
-          if (cached != null) cached
+        val lastMod = genFile.lastModified()
+        val meta    = {
+          val cached = cache.get(genFile)
+          if (cached != null && cached._2 == lastMod) cached._1
           else {
             val result = MeltGeneratedSource.read(genFile)
-            cache.put(cacheKey, result)
+            cache.put(genFile, (result, lastMod))
             result
           }
         }

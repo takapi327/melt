@@ -41,7 +41,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   private given ExecutionContext = ExecutionContext.global
 
-  private var client: Option[LanguageClient] = None
+  @volatile private var client: Option[LanguageClient] = None
   private val metals: MetalsBridge           = MetalsBridge()
 
   /** Open documents: URI → current .melt source text. */
@@ -110,7 +110,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val uri = params.getTextDocument.getUri
     // includeText=true guarantees getText() is non-null, but fall back to the last known text from didChange just in case.
     val text = Option(params.getText).getOrElse(documents.getOrElse(uri, ""))
-    documents(uri) = text
+    if documents.contains(uri) then documents(uri) = text
     Future(blocking(fullValidate(uri, text))).failed
       .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for $uri: $e"))
 
@@ -197,8 +197,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       val filename = uriToFilename(uri)
       val result   = meltc.MeltCompiler.compile(content, filename)
       val diags    =
-        result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
-          result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
+        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, DiagnosticSeverity.Warning))
       c.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
     }
 
@@ -220,8 +220,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       val result   = meltc.MeltCompiler.compile(content, filename)
 
       val meltcDiags =
-        result.errors.map(e => makeDiagnostic(e.message, e.line, DiagnosticSeverity.Error)) ++
-          result.warnings.map(w => makeDiagnostic(w.message, w.line, DiagnosticSeverity.Warning))
+        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, DiagnosticSeverity.Warning))
 
       val metalsDiags: List[Diagnostic] =
         if result.errors.nonEmpty then Nil
@@ -235,9 +235,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
         c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
     }
 
-  private def makeDiagnostic(message: String, line: Int, severity: DiagnosticSeverity): Diagnostic =
+  private def makeDiagnostic(message: String, line: Int, column: Int, severity: DiagnosticSeverity): Diagnostic =
     val zeroLine = math.max(0, line - 1)
-    val range    = Range(Position(zeroLine, 0), Position(zeroLine, Int.MaxValue))
+    val zeroCol  = math.max(0, column - 1)
+    val range    = Range(Position(zeroLine, zeroCol), Position(zeroLine, Int.MaxValue))
     val d        = Diagnostic(range, message)
     d.setSeverity(severity)
     d.setSource("meltc")

@@ -498,8 +498,8 @@ private[lsp] class CapturingMetalsClient(debounceMs: Long = 800L) extends Langua
       pendingTasks.clear()
       pendingPromises.values().forEach(_.cancel(false))
       pendingPromises.clear()
+      latestDiags.clear()
     }
-    latestDiags.clear()
 
   override def telemetryEvent(obj: Any):                        Unit                                 = ()
   override def showMessage(p:      MessageParams):              Unit                                 = ()
