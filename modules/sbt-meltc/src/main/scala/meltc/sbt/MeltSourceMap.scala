@@ -51,14 +51,10 @@ object MeltSourceMap {
       if (!genFile.getName.endsWith(".scala")) None
       else {
         val lastMod = genFile.lastModified()
-        val meta    = {
-          val cached = cache.get(genFile)
-          if (cached != null && cached._2 == lastMod) cached._1
-          else {
-            val result = MeltGeneratedSource.read(genFile)
-            cache.put(genFile, (result, lastMod))
-            result
-          }
+        val meta    = Option(cache.get(genFile)).filter(_._2 == lastMod).map(_._1).getOrElse {
+          val result = MeltGeneratedSource.read(genFile)
+          cache.put(genFile, (result, lastMod))
+          result
         }
         meta match {
           case None       => None
