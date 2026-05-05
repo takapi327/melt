@@ -8,8 +8,8 @@ package meltc.analysis
 
 import scala.collection.mutable
 
-import meltc.ast.*
 import meltc.{ CompileError, NodePositions }
+import meltc.ast.*
 
 /** Compile-time check for `{expr}` interpolation inside HTML raw-text
   * elements (`<script>`, `<style>`, `<textarea>`, `<title>`) — see
@@ -34,11 +34,13 @@ object RawTextInterpolationChecker:
     ast:               MeltFile,
     filename:          String,
     positions:         NodePositions = NodePositions.empty,
-    templateSource:    String        = "",
-    templateStartLine: Int           = 1
+    templateSource:    String = "",
+    templateStartLine: Int = 1
   ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, parent = None, errors, filename, positions, templateSource, templateStartLine))
+    ast.template.foreach(node =>
+      walk(node, parent = None, errors, filename, positions, templateSource, templateStartLine)
+    )
     errors.toList
 
   /** `parent` is `Some("melt:head")` when we are recursing inside a
@@ -81,7 +83,8 @@ object RawTextInterpolationChecker:
 
         // Continue walking so that nested violations are still caught.
         children.foreach(c => walk(c, Some(tagLower), errors, filename, positions, templateSource, templateStartLine))
-      else children.foreach(c => walk(c, Some(tagLower), errors, filename, positions, templateSource, templateStartLine))
+      else
+        children.foreach(c => walk(c, Some(tagLower), errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Component(_, _, children) =>
       children.foreach(c => walk(c, parent, errors, filename, positions, templateSource, templateStartLine))

@@ -615,8 +615,8 @@ object MeltcPlugin extends AutoPlugin {
         // the monorepo) automatically invalidates all cached generated files.
         // For class directories the newest direct-child modification time is
         // used as a proxy for "has the compiler changed?".
-        val relPath  = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
-        val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
+        val relPath = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
+        val safeKey = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
         val cpFingerprint: String = {
           def stamp(f: File): Long =
             if (f.isDirectory) {
@@ -627,7 +627,7 @@ object MeltcPlugin extends AutoPlugin {
               f.lastModified
           compilerCp
             .sortBy(_.getAbsolutePath)
-            .map(f => s"${f.getName}:${stamp(f)}")
+            .map(f => s"${ f.getName }:${ stamp(f) }")
             .mkString("|")
             .hashCode
             .toHexString

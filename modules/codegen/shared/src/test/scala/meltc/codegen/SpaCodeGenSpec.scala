@@ -1946,9 +1946,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
       val arrow = entry.indexOf("->")
       if arrow < 0 then None
       else
-        val gen      = entry.substring(0, arrow).trim.toIntOption.getOrElse(-1)
-        val rest     = entry.substring(arrow + 2).trim
-        val colon    = rest.indexOf(':')
+        val gen        = entry.substring(0, arrow).trim.toIntOption.getOrElse(-1)
+        val rest       = entry.substring(arrow + 2).trim
+        val colon      = rest.indexOf(':')
         val (src, col) =
           if colon < 0 then (rest.toIntOption.getOrElse(-1), 1)
           else (rest.substring(0, colon).toIntOption.getOrElse(-1), rest.substring(colon + 1).toIntOption.getOrElse(1))

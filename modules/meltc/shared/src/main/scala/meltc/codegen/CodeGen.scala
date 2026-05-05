@@ -70,10 +70,10 @@ trait CodeGen:
     objectName:        String,
     pkg:               String,
     scopeId:           String,
-    hydration:         Boolean      = false,
-    sourcePath:        String       = "",
-    scriptBodyLine:    Int          = 1,
-    templateStartLine: Int          = 1,
-    templateSource:    String       = "",
+    hydration:         Boolean = false,
+    sourcePath:        String = "",
+    scriptBodyLine:    Int = 1,
+    templateStartLine: Int = 1,
+    templateSource:    String = "",
     positions:         NodePositions = NodePositions.empty
   ): String

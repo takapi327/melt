@@ -24,25 +24,25 @@ class MeltSourceMapSpec extends munit.FunSuite {
   /** Creates a mock [[Position]] pointing to `file` at `lineNumber`. */
   private def makePosition(file: File, lineNumber: Int): Position =
     new Position {
-      override def line(): Optional[Integer]      = Optional.of(lineNumber.asInstanceOf[Integer])
-      override def lineContent(): String          = ""
-      override def offset(): Optional[Integer]    = Optional.empty()
-      override def pointer(): Optional[Integer]   = Optional.empty()
-      override def pointerSpace(): Optional[String] = Optional.empty()
-      override def sourcePath(): Optional[String] = Optional.of(file.getAbsolutePath)
-      override def sourceFile(): Optional[File]   = Optional.of(file)
+      override def line():         Optional[Integer] = Optional.of(lineNumber.asInstanceOf[Integer])
+      override def lineContent():  String            = ""
+      override def offset():       Optional[Integer] = Optional.empty()
+      override def pointer():      Optional[Integer] = Optional.empty()
+      override def pointerSpace(): Optional[String]  = Optional.empty()
+      override def sourcePath():   Optional[String]  = Optional.of(file.getAbsolutePath)
+      override def sourceFile():   Optional[File]    = Optional.of(file)
     }
 
   /** Creates a mock [[Position]] with no source file (synthetic position). */
   private def makePositionNoFile(): Position =
     new Position {
-      override def line(): Optional[Integer]      = Optional.of(5.asInstanceOf[Integer])
-      override def lineContent(): String          = ""
-      override def offset(): Optional[Integer]    = Optional.empty()
-      override def pointer(): Optional[Integer]   = Optional.empty()
-      override def pointerSpace(): Optional[String] = Optional.empty()
-      override def sourcePath(): Optional[String] = Optional.empty()
-      override def sourceFile(): Optional[File]   = Optional.empty()
+      override def line():         Optional[Integer] = Optional.of(5.asInstanceOf[Integer])
+      override def lineContent():  String            = ""
+      override def offset():       Optional[Integer] = Optional.empty()
+      override def pointer():      Optional[Integer] = Optional.empty()
+      override def pointerSpace(): Optional[String]  = Optional.empty()
+      override def sourcePath():   Optional[String]  = Optional.empty()
+      override def sourceFile():   Optional[File]    = Optional.empty()
     }
 
   /** Writes `content` to a temp file with the given suffix and returns the file. */
@@ -135,13 +135,13 @@ class MeltSourceMapSpec extends munit.FunSuite {
     val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, "5->3:2"))
 
     val pos = new Position {
-      override def line(): Optional[Integer]      = Optional.empty() // no line
-      override def lineContent(): String          = ""
-      override def offset(): Optional[Integer]    = Optional.empty()
-      override def pointer(): Optional[Integer]   = Optional.empty()
-      override def pointerSpace(): Optional[String] = Optional.empty()
-      override def sourcePath(): Optional[String] = Optional.of(scalaFile.getAbsolutePath)
-      override def sourceFile(): Optional[File]   = Optional.of(scalaFile)
+      override def line():         Optional[Integer] = Optional.empty() // no line
+      override def lineContent():  String            = ""
+      override def offset():       Optional[Integer] = Optional.empty()
+      override def pointer():      Optional[Integer] = Optional.empty()
+      override def pointerSpace(): Optional[String]  = Optional.empty()
+      override def sourcePath():   Optional[String]  = Optional.of(scalaFile.getAbsolutePath)
+      override def sourceFile():   Optional[File]    = Optional.of(scalaFile)
     }
     val result = MeltSourceMap.positionMapper(pos)
     assert(result.isEmpty, "expected None when position has no line number")

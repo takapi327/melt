@@ -8,8 +8,8 @@ package meltc.analysis
 
 import scala.collection.mutable
 
-import meltc.ast.*
 import meltc.{ CompileError, NodePositions }
+import meltc.ast.*
 
 /** Compile-time validator that ensures binding directives are used on
   * elements that actually support the underlying DOM property.
@@ -45,8 +45,8 @@ object BindingContextChecker:
     ast:               MeltFile,
     filename:          String,
     positions:         NodePositions = NodePositions.empty,
-    templateSource:    String        = "",
-    templateStartLine: Int           = 1
+    templateSource:    String = "",
+    templateStartLine: Int = 1
   ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
     ast.template.foreach(node => walk(node, errors, filename, positions, templateSource, templateStartLine))

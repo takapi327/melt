@@ -6,8 +6,8 @@
 
 package meltc.parser
 
-import meltc.ast.*
 import meltc.{ NodePositions, SourceSpan }
+import meltc.ast.*
 
 /** Parses an HTML template string into a list of [[TemplateNode]] values.
   *

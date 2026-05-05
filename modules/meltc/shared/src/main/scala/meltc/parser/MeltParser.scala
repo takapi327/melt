@@ -6,8 +6,8 @@
 
 package meltc.parser
 
-import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
 import meltc.{ NodePositions, SourcePosition }
+import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
 
 /** Top-level parser for `.melt` files.
   *
@@ -42,9 +42,9 @@ object MeltParser:
   case class ParseResult(
     ast:               MeltFile,
     warnings:          List[(String, Int)],
-    scriptBodyLine:    Int          = 1,
-    templateStartLine: Int          = 1,
-    templateSource:    String       = "",
+    scriptBodyLine:    Int           = 1,
+    templateStartLine: Int           = 1,
+    templateSource:    String        = "",
     positions:         NodePositions = NodePositions.empty
   )
 

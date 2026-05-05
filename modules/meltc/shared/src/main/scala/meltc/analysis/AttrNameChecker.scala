@@ -8,9 +8,9 @@ package meltc.analysis
 
 import scala.collection.mutable
 
+import meltc.{ CompileError, NodePositions }
 import meltc.ast.*
 import meltc.codegen.NameValidators
-import meltc.{ CompileError, NodePositions }
 
 /** Compile-time validator for static attribute names (§12.1.2).
   *
@@ -28,8 +28,8 @@ object AttrNameChecker:
     ast:               MeltFile,
     filename:          String,
     positions:         NodePositions = NodePositions.empty,
-    templateSource:    String        = "",
-    templateStartLine: Int           = 1
+    templateSource:    String = "",
+    templateStartLine: Int = 1
   ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
     ast.template.foreach(node => walk(node, errors, filename, positions, templateSource, templateStartLine))
