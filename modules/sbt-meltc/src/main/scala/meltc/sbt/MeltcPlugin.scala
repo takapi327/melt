@@ -622,7 +622,7 @@ object MeltcPlugin extends AutoPlugin {
             if (f.isDirectory) {
               val children = Option(f.listFiles()).toSeq.flatten
               if (children.isEmpty) f.lastModified
-              else children.map(_.lastModified).max
+              else children.map(stamp).max
             } else
               f.lastModified
           val raw = compilerCp

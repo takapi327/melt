@@ -230,8 +230,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
           metals.diagnosticsForScript(uri, vf)
 
       // Re-check before publishing: diagnosticsForScript may block for up to 30 s,
-      // during which the editor may have closed the document.
-      if documents.contains(uri) then
+      // during which the editor may have closed the document or reopened it with
+      // different content. Only publish if the document still contains the same text
+      // that was validated to avoid showing stale diagnostics.
+      if documents.get(uri).contains(content) then
         c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
     }
 

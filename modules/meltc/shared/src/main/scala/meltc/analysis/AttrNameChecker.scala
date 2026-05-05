@@ -69,6 +69,10 @@ object AttrNameChecker:
       val span = positions.spanOf(node)
       attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
 
+    case TemplateNode.Document(attrs) =>
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
+
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
         case InlineTemplatePart.Html(nodes) =>
