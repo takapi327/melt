@@ -8,6 +8,7 @@ package meltc.codegen
 
 import meltc.ast.*
 import meltc.ast.InlineTemplatePart
+import meltc.NodePositions
 
 /** Generates Scala.js source code from a parsed [[meltc.ast.MeltFile]].
   *
@@ -39,11 +40,12 @@ object SpaCodeGen extends CodeGen:
     objectName:        String,
     pkg:               String,
     scopeId:           String,
-    hydration:         Boolean = false,
-    sourcePath:        String = "",
-    scriptBodyLine:    Int = 1,
-    templateStartLine: Int = 1,
-    templateSource:    String = ""
+    hydration:         Boolean      = false,
+    sourcePath:        String       = "",
+    scriptBodyLine:    Int          = 1,
+    templateStartLine: Int          = 1,
+    templateSource:    String       = "",
+    positions:         NodePositions = NodePositions.empty
   ): String =
     val tracker = new LineTracker
     val ctr     = new Counter
@@ -135,18 +137,18 @@ object SpaCodeGen extends CodeGen:
     }
 
     // ── Template section — emit directly into tracker with per-node line marks ─
-    // nodeLineOf converts a node's _pos (offset in the template source string) to
-    // the corresponding 1-based line number in the original .melt file.
-    val nodeLineOf: TemplateNode => Int = node =>
-      if node._pos <= 0 || templateSource.isEmpty then templateStartLine
-      else templateStartLine + templateSource.take(node._pos).count(_ == '\n')
+    // nodeSpanOf converts a node's SourceSpan (from positions) to the
+    // corresponding (1-based line, 1-based column) in the original .melt file.
+    val nodeSpanOf: TemplateNode => (Int, Int) = node =>
+      val span = positions.spanOf(node)
+      (span.absoluteLine(templateSource, templateStartLine), span.column(templateSource))
 
     roots match
       case Nil =>
         tracker.markSourceLine(templateStartLine)
         tracker ++= "    val _result = dom.document.createElement(\"div\")\n"
       case single :: Nil =>
-        val v = emitNode(tracker, single, "    ", ctr, isRoot = true, parentVar = None, nodeLineOf = nodeLineOf)
+        val v = emitNode(tracker, single, "    ", ctr, isRoot = true, parentVar = None, nodeSpanOf = nodeSpanOf)
         if v.nonEmpty then tracker ++= s"    val _result = $v\n"
         else
           tracker.markSourceLine(templateStartLine)
@@ -157,7 +159,7 @@ object SpaCodeGen extends CodeGen:
         tracker ++= "    _root.classList.add(_scopeId)\n"
         multiple.foreach { node =>
           val v =
-            emitNode(tracker, node, "    ", ctr, isRoot = false, parentVar = Some("_root"), nodeLineOf = nodeLineOf)
+            emitNode(tracker, node, "    ", ctr, isRoot = false, parentVar = Some("_root"), nodeSpanOf = nodeSpanOf)
           if v.nonEmpty then tracker ++= s"    if !Hydrating.isActive then _root.appendChild($v)\n"
         }
         tracker ++= "    val _result = _root\n"
@@ -188,7 +190,7 @@ object SpaCodeGen extends CodeGen:
     // sourcePath is sanitized to prevent a path containing "*/" from prematurely
     // closing the block comment and leaking content into compiled Scala code.
     val linesStr       = tracker.linesMetadata()
-    val safeSourcePath = sourcePath.replace("*/", "*\\/").replace("/*", "/\\*")
+    val safeSourcePath = sourcePath.replace("\n", "").replace("\r", "").replace("*/", "*\\/").replace("/*", "/\\*")
     val meta           =
       if sourcePath.nonEmpty && linesStr.nonEmpty then
         s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
@@ -303,9 +305,10 @@ object SpaCodeGen extends CodeGen:
     isRoot:     Boolean,
     parentVar:  Option[String],
     ns:         String = "",
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): String =
-    buf.markSourceLine(nodeLineOf(node))
+    val (nodeLine, nodeCol) = nodeSpanOf(node)
+    buf.markSourceLine(nodeLine, nodeCol)
     node match
       case TemplateNode.Element(tag, attrs, children) =>
         val v       = ctr.nextEl()
@@ -357,7 +360,7 @@ object SpaCodeGen extends CodeGen:
             isRoot     = false,
             parentVar  = Some(v),
             ns         = childNs,
-            nodeLineOf = nodeLineOf
+            nodeSpanOf = nodeSpanOf
           )
           if cv.nonEmpty then buf ++= s"${ childIndent }if !Hydrating.isActive then $v.appendChild($cv)\n"
         }
@@ -503,7 +506,7 @@ object SpaCodeGen extends CodeGen:
                   innerCtr,
                   isRoot     = false,
                   parentVar  = None,
-                  nodeLineOf = nodeLineOf
+                  nodeSpanOf = nodeSpanOf
                 )
                 exprBuf ++= s"{\n${ innerBuf.result() }${ indent }  $v\n${ indent }}"
               case multiple =>
@@ -517,7 +520,7 @@ object SpaCodeGen extends CodeGen:
                       innerCtr,
                       isRoot     = false,
                       parentVar  = Some("_frag"),
-                      nodeLineOf = nodeLineOf
+                      nodeSpanOf = nodeSpanOf
                     )
                   if v.nonEmpty then innerBuf ++= s"${ indent }  _frag.appendChild($v)\n"
                 }
@@ -530,12 +533,12 @@ object SpaCodeGen extends CodeGen:
           ctr,
           isRoot,
           parentVar,
-          nodeLineOf = nodeLineOf
+          nodeSpanOf = nodeSpanOf
         )
 
       case TemplateNode.Head(children) =>
         children.foreach { child =>
-          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = None, nodeLineOf = nodeLineOf)
+          val cv = emitNode(buf, child, indent, ctr, isRoot = false, parentVar = None, nodeSpanOf = nodeSpanOf)
           if cv.nonEmpty then buf ++= s"${ indent }Head.appendChild($cv)\n"
         }
         ""
@@ -606,7 +609,7 @@ object SpaCodeGen extends CodeGen:
             ctr,
             isRoot     = false,
             parentVar  = Some(elVar),
-            nodeLineOf = nodeLineOf
+            nodeSpanOf = nodeSpanOf
           )
           if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
         }
@@ -628,7 +631,7 @@ object SpaCodeGen extends CodeGen:
           case Some(PendingBlock(pChildren)) =>
             val pVar = s"_bPending$idx"
             buf ++= s"${ indent }val $pVar: (() => dom.Element) = () => {\n"
-            emitBoundaryBody(buf, pChildren, inner, ctr, nodeLineOf)
+            emitBoundaryBody(buf, pChildren, inner, ctr, nodeSpanOf)
             buf ++= s"${ indent }}\n"
             s", pending = Some($pVar)"
 
@@ -638,7 +641,7 @@ object SpaCodeGen extends CodeGen:
           case Some(FailedBlock(errorVar, resetVar, fChildren)) =>
             val fVar = s"_bFallback$idx"
             buf ++= s"${ indent }val $fVar: (Throwable, () => Unit) => dom.Element = ($errorVar, $resetVar) => {\n"
-            emitBoundaryBody(buf, fChildren, inner, ctr, nodeLineOf)
+            emitBoundaryBody(buf, fChildren, inner, ctr, nodeSpanOf)
             buf ++= s"${ indent }}\n"
             s", fallback = $fVar"
 
@@ -652,7 +655,7 @@ object SpaCodeGen extends CodeGen:
         // ── children lambda ─────────────────────────────────────────────────
         val cVar = s"_bChildren$idx"
         buf ++= s"${ indent }val $cVar: (() => dom.Element) = () => {\n"
-        emitBoundaryBody(buf, children, inner, ctr, nodeLineOf)
+        emitBoundaryBody(buf, children, inner, ctr, nodeSpanOf)
         buf ++= s"${ indent }}\n"
 
         // ── Boundary.create call ────────────────────────────────────────────
@@ -680,7 +683,7 @@ object SpaCodeGen extends CodeGen:
 
         // G-2 / G-5: render lambda returns DocumentFragment (no div wrapper, text exprs work)
         buf ++= s"${ indent }val $kVar: (() => dom.DocumentFragment) = () => {\n"
-        emitKeyBody(buf, children, inner, ctr, nodeLineOf)
+        emitKeyBody(buf, children, inner, ctr, nodeSpanOf)
         buf ++= s"${ indent }}\n"
 
         buf ++= s"""${ indent }val $startAnch = dom.document.createComment("melt-key-start")\n"""
@@ -693,7 +696,7 @@ object SpaCodeGen extends CodeGen:
         ""
 
       case TemplateNode.SnippetDef(name, params, children) =>
-        emitSnippetDef(buf, name, params, children, indent, ctr, nodeLineOf)
+        emitSnippetDef(buf, name, params, children, indent, ctr, nodeSpanOf)
         "" // snippets define a val, they don't produce an inline element reference
 
       case TemplateNode.RenderCall(expr) =>
@@ -730,7 +733,7 @@ object SpaCodeGen extends CodeGen:
         val snippetArgs = snippetChildren.collect {
           case TemplateNode.SnippetDef(snName, snParams, snChildren) =>
             val varName = s"_snippet_${ snName }_${ ctr.nextChildIdx() }"
-            emitSnippetDef(buf, varName, snParams, snChildren, indent, ctr, nodeLineOf)
+            emitSnippetDef(buf, varName, snParams, snChildren, indent, ctr, nodeSpanOf)
             s"$snName = $varName"
         }
 
@@ -738,7 +741,7 @@ object SpaCodeGen extends CodeGen:
           case Some(expr) =>
             buf ++= s"${ indent }val $v = $name($expr)\n"
           case None =>
-            val (baseArgs, childrenVar) = buildPropsArgs(attrs, regularChildren, indent, ctr, buf, nodeLineOf)
+            val (baseArgs, childrenVar) = buildPropsArgs(attrs, regularChildren, indent, ctr, buf, nodeSpanOf)
             val allProps                = (if baseArgs.nonEmpty then List(baseArgs) else Nil) ++ snippetArgs
             val propsArgs               = allProps.mkString(", ")
             val childrenArg             = childrenVar.map(cv => s"children = $cv")
@@ -889,7 +892,7 @@ object SpaCodeGen extends CodeGen:
     indent:     String,
     ctr:        Counter,
     buf:        LineTracker,
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): (String, Option[String]) =
     val args = List.newBuilder[String]
 
@@ -909,7 +912,7 @@ object SpaCodeGen extends CodeGen:
     }
 
     val childrenVar: Option[String] =
-      if children.nonEmpty then Some(emitChildrenLambda(children, indent, ctr, buf, nodeLineOf))
+      if children.nonEmpty then Some(emitChildrenLambda(children, indent, ctr, buf, nodeSpanOf))
       else None
 
     (args.result().mkString(", "), childrenVar)
@@ -922,7 +925,7 @@ object SpaCodeGen extends CodeGen:
     indent:     String,
     ctr:        Counter,
     buf:        LineTracker,
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): String =
     val childCtr = new Counter
     val varName  = s"_children${ ctr.nextChildIdx() }"
@@ -940,7 +943,7 @@ object SpaCodeGen extends CodeGen:
     // call is also skipped during hydration, which would leave them detached.
     buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
     children.foreach { child =>
-      val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"), nodeLineOf = nodeLineOf)
+      val cv = emitNode(buf, child, inner, childCtr, isRoot = false, parentVar = Some("_frag"), nodeSpanOf = nodeSpanOf)
       if cv.nonEmpty then buf ++= s"${ inner }if !Hydrating.isActive then _frag.appendChild($cv)\n"
     }
     buf ++= s"${ inner }_frag\n"
@@ -964,7 +967,7 @@ object SpaCodeGen extends CodeGen:
     children:   List[TemplateNode],
     indent:     String,
     ctr:        Counter,
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): Unit =
     val inner    = indent + "  "
     val innerCtr = new Counter
@@ -992,14 +995,14 @@ object SpaCodeGen extends CodeGen:
       case Nil =>
         buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case single :: Nil =>
-        val cv = emitNode(buf, single, inner, innerCtr, isRoot = false, parentVar = None, nodeLineOf = nodeLineOf)
+        val cv = emitNode(buf, single, inner, innerCtr, isRoot = false, parentVar = None, nodeSpanOf = nodeSpanOf)
         if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
         else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
         buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
         multiple.foreach { child =>
           val cv =
-            emitNode(buf, child, inner, innerCtr, isRoot = false, parentVar = Some("_frag"), nodeLineOf = nodeLineOf)
+            emitNode(buf, child, inner, innerCtr, isRoot = false, parentVar = Some("_frag"), nodeSpanOf = nodeSpanOf)
           if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
         }
         buf ++= s"${ inner }_frag\n"
@@ -1022,11 +1025,11 @@ object SpaCodeGen extends CodeGen:
     children:   List[TemplateNode],
     inner:      String,
     ctr:        Counter,
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): Unit =
     buf ++= s"${ inner }val _kFrag = dom.document.createDocumentFragment()\n"
     children.foreach { child =>
-      val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_kFrag"), nodeLineOf = nodeLineOf)
+      val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_kFrag"), nodeSpanOf = nodeSpanOf)
       if cv.nonEmpty then buf ++= s"${ inner }_kFrag.appendChild($cv)\n"
     }
     buf ++= s"${ inner }_kFrag\n"
@@ -1040,19 +1043,19 @@ object SpaCodeGen extends CodeGen:
     children:   List[TemplateNode],
     inner:      String,
     ctr:        Counter,
-    nodeLineOf: TemplateNode => Int = _ => 1
+    nodeSpanOf: TemplateNode => (Int, Int) = _ => (1, 1)
   ): Unit =
     children match
       case Nil =>
         buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case single :: Nil =>
-        val cv = emitNode(buf, single, inner, ctr, isRoot = false, parentVar = None, nodeLineOf = nodeLineOf)
+        val cv = emitNode(buf, single, inner, ctr, isRoot = false, parentVar = None, nodeSpanOf = nodeSpanOf)
         if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
         else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
         buf ++= s"${ inner }val _bFrag = dom.document.createElement(\"div\")\n"
         multiple.foreach { child =>
-          val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_bFrag"), nodeLineOf = nodeLineOf)
+          val cv = emitNode(buf, child, inner, ctr, isRoot = false, parentVar = Some("_bFrag"), nodeSpanOf = nodeSpanOf)
           if cv.nonEmpty then buf ++= s"${ inner }_bFrag.appendChild($cv)\n"
         }
         buf ++= s"${ inner }_bFrag\n"

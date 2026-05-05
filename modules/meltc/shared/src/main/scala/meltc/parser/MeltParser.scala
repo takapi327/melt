@@ -7,7 +7,7 @@
 package meltc.parser
 
 import meltc.ast.{ MeltFile, ScriptSection, StyleSection }
-import meltc.SourcePosition
+import meltc.{ NodePositions, SourcePosition }
 
 /** Top-level parser for `.melt` files.
   *
@@ -24,23 +24,28 @@ object MeltParser:
 
   /** Result of parsing a `.melt` file, containing both the AST and any warnings.
     *
-    * @param ast              the parsed component AST
-    * @param warnings         parser warnings with their character offsets
-    * @param scriptBodyLine   1-based line in the original `.melt` source where the
-    *                         script body (inside `<script lang="scala">`) begins
+    * @param ast               the parsed component AST
+    * @param warnings          parser warnings with their character offsets
+    * @param scriptBodyLine    1-based line in the original `.melt` source where the
+    *                          script body (inside `<script lang="scala">`) begins
     * @param templateStartLine 1-based line in the original `.melt` source where
     *                          the HTML template section begins
-    * @param templateSource   raw text of the HTML template section as extracted by
-    *                         [[SectionSplitter]]. Passed to code generators so that
-    *                         each template node's `_pos` offset can be converted to
-    *                         a 1-based line number for the source-map `LINES:` field.
+    * @param templateSource    raw text of the HTML template section as extracted by
+    *                          [[SectionSplitter]]. Used together with [[positions]] to
+    *                          convert node offsets to 1-based line/column numbers.
+    * @param positions         source positions for every [[meltc.ast.TemplateNode]]
+    *                          in `ast.template`, keyed by object identity.  Use
+    *                          [[NodePositions.spanOf]] to retrieve a [[meltc.SourceSpan]]
+    *                          and then [[meltc.SourceSpan.absoluteLine]] /
+    *                          [[meltc.SourceSpan.column]] to get human-readable coordinates.
     */
   case class ParseResult(
     ast:               MeltFile,
     warnings:          List[(String, Int)],
-    scriptBodyLine:    Int    = 1,
-    templateStartLine: Int    = 1,
-    templateSource:    String = ""
+    scriptBodyLine:    Int          = 1,
+    templateStartLine: Int          = 1,
+    templateSource:    String       = "",
+    positions:         NodePositions = NodePositions.empty
   )
 
   def parse(source: String): Either[String, MeltFile] =
@@ -49,8 +54,8 @@ object MeltParser:
   /** Parses a `.melt` source and returns the AST together with any warnings. */
   def parseWithWarnings(source: String): Either[String, ParseResult] =
     SectionSplitter.split(source).map { sections =>
-      val (nodes, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
-      val ast                       = MeltFile(
+      val (nodes, positions, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
+      val ast                                  = MeltFile(
         script   = sections.rawScript.map(r => ScriptSection(r.code, r.propsType)),
         template = nodes,
         style    = sections.style.map((content, lang) => StyleSection(content, lang))
@@ -68,5 +73,5 @@ object MeltParser:
       val templateStartLine: Int =
         SourcePosition.searchLine(source, sections.templateSource, default = 1)
 
-      ParseResult(ast, templateWarnings, scriptBodyLine, templateStartLine, sections.templateSource)
+      ParseResult(ast, templateWarnings, scriptBodyLine, templateStartLine, sections.templateSource, positions)
     }

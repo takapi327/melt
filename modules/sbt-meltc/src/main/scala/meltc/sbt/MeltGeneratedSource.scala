@@ -30,7 +30,7 @@ object MeltGeneratedSource {
   /** Parsed metadata from the `-- MELT GENERATED --` block. */
   final case class Meta(
     sourcePath: String,
-    lines:      IndexedSeq[(Int, Int)] // (generatedLine, sourceLine), ascending
+    lines:      IndexedSeq[(Int, Int, Int)] // (generatedLine, sourceLine, sourceColumn), ascending
   )
 
   private val BlockStart = "-- MELT GENERATED --"
@@ -81,7 +81,7 @@ object MeltGeneratedSource {
         }
       }
 
-      val lines: IndexedSeq[(Int, Int)] = {
+      val lines: IndexedSeq[(Int, Int, Int)] = {
         val idx = block.indexOf(LinesKey)
         if (idx < 0) IndexedSeq.empty
         else {
@@ -97,9 +97,13 @@ object MeltGeneratedSource {
                 if (arrow < 0) None
                 else
                   try {
-                    val gen = pair.substring(0, arrow).trim.toInt
-                    val src = pair.substring(arrow + 2).trim.toInt
-                    Some((gen, src))
+                    val gen        = pair.substring(0, arrow).trim.toInt
+                    val afterArrow = pair.substring(arrow + 2).trim
+                    val colon      = afterArrow.indexOf(':')
+                    val (src, col) =
+                      if (colon < 0) (afterArrow.toInt, 1)
+                      else (afterArrow.substring(0, colon).toInt, afterArrow.substring(colon + 1).toInt)
+                    Some((gen, src, col))
                   } catch {
                     case _: NumberFormatException => None
                   }
@@ -112,24 +116,24 @@ object MeltGeneratedSource {
     }
   }
 
-  /** Maps `generatedLine` to the corresponding source line using nearest-neighbor
-    * lookup on the sorted `lines` array.
+  /** Maps `generatedLine` to the corresponding `(sourceLine, sourceColumn)` using
+    * nearest-neighbor lookup on the sorted `lines` array.
     *
     * Finds the largest entry whose generated-line is `<= generatedLine` and
-    * returns its source line.  Returns `None` when `lines` is empty or
-    * `generatedLine` is before the first entry.
+    * returns its `(sourceLine, sourceColumn)`.  Returns `None` when `lines` is empty
+    * or `generatedLine` is before the first entry.
     *
     * Unlike Twirl's delta interpolation, Melt does NOT add a delta because
     * a single template line can expand to many generated lines.
     */
-  def mapLine(meta: Meta, generatedLine: Int): Option[Int] = {
+  def mapPosition(meta: Meta, generatedLine: Int): Option[(Int, Int)] = {
     val entries = meta.lines
     if (entries.isEmpty) None
     else {
       // Binary search for the largest entry._1 <= generatedLine
       var lo = 0
       var hi = entries.length - 1
-      var result: Option[(Int, Int)] = None
+      var result: Option[(Int, Int, Int)] = None
       while (lo <= hi) {
         val mid = (lo + hi) >>> 1
         if (entries(mid)._1 <= generatedLine) {
@@ -139,7 +143,7 @@ object MeltGeneratedSource {
           hi = mid - 1
         }
       }
-      result.map(_._2)
+      result.map(e => (e._2, e._3))
     }
   }
 }

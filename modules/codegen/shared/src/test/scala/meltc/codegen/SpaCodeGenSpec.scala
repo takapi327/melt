@@ -1933,3 +1933,64 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("children = _children"), code)
     assert(code.contains("""createElement("p")"""), code)
   }
+
+  // ── Source-map column tracking ────────────────────────────────────────────
+
+  /** Extracts the LINES string from a generated Scala source with a MELT GENERATED block. */
+  private def extractLines(code: String): Option[String] =
+    code.linesIterator.find(_.trim.startsWith("LINES:")).map(_.trim.stripPrefix("LINES:").trim)
+
+  /** Parses LINES entries into (generatedLine, sourceLine, sourceColumn) triples. */
+  private def parseLines(linesStr: String): List[(Int, Int, Int)] =
+    linesStr.split("\\|").toList.flatMap { entry =>
+      val arrow = entry.indexOf("->")
+      if arrow < 0 then None
+      else
+        val gen      = entry.substring(0, arrow).trim.toIntOption.getOrElse(-1)
+        val rest     = entry.substring(arrow + 2).trim
+        val colon    = rest.indexOf(':')
+        val (src, col) =
+          if colon < 0 then (rest.toIntOption.getOrElse(-1), 1)
+          else (rest.substring(0, colon).toIntOption.getOrElse(-1), rest.substring(colon + 1).toIntOption.getOrElse(1))
+        if gen > 0 && src > 0 then Some((gen, src, col)) else None
+    }
+
+  test("LINES metadata records column > 1 for expression node inside element") {
+    // {myVar} starts at offset 5 in "<div>{myVar}</div>" → column 6
+    val result = MeltCompiler.compile(
+      "<div>{myVar}</div>",
+      "Test.melt",
+      "Test",
+      "",
+      sourcePath = "/tmp/Test.melt"
+    )
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
+    val code     = result.scalaCode.getOrElse(fail("No generated code"))
+    val linesStr = extractLines(code).getOrElse(fail(s"No LINES entry in:\n$code"))
+    val entries  = parseLines(linesStr)
+    assert(entries.nonEmpty, s"No valid LINES entries parsed from: $linesStr")
+    // At least one entry should have column > 1 (the expression node at column 6)
+    val hasNonTrivialCol = entries.exists(_._3 > 1)
+    assert(hasNonTrivialCol, s"Expected column > 1 for expression node, but got entries: $entries")
+  }
+
+  test("LINES metadata records correct source line and column for expression with script section") {
+    // {myVar} is on line 4, column 6 in this source:
+    // line 1: <script lang="scala">
+    // line 2: val myVar = 42
+    // line 3: </script>
+    // line 4: <div>{myVar}</div>
+    val src =
+      """<script lang="scala">
+        |val myVar = 42
+        |</script>
+        |<div>{myVar}</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "Test.melt", "Test", "", sourcePath = "/tmp/Test.melt")
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
+    val code     = result.scalaCode.getOrElse(fail("No generated code"))
+    val linesStr = extractLines(code).getOrElse(fail(s"No LINES entry in:\n$code"))
+    val entries  = parseLines(linesStr)
+    // Find the entry for the expression node (source line 4, column 6)
+    val exprEntry = entries.find { case (_, src, col) => src == 4 && col == 6 }
+    assert(exprEntry.isDefined, s"Expected entry with sourceLine=4 col=6, got: $entries\nFull LINES: $linesStr")
+  }

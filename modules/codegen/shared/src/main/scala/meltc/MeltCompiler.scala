@@ -64,15 +64,40 @@ object MeltCompiler:
 
         // ── Semantic checks (§12.1.2, §12.1.3, §12.1.6) ────────────────
         val semanticErrors =
-          AttrNameChecker.check(ast, filename) ++
-            TagNameChecker.check(ast, filename) ++
-            RawTextInterpolationChecker.check(ast, filename) ++
-            BindingContextChecker.check(ast, filename) ++
+          AttrNameChecker.check(
+            ast,
+            filename,
+            positions         = result.positions,
+            templateSource    = result.templateSource,
+            templateStartLine = result.templateStartLine
+          ) ++
+            TagNameChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            RawTextInterpolationChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            BindingContextChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
             MalformedExpressionChecker.check(
               ast,
               filename,
               templateSource    = result.templateSource,
-              templateStartLine = result.templateStartLine
+              templateStartLine = result.templateStartLine,
+              positions         = result.positions
             )
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
@@ -108,7 +133,8 @@ object MeltCompiler:
                 sourcePath        = sourcePath,
                 scriptBodyLine    = result.scriptBodyLine,
                 templateStartLine = result.templateStartLine,
-                templateSource    = result.templateSource
+                templateSource    = result.templateSource,
+                positions         = result.positions
               )
               val parserWarnings = result.warnings.map {
                 case (msg, pos) =>

@@ -33,14 +33,6 @@ case class StyleSection(content: String, lang: meltc.css.StyleLang = meltc.css.S
 /** A node in the HTML template of a `.melt` file. */
 enum TemplateNode:
 
-  /** 0-based character offset of this node in the template source string.
-    * Set by [[meltc.parser.TemplateParser]] immediately after construction.
-    * Intentionally NOT a case-class constructor field so it is excluded from
-    * `equals` / `hashCode` — test assertions remain stable regardless of
-    * the source position metadata.
-    */
-  private[meltc] var _pos: Int = 0
-
   /** An HTML element such as `<div class="foo">...</div>`. */
   case Element(tag: String, attrs: List[Attr], children: List[TemplateNode])
 

@@ -7,6 +7,7 @@
 package meltc.codegen
 
 import meltc.ast.MeltFile
+import meltc.NodePositions
 
 /** Common contract for all `meltc` code generators.
   *
@@ -56,19 +57,23 @@ trait CodeGen:
     * @param templateStartLine 1-based line in the `.melt` source where the HTML template
     *                          section begins.  Recorded in the `LINES:` field.
     * @param templateSource    raw text of the HTML template section from the original
-    *                          `.melt` file.  Used together with each node's `_pos` offset
-    *                          to compute per-node source line numbers for finer-grained
-    *                          `LINES:` entries.  Defaults to `""` (section-level
-    *                          granularity only) for backwards compatibility.
+    *                          `.melt` file.  Used together with [[positions]] to compute
+    *                          per-node source line numbers for finer-grained `LINES:` entries.
+    *                          Defaults to `""` (section-level granularity only) for backwards
+    *                          compatibility.
+    * @param positions         source-position map produced by the parser, keyed by node identity.
+    *                          Used to determine the `.melt` line number for each generated
+    *                          statement.  Defaults to [[NodePositions.empty]].
     */
   def generate(
     ast:               MeltFile,
     objectName:        String,
     pkg:               String,
     scopeId:           String,
-    hydration:         Boolean = false,
-    sourcePath:        String = "",
-    scriptBodyLine:    Int = 1,
-    templateStartLine: Int = 1,
-    templateSource:    String = ""
+    hydration:         Boolean      = false,
+    sourcePath:        String       = "",
+    scriptBodyLine:    Int          = 1,
+    templateStartLine: Int          = 1,
+    templateSource:    String       = "",
+    positions:         NodePositions = NodePositions.empty
   ): String

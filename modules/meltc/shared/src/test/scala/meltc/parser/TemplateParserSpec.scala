@@ -1389,19 +1389,19 @@ class TemplateParserSpec extends munit.FunSuite:
   }
 
   test("<melt:element this={\"h2\"}> with known string literal emits warning") {
-    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"h2\"}>heading</melt:element>")
+    val (nodes, _, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"h2\"}>heading</melt:element>")
     val el                = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
     assertEquals(el.tagExpr, "\"h2\"")
     assert(warnings.exists(_._1.contains("use <h2> directly")), s"no warning: $warnings")
   }
 
   test("<melt:element this={\"hoge\"}> with unknown string literal emits error warning") {
-    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"hoge\"}>content</melt:element>")
+    val (nodes, _, warnings) = TemplateParser.parseWithWarnings("<melt:element this={\"hoge\"}>content</melt:element>")
     assert(warnings.exists(_._1.contains("not a valid HTML tag name")), s"no warning: $warnings")
   }
 
   test("<melt:element> without this attribute emits warning and falls back to div") {
-    val (nodes, warnings) = TemplateParser.parseWithWarnings("<melt:element>content</melt:element>")
+    val (nodes, _, warnings) = TemplateParser.parseWithWarnings("<melt:element>content</melt:element>")
     assert(warnings.exists(_._1.contains("requires a `this={expr}` attribute")), s"no warning: $warnings")
     val el = nodes.head.asInstanceOf[TemplateNode.DynamicElement]
     assertEquals(el.tagExpr, "\"div\"")
@@ -1439,17 +1439,17 @@ class TemplateParserSpec extends munit.FunSuite:
   // ── Malformed attribute warnings ──────────────────────────────────────────
 
   test("unquoted attribute value with trailing double-quote emits warning") {
-    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class=value">{x}</span>""")
+    val (_, _, warnings) = TemplateParser.parseWithWarnings("""<span class=value">{x}</span>""")
     assert(warnings.exists(_._1.contains("Malformed attribute")), s"no warning: $warnings")
     assert(warnings.exists(_._1.contains("""class="value"""")), s"suggestion missing: $warnings")
   }
 
   test("unquoted attribute value with single-quote emits warning") {
-    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class=value'>{x}</span>""")
+    val (_, _, warnings) = TemplateParser.parseWithWarnings("""<span class=value'>{x}</span>""")
     assert(warnings.exists(_._1.contains("Malformed attribute")), s"no warning: $warnings")
   }
 
   test("properly quoted attribute does not emit malformed-attribute warning") {
-    val (_, warnings) = TemplateParser.parseWithWarnings("""<span class="value">{x}</span>""")
+    val (_, _, warnings) = TemplateParser.parseWithWarnings("""<span class="value">{x}</span>""")
     assert(!warnings.exists(_._1.contains("Malformed attribute")), s"unexpected warning: $warnings")
   }

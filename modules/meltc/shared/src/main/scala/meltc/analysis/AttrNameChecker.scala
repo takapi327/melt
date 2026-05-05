@@ -10,7 +10,7 @@ import scala.collection.mutable
 
 import meltc.ast.*
 import meltc.codegen.NameValidators
-import meltc.CompileError
+import meltc.{ CompileError, NodePositions }
 
 /** Compile-time validator for static attribute names (§12.1.2).
   *
@@ -24,46 +24,67 @@ import meltc.CompileError
   */
 object AttrNameChecker:
 
-  def check(ast: MeltFile, filename: String): List[CompileError] =
+  def check(
+    ast:               MeltFile,
+    filename:          String,
+    positions:         NodePositions = NodePositions.empty,
+    templateSource:    String        = "",
+    templateStartLine: Int           = 1
+  ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, errors, filename))
+    ast.template.foreach(node => walk(node, errors, filename, positions, templateSource, templateStartLine))
     errors.toList
 
   private def walk(
-    node:     TemplateNode,
-    errors:   mutable.ListBuffer[CompileError],
-    filename: String
+    node:              TemplateNode,
+    errors:            mutable.ListBuffer[CompileError],
+    filename:          String,
+    positions:         NodePositions,
+    templateSource:    String,
+    templateStartLine: Int
   ): Unit = node match
     case TemplateNode.Element(_, attrs, children) =>
-      attrs.foreach(a => checkAttr(a, errors, filename))
-      children.foreach(c => walk(c, errors, filename))
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Component(_, attrs, children) =>
-      attrs.foreach(a => checkAttr(a, errors, filename))
-      children.foreach(c => walk(c, errors, filename))
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.DynamicElement(_, attrs, children) =>
-      attrs.foreach(a => checkAttr(a, errors, filename))
-      children.foreach(c => walk(c, errors, filename))
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Head(children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
-    case TemplateNode.Window(attrs) => attrs.foreach(a => checkAttr(a, errors, filename))
-    case TemplateNode.Body(attrs)   => attrs.foreach(a => checkAttr(a, errors, filename))
+    case TemplateNode.Window(attrs) =>
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
+
+    case TemplateNode.Body(attrs) =>
+      val span = positions.spanOf(node)
+      attrs.foreach(a => checkAttr(a, errors, filename, span, templateSource, templateStartLine))
 
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
-        case InlineTemplatePart.Html(nodes) => nodes.foreach(n => walk(n, errors, filename))
-        case _                              => ()
+        case InlineTemplatePart.Html(nodes) =>
+          nodes.foreach(n => walk(n, errors, filename, positions, templateSource, templateStartLine))
+        case _ => ()
       }
 
     case _ => ()
 
   private def checkAttr(
-    attr:     Attr,
-    errors:   mutable.ListBuffer[CompileError],
-    filename: String
+    attr:              Attr,
+    errors:            mutable.ListBuffer[CompileError],
+    filename:          String,
+    parentSpan:        meltc.SourceSpan,
+    templateSource:    String,
+    templateStartLine: Int
   ): Unit =
     val nameOpt: Option[String] = attr match
       case Attr.Static(n, _)             => Some(n)
@@ -88,8 +109,8 @@ object AttrNameChecker:
           message = s"Invalid attribute name '$n'. " +
             "Attribute names must not contain whitespace, quotes, '>', '/', '=', " +
             "or Unicode noncharacters.",
-          line     = 0,
-          column   = 0,
+          line     = parentSpan.absoluteLine(templateSource, templateStartLine),
+          column   = parentSpan.column(templateSource),
           filename = filename
         )
     }

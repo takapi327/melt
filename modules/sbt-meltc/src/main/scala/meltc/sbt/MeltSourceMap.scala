@@ -68,10 +68,10 @@ object MeltSourceMap {
             else if (!pos.line().isPresent) None
             else {
               val genLine = pos.line().get().intValue()
-              MeltGeneratedSource.mapLine(meta, genLine) match {
-                case None          => None
-                case Some(srcLine) =>
-                  Some(remappedPosition(meltFile, srcLine))
+              MeltGeneratedSource.mapPosition(meta, genLine) match {
+                case None                    => None
+                case Some((srcLine, srcCol)) =>
+                  Some(remappedPosition(meltFile, srcLine, srcCol))
               }
             }
         }
@@ -79,14 +79,15 @@ object MeltSourceMap {
     }
   }
 
-  /** Constructs an `xsbti.Position` pointing to `file` at `srcLine`. */
-  private def remappedPosition(file: File, srcLine: Int): xsbti.Position =
+  /** Constructs an `xsbti.Position` pointing to `file` at `srcLine` and `srcCol`. */
+  private def remappedPosition(file: File, srcLine: Int, srcCol: Int): xsbti.Position =
     new xsbti.Position {
       override def line(): Optional[Integer] =
         Optional.of(srcLine.asInstanceOf[Integer])
       override def lineContent():  String                 = ""
       override def offset():       Optional[Integer]      = Optional.empty()
-      override def pointer():      Optional[Integer]      = Optional.empty()
+      // pointer() is 0-based within the line; srcCol is 1-based
+      override def pointer():      Optional[Integer]      = Optional.of((srcCol - 1).asInstanceOf[Integer])
       override def pointerSpace(): Optional[String]       = Optional.empty()
       override def sourcePath():   Optional[String]       = Optional.of(file.getAbsolutePath)
       override def sourceFile():   Optional[java.io.File] = Optional.of(file)

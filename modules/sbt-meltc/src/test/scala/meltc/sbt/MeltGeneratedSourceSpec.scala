@@ -6,7 +6,7 @@
 
 package meltc.sbt
 
-/** Tests for [[MeltGeneratedSource]] — parsing and line-mapping of the
+/** Tests for [[MeltGeneratedSource]] — parsing and position-mapping of the
   * `-- MELT GENERATED --` source-map comment block.
   */
 class MeltGeneratedSourceSpec extends munit.FunSuite {
@@ -18,7 +18,7 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
        |/*
        |    -- MELT GENERATED --
        |    SOURCE: /home/user/project/App.melt
-       |    LINES: 10->5|15->8|20->12
+       |    LINES: 10->5:3|15->8:1|20->12:7
        |    -- MELT GENERATED --
        |*/
        |""".stripMargin
@@ -29,9 +29,23 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
     assertEquals(meta.get.sourcePath, "/home/user/project/App.melt")
   }
 
-  test("parse extracts LINES entries correctly") {
+  test("parse extracts LINES entries with column correctly") {
     val meta = MeltGeneratedSource.parse(sampleBlock).get
-    assertEquals(meta.lines.toList, List((10, 5), (15, 8), (20, 12)))
+    assertEquals(meta.lines.toList, List((10, 5, 3), (15, 8, 1), (20, 12, 7)))
+  }
+
+  test("parse falls back to column 1 when no colon in entry") {
+    val block =
+      """|object App {}
+         |/*
+         |    -- MELT GENERATED --
+         |    SOURCE: /tmp/App.melt
+         |    LINES: 10->5|15->8
+         |    -- MELT GENERATED --
+         |*/
+         |""".stripMargin
+    val meta = MeltGeneratedSource.parse(block).get
+    assertEquals(meta.lines.toList, List((10, 5, 1), (15, 8, 1)))
   }
 
   test("parse returns None when no block is present") {
@@ -45,14 +59,13 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
   }
 
   test("parse uses last occurrence when sentinel appears in user code") {
-    // Simulates a user whose source code contains the sentinel as a string literal.
     val withUserLiteral =
       """|val s = "-- MELT GENERATED --"
          |object App {}
          |/*
          |    -- MELT GENERATED --
          |    SOURCE: /tmp/Real.melt
-         |    LINES: 5->3
+         |    LINES: 5->3:2
          |    -- MELT GENERATED --
          |*/
          |""".stripMargin
@@ -75,38 +88,38 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
     assert(meta.lines.isEmpty)
   }
 
-  // ── mapLine ───────────────────────────────────────────────────────────────
+  // ── mapPosition ───────────────────────────────────────────────────────────
 
-  private def meta(pairs: (Int, Int)*): MeltGeneratedSource.Meta =
-    MeltGeneratedSource.Meta("/tmp/App.melt", pairs.toIndexedSeq)
+  private def meta(triples: (Int, Int, Int)*): MeltGeneratedSource.Meta =
+    MeltGeneratedSource.Meta("/tmp/App.melt", triples.toIndexedSeq)
 
-  test("mapLine returns None for empty lines") {
-    assertEquals(MeltGeneratedSource.mapLine(meta(), 5), None)
+  test("mapPosition returns None for empty lines") {
+    assertEquals(MeltGeneratedSource.mapPosition(meta(), 5), None)
   }
 
-  test("mapLine returns None when generatedLine is before first entry") {
-    assertEquals(MeltGeneratedSource.mapLine(meta(10 -> 5), 9), None)
+  test("mapPosition returns None when generatedLine is before first entry") {
+    assertEquals(MeltGeneratedSource.mapPosition(meta((10, 5, 1)), 9), None)
   }
 
-  test("mapLine returns sourceLine for exact match") {
-    assertEquals(MeltGeneratedSource.mapLine(meta(10 -> 5), 10), Some(5))
+  test("mapPosition returns (sourceLine, sourceColumn) for exact match") {
+    assertEquals(MeltGeneratedSource.mapPosition(meta((10, 5, 3)), 10), Some((5, 3)))
   }
 
-  test("mapLine returns nearest-predecessor sourceLine") {
-    val m = meta(10 -> 5, 20 -> 8, 30 -> 12)
-    assertEquals(MeltGeneratedSource.mapLine(m, 15), Some(5))
-    assertEquals(MeltGeneratedSource.mapLine(m, 25), Some(8))
-    assertEquals(MeltGeneratedSource.mapLine(m, 35), Some(12))
+  test("mapPosition returns nearest-predecessor entry") {
+    val m = meta((10, 5, 1), (20, 8, 4), (30, 12, 2))
+    assertEquals(MeltGeneratedSource.mapPosition(m, 15), Some((5, 1)))
+    assertEquals(MeltGeneratedSource.mapPosition(m, 25), Some((8, 4)))
+    assertEquals(MeltGeneratedSource.mapPosition(m, 35), Some((12, 2)))
   }
 
-  test("mapLine returns sourceLine for last entry when generatedLine exceeds all") {
-    val m = meta(10 -> 5, 20 -> 8)
-    assertEquals(MeltGeneratedSource.mapLine(m, 99), Some(8))
+  test("mapPosition returns last entry when generatedLine exceeds all") {
+    val m = meta((10, 5, 1), (20, 8, 3))
+    assertEquals(MeltGeneratedSource.mapPosition(m, 99), Some((8, 3)))
   }
 
-  test("mapLine works with single entry") {
-    assertEquals(MeltGeneratedSource.mapLine(meta(5 -> 3), 5), Some(3))
-    assertEquals(MeltGeneratedSource.mapLine(meta(5 -> 3), 6), Some(3))
-    assertEquals(MeltGeneratedSource.mapLine(meta(5 -> 3), 4), None)
+  test("mapPosition works with single entry") {
+    assertEquals(MeltGeneratedSource.mapPosition(meta((5, 3, 2)), 5), Some((3, 2)))
+    assertEquals(MeltGeneratedSource.mapPosition(meta((5, 3, 2)), 6), Some((3, 2)))
+    assertEquals(MeltGeneratedSource.mapPosition(meta((5, 3, 2)), 4), None)
   }
 }

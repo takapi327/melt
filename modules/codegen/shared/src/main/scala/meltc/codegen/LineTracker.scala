@@ -24,7 +24,8 @@ final class LineTracker:
 
   private val buf         = new StringBuilder
   private var currentLine = 1
-  private val entries     = scala.collection.mutable.ArrayBuffer.empty[(Int, Int)]
+  // (generatedLine, sourceLine, sourceColumn)
+  private val entries = scala.collection.mutable.ArrayBuffer.empty[(Int, Int, Int)]
 
   /** Appends a string, counting embedded newlines. */
   def ++=(s: String): this.type =
@@ -38,25 +39,29 @@ final class LineTracker:
     if c == '\n' then currentLine += 1
     this
 
-  /** Records that the current generated line corresponds to `sourceLine` in the
-    * original `.melt` file.
+  /** Records that the current generated line corresponds to `sourceLine` and
+    * `sourceColumn` in the original `.melt` file.
     *
     * Consecutive calls on the same generated line update the entry rather than
     * appending a duplicate.
+    *
+    * @param sourceLine   1-based line in the original `.melt` file
+    * @param sourceColumn 1-based column in the original `.melt` file (default: 1)
     */
-  def markSourceLine(sourceLine: Int): Unit =
+  def markSourceLine(sourceLine: Int, sourceColumn: Int = 1): Unit =
     if sourceLine > 0 then
-      if entries.nonEmpty && entries.last._1 == currentLine then entries(entries.length - 1) = (currentLine, sourceLine)
-      else entries += ((currentLine, sourceLine))
+      val entry = (currentLine, sourceLine, sourceColumn)
+      if entries.nonEmpty && entries.last._1 == currentLine then entries(entries.length - 1) = entry
+      else entries += entry
 
   /** Returns the accumulated source string. */
   def result(): String = buf.result()
 
-  /** Returns the recorded `(generatedLine, sourceLine)` pairs in order. */
-  def mappings(): Seq[(Int, Int)] = entries.toSeq
+  /** Returns the recorded `(generatedLine, sourceLine, sourceColumn)` triples in order. */
+  def mappings(): Seq[(Int, Int, Int)] = entries.toSeq
 
-  /** Serialises the LINES metadata as `"g1->s1|g2->s2|..."` (Twirl-compatible format).
+  /** Serialises the LINES metadata as `"g1->s1:c1|g2->s2:c2|..."`.
     * Returns an empty string when no source lines have been marked.
     */
   def linesMetadata(): String =
-    entries.map { case (gen, src) => s"$gen->$src" }.mkString("|")
+    entries.map { case (gen, src, col) => s"$gen->$src:$col" }.mkString("|")

@@ -440,7 +440,7 @@ class MetalsBridge:
   *
   * @param debounceMs idle period after the last notification before settling (default 800ms)
   */
-private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageClient:
+private[lsp] class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageClient:
 
   /** Latest diagnostics per virtualUri (may be replaced before debounce fires). */
   private val latestDiags = ConcurrentHashMap[String, List[Diagnostic]]()
@@ -485,10 +485,10 @@ private class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageCli
     * debounce task and drops the pending promise (if any) without completing it.
     */
   def dropUri(uri: String): Unit =
-    latestDiags.remove(uri)
     lock.synchronized {
       Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
       Option(pendingPromises.remove(uri)).foreach(_.cancel(false))
+      latestDiags.remove(uri)
     }
 
   /** Cancels all pending promises and debounce tasks. Called on shutdown. */

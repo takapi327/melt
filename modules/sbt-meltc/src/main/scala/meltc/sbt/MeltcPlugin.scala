@@ -609,9 +609,30 @@ object MeltcPlugin extends AutoPlugin {
         // Use a per-file cache directory keyed on the output file's relative
         // path so that two components with the same base name in different
         // sub-packages each get an independent cache entry.
+        //
+        // A compiler fingerprint is also included in the directory name so
+        // that updating meltc (either via publishLocal or by recompiling in
+        // the monorepo) automatically invalidates all cached generated files.
+        // For class directories the newest direct-child modification time is
+        // used as a proxy for "has the compiler changed?".
         val relPath  = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
         val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
-        val cacheDir = streams.cacheDirectory / "meltc" / safeKey
+        val cpFingerprint: String = {
+          def stamp(f: File): Long =
+            if (f.isDirectory) {
+              val children = Option(f.listFiles()).toSeq.flatten
+              if (children.isEmpty) f.lastModified
+              else children.map(_.lastModified).max
+            } else
+              f.lastModified
+          compilerCp
+            .sortBy(_.getAbsolutePath)
+            .map(f => s"${f.getName}:${stamp(f)}")
+            .mkString("|")
+            .hashCode
+            .toHexString
+        }
+        val cacheDir = streams.cacheDirectory / "meltc" / safeKey / cpFingerprint
 
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
           log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
