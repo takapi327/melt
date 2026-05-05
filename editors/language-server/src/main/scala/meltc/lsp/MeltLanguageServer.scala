@@ -42,7 +42,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   private given ExecutionContext = ExecutionContext.global
 
   @volatile private var client: Option[LanguageClient] = None
-  private val metals: MetalsBridge           = MetalsBridge()
+  private val metals:           MetalsBridge           = MetalsBridge()
 
   /** Open documents: URI → current .melt source text. */
   private val documents = scala.collection.concurrent.TrieMap.empty[String, String]

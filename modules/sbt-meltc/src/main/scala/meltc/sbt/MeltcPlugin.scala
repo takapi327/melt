@@ -629,7 +629,8 @@ object MeltcPlugin extends AutoPlugin {
             .sortBy(_.getAbsolutePath)
             .map(f => s"${ f.getName }:${ stamp(f) }")
             .mkString("|")
-          java.security.MessageDigest.getInstance("SHA-256")
+          java.security.MessageDigest
+            .getInstance("SHA-256")
             .digest(raw.getBytes("UTF-8"))
             .take(8)
             .map(b => "%02x".format(b & 0xff))
