@@ -73,7 +73,11 @@ class CounterSpec extends MeltSuite:
     c.click("button")
     c.getByText("-1")
       .dispatchEvent(
-        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+        new org.scalajs.dom.MouseEvent(
+          "click",
+          new org.scalajs.dom.MouseEventInit:
+            bubbles = true
+        )
       )
     assertEquals(c.text("p"), "Count: 0")
   }
@@ -86,7 +90,11 @@ class CounterSpec extends MeltSuite:
     c.click("button")
     c.getByText("Reset All")
       .dispatchEvent(
-        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+        new org.scalajs.dom.MouseEvent(
+          "click",
+          new org.scalajs.dom.MouseEventInit:
+            bubbles = true
+        )
       )
     assertEquals(c.text("p"), "Count: 0")
   }

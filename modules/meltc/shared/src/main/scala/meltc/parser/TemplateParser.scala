@@ -342,7 +342,8 @@ private[parser] final class TemplateParser(
       src(pos) match
         case '(' | '[' | '{' => depth += 1; buf += src(pos)
         case ')' | ']' | '}' =>
-          if depth > 0 then { depth -= 1; buf += src(pos) }
+          if depth > 0 then
+            depth -= 1; buf += src(pos)
           else return buf.toString
         case c => buf += c
       pos += 1
@@ -401,7 +402,8 @@ private[parser] final class TemplateParser(
         return Some(Attr.Shorthand(varName))
 
     val name = collectAttrName()
-    if name.isEmpty then { pos += 1; return None } // skip unknown char
+    if name.isEmpty then
+      pos += 1; return None // skip unknown char
 
     skipSpaces()
     if pos >= src.length || src(pos) != '=' then

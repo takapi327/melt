@@ -64,7 +64,14 @@ final class UserEvent(
       fire(el, keyboardEvent("keydown", char))
       fire(el, keyboardEvent("keypress", char))
       appendValue(el, char)
-      fire(el, new dom.Event("input", new dom.EventInit { bubbles = true }))
+      fire(
+        el,
+        new dom.Event(
+          "input",
+          new dom.EventInit:
+            bubbles = true
+        )
+      )
       fire(el, keyboardEvent("keyup", char))
     }
 
@@ -79,7 +86,14 @@ final class UserEvent(
     val el = require(selector)
     focus(el)
     setValue(el, "")
-    fire(el, new dom.Event("input", new dom.EventInit { bubbles = true }))
+    fire(
+      el,
+      new dom.Event(
+        "input",
+        new dom.EventInit:
+          bubbles = true
+      )
+    )
 
   // ── selectOption ──────────────────────────────────────────────────────────
 
@@ -92,7 +106,14 @@ final class UserEvent(
     val el = require(selector)
     focus(el)
     el.asInstanceOf[dom.html.Select].value = value
-    fire(el, new dom.Event("change", new dom.EventInit { bubbles = true }))
+    fire(
+      el,
+      new dom.Event(
+        "change",
+        new dom.EventInit:
+          bubbles = true
+      )
+    )
 
   // ── tab ───────────────────────────────────────────────────────────────────
 
@@ -157,41 +178,37 @@ final class UserEvent(
   private def mouseEvent(eventType: String): dom.MouseEvent =
     new dom.MouseEvent(
       eventType,
-      new dom.MouseEventInit {
+      new dom.MouseEventInit:
         bubbles    = true
         cancelable = true
-      }
     )
 
   private def pointerEvent(eventType: String): dom.Event =
     new dom.Event(
       eventType,
-      new dom.EventInit {
+      new dom.EventInit:
         bubbles    = true
         cancelable = true
-      }
     )
 
   private def keyboardEvent(eventType: String, char: Char): dom.KeyboardEvent =
     new dom.KeyboardEvent(
       eventType,
-      new dom.KeyboardEventInit {
+      new dom.KeyboardEventInit:
         bubbles    = true
         cancelable = true
         key        = char.toString
         charCode   = char.toInt
         keyCode    = char.toInt
-      }
     )
 
   private def specialKeyEvent(eventType: String, keyName: String): dom.KeyboardEvent =
     new dom.KeyboardEvent(
       eventType,
-      new dom.KeyboardEventInit {
+      new dom.KeyboardEventInit:
         bubbles    = true
         cancelable = true
         key        = keyName
-      }
     )
 
   private def appendValue(el: dom.Element, char: Char): Unit =

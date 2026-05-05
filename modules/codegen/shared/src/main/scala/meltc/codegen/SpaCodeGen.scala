@@ -1469,6 +1469,9 @@ object SpaCodeGen extends CodeGen:
     private var el       = 0
     private var txt      = 0
     private var childIdx = 0
-    def nextEl():       String = { val v = s"_el$el"; el += 1; v }
-    def nextTxt():      String = { val v = s"_txt$txt"; txt += 1; v }
-    def nextChildIdx(): Int    = { val v = childIdx; childIdx += 1; v }
+    def nextEl(): String =
+      val v = s"_el$el"; el += 1; v
+    def nextTxt(): String =
+      val v = s"_txt$txt"; txt += 1; v
+    def nextChildIdx(): Int =
+      val v = childIdx; childIdx += 1; v

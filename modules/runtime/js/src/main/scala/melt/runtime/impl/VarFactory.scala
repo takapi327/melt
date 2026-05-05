@@ -59,15 +59,18 @@ private final class JsVar[A](private var _current: A) extends Var[A]:
 
   def subscribe(f: A => Unit): () => Unit =
     _bind += f
-    () => { _bind -= f; () }
+    () =>
+      _bind -= f; ()
 
   private[runtime] def subscribePre(f: A => Unit): () => Unit =
     _pre += f
-    () => { _pre -= f; () }
+    () =>
+      _pre -= f; ()
 
   private[runtime] def subscribePost(f: A => Unit): () => Unit =
     _post += f
-    () => { _post -= f; () }
+    () =>
+      _post -= f; ()
 
   lazy val signal: Signal[A] =
     val s = JsSignal.create[A](_current)
@@ -90,5 +93,7 @@ private final class JsVar[A](private var _current: A) extends Var[A]:
       s.emit(inner.value)
       cancelInner = inner.subscribe(b => s.emit(b))
     }
-    Cleanup.register(() => { cancelInner(); cancel(); () })
+    Cleanup.register(() =>
+      cancelInner(); cancel(); ()
+    )
     s

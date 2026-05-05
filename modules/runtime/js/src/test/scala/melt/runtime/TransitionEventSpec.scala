@@ -67,7 +67,11 @@ class TransitionEventSpec extends munit.FunSuite:
     val el  = dom.document.createElement("div")
     val log = scala.collection.mutable.ListBuffer.empty[String]
     names.foreach { n =>
-      el.addEventListener(n, (_: dom.Event) => { log += n; () })
+      el.addEventListener(
+        n,
+        (_: dom.Event) =>
+          log += n; ()
+      )
     }
     (log, el)
 
@@ -107,8 +111,16 @@ class TransitionEventSpec extends munit.FunSuite:
     parent.appendChild(child)
 
     val bubbled = scala.collection.mutable.ListBuffer.empty[String]
-    parent.addEventListener("introstart", (_: dom.Event) => { bubbled += "introstart"; () })
-    parent.addEventListener("introend", (_: dom.Event) => { bubbled += "introend"; () })
+    parent.addEventListener(
+      "introstart",
+      (_: dom.Event) =>
+        bubbled += "introstart"; ()
+    )
+    parent.addEventListener(
+      "introend",
+      (_: dom.Event) =>
+        bubbled += "introend"; ()
+    )
 
     TransitionEngine.run(child, syncConfig, intro = true)
     assertEquals(bubbled.toList, List("introstart", "introend"))
@@ -120,8 +132,16 @@ class TransitionEventSpec extends munit.FunSuite:
     parent.appendChild(child)
 
     val bubbled = scala.collection.mutable.ListBuffer.empty[String]
-    parent.addEventListener("outrostart", (_: dom.Event) => { bubbled += "outrostart"; () })
-    parent.addEventListener("outroend", (_: dom.Event) => { bubbled += "outroend"; () })
+    parent.addEventListener(
+      "outrostart",
+      (_: dom.Event) =>
+        bubbled += "outrostart"; ()
+    )
+    parent.addEventListener(
+      "outroend",
+      (_: dom.Event) =>
+        bubbled += "outroend"; ()
+    )
 
     TransitionEngine.run(child, syncConfig, intro = false)
     assertEquals(bubbled.toList, List("outrostart", "outroend"))
@@ -146,16 +166,36 @@ class TransitionEventSpec extends munit.FunSuite:
   test("onDone fires after introend") {
     val el    = dom.document.createElement("div")
     val order = scala.collection.mutable.ListBuffer.empty[String]
-    el.addEventListener("introend", (_: dom.Event) => { order += "introend"; () })
-    TransitionEngine.run(el, syncConfig, intro = true, onDone = () => { order += "onDone"; () })
+    el.addEventListener(
+      "introend",
+      (_: dom.Event) =>
+        order += "introend"; ()
+    )
+    TransitionEngine.run(
+      el,
+      syncConfig,
+      intro  = true,
+      onDone = () =>
+        order += "onDone"; ()
+    )
     assertEquals(order.toList, List("introend", "onDone"))
   }
 
   test("onDone fires after outroend") {
     val el    = dom.document.createElement("div")
     val order = scala.collection.mutable.ListBuffer.empty[String]
-    el.addEventListener("outroend", (_: dom.Event) => { order += "outroend"; () })
-    TransitionEngine.run(el, syncConfig, intro = false, onDone = () => { order += "onDone"; () })
+    el.addEventListener(
+      "outroend",
+      (_: dom.Event) =>
+        order += "outroend"; ()
+    )
+    TransitionEngine.run(
+      el,
+      syncConfig,
+      intro  = false,
+      onDone = () =>
+        order += "onDone"; ()
+    )
     assertEquals(order.toList, List("outroend", "onDone"))
   }
 

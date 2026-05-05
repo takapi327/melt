@@ -127,12 +127,18 @@ object ViteManifest:
   private sealed trait JsonValue:
     def kind: String
   private object JsonValue:
-    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue { def kind = "object" }
-    final case class Arr(items: List[JsonValue])         extends JsonValue { def kind = "array"  }
-    final case class Str(value: String)                  extends JsonValue { def kind = "string" }
-    final case class Num(value: Double)                  extends JsonValue { def kind = "number" }
-    final case class Bool(value: Boolean)                extends JsonValue { def kind = "bool"   }
-    case object Null                                     extends JsonValue { def kind = "null"   }
+    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue:
+      def kind = "object"
+    final case class Arr(items: List[JsonValue]) extends JsonValue:
+      def kind = "array"
+    final case class Str(value: String) extends JsonValue:
+      def kind = "string"
+    final case class Num(value: Double) extends JsonValue:
+      def kind = "number"
+    final case class Bool(value: Boolean) extends JsonValue:
+      def kind = "bool"
+    case object Null extends JsonValue:
+      def kind = "null"
 
   private final class JsonParser(src: String):
     var pos: Int = 0
@@ -209,12 +215,15 @@ object ViteManifest:
       buf.toString
 
     private def parseBool(): Boolean =
-      if src.startsWith("true", pos) then { pos += 4; true }
-      else if src.startsWith("false", pos) then { pos += 5; false }
+      if src.startsWith("true", pos) then
+        pos += 4; true
+      else if src.startsWith("false", pos) then
+        pos += 5; false
       else fail("expected true/false")
 
     private def parseNull(): JsonValue =
-      if src.startsWith("null", pos) then { pos += 4; JsonValue.Null }
+      if src.startsWith("null", pos) then
+        pos += 4; JsonValue.Null
       else fail("expected null")
 
     private def parseNumber(): JsonValue.Num =
@@ -226,8 +235,8 @@ object ViteManifest:
       do pos += 1
       JsonValue.Num(src.substring(start, pos).toDouble)
 
-    private def peekChar(c: Char): Boolean = { skipWs(); pos < src.length && src.charAt(pos) == c }
-    private def expect(c: Char):   Unit    = {
+    private def peekChar(c: Char): Boolean =
+      skipWs(); pos < src.length && src.charAt(pos) == c
+    private def expect(c: Char): Unit =
       skipWs(); if pos >= src.length || src.charAt(pos) != c then fail(s"expected '$c'"); pos += 1
-    }
     private def fail(msg: String): Nothing = throw new IllegalArgumentException(s"$msg at offset $pos")

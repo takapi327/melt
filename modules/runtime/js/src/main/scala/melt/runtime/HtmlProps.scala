@@ -108,7 +108,8 @@ trait HtmlProps:
 
   private var _html:              HtmlAttrs = HtmlAttrs.empty
   def html:                       HtmlAttrs = _html
-  def withHtml(attrs: HtmlAttrs): this.type = { _html = attrs; this }
+  def withHtml(attrs: HtmlAttrs): this.type =
+    _html = attrs; this
 
   /** Collects all non-None attribute fields + custom [[HtmlAttrs]] into a single map.
     * Element-specific sub-traits override this to include their own fields.

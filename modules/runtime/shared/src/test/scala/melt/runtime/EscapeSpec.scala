@@ -80,7 +80,8 @@ class EscapeSpec extends FunSuite:
   }
 
   test("Escape.html tolerates toString returning null") {
-    val nullyObj = new Object { override def toString: String = null }
+    val nullyObj = new Object:
+      override def toString: String = null
     assertEquals(Escape.html(nullyObj), "")
   }
 

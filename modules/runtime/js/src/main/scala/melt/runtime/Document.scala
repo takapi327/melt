@@ -82,7 +82,7 @@ object Document:
       else v.set(Option(dom.document.activeElement))
     dom.document.addEventListener("focusin", listener)
     dom.document.addEventListener("focusout", listener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       dom.document.removeEventListener("focusin", listener)
       dom.document.removeEventListener("focusout", listener)
-    })
+    )

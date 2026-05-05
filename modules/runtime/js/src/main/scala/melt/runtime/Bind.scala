@@ -163,7 +163,9 @@ object Bind:
   /** Two-way Int binding for `<input type="number">`. */
   def inputInt(input: dom.html.Input, v: Var[Int]): Unit =
     input.value = v.value.toString
-    val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
+    val cancelSub = v.subscribe(n =>
+      val s = n.toString; if input.value != s then input.value = s
+    )
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toIntOption.foreach(v.set)
     input.addEventListener("input", listener)
     Cleanup.register(cancelSub)
@@ -172,7 +174,9 @@ object Bind:
   /** Two-way Double binding for `<input type="number">`. */
   def inputDouble(input: dom.html.Input, v: Var[Double]): Unit =
     input.value = v.value.toString
-    val cancelSub = v.subscribe(n => { val s = n.toString; if input.value != s then input.value = s })
+    val cancelSub = v.subscribe(n =>
+      val s = n.toString; if input.value != s then input.value = s
+    )
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => input.value.toDoubleOption.foreach(v.set)
     input.addEventListener("input", listener)
     Cleanup.register(cancelSub)
@@ -201,7 +205,8 @@ object Bind:
     input.checked = v.value.contains(value)
     val cancelSub = v.subscribe(list => input.checked = list.contains(value))
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
-      if input.checked then { if !v.value.contains(value) then v.update(_ :+ value) }
+      if input.checked then
+        if !v.value.contains(value) then v.update(_ :+ value)
       else v.update(_.filterNot(_ == value))
     input.addEventListener("change", listener)
     Cleanup.register(cancelSub)
@@ -422,10 +427,10 @@ object Bind:
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.duration)
     media.addEventListener("durationchange", listener)
     media.addEventListener("loadedmetadata", listener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       media.removeEventListener("durationchange", listener)
       media.removeEventListener("loadedmetadata", listener)
-    })
+    )
 
   /** Two-way binding: `media.paused ↔ Var[Boolean]`.
     *
@@ -443,16 +448,17 @@ object Bind:
     val pauseListener: scalajs.js.Function1[dom.Event, Unit] = _ => if !v.value then v.set(true)
     media.addEventListener("play", playListener)
     media.addEventListener("pause", pauseListener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       media.removeEventListener("play", playListener)
       media.removeEventListener("pause", pauseListener)
-    })
+    )
     // Var → DOM: Signal.subscribe is lazy so no initialized guard needed;
     // equality check prevents feedback loops
     val cancel = v.signal.subscribe { paused =>
       if paused != media.paused then
         if paused then media.pause()
-        else { val _ = media.play() }
+        else
+          val _ = media.play()
     }
     Cleanup.register(cancel)
 
@@ -525,10 +531,10 @@ object Bind:
     val seekedListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     media.addEventListener("seeking", seekingListener)
     media.addEventListener("seeked", seekedListener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       media.removeEventListener("seeking", seekingListener)
       media.removeEventListener("seeked", seekedListener)
-    })
+    )
 
   /** One-way binding: `media.ended → Var[Boolean]` (read-only).
     *
@@ -541,10 +547,10 @@ object Bind:
     val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     media.addEventListener("ended", endedListener)
     media.addEventListener("play", playListener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       media.removeEventListener("ended", endedListener)
       media.removeEventListener("play", playListener)
-    })
+    )
 
   /** One-way binding: `media.readyState → Var[Int]` (read-only, 0–4).
     *
@@ -722,12 +728,11 @@ object Bind:
           Lifecycle.destroyTree(el)
           TransitionBridge.playOut(
             el,
-            () => {
+            () =>
               animatingNodes -= el
               Option(el.parentNode).foreach(_.removeChild(el))
               remaining -= 1
               if remaining == 0 then owner.destroy()
-            }
           )
         }
 
@@ -769,12 +774,12 @@ object Bind:
       if !lastKey.contains(newVal) then mount()
     }
     Cleanup.register(cancel)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       val prevNodes = nodesBetween()
       elementNode.foreach(removeNodes(prevNodes, _))
       currentNodes = Nil
       elementNode  = None
-    })
+    )
 
   /** Reactive key-block rendering for [[Signal]].
     *
@@ -817,12 +822,11 @@ object Bind:
           Lifecycle.destroyTree(el)
           TransitionBridge.playOut(
             el,
-            () => {
+            () =>
               animatingNodes -= el
               Option(el.parentNode).foreach(_.removeChild(el))
               remaining -= 1
               if remaining == 0 then owner.destroy()
-            }
           )
         }
 
@@ -862,12 +866,12 @@ object Bind:
       if !lastKey.contains(newVal) then mount()
     }
     Cleanup.register(cancel)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       val prevNodes = nodesBetween()
       elementNode.foreach(removeNodes(prevNodes, _))
       currentNodes = Nil
       elementNode  = None
-    })
+    )
 
   /** Compile-time guard: the `this={...}` expression in `<melt:key>` must be
     * a [[Var]][?] or [[Signal]][?].
@@ -1190,7 +1194,9 @@ object Bind:
       prevCleanup()
       prevCleanup = act(wrapped, p)
     }
-    Cleanup.register(() => { prevCleanup(); cancel() })
+    Cleanup.register(() =>
+      prevCleanup(); cancel()
+    )
 
   /** Applies an action with a reactive Signal parameter. */
   def action[P](el: dom.Element, act: Action[P], param: Signal[P]): Unit =
@@ -1200,7 +1206,9 @@ object Bind:
       prevCleanup()
       prevCleanup = act(wrapped, p)
     }
-    Cleanup.register(() => { prevCleanup(); cancel() })
+    Cleanup.register(() =>
+      prevCleanup(); cancel()
+    )
 
   // ── Dynamic element (<melt:element this={tag}>) ───────────────────────
 
@@ -1531,7 +1539,7 @@ object Bind:
     swap(initial)
     val cancel = subscribeFn(swap)
     Cleanup.register(cancel)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       elementNode.foreach(_.destroy())
       current.foreach { old =>
         current = None
@@ -1542,4 +1550,4 @@ object Bind:
           playGlobalTransitions(old, intro = false)
           Option(anchor.parentNode).foreach(_.removeChild(old))
       }
-    })
+    )

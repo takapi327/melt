@@ -39,10 +39,10 @@ object Window:
     val offlineListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     dom.window.addEventListener("online", onlineListener)
     dom.window.addEventListener("offline", offlineListener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       dom.window.removeEventListener("online", onlineListener)
       dom.window.removeEventListener("offline", offlineListener)
-    })
+    )
     v.signal
 
   // ── Bind directives (<melt:window bind:prop={v}>) ──────────────────────
@@ -128,10 +128,10 @@ object Window:
     val offListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     dom.window.addEventListener("online", onListener)
     dom.window.addEventListener("offline", offListener)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       dom.window.removeEventListener("online", onListener)
       dom.window.removeEventListener("offline", offListener)
-    })
+    )
 
   // ── Internal ─────────────────────────────────────────────────────────────
 

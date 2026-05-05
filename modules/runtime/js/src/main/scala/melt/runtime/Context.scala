@@ -30,7 +30,9 @@ final class Context[A] private (default: A):
   /** Provides a value for descendant components. Automatically removed on cleanup. */
   def provide(value: A): Unit =
     stack.push(value)
-    onCleanup(() => { stack.pop(); () })
+    onCleanup(() =>
+      stack.pop(); ()
+    )
 
   /** Reads the nearest ancestor's provided value, or the default. */
   def inject(): A =
@@ -42,7 +44,9 @@ final class OptionalContext[A] private[runtime]:
 
   def provide(value: A): Unit =
     stack.push(value)
-    onCleanup(() => { stack.pop(); () })
+    onCleanup(() =>
+      stack.pop(); ()
+    )
 
   def inject(): Option[A] =
     if stack.nonEmpty then Some(stack.top) else None

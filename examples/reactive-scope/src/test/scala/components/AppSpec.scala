@@ -41,7 +41,11 @@ class AppSpec extends MeltSuite:
     c.findAll("button")
       .head
       .dispatchEvent(
-        new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+        new org.scalajs.dom.MouseEvent(
+          "click",
+          new org.scalajs.dom.MouseEventInit:
+            bubbles = true
+        )
       )
     assert(c.queryByText("running").isDefined)
     c.unmount()
@@ -52,12 +56,20 @@ class AppSpec extends MeltSuite:
     val btns = c.findAll("button")
     // Start
     btns.head.dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     assert(c.queryByText("running").isDefined)
     // Stop
     btns(1).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     assert(c.queryByText("stopped").isDefined)
     c.unmount()
@@ -67,7 +79,11 @@ class AppSpec extends MeltSuite:
     val c    = mount(App())
     val btns = c.findAll("button")
     btns.head.dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     assert(btns.head.hasAttribute("disabled"), "Start should be disabled while running")
     c.unmount()
@@ -86,7 +102,11 @@ class AppSpec extends MeltSuite:
     val btns = c.findAll("button")
     // Panel 2 Start is index 2
     btns(2).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     assert(c.queryByText("listening").isDefined)
     c.unmount()
@@ -96,10 +116,18 @@ class AppSpec extends MeltSuite:
     val c    = mount(App())
     val btns = c.findAll("button")
     btns(2).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     btns(3).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // After stop, "listening" badge should be gone
     assert(c.queryByText("listening").isEmpty)
@@ -110,13 +138,18 @@ class AppSpec extends MeltSuite:
     val c    = mount(App())
     val btns = c.findAll("button")
     btns(2).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // Simulate keydown on window
     org.scalajs.dom.window.dispatchEvent(
       new org.scalajs.dom.KeyboardEvent(
         "keydown",
-        new org.scalajs.dom.KeyboardEventInit { key = "a"; bubbles = true }
+        new org.scalajs.dom.KeyboardEventInit:
+          key = "a"; bubbles = true
       )
     )
     assert(c.queryByText("a", exact = false).isDefined, "last key should be displayed")
@@ -128,17 +161,26 @@ class AppSpec extends MeltSuite:
     val btns = c.findAll("button")
     // Start
     btns(2).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // Stop — removes listener
     btns(3).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // Keydown after stop should not update display
     org.scalajs.dom.window.dispatchEvent(
       new org.scalajs.dom.KeyboardEvent(
         "keydown",
-        new org.scalajs.dom.KeyboardEventInit { key = "z"; bubbles = true }
+        new org.scalajs.dom.KeyboardEventInit:
+          key = "z"; bubbles = true
       )
     )
     // lastKey should be reset to "—"
@@ -152,7 +194,11 @@ class AppSpec extends MeltSuite:
     val c    = mount(App())
     val btns = c.findAll("button")
     btns(4).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // Should have two "running" badges (panel 1 if started + panel 3)
     // or at least one "running"
@@ -165,11 +211,19 @@ class AppSpec extends MeltSuite:
     val btns = c.findAll("button")
     // Start panel 3
     btns(4).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // Stop panel 3
     btns(5).dispatchEvent(
-      new org.scalajs.dom.MouseEvent("click", new org.scalajs.dom.MouseEventInit { bubbles = true })
+      new org.scalajs.dom.MouseEvent(
+        "click",
+        new org.scalajs.dom.MouseEventInit:
+          bubbles = true
+      )
     )
     // After stop, ticker3 should be reset to "0 s"
     assert(c.queryByText("0 s", exact = false).isDefined)

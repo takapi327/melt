@@ -36,11 +36,11 @@ object Head:
           dom.document.head.replaceChild(child, _)
         )
       case None => dom.document.head.appendChild(child)
-    Cleanup.register(() => {
+    Cleanup.register(() =>
       if dom.document.head.contains(child) then
         dom.document.head.removeChild(child)
         ()
-    })
+    )
 
   /** Returns a CSS selector that uniquely identifies an element of the same
     * "kind" as `child` within `document.head`, or [[None]] if no deduplication

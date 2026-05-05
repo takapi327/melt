@@ -103,7 +103,9 @@ object Flip extends AnimateFn:
           el.addEventListener("transitionend", listener)
           // Fallback cleanup in case transitionend doesn't fire
           dom.window.setTimeout(
-            () => { if !done then { done = true; htmlEl.style.removeProperty("transition") } },
+            () =>
+              if !done then
+                done = true; htmlEl.style.removeProperty("transition"),
             (duration + 100).toDouble
           )
       }
