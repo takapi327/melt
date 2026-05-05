@@ -7,7 +7,15 @@
 package meltc.lsp
 
 import java.nio.file.{ Files, Path }
-import java.util.concurrent.{ CompletableFuture, Future, TimeUnit }
+import java.util.concurrent.{
+  CompletableFuture,
+  ConcurrentHashMap,
+  Executors,
+  Future,
+  ScheduledExecutorService,
+  ScheduledFuture,
+  TimeUnit
+}
 
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
@@ -20,8 +28,8 @@ import org.eclipse.lsp4j.services.*
   *
   * MetalsBridge starts a `metals` process, initializes it over an in-process LSP4J
   * client/server pair, writes virtual .scala files to a temp workspace backed by a
-  * minimal Bloop project, and forwards completion requests with position translation
-  * via [[PositionMapper]].
+  * minimal Bloop project, and forwards completion/definition/diagnostic requests with
+  * position translation via [[PositionMapper]].
   *
   * All public methods degrade gracefully: if Metals is not on PATH, if the process
   * fails to start, or if a request times out, an empty list is returned rather than
@@ -36,10 +44,21 @@ import org.eclipse.lsp4j.services.*
   *       <ComponentName>.scala  ← virtual .scala for each open .melt document
   * }}}
   *
+  * ==Virtual file lifecycle==
+  * Virtual files are kept persistently open in Metals rather than open/close per request.
+  * The first call opens the file with `textDocument/didOpen`; subsequent calls update the
+  * content with `textDocument/didChange`. This preserves Metals' compilation cache and
+  * avoids triggering a full recompile on every request.
+  *
+  * ==Diagnostics==
+  * Metals sends `publishDiagnostics` multiple times per compilation (clear → presentation
+  * compiler → Bloop). [[CapturingMetalsClient]] debounces these notifications: after 800ms
+  * of silence, the last received diagnostic list is considered final and delivered to any
+  * waiting [[diagnosticsForScript]] call via a [[CompletableFuture]].
+  *
   * ==Lifecycle==
   * Call [[startIfAvailable]] once (e.g. in [[MeltLanguageServer.initialize]]) and
-  * [[shutdown]] when the server exits.  [[completionsForScript]] can then be called
-  * for any number of documents.
+  * [[shutdown]] when the server exits.
   */
 class MetalsBridge:
 
@@ -47,9 +66,19 @@ class MetalsBridge:
   private val srcDir:       Path = workspaceDir.resolve("src")
   private val bloopDir:     Path = workspaceDir.resolve(".bloop")
 
-  private var metalsProcess:  Option[Process]        = None
-  private var metalsServer:   Option[LanguageServer] = None
-  private var listenerFuture: Option[Future[Void]]   = None
+  private var metalsProcess:   Option[Process]               = None
+  private var metalsServer:    Option[LanguageServer]        = None
+  private var listenerFuture:  Option[Future[Void]]          = None
+  private var capturingClient: Option[CapturingMetalsClient] = None
+
+  /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
+  private val openDocs = ConcurrentHashMap[String, (String, Int)]()
+
+  /** Lock that serialises [[syncVirtualDoc]] calls to prevent TOCTOU races
+    * on the document version counter when completions/definitions and diagnostics
+    * are requested concurrently for the same .melt file.
+    */
+  private val syncLock = new Object
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -58,10 +87,21 @@ class MetalsBridge:
     * @return true if Metals was found and successfully initialised
     */
   def startIfAvailable(): Boolean =
-    if metalsServer.isDefined then return true
-    findMetalsCommand() match
-      case None      => false
-      case Some(cmd) => tryStart(cmd)
+    metalsServer.isDefined || findMetalsCommand().exists(tryStart)
+
+  /** Removes the virtual doc entry for a closed .melt file.
+    *
+    * Called when the editor sends `textDocument/didClose` for a .melt URI.
+    * Clears the persistent [[openDocs]] entry so that if the file is reopened
+    * later a fresh `didOpen` is sent to Metals rather than a stale `didChange`.
+    * Also drops all cached diagnostic state in [[CapturingMetalsClient]] so
+    * stale data does not leak into a future re-open.
+    */
+  def closeDoc(meltUri: String): Unit =
+    Option(openDocs.remove(meltUri)).foreach {
+      case (virtualUri, _) =>
+        capturingClient.foreach(_.dropUri(virtualUri))
+    }
 
   /** Shuts down the Metals subprocess. Safe to call multiple times. */
   def shutdown(): Unit =
@@ -69,9 +109,14 @@ class MetalsBridge:
     Try { metalsServer.foreach(_.exit()) }
     Try { listenerFuture.foreach(_.cancel(true)) }
     Try { metalsProcess.foreach(_.destroyForcibly()) }
-    metalsServer   = None
-    metalsProcess  = None
-    listenerFuture = None
+    // Stop the scheduler first so no new debounce tasks fire after we clear the maps.
+    Try { capturingClient.foreach(_.shutdownScheduler()) }
+    Try { capturingClient.foreach(_.dropAll()) }
+    openDocs.clear()
+    metalsServer    = None
+    metalsProcess   = None
+    listenerFuture  = None
+    capturingClient = None
 
   // ── Completions ───────────────────────────────────────────────────────────
 
@@ -89,7 +134,7 @@ class MetalsBridge:
     line:      Int,
     character: Int
   ): List[CompletionItem] =
-    withVirtualDoc(meltUri, vf) { (server, virtualUri) =>
+    withSyncedDoc(meltUri, vf) { (server, virtualUri) =>
       val (vLine, vChar) = vf.mapper.meltToVirtual(line, character)
       val params         = CompletionParams(
         TextDocumentIdentifier(virtualUri),
@@ -120,7 +165,7 @@ class MetalsBridge:
     line:      Int,
     character: Int
   ): List[Location] =
-    withVirtualDoc(meltUri, vf) { (server, virtualUri) =>
+    withSyncedDoc(meltUri, vf) { (server, virtualUri) =>
       val (vLine, vChar) = vf.mapper.meltToVirtual(line, character)
       val params         = DefinitionParams(
         TextDocumentIdentifier(virtualUri),
@@ -130,32 +175,112 @@ class MetalsBridge:
       val locations =
         if result.isLeft then result.getLeft.asScala.toList
         else result.getRight.asScala.map(ll => Location(ll.getTargetUri, ll.getTargetSelectionRange)).toList
-      // Translate virtual .scala URIs back to the .melt URI
       locations.map { loc =>
         if loc.getUri == virtualUri then Location(meltUri, loc.getRange)
         else loc
       }
     }.getOrElse(Nil)
 
+  // ── Diagnostics ───────────────────────────────────────────────────────────
+
+  /** Requests Metals to type-check the virtual .scala file and returns diagnostics
+    * mapped back to the original .melt URI.
+    *
+    * The virtual file is kept persistently open (first call uses `didOpen`; subsequent
+    * calls use `didChange`). After the content is synced, the method blocks until
+    * [[CapturingMetalsClient]] delivers debounced diagnostics or `timeoutSec` elapses.
+    *
+    * Race-condition handling: the promise is registered via
+    * [[CapturingMetalsClient.expectDiagnostics]], which atomically cancels any
+    * in-flight debounce task for the same URI before storing the promise.
+    * This prevents a debounce from a *previous* compilation completing the
+    * promise for the *current* one with stale diagnostics.
+    *
+    * @param meltUri    file URI of the .melt document
+    * @param vf         [[VirtualFile]] generated from the current .melt source
+    * @param timeoutSec max seconds to wait for diagnostics to settle (default 30)
+    * @return diagnostics pointing to the .melt URI, or empty list on timeout/failure
+    */
+  def diagnosticsForScript(
+    meltUri:    String,
+    vf:         VirtualFile,
+    timeoutSec: Int = 30
+  ): List[Diagnostic] =
+    // capturingClient and metalsServer share the same lifecycle:
+    // both are set together in tryStart() and cleared together in shutdown().
+    metalsServer
+      .flatMap { server =>
+        capturingClient.map { cc =>
+          val virtualUri = toVirtualUri(meltUri)
+          val promise    = CompletableFuture[List[Diagnostic]]()
+
+          // expectDiagnostics cancels any pending debounce for this URI *before*
+          // registering the new promise, so an old compilation's debounce cannot
+          // race in and complete the new promise with stale diagnostics.
+          cc.expectDiagnostics(virtualUri, promise)
+
+          Try { syncVirtualDoc(server, meltUri, vf) } match
+            case scala.util.Failure(_) =>
+              cc.dropUri(virtualUri)
+              Nil
+            case scala.util.Success(_) =>
+              try promise.get(timeoutSec, TimeUnit.SECONDS)
+              catch
+                case _: java.util.concurrent.TimeoutException =>
+                  // Remove the orphaned promise so the next call starts clean.
+                  cc.dropUri(virtualUri)
+                  Nil
+                case _: Throwable =>
+                  Nil
+        }
+      }
+      .getOrElse(Nil)
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
-  /** Opens the virtual .scala doc in Metals, runs [body], then closes it.
+  /** Opens or updates the virtual .scala file in Metals.
+    *
+    * First call: `textDocument/didOpen` with version 1.
+    * Subsequent calls: `textDocument/didChange` with an incremented version.
+    * Returns the virtual file URI.
+    *
+    * The entire read-modify-write on [[openDocs]] is serialised by [[syncLock]]
+    * to prevent a TOCTOU race when completions/definitions and diagnostics are
+    * requested concurrently for the same URI: without the lock both callers could
+    * read the same version number and send two `didChange` notifications with
+    * identical version counters, which violates the LSP specification.
+    */
+  private def syncVirtualDoc(server: LanguageServer, meltUri: String, vf: VirtualFile): String =
+    syncLock.synchronized {
+      val virtualUri = toVirtualUri(meltUri)
+      Option(openDocs.get(meltUri)) match
+        case None =>
+          val docItem = TextDocumentItem(virtualUri, "scala", 1, vf.content)
+          server.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
+          openDocs.put(meltUri, (virtualUri, 1))
+        case Some((_, ver)) =>
+          val nextVer      = ver + 1
+          val change       = TextDocumentContentChangeEvent(vf.content)
+          val changeParams = DidChangeTextDocumentParams(
+            VersionedTextDocumentIdentifier(virtualUri, nextVer),
+            List(change).asJava
+          )
+          server.getTextDocumentService.didChange(changeParams)
+          openDocs.put(meltUri, (virtualUri, nextVer))
+      virtualUri
+    }
+
+  /** Syncs the virtual .scala doc and runs [body] with (server, virtualUri).
     * Returns None if Metals is unavailable or on any exception.
     */
-  private def withVirtualDoc[A](
+  private def withSyncedDoc[A](
     meltUri: String,
     vf:      VirtualFile
   )(body: (LanguageServer, String) => A): Option[A] =
     metalsServer.flatMap { server =>
       Try {
-        val virtualUri = toVirtualUri(meltUri)
-        val docItem    = TextDocumentItem(virtualUri, "scala", 1, vf.content)
-        server.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
-        val result = body(server, virtualUri)
-        server.getTextDocumentService.didClose(
-          DidCloseTextDocumentParams(TextDocumentIdentifier(virtualUri))
-        )
-        result
+        val virtualUri = syncVirtualDoc(server, meltUri, vf)
+        body(server, virtualUri)
       }.toOption
     }
 
@@ -167,9 +292,11 @@ class MetalsBridge:
         .start()
       metalsProcess = Some(process)
 
-      val client   = new NoOpMetalsClient
+      val cc = new CapturingMetalsClient()
+      capturingClient = Some(cc)
+
       val launcher = LSPLauncher.createClientLauncher(
-        client,
+        cc,
         process.getInputStream,
         process.getOutputStream
       )
@@ -286,14 +413,127 @@ class MetalsBridge:
     caps.setTextDocument(textDocCaps)
     caps
 
-/** No-op LanguageClient used as the client side of the Metals subprocess connection.
-  * Metals occasionally sends notifications (showMessage, publishDiagnostics) that
-  * the bridge discards since they are internal to the virtual workspace.
+/** Captures `publishDiagnostics` notifications from Metals and debounces them.
+  *
+  * Metals sends diagnostics multiple times per compilation (initial clear →
+  * presentation compiler result → Bloop result). Debouncing ensures that only the
+  * final settled result is delivered to [[MetalsBridge.diagnosticsForScript]].
+  *
+  * ==Promise lifecycle==
+  * Callers register interest via [[expectDiagnostics]], which:
+  *   1. Cancels any pending debounce task for the URI (prevents a stale debounce
+  *      from a previous compilation completing the new promise with old data).
+  *   2. Stores the promise in [[pendingPromises]].
+  *
+  * When a debounce task fires, it removes and completes the stored promise.  If the
+  * promise has been replaced or removed (concurrent close/shutdown), the removal
+  * returns `null` and nothing is completed.
+  *
+  * ==Thread safety==
+  * [[expectDiagnostics]] (called from the Melt LSP thread) and [[publishDiagnostics]]
+  * (called from the Metals LSP4J launcher thread) both modify [[pendingTasks]] and
+  * [[pendingPromises]]. They are synchronised on [[lock]] to prevent the following race:
+  *   1. `expectDiagnostics` removes the old task from `pendingTasks` and cancels it.
+  *   2. (interleave) `publishDiagnostics` schedules a new task and puts it in `pendingTasks`.
+  *   3. `expectDiagnostics` puts the new promise in `pendingPromises`.
+  *   4. The new task fires and completes the new promise with stale diagnostics.
+  *
+  * @param debounceMs idle period after the last notification before settling (default 800ms)
   */
-private class NoOpMetalsClient extends LanguageClient:
-  override def telemetryEvent(obj:   Any):                      Unit                                 = ()
-  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit                                 = ()
-  override def showMessage(p:        MessageParams):            Unit                                 = ()
+private[lsp] class CapturingMetalsClient(debounceMs: Long = 800L) extends LanguageClient:
+
+  /** Latest diagnostics per virtualUri (may be replaced before debounce fires). */
+  private val latestDiags = ConcurrentHashMap[String, List[Diagnostic]]()
+
+  /** Promises registered by [[MetalsBridge.diagnosticsForScript]], keyed by virtualUri. */
+  private val pendingPromises = ConcurrentHashMap[String, CompletableFuture[List[Diagnostic]]]()
+
+  /** Single-threaded debounce scheduler (daemon thread so it doesn't block JVM exit). */
+  private val scheduler: ScheduledExecutorService =
+    Executors.newSingleThreadScheduledExecutor { r =>
+      val t = Thread(r, "melt-diag-debounce")
+      t.setDaemon(true)
+      t
+    }
+
+  /** Pending debounce tasks per URI. Replaced on each new notification. */
+  private val pendingTasks = ConcurrentHashMap[String, ScheduledFuture[?]]()
+
+  /** Guards [[pendingTasks]] and [[pendingPromises]] modifications in both
+    * [[expectDiagnostics]] and [[publishDiagnostics]] to prevent the race described
+    * in the class scaladoc.
+    */
+  private val lock = new Object
+
+  /** Registers `promise` as the recipient of the next settled diagnostics for `uri`.
+    *
+    * Any pending debounce task for `uri` is cancelled first so that a debounce from
+    * a previous compilation cannot race in and complete `promise` with stale data.
+    */
+  def expectDiagnostics(uri: String, promise: CompletableFuture[List[Diagnostic]]): Unit =
+    lock.synchronized {
+      // Cancel the pending debounce (if any) BEFORE storing the promise.
+      // This ensures the old compilation's debounce cannot fire after we register.
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      // Replace any previous (now-cancelled) promise.
+      Option(pendingPromises.put(uri, promise)).foreach(_.cancel(false))
+    }
+
+  /** Removes all diagnostic state for `uri`.
+    *
+    * Called when the editor closes a .melt document. Cancels any in-flight
+    * debounce task and drops the pending promise (if any) without completing it.
+    */
+  def dropUri(uri: String): Unit =
+    lock.synchronized {
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      Option(pendingPromises.remove(uri)).foreach(_.cancel(false))
+      latestDiags.remove(uri)
+    }
+
+  /** Cancels all pending promises and debounce tasks. Called on shutdown. */
+  def dropAll(): Unit =
+    lock.synchronized {
+      pendingTasks.values().forEach(_.cancel(false))
+      pendingTasks.clear()
+      pendingPromises.values().forEach(_.cancel(false))
+      pendingPromises.clear()
+      latestDiags.clear()
+    }
+
+  override def telemetryEvent(obj: Any):                        Unit                                 = ()
+  override def showMessage(p:      MessageParams):              Unit                                 = ()
   override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
     CompletableFuture.completedFuture(null)
   override def logMessage(p: MessageParams): Unit = ()
+
+  override def publishDiagnostics(p: PublishDiagnosticsParams): Unit =
+    val uri   = p.getUri
+    val diags = p.getDiagnostics.asScala.toList
+    latestDiags.put(uri, diags)
+
+    // Cancel the previous debounce task (if any) and schedule a new one.
+    // Wrapped in lock to prevent a race with expectDiagnostics (see class scaladoc).
+    // Wrapped in try/catch to handle RejectedExecutionException after shutdownNow().
+    lock.synchronized {
+      Option(pendingTasks.remove(uri)).foreach(_.cancel(false))
+      try
+        val task: ScheduledFuture[?] = scheduler.schedule(
+          new Runnable:
+            def run(): Unit =
+              val settled = latestDiags.getOrDefault(uri, Nil)
+              // Remove the promise atomically; if it was already replaced or dropped,
+              // remove returns null and nothing is completed.
+              Option(pendingPromises.remove(uri)).foreach(_.complete(settled))
+          ,
+          debounceMs,
+          TimeUnit.MILLISECONDS
+        )
+        pendingTasks.put(uri, task)
+      catch case _: java.util.concurrent.RejectedExecutionException => () // scheduler already shut down
+    }
+
+  /** Stops the debounce scheduler. Called from [[MetalsBridge.shutdown]]. */
+  def shutdownScheduler(): Unit =
+    scheduler.shutdownNow()
+    ()

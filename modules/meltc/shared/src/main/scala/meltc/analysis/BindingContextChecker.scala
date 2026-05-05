@@ -8,8 +8,8 @@ package meltc.analysis
 
 import scala.collection.mutable
 
+import meltc.{ CompileError, NodePositions }
 import meltc.ast.*
-import meltc.CompileError
 
 /** Compile-time validator that ensures binding directives are used on
   * elements that actually support the underlying DOM property.
@@ -41,49 +41,60 @@ object BindingContextChecker:
 
   private val videoOnlyBindings: Set[String] = Set("videoWidth", "videoHeight")
 
-  def check(ast: MeltFile, filename: String): List[CompileError] =
+  def check(
+    ast:               MeltFile,
+    filename:          String,
+    positions:         NodePositions = NodePositions.empty,
+    templateSource:    String = "",
+    templateStartLine: Int = 1
+  ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, errors, filename))
+    ast.template.foreach(node => walk(node, errors, filename, positions, templateSource, templateStartLine))
     errors.toList
 
   private def walk(
-    node:     TemplateNode,
-    errors:   mutable.ListBuffer[CompileError],
-    filename: String
+    node:              TemplateNode,
+    errors:            mutable.ListBuffer[CompileError],
+    filename:          String,
+    positions:         NodePositions,
+    templateSource:    String,
+    templateStartLine: Int
   ): Unit = node match
     case TemplateNode.Element(tag, attrs, children) =>
       val lowerTag = tag.toLowerCase
+      val span     = positions.spanOf(node)
       attrs.foreach {
         case Attr.Directive("bind", name, _, _) if mediaBindings.contains(name) =>
           if lowerTag != "video" && lowerTag != "audio" then
             errors += CompileError(
               message  = s"`bind:$name` is only valid on <video> or <audio> elements, but was used on <$tag>.",
-              line     = 0,
-              column   = 0,
+              line     = span.absoluteLine(templateSource, templateStartLine),
+              column   = span.column(templateSource),
               filename = filename
             )
         case Attr.Directive("bind", name, _, _) if videoOnlyBindings.contains(name) =>
           if lowerTag != "video" then
             errors += CompileError(
               message  = s"`bind:$name` is only valid on <video> elements, but was used on <$tag>.",
-              line     = 0,
-              column   = 0,
+              line     = span.absoluteLine(templateSource, templateStartLine),
+              column   = span.column(templateSource),
               filename = filename
             )
         case _ => ()
       }
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Component(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Head(children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
-        case InlineTemplatePart.Html(nodes) => nodes.foreach(n => walk(n, errors, filename))
-        case _                              => ()
+        case InlineTemplatePart.Html(nodes) =>
+          nodes.foreach(n => walk(n, errors, filename, positions, templateSource, templateStartLine))
+        case _ => ()
       }
 
     case _ => ()

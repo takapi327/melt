@@ -8,9 +8,9 @@ package meltc.analysis
 
 import scala.collection.mutable
 
+import meltc.{ CompileError, NodePositions }
 import meltc.ast.*
 import meltc.codegen.NameValidators
-import meltc.CompileError
 
 /** Compile-time validator for HTML tag names and component names (§12.1.3).
   *
@@ -21,51 +21,63 @@ import meltc.CompileError
   */
 object TagNameChecker:
 
-  def check(ast: MeltFile, filename: String): List[CompileError] =
+  def check(
+    ast:               MeltFile,
+    filename:          String,
+    positions:         NodePositions = NodePositions.empty,
+    templateSource:    String = "",
+    templateStartLine: Int = 1
+  ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, errors, filename))
+    ast.template.foreach(node => walk(node, errors, filename, positions, templateSource, templateStartLine))
     errors.toList
 
   private def walk(
-    node:     TemplateNode,
-    errors:   mutable.ListBuffer[CompileError],
-    filename: String
+    node:              TemplateNode,
+    errors:            mutable.ListBuffer[CompileError],
+    filename:          String,
+    positions:         NodePositions,
+    templateSource:    String,
+    templateStartLine: Int
   ): Unit = node match
     case TemplateNode.Element(tag, _, children) =>
       if !NameValidators.isValidTagName(tag) then
+        val span = positions.spanOf(node)
         errors += CompileError(
           message = s"Invalid HTML tag name '$tag'. " +
             "Tag names must start with an ASCII letter and follow WHATWG " +
             "custom-element naming rules.",
-          line     = 0,
-          column   = 0,
+          line     = span.absoluteLine(templateSource, templateStartLine),
+          column   = span.column(templateSource),
           filename = filename
         )
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Component(name, _, children) =>
       if !NameValidators.isValidComponentName(name) then
+        val span = positions.spanOf(node)
         errors += CompileError(
           message = s"Invalid component name '$name'. " +
             "Component names must be valid Scala type identifiers " +
             "(start with an uppercase letter, followed by letters, " +
             "digits, or underscores).",
-          line     = 0,
-          column   = 0,
+          line     = span.absoluteLine(templateSource, templateStartLine),
+          column   = span.column(templateSource),
           filename = filename
         )
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.Head(children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.DynamicElement(_, _, children) =>
-      children.foreach(c => walk(c, errors, filename))
+      children.foreach(c => walk(c, errors, filename, positions, templateSource, templateStartLine))
 
     case TemplateNode.InlineTemplate(parts) =>
       parts.foreach {
-        case InlineTemplatePart.Html(nodes) => nodes.foreach(n => walk(n, errors, filename))
-        case _                              => ()
+        case InlineTemplatePart.Html(nodes) =>
+          nodes.foreach(n => walk(n, errors, filename, positions, templateSource, templateStartLine))
+        case _ => ()
       }
 
     case _ => ()

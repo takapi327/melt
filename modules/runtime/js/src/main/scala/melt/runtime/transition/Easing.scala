@@ -24,12 +24,14 @@ object Easing:
   def cubicIn(t: Double): Double = t * t * t
 
   /** Decelerates to zero. Default for most built-in transitions. */
-  def cubicOut(t: Double): Double = { val f = t - 1; f * f * f + 1 }
+  def cubicOut(t: Double): Double =
+    val f = t - 1; f * f * f + 1
 
   /** Accelerates then decelerates. */
   def cubicInOut(t: Double): Double =
     if t < 0.5 then 4 * t * t * t
-    else { val f = 2 * t - 2; 0.5 * f * f * f + 1 }
+    else
+      val f = 2 * t - 2; 0.5 * f * f * f + 1
 
   /** Slow start, then fast. */
   def quadIn(t: Double): Double = t * t
@@ -89,9 +91,12 @@ object Easing:
     val n1 = 7.5625
     val d1 = 2.75
     if t < 1.0 / d1 then n1 * t * t
-    else if t < 2.0 / d1 then { val t2 = t - 1.5 / d1; n1 * t2 * t2 + 0.75 }
-    else if t < 2.5 / d1 then { val t2 = t - 2.25 / d1; n1 * t2 * t2 + 0.9375 }
-    else { val t2 = t - 2.625 / d1; n1 * t2 * t2 + 0.984375 }
+    else if t < 2.0 / d1 then
+      val t2 = t - 1.5 / d1; n1 * t2 * t2 + 0.75
+    else if t < 2.5 / d1 then
+      val t2 = t - 2.25 / d1; n1 * t2 * t2 + 0.9375
+    else
+      val t2 = t - 2.625 / d1; n1 * t2 * t2 + 0.984375
 
   /** Circular ease in — starts slow. */
   def circIn(t: Double): Double = 1 - math.sqrt(1 - math.pow(t, 2))

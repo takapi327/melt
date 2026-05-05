@@ -226,7 +226,11 @@ object ReactiveScope:
 
       run(dep.value)
       val cancel = dep.subscribePost(run)
-      ((), () => { cancel(); innerNode.foreach(_.destroy()) })
+      (
+        (),
+        () =>
+          cancel(); innerNode.foreach(_.destroy())
+      )
     }
 
   /** Subscribes to a [[Signal]] in the **Post** phase (after DOM updates).
@@ -244,7 +248,11 @@ object ReactiveScope:
 
       run(dep.value)
       val cancel = dep.subscribePost(run)
-      ((), () => { cancel(); innerNode.foreach(_.destroy()) })
+      (
+        (),
+        () =>
+          cancel(); innerNode.foreach(_.destroy())
+      )
     }
 
   /** Subscribes to a [[Var]] in the **Pre** phase (before DOM updates).

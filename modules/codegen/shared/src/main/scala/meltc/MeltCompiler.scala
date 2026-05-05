@@ -10,6 +10,7 @@ import meltc.analysis.{
   A11yChecker,
   AttrNameChecker,
   BindingContextChecker,
+  MalformedExpressionChecker,
   RawTextInterpolationChecker,
   SecurityChecker,
   TagNameChecker
@@ -33,6 +34,13 @@ object MeltCompiler:
     *                   `@JSExportTopLevel("hydrate", moduleID = ...)`
     *                   hydration entries. Defaults to `false` so existing
     *                   single-module Scala.js examples keep working.
+    * @param sourcePath Absolute filesystem path to the `.melt` source file.
+    *                   When non-empty, the generated Scala file will contain a
+    *                   `-- MELT GENERATED --` comment block with `SOURCE:` and
+    *                   `LINES:` fields that sbt's `sourcePositionMappers` uses
+    *                   to remap scalac error positions back to the original file.
+    *                   Defaults to `""` (no source-map block) for backwards
+    *                   compatibility with in-memory callers such as the LSP server.
     */
   def compile(
     source:       String,
@@ -41,7 +49,8 @@ object MeltCompiler:
     pkg:          String,
     mode:         CompileMode = CompileMode.SPA,
     hydration:    Boolean = false,
-    preprocessor: StylePreprocessor = StylePreprocessor.cssOnly
+    preprocessor: StylePreprocessor = StylePreprocessor.cssOnly,
+    sourcePath:   String = ""
   ): CompileResult =
     MeltParser.parseWithWarnings(source) match
       case Left(err) =>
@@ -55,10 +64,41 @@ object MeltCompiler:
 
         // ── Semantic checks (§12.1.2, §12.1.3, §12.1.6) ────────────────
         val semanticErrors =
-          AttrNameChecker.check(ast, filename) ++
-            TagNameChecker.check(ast, filename) ++
-            RawTextInterpolationChecker.check(ast, filename) ++
-            BindingContextChecker.check(ast, filename)
+          AttrNameChecker.check(
+            ast,
+            filename,
+            positions         = result.positions,
+            templateSource    = result.templateSource,
+            templateStartLine = result.templateStartLine
+          ) ++
+            TagNameChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            RawTextInterpolationChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            BindingContextChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            MalformedExpressionChecker.check(
+              ast,
+              filename,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine,
+              positions         = result.positions
+            )
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
           case (msg, line) =>
@@ -83,8 +123,19 @@ object MeltCompiler:
             case Left(err) =>
               CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
             case Right(processedStyle) =>
-              val processedAst   = ast.copy(style = processedStyle)
-              val code           = codegen.generate(processedAst, objectName, pkg, scopeId, hydration)
+              val processedAst = ast.copy(style = processedStyle)
+              val code         = codegen.generate(
+                processedAst,
+                objectName,
+                pkg,
+                scopeId,
+                hydration,
+                sourcePath        = sourcePath,
+                scriptBodyLine    = result.scriptBodyLine,
+                templateStartLine = result.templateStartLine,
+                templateSource    = result.templateSource,
+                positions         = result.positions
+              )
               val parserWarnings = result.warnings.map {
                 case (msg, pos) =>
                   val line = offsetToLine(source, pos)

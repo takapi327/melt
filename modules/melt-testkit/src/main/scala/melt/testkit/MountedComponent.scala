@@ -74,7 +74,13 @@ final class MountedComponent(
     if _unmounted then throw new IllegalStateException("Component has been unmounted")
     val el = container.querySelector(selector)
     if el == null then throw new NoSuchElementException(s"No element matches '$selector'")
-    el.dispatchEvent(new dom.MouseEvent("click", new dom.MouseEventInit { bubbles = true }))
+    el.dispatchEvent(
+      new dom.MouseEvent(
+        "click",
+        new dom.MouseEventInit:
+          bubbles = true
+      )
+    )
 
   /** Simulates a user typing `value` into the first input matching `selector`.
     *
@@ -86,7 +92,13 @@ final class MountedComponent(
     val el = container.querySelector(selector)
     if el == null then throw new NoSuchElementException(s"No element matches '$selector'")
     el.asInstanceOf[dom.html.Input].value = value
-    el.dispatchEvent(new dom.Event("input", new dom.EventInit { bubbles = true }))
+    el.dispatchEvent(
+      new dom.Event(
+        "input",
+        new dom.EventInit:
+          bubbles = true
+      )
+    )
 
   /** Returns `true` if at least one element matches `selector` within the component.
     * Always returns `false` after [[unmount]].

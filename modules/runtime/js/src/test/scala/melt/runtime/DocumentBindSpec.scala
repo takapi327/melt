@@ -47,7 +47,13 @@ class DocumentBindSpec extends munit.FunSuite:
     val btn = dom.document.createElement("button")
     dom.document.body.appendChild(btn)
     withOwner { Document.bindActiveElement(v) }
-    btn.dispatchEvent(new dom.Event("focusin", new dom.EventInit { bubbles = true }))
+    btn.dispatchEvent(
+      new dom.Event(
+        "focusin",
+        new dom.EventInit:
+          bubbles = true
+      )
+    )
     assertEquals(v.value, Option(dom.document.activeElement))
     dom.document.body.removeChild(btn)
   }
@@ -55,7 +61,11 @@ class DocumentBindSpec extends munit.FunSuite:
   test("bindActiveElement — focusout with null relatedTarget sets Var to None") {
     val v = Var(Option.empty[dom.Element])
     withOwner { Document.bindActiveElement(v) }
-    val evt = new dom.FocusEvent("focusout", new dom.FocusEventInit { relatedTarget = null })
+    val evt = new dom.FocusEvent(
+      "focusout",
+      new dom.FocusEventInit:
+        relatedTarget = null
+    )
     dom.document.dispatchEvent(evt)
     assertEquals(v.value, Option(dom.document.activeElement))
   }
@@ -71,7 +81,8 @@ class DocumentBindSpec extends munit.FunSuite:
     // focusout with relatedTarget set — should NOT update Var
     val evt = new dom.FocusEvent(
       "focusout",
-      new dom.FocusEventInit { relatedTarget = btn2.asInstanceOf[dom.EventTarget] }
+      new dom.FocusEventInit:
+        relatedTarget = btn2.asInstanceOf[dom.EventTarget]
     )
     dom.document.dispatchEvent(evt)
     assertEquals(v.value, beforeFocusout)

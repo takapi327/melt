@@ -32,7 +32,9 @@ def effect[A](dep: Var[A])(f: A => Unit): Unit =
 
   run(dep.value)
   val cancel = dep.subscribePost(run)
-  Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
+  Cleanup.register(() =>
+    cancel(); innerNode.foreach(_.destroy())
+  )
 
 def effect[A](dep: Signal[A])(f: A => Unit): Unit =
   var innerNode: Option[OwnerNode] = None
@@ -44,7 +46,9 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
 
   run(dep.value)
   val cancel = dep.subscribePost(run)
-  Cleanup.register(() => { cancel(); innerNode.foreach(_.destroy()) })
+  Cleanup.register(() =>
+    cancel(); innerNode.foreach(_.destroy())
+  )
 
 /** Two-dependency effect — re-runs in the **Post** phase when either dependency changes.
   *
@@ -68,7 +72,9 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
   run()
   val cancelA = depA.subscribePost(_ => trigger())
   val cancelB = depB.subscribePost(_ => trigger())
-  Cleanup.register(() => { cancelA(); cancelB(); innerNode.foreach(_.destroy()) })
+  Cleanup.register(() =>
+    cancelA(); cancelB(); innerNode.foreach(_.destroy())
+  )
 
 // ── layoutEffect ────────────────────────────────────────────────────────────
 
@@ -120,4 +126,6 @@ def layoutEffect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
 
   val cancelA = depA.subscribePre(_ => trigger())
   val cancelB = depB.subscribePre(_ => trigger())
-  Cleanup.register(() => { cancelA(); cancelB(); () })
+  Cleanup.register(() =>
+    cancelA(); cancelB(); ()
+  )

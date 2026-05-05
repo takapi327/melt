@@ -50,7 +50,11 @@ object TransitionEngine:
   private val KeyCurrentT  = "_meltCurrentT" // written per-frame in tick path
 
   private def dispatchTransitionEvent(el: dom.Element, name: String): Unit =
-    val event = new dom.Event(name, new dom.EventInit { bubbles = true })
+    val event = new dom.Event(
+      name,
+      new dom.EventInit:
+        bubbles = true
+    )
     el.dispatchEvent(event)
 
   private var _counter: Int = 0
@@ -242,7 +246,8 @@ object TransitionEngine:
         htmlEl.style.removeProperty("animation")
         htmlEl.style.removeProperty("animation-fill-mode")
         try sheet.deleteRule(ruleIdx)
-        catch { case _: Throwable => }
+        catch
+          case _: Throwable =>
         finish()
 
     val onEnd: js.Function1[dom.Event, Unit] = (_: dom.Event) => cleanup()
@@ -250,11 +255,14 @@ object TransitionEngine:
 
     // Fallback timeout in case animationend does not fire
     dom.window.setTimeout(
-      () => { el.removeEventListener("animationend", onEnd); cleanup() },
+      () =>
+        el.removeEventListener("animationend", onEnd); cleanup()
+      ,
       (delay + adjDuration + 50).toDouble
     )
 
-    () => { el.removeEventListener("animationend", onEnd); cleanup() }
+    () =>
+      el.removeEventListener("animationend", onEnd); cleanup()
 
   /** `requestAnimationFrame` tick animation path.
     *
@@ -302,4 +310,5 @@ object TransitionEngine:
     if delay > 0 then dom.window.setTimeout(() => start(), delay.toDouble)
     else start()
 
-    () => { aborted = true; dom.window.cancelAnimationFrame(rafId) }
+    () =>
+      aborted = true; dom.window.cancelAnimationFrame(rafId)

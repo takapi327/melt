@@ -28,12 +28,18 @@ object SimpleJson:
     def kind: String
 
   object JsonValue:
-    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue { def kind = "object" }
-    final case class Arr(items: List[JsonValue])         extends JsonValue { def kind = "array"  }
-    final case class Str(value: String)                  extends JsonValue { def kind = "string" }
-    final case class Num(value: Double)                  extends JsonValue { def kind = "number" }
-    final case class Bool(value: Boolean)                extends JsonValue { def kind = "bool"   }
-    case object Null                                     extends JsonValue { def kind = "null"   }
+    final case class Obj(fields: Map[String, JsonValue]) extends JsonValue:
+      def kind = "object"
+    final case class Arr(items: List[JsonValue]) extends JsonValue:
+      def kind = "array"
+    final case class Str(value: String) extends JsonValue:
+      def kind = "string"
+    final case class Num(value: Double) extends JsonValue:
+      def kind = "number"
+    final case class Bool(value: Boolean) extends JsonValue:
+      def kind = "bool"
+    case object Null extends JsonValue:
+      def kind = "null"
 
     extension (obj: Obj)
       /** Looks up a field and returns its string value if present and of

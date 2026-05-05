@@ -94,7 +94,8 @@ class Spring(
   def subscribe(fn: Double => Unit): () => Unit =
     _listeners += fn
     fn(_current)
-    val unsub: () => Unit = () => { _listeners -= fn; () }
+    val unsub: () => Unit = () =>
+      _listeners -= fn; ()
     melt.runtime.Cleanup.register(unsub)
     unsub
 

@@ -258,12 +258,13 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
 lazy val `sbt-meltc` = BuildSettings
   .MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
+    crossScalaVersions := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
     // sbt-scalajs is pulled in via modules/sbt-meltc/build.sbt (a
     // sub-project build file), because the meta-build compiles
     // sbt-meltc as a source dependency of the root meta-project and
     // that compile phase reads sbt-meltc's OWN build.sbt — not this
     // one.
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
 
 // ── Language Server (LSP — shared across all editors) ──

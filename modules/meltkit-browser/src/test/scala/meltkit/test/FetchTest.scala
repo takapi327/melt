@@ -45,7 +45,11 @@ class FetchTest extends munit.FunSuite:
         case "/echo" =>
           var body = ""
           req.on("data", (chunk: js.Dynamic) => body += chunk.toString())
-          req.on("end", () => { res.writeHead(200); res.end(body) })
+          req.on(
+            "end",
+            () =>
+              res.writeHead(200); res.end(body)
+          )
         case _ =>
           res.writeHead(404)
           res.end("not found")

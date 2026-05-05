@@ -85,7 +85,9 @@ def onCleanup(f: () => Unit): Unit = Cleanup.register(f)
   * }}}
   */
 def onMount(fn: () => Unit): Unit =
-  OnMount.register(() => { fn(); None })
+  OnMount.register(() =>
+    fn(); None
+  )
 
 /** Registers [fn] to run after this component is first inserted into the DOM.
   *

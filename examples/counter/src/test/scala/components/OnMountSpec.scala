@@ -78,8 +78,12 @@ class OnMountSpec extends munit.FunSuite:
 
     // Simulate parent create() calling child create() first (recursive)
     // child registers first → dequeued first → child-before-parent
-    onMount(() => { order += "child"; () })
-    onMount(() => { order += "parent"; () })
+    onMount(() =>
+      order += "child"; ()
+    )
+    onMount(() =>
+      order += "parent"; ()
+    )
 
     parent.appendChild(child)
     Mount(container, parent)

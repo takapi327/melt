@@ -98,10 +98,18 @@ private[parser] object ExprExtractor:
     * a non-identifier character), the HTML fragment is parsed by [[TemplateParser]]
     * and represented as [[meltc.ast.InlineTemplatePart.Html]].
     *
+    * @param posBuilder shared [[meltc.NodePositions.Builder]] that receives source-span
+    *                   entries for every [[meltc.ast.TemplateNode]] parsed inside
+    *                   inline HTML fragments.  The builder is passed through to each
+    *                   sub-[[TemplateParser]] so that all nodes end up in the same map.
     * @return `(parts, posAfterClosingBrace)` — if no HTML is found, `parts` contains
     *         a single `Code` element equivalent to `extract()`.
     */
-  def extractRich(src: String, start: Int): (List[meltc.ast.InlineTemplatePart], Int) =
+  def extractRich(
+    src:        String,
+    start:      Int,
+    posBuilder: meltc.NodePositions.Builder
+  ): (List[meltc.ast.InlineTemplatePart], Int) =
     import meltc.ast.InlineTemplatePart
 
     val parts   = List.newBuilder[InlineTemplatePart]
@@ -161,9 +169,11 @@ private[parser] object ExprExtractor:
           codeBuf.clear()
           hasHtml = true
 
-          // Parse HTML fragment using TemplateParser
+          // Parse HTML fragment using TemplateParser.
+          // baseOffset = i so that positions recorded inside the fragment are
+          // expressed as absolute offsets within the original templateSource.
           val fragment   = src.substring(i)
-          val fragParser = new TemplateParser(fragment)
+          val fragParser = new TemplateParser(fragment, baseOffset = i, posBuilder = posBuilder)
           val nodes      = fragParser.parseFragment()
           val consumed   = fragParser.position
           parts += InlineTemplatePart.Html(nodes)

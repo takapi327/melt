@@ -452,6 +452,13 @@ object MeltcPlugin extends AutoPlugin {
     ),
     Compile / sourceGenerators += meltcGenerate.taskValue,
 
+    // ── Source position mapping ───────────────────────────────────────────────
+    // Remaps scalac error positions from generated `.scala` files back to the
+    // original `.melt` source files using the `-- MELT GENERATED --` comment
+    // block that meltc appends to every generated file.
+    Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
+    Test / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
+
     meltcAssetManifestClient  := None,
     meltcAssetManifestPackage := "generated",
     meltcAssetManifestObject  := "AssetManifest",
@@ -602,9 +609,34 @@ object MeltcPlugin extends AutoPlugin {
         // Use a per-file cache directory keyed on the output file's relative
         // path so that two components with the same base name in different
         // sub-packages each get an independent cache entry.
-        val relPath  = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
-        val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
-        val cacheDir = streams.cacheDirectory / "meltc" / safeKey
+        //
+        // A compiler fingerprint is also included in the directory name so
+        // that updating meltc (either via publishLocal or by recompiling in
+        // the monorepo) automatically invalidates all cached generated files.
+        // For class directories the newest direct-child modification time is
+        // used as a proxy for "has the compiler changed?".
+        val relPath = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
+        val safeKey = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
+        val cpFingerprint: String = {
+          def stamp(f: File): Long =
+            if (f.isDirectory) {
+              val children = Option(f.listFiles()).toSeq.flatten
+              if (children.isEmpty) f.lastModified
+              else children.map(stamp).max
+            } else
+              f.lastModified
+          val raw = compilerCp
+            .sortBy(_.getAbsolutePath)
+            .map(f => s"${ f.getName }:${ stamp(f) }")
+            .mkString("|")
+          java.security.MessageDigest
+            .getInstance("SHA-256")
+            .digest(raw.getBytes("UTF-8"))
+            .take(8)
+            .map(b => "%02x".format(b & 0xff))
+            .mkString
+        }
+        val cacheDir = streams.cacheDirectory / "meltc" / safeKey / cpFingerprint
 
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
           log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")

@@ -32,6 +32,7 @@ case class StyleSection(content: String, lang: meltc.css.StyleLang = meltc.css.S
 
 /** A node in the HTML template of a `.melt` file. */
 enum TemplateNode:
+
   /** An HTML element such as `<div class="foo">...</div>`. */
   case Element(tag: String, attrs: List[Attr], children: List[TemplateNode])
 

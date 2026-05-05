@@ -85,7 +85,8 @@ object MeltcMain:
       pkg,
       mode,
       hydration,
-      resolvePreprocessor(preprocessorClass)
+      resolvePreprocessor(preprocessorClass),
+      sourcePath = inputPath.toAbsolutePath.toString
     )
 
     // ── Structured diagnostics file for sbt-meltc reporter integration ────

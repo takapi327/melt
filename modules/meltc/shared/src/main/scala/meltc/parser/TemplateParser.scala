@@ -6,6 +6,7 @@
 
 package meltc.parser
 
+import meltc.{ NodePositions, SourceSpan }
 import meltc.ast.*
 
 /** Parses an HTML template string into a list of [[TemplateNode]] values.
@@ -20,8 +21,20 @@ import meltc.ast.*
   *   - HTML entity decoding in text and static attribute values
   *   - Whitespace collapsing between elements
   *   - Warnings for non-void self-closing tags
+  *
+  * @param src        the template source text to parse
+  * @param baseOffset character offset of `src(0)` within the full `templateSource`.
+  *                   `0` for the top-level parser; set to the fragment start index
+  *                   when parsing inline HTML fragments inside expressions.
+  * @param posBuilder shared builder that accumulates [[SourceSpan]] entries for
+  *                   every node.  Passed through to sub-parsers via
+  *                   [[ExprExtractor.extractRich]] so all nodes share a single map.
   */
-private[parser] final class TemplateParser(src: String):
+private[parser] final class TemplateParser(
+  src:        String,
+  baseOffset: Int,
+  posBuilder: NodePositions.Builder
+):
 
   private var pos: Int = 0
 
@@ -169,7 +182,9 @@ private[parser] final class TemplateParser(src: String):
   def parseFragment(): List[TemplateNode] =
     skipSpaces()
     if pos < src.length && src(pos) == '<' && isOpenTagAt(pos) then
-      val node = parseElement()
+      val nodeStart = pos
+      val node      = parseElement()
+      posBuilder.add(node, SourceSpan(baseOffset + nodeStart))
       List(node)
     else Nil
 
@@ -194,6 +209,7 @@ private[parser] final class TemplateParser(src: String):
           val gtPos = src.indexOf('>', pos)
           pos = if gtPos < 0 then src.length else gtPos + 1
       else
+        val nodeStart = pos // capture source offset before consuming any characters
         src(pos) match
           case '{' =>
             pos += 1
@@ -204,23 +220,35 @@ private[parser] final class TemplateParser(src: String):
               stop = true
             else if src.startsWith("#snippet ", pos) then
               pos += "#snippet ".length
-              nodes += parseSnippetDef()
+              val n = parseSnippetDef()
+              posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+              nodes += n
             else if src.startsWith("@render ", pos) then
               pos += "@render ".length
-              nodes += parseRenderCall()
+              val n = parseRenderCall()
+              posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+              nodes += n
             else
-              val (parts, end) = ExprExtractor.extractRich(src, pos)
+              val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder)
               pos = end
               val hasHtml = parts.exists(_.isInstanceOf[meltc.ast.InlineTemplatePart.Html])
               if hasHtml then
-                if parts.nonEmpty then nodes += TemplateNode.InlineTemplate(parts)
+                if parts.nonEmpty then
+                  val n = TemplateNode.InlineTemplate(parts)
+                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+                  nodes += n
               else
                 // Pure Scala expression — flatten to Expression node
                 val expr = parts.collect { case meltc.ast.InlineTemplatePart.Code(c) => c }.mkString
-                if expr.nonEmpty then nodes += TemplateNode.Expression(expr)
+                if expr.nonEmpty then
+                  val n = TemplateNode.Expression(expr)
+                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+                  nodes += n
 
           case '<' if isOpenTagAt(pos) =>
-            nodes += parseElement()
+            val n = parseElement()
+            posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+            nodes += n
 
           case '<' if src.startsWith("<!--", pos) =>
             val end = src.indexOf("-->", pos + 4)
@@ -228,7 +256,10 @@ private[parser] final class TemplateParser(src: String):
 
           case _ =>
             val text = collectText()
-            if !text.isBlank then nodes += TemplateNode.Text(HtmlEntities.decode(text))
+            if !text.isBlank then
+              val n = TemplateNode.Text(HtmlEntities.decode(text))
+              posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+              nodes += n
 
     nodes.result()
 
@@ -296,7 +327,7 @@ private[parser] final class TemplateParser(src: String):
     * Called after `{@render ` has been consumed from the source.
     */
   private def parseRenderCall(): TemplateNode.RenderCall =
-    val (parts, end) = ExprExtractor.extractRich(src, pos)
+    val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder)
     pos = end
     val expr = parts.collect { case InlineTemplatePart.Code(c) => c }.mkString.trim
     TemplateNode.RenderCall(expr)
@@ -311,7 +342,8 @@ private[parser] final class TemplateParser(src: String):
       src(pos) match
         case '(' | '[' | '{' => depth += 1; buf += src(pos)
         case ')' | ']' | '}' =>
-          if depth > 0 then { depth -= 1; buf += src(pos) }
+          if depth > 0 then
+            depth -= 1; buf += src(pos)
           else return buf.toString
         case c => buf += c
       pos += 1
@@ -370,7 +402,8 @@ private[parser] final class TemplateParser(src: String):
         return Some(Attr.Shorthand(varName))
 
     val name = collectAttrName()
-    if name.isEmpty then { pos += 1; return None } // skip unknown char
+    if name.isEmpty then
+      pos += 1; return None // skip unknown char
 
     skipSpaces()
     if pos >= src.length || src(pos) != '=' then
@@ -415,7 +448,17 @@ private[parser] final class TemplateParser(src: String):
       case _ =>
         val start = pos
         while pos < src.length && !src(pos).isWhitespace && src(pos) != '>' && src(pos) != '/' do pos += 1
-        Some(makeAttrStatic(name, HtmlEntities.decode(src.substring(start, pos))))
+        val raw = src.substring(start, pos)
+        if raw.contains('"') || raw.contains('\'') then
+          val cleaned = raw.filterNot(c => c == '"' || c == '\'')
+          _warnings += (
+            (
+              s"""Malformed attribute "$name": unquoted value contains a quote character. """ +
+                s"""Did you mean $name="$cleaned"?""",
+              start
+            )
+          )
+        Some(makeAttrStatic(name, HtmlEntities.decode(raw)))
 
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
@@ -609,10 +652,14 @@ private[parser] final class TemplateParser(src: String):
 
 object TemplateParser:
   def parse(templateSource: String): List[TemplateNode] =
-    new TemplateParser(templateSource).parse()
+    val builder = new NodePositions.Builder()
+    new TemplateParser(templateSource, baseOffset = 0, posBuilder = builder).parse()
 
-  /** Parses the template and also returns any warnings generated during parsing. */
-  def parseWithWarnings(templateSource: String): (List[TemplateNode], List[(String, Int)]) =
-    val p     = new TemplateParser(templateSource)
-    val nodes = p.parse()
-    (nodes, p.warnings)
+  /** Parses the template and also returns node positions and any warnings. */
+  def parseWithWarnings(
+    templateSource: String
+  ): (List[TemplateNode], NodePositions, List[(String, Int)]) =
+    val builder = new NodePositions.Builder()
+    val p       = new TemplateParser(templateSource, baseOffset = 0, posBuilder = builder)
+    val nodes   = p.parse()
+    (nodes, builder.result(), p.warnings)

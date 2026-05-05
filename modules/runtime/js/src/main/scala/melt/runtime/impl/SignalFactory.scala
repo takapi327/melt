@@ -34,15 +34,18 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
 
   def subscribe(f: A => Unit): () => Unit =
     _bind += f
-    () => { _bind -= f; () }
+    () =>
+      _bind -= f; ()
 
   private[runtime] def subscribePre(f: A => Unit): () => Unit =
     _pre += f
-    () => { _pre -= f; () }
+    () =>
+      _pre -= f; ()
 
   private[runtime] def subscribePost(f: A => Unit): () => Unit =
     _post += f
-    () => { _post -= f; () }
+    () =>
+      _post -= f; ()
 
   def map[B](f: A => B): Signal[B] =
     val derived = JsSignal.create[B](f(_current))
@@ -60,7 +63,9 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
       derived.emit(inner.value)
       cancelInner = inner.subscribe(b => derived.emit(b))
     }
-    Cleanup.register(() => { cancelInner(); cancelOuter(); () })
+    Cleanup.register(() =>
+      cancelInner(); cancelOuter(); ()
+    )
     derived
 
   private lazy val _batchFlush: () => Unit = () =>
