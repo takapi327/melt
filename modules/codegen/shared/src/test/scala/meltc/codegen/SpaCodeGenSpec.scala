@@ -752,6 +752,16 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Bind.mediaVolume(_el0, v)"), code)
   }
 
+  test("bind:innerHTML emits Bind.html") {
+    val code = compile("""<div contenteditable bind:innerHTML={content}></div>""")
+    assert(code.contains("Bind.html(_el0, content)"), code)
+  }
+
+  test("bind:innerHTML works with a Var expression") {
+    val code = compile("""<div contenteditable bind:innerHTML={htmlVar}></div>""")
+    assert(code.contains("Bind.html(_el0, htmlVar)"), code)
+  }
+
   // ── Phase 6: List rendering ───────────────────────────────────────────────
 
   test(".map() expression with DOM body emits anchor + Bind.list") {

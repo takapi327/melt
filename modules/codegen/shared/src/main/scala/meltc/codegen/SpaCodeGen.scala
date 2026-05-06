@@ -840,6 +840,8 @@ object SpaCodeGen extends CodeGen:
         buf ++= s"""${ indent }Bind.mediaVideoWidth($v, $expr)\n"""
       case Attr.Directive("bind", "videoHeight", Some(expr), _) =>
         buf ++= s"""${ indent }Bind.mediaVideoHeight($v, $expr)\n"""
+      case Attr.Directive("bind", "innerHTML", Some(expr), _) =>
+        buf ++= s"""${ indent }Bind.html($v, $expr)\n"""
       case Attr.Directive("class", name, Some(expr), _) =>
         buf ++= s"""${ indent }Bind.classToggle($v, "$name", $expr)\n"""
       case Attr.Directive("class", name, None, _) =>
