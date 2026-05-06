@@ -148,7 +148,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     // available in unit tests.
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
-  .enablePlugins(AutomateHeaderPlugin)
+  .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
 // ── Code generator (JVM + JS): depends on meltc (AST/parser) + runtime ──
 // This is the only module that knows about both the meltc AST and the
