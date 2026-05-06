@@ -51,7 +51,9 @@ object SsgRunner:
         case _: ClassNotFoundException =>
           sys.error(s"[meltkit-ssg] SsgApp class not found: '$mainClass'. Check meltcSsgMainClass in your build.sbt.")
         case _: ClassCastException =>
-          sys.error(s"[meltkit-ssg] '$mainClass' does not extend SsgApp. Make sure the object extends meltkit.ssg.SsgApp.")
+          sys.error(
+            s"[meltkit-ssg] '$mainClass' does not extend SsgApp. Make sure the object extends meltkit.ssg.SsgApp."
+          )
 
     app.generate(SsgConfig(outputDir, assetsDir, cleanOutput = clean))
     println(s"[meltkit-ssg] Done. Output: $outputDir")
