@@ -20,7 +20,7 @@ object SsgGenerator:
 
   /** Runs static site generation for `app` according to `config`.
     *
-    * @tparam F effect type; must have [[Pure]] and [[SyncRunner]] instances
+    * @tparam F effect type; must have a [[SyncRunner]] instance
     */
   def run[F[_]: SyncRunner](app: SsgApp[F], config: SsgConfig): Unit =
     val out = config.outputDir
@@ -41,7 +41,7 @@ object SsgGenerator:
       val normalizedPath = normalizePath(rawPath)
 
       val maybeHandler = app.kit.routes
-        .filter(_.method == "GET")
+        .filter(r => r.method == "GET" && r.segments != List(PathSegment.Wildcard))
         .flatMap { route =>
           // PathSegment.matches is private[meltkit]; accessible from meltkit.ssg
           if PathSegment.matches(route.segments, segments) then
