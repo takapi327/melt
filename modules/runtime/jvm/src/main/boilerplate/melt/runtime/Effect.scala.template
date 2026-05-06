@@ -1,0 +1,35 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package melt.runtime
+
+/** JVM no-op implementations of `effect` / `layoutEffect`.
+  *
+  * SSR has no DOM lifecycle to run side-effects against, so these are all
+  * no-ops. The effect body is never executed on JVM.
+  */
+def effect[A](dep: Var[A])(f:    A => Unit): Unit = ()
+def effect[A](dep: Signal[A])(f: A => Unit): Unit = ()
+
+// TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
+// in all releases from 3.0.x through 3.8.x as of 2026-05), the N-arity overloads (2..22)
+// below can be replaced with a single definition covering any number of deps.
+// See: https://contributors.scala-lang.org/t/status-of-tupled-function/6972
+
+[2..22#def effect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit = ()
+#
+]
+def layoutEffect[A](dep: Var[A])(f:    A => Unit): Unit = ()
+def layoutEffect[A](dep: Signal[A])(f: A => Unit): Unit = ()
+
+// TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
+// in all releases from 3.0.x through 3.8.x as of 2026-05), the N-arity overloads (2..22)
+// below can be replaced with a single definition covering any number of deps.
+// See: https://contributors.scala-lang.org/t/status-of-tupled-function/6972
+
+[2..22#def layoutEffect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit = ()
+#
+]

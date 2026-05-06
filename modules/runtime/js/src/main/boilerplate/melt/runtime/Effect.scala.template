@@ -18,7 +18,7 @@ package melt.runtime
   * {{{
   * val count = Var(0)
   * effect(count) { n =>
-  *   dom.console.log(s"count is now: $$n")  // DOM is already updated at this point
+  *   dom.console.log(s"count is now: $$n")
   * }
   * }}}
   */
@@ -50,17 +50,20 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit =
     cancel(); innerNode.foreach(_.destroy())
   )
 
-/** Two-dependency effect — re-runs in the **Post** phase when either dependency changes.
-  *
-  * Uses a scheduled run pattern so that if both change inside a `batch`,
-  * the effect body runs only once.
+// TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
+// in all releases from 3.0.x through 3.8.x as of 2026-05), the N-arity overloads (2..22)
+// below can be replaced with a single definition covering any number of deps.
+// See: https://contributors.scala-lang.org/t/status-of-tupled-function/6972
+
+[2..22#/** 1-dependency effect. Re-runs in the **Post** phase when any dep changes.
+  * When multiple deps change inside a `batch`, the body runs only once.
   */
-def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
+def effect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit =
   var innerNode: Option[OwnerNode] = None
 
   def run(): Unit =
     innerNode.foreach(_.destroy())
-    val (_, node) = Owner.withNew { f(depA.value, depB.value) }
+    val (_, node) = Owner.withNew { f([#dep1.value#, ]) }
     innerNode = Some(node)
 
   lazy val scheduleRun: () => Unit = () => run()
@@ -70,40 +73,21 @@ def effect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
     else run()
 
   run()
-  val cancelA = depA.subscribePost(_ => trigger())
-  val cancelB = depB.subscribePost(_ => trigger())
+  val cancels = List([#dep1.subscribePost(_ => trigger())#, ])
   Cleanup.register(() =>
-    cancelA(); cancelB(); innerNode.foreach(_.destroy())
+    cancels.foreach(_())
+    innerNode.foreach(_.destroy())
   )
-
+#
+]
 // ── layoutEffect ────────────────────────────────────────────────────────────
 
 /** Runs a side-effect **before** DOM updates whenever the dependency changes.
   *
   * Executes in the **Pre** phase — before [[Bind]] DOM mutations — allowing
   * you to read the current DOM state (e.g. scroll position, element size)
-  * before the update is applied.
-  *
-  * Unlike [[effect]], `layoutEffect` does **not** run on initial creation;
-  * it only fires on subsequent changes to `dep`.
-  *
-  * {{{
-  * val messages = Var(List.empty[String])
-  * val listRef  = Ref.empty[dom.Element]
-  * var atBottom = false
-  *
-  * layoutEffect(messages) { _ =>
-  *   // DOM has NOT been updated yet — read pre-update state here
-  *   listRef.foreach { el =>
-  *     atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight
-  *   }
-  * }
-  *
-  * effect(messages) { _ =>
-  *   // DOM IS updated — act on post-update state here
-  *   if atBottom then listRef.foreach(el => el.scrollTop = el.scrollHeight)
-  * }
-  * }}}
+  * before the update is applied.  Unlike [[effect]], does **not** run on
+  * initial creation; only fires on subsequent changes.
   */
 def layoutEffect[A](dep: Var[A])(f: A => Unit): Unit =
   val cancel = dep.subscribePre(f)
@@ -113,19 +97,20 @@ def layoutEffect[A](dep: Signal[A])(f: A => Unit): Unit =
   val cancel = dep.subscribePre(f)
   Cleanup.register(cancel)
 
-/** Two-dependency `layoutEffect` — fires in the **Pre** phase when either dependency changes.
-  *
-  * Uses a scheduled run pattern to run at most once per `batch`.
-  */
-def layoutEffect[A, B](depA: Var[A], depB: Var[B])(f: (A, B) => Unit): Unit =
-  lazy val scheduleRun: () => Unit = () => f(depA.value, depB.value)
+// TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
+// in all releases from 3.0.x through 3.8.x as of 2026-05), the N-arity overloads (2..22)
+// below can be replaced with a single definition covering any number of deps.
+// See: https://contributors.scala-lang.org/t/status-of-tupled-function/6972
+
+[2..22#/** 1-dependency `layoutEffect`. Fires in the **Pre** phase when any dep changes. */
+def layoutEffect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit =
+  lazy val scheduleRun: () => Unit = () => f([#dep1.value#, ])
 
   def trigger(): Unit =
     if Batch.isBatching || Batch.isFlushing then Batch.enqueue(scheduleRun)
-    else f(depA.value, depB.value)
+    else f([#dep1.value#, ])
 
-  val cancelA = depA.subscribePre(_ => trigger())
-  val cancelB = depB.subscribePre(_ => trigger())
-  Cleanup.register(() =>
-    cancelA(); cancelB(); ()
-  )
+  val cancels = List([#dep1.subscribePre(_ => trigger())#, ])
+  Cleanup.register(() => cancels.foreach(_()))
+#
+]
