@@ -25,6 +25,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "meltkitJS",
     "meltkit-browser",
     "meltkit-node",
+    "meltkit-ssg",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS"
   )
@@ -222,6 +223,18 @@ lazy val `meltkit-node` = project
     libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
   )
   .dependsOn(meltkit.js)
+
+// ── MeltKit: SSG static site generator (JVM only, Scala 3.8+) ───────────────
+lazy val `meltkit-ssg` = project
+  .in(file("modules/meltkit-ssg"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name         := "meltkit-ssg",
+    scalaVersion := scala38,
+    libraryDependencies += "org.scalameta" %% "munit" % "1.2.4" % Test
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(meltkit.jvm)
 
 // ── MeltKit: http4s adapter (JVM + JS, Scala 3.8+) ───────────────────────────
 lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
@@ -613,6 +626,7 @@ lazy val root = project
     meltkit.js,
     `meltkit-browser`,
     `meltkit-node`,
+    `meltkit-ssg`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
     `sbt-meltc`,
