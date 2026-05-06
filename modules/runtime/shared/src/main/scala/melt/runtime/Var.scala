@@ -41,7 +41,7 @@ import melt.runtime.impl.VarFactory
   * [[melt.runtime.impl.VarFactory]] that lives under each platform's own
   * source tree. See `docs/meltc-ssr-design.md` §5.1 for full rationale.
   */
-trait Var[A]:
+trait Var[A] extends ReactiveValue[A]:
 
   /** Returns the current value without registering a reactive dependency. */
   def value: A

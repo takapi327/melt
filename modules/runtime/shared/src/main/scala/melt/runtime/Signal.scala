@@ -15,7 +15,7 @@ import melt.runtime.impl.SignalFactory
   * reactive cell; on the JVM it is a frozen wrapper that simply holds the
   * computed initial value (SSR never re-emits).
   */
-trait Signal[A]:
+trait Signal[A] extends ReactiveValue[A]:
 
   /** Returns the current value. */
   def value: A
