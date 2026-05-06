@@ -85,8 +85,7 @@ object SsgGenerator:
               if !config.quiet then println(s"[meltkit-ssg] Generated: $normalizedPath")
 
             case _ =>
-              if !config.quiet then
-                println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
+              if !config.quiet then println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
     }
 
     // 4. Copy Vite assets
@@ -94,8 +93,7 @@ object SsgGenerator:
       if Files.isDirectory(assetsDir) then
         val target = out.resolve("assets")
         copyDirectory(assetsDir, target)
-        if !config.quiet then
-          println(s"[meltkit-ssg] Copied assets: $assetsDir -> $target")
+        if !config.quiet then println(s"[meltkit-ssg] Copied assets: $assetsDir -> $target")
     }
 
   /** Normalises a URL path to a file path.

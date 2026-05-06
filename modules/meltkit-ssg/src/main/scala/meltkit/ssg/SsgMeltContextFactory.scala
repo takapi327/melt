@@ -37,8 +37,7 @@ final class SsgMeltContextFactory[F[_]](
   /** The most recently constructed context; populated after [[build]] is called. */
   def lastContext: Option[SsgMeltContext[F, ?, ?]] = _lastContext
 
-  def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B])
-    : MeltContext[F, P, B, RenderResult] =
+  def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
     val ctx = new SsgMeltContext[F, P, B](
       params,
       requestPath,

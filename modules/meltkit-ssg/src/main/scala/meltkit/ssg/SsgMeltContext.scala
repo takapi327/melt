@@ -47,13 +47,13 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
 
   val locals: Locals = new Locals()
 
-  def query(name: String):    Option[String]            = None
+  def query(name:    String): Option[String]            = None
   def queryAll(name: String): List[String]              = Nil
   def queryParams:            Map[String, List[String]] = Map.empty
 
   def render(component: => RenderResult): PlainResponse =
     val result = Router.withPath(requestPath)(component)
-    val html =
+    val html   =
       if useHydration then
         template.render(
           result,
@@ -63,8 +63,7 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
           basePath = basePath,
           vars     = Map.empty
         )
-      else
-        template.render(result, title = defaultTitle, lang = defaultLang, vars = Map.empty)
+      else template.render(result, title = defaultTitle, lang = defaultLang, vars = Map.empty)
     _capturedHtml = Some(html)
     PlainResponse(200, "text/html; charset=utf-8", html)
 
@@ -110,12 +109,12 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
   val body: RequestBody[F, B] = new RequestBody[F, B]:
     private def noBody: Nothing =
       throw new UnsupportedOperationException("No request body in SSG context")
-    def text:                                            F[String]                      = noBody
-    def form:                                            F[Either[BodyError, FormData]] = noBody
-    def form[A](using FormDataDecoder[A]):               F[Either[BodyError, A]]        = noBody
-    def json[A](using BodyDecoder[A]):                   F[Either[BodyError, A]]        = noBody
-    def decode(using NotGiven[B =:= Unit]):              F[Either[BodyError, B]]        = noBody
-    def decodeOrBadRequest(using NotGiven[B =:= Unit]):  F[B]                          = noBody
+    def text:                                           F[String]                      = noBody
+    def form:                                           F[Either[BodyError, FormData]] = noBody
+    def form[A](using FormDataDecoder[A]):              F[Either[BodyError, A]]        = noBody
+    def json[A](using BodyDecoder[A]):                  F[Either[BodyError, A]]        = noBody
+    def decode(using NotGiven[B =:= Unit]):             F[Either[BodyError, B]]        = noBody
+    def decodeOrBadRequest(using NotGiven[B =:= Unit]): F[B]                           = noBody
 
   def cookie(name: String): Option[String]      = None
   def cookies:              Map[String, String] = Map.empty
