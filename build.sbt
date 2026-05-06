@@ -119,7 +119,7 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "meltc", // override "melt-meltc" → "meltc"
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.2.4" % Test
+      "org.scalameta" %%% "munit" % "1.3.0" % Test
     )
   )
   .jsSettings(
@@ -141,7 +141,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .settings(BuildSettings.commonSettings)
   .settings(
     name                                    := "melt-runtime",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.1",
@@ -162,7 +162,7 @@ lazy val codegen = crossProject(JVMPlatform, JSPlatform)
   .settings(BuildSettings.commonSettings)
   .settings(
     name                                    := "melt-codegen",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(meltc, runtime)
@@ -174,7 +174,7 @@ lazy val `melt-testkit` = project
   .settings(
     name := "melt-testkit",
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.2.4"
+      "org.scalameta" %%% "munit" % "1.3.0"
     ),
     // Use jsdom so that DOM APIs are available in unit tests
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
@@ -190,7 +190,7 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .settings(
     name                                    := "meltkit",
     scalaVersion                            := scala38,
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
@@ -204,7 +204,7 @@ lazy val `meltkit-browser` = project
     name         := "meltkit-browser",
     scalaVersion := scala38,
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.2.4" % Test
+      "org.scalameta" %%% "munit" % "1.3.0" % Test
     )
   )
   .dependsOn(meltkit.js)
@@ -220,7 +220,7 @@ lazy val `meltkit-node` = project
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.CommonJSModule)
     },
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.4" % Test
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .dependsOn(meltkit.js)
 
@@ -231,7 +231,7 @@ lazy val `meltkit-ssg` = project
   .settings(
     name                                   := "meltkit-ssg",
     scalaVersion                           := scala38,
-    libraryDependencies += "org.scalameta" %% "munit" % "1.2.4" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(meltkit.jvm)
