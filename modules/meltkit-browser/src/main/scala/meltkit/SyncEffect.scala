@@ -15,7 +15,7 @@ import org.scalajs.dom
   * asynchronous effect system involved, so `F = Id` (the identity functor) is
   * always the right choice for [[MeltKit]] and [[BrowserAdapter]] in the browser.
   *
-  * Importing `meltkit.*` brings both the type alias and the [[EffectRunner]]
+  * Importing `meltkit.*` brings both the type alias and the [[AsyncRunner]]
   * given instance into scope, so users do not need to define them manually:
   *
   * {{{
@@ -30,12 +30,12 @@ import org.scalajs.dom
   */
 type Id = [A] =>> A
 
-/** [[EffectRunner]] for [[Id]]: discards the [[Response]] value.
+/** [[AsyncRunner]] for [[Id]]: discards the [[Response]] value.
   *
   * By the time [[BrowserAdapter]] calls `runAndForget`, the route handler has
   * already performed all DOM mutations as a synchronous side effect. The
   * returned [[Response]] value carries no further work, so it is safely
   * discarded.
   */
-given EffectRunner[Id] with
+given AsyncRunner[Id] with
   def runAndForget(fa: Response): Unit = ()
