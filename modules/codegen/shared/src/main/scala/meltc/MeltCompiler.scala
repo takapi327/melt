@@ -10,6 +10,7 @@ import meltc.analysis.{
   A11yChecker,
   AttrNameChecker,
   BindingContextChecker,
+  EffectDepsChecker,
   MalformedExpressionChecker,
   RawTextInterpolationChecker,
   SecurityChecker,
@@ -149,7 +150,12 @@ object MeltCompiler:
                 case (msg, line) =>
                   CompileWarning(msg, line, 0, filename)
               }
-              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings
+              val effectDepsWarnings = EffectDepsChecker.check(
+                ast,
+                filename,
+                scriptBodyLine = result.scriptBodyLine
+              )
+              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */
