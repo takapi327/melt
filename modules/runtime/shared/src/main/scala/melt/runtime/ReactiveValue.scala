@@ -19,9 +19,9 @@ package melt.runtime
   * structural constraint for the N-dependency effect API.
   */
 trait ReactiveValue[A]:
-  def value: A
+  def value:                                        A
   private[runtime] def subscribePost(f: A => Unit): () => Unit
-  private[runtime] def subscribePre(f: A => Unit): () => Unit
+  private[runtime] def subscribePre(f:  A => Unit): () => Unit
 
 /** Extracts the value type `A` from a [[ReactiveValue]][A].
   * Used by the N-dependency [[effect]] / [[layoutEffect]] overloads to map a

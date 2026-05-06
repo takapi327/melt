@@ -9,8 +9,8 @@ package meltc.analysis
 import scala.collection.mutable
 import scala.util.matching.Regex
 
-import meltc.CompileWarning
 import meltc.ast.MeltFile
+import meltc.CompileWarning
 
 /** Compile-time heuristic checker for missing `effect` / `layoutEffect` dependencies.
   *
@@ -73,8 +73,8 @@ object EffectDepsChecker:
             val depsSet = call.deps.toSet
 
             // Missing deps: referenced in body but not listed
-            val refs    = referencedVars(call.body, reactiveVars)
-            val missing = refs -- depsSet
+            val refs            = referencedVars(call.body, reactiveVars)
+            val missing         = refs -- depsSet
             val missingWarnings = missing.toList.sorted.map { name =>
               CompileWarning(
                 message  = buildMissingMessage(name, call.deps, call.isLayout),
@@ -85,13 +85,14 @@ object EffectDepsChecker:
             }
 
             // Direct access: dep referenced by name in body when a positional arg exists.
-            val directWarnings = findDirectAccessDeps(call.body, call.deps).map { case (dep, arg) =>
-              CompileWarning(
-                message  = buildDirectAccessMessage(dep, arg, call.isLayout),
-                line     = call.line,
-                column   = 0,
-                filename = filename
-              )
+            val directWarnings = findDirectAccessDeps(call.body, call.deps).map {
+              case (dep, arg) =>
+                CompileWarning(
+                  message  = buildDirectAccessMessage(dep, arg, call.isLayout),
+                  line     = call.line,
+                  column   = 0,
+                  filename = filename
+                )
             }
 
             // Unused deps: listed but not used in body (neither via dep.value nor via
@@ -151,15 +152,13 @@ object EffectDepsChecker:
             if afterDeps < len then
               // skip whitespace between ')' and '{'
               var k = afterDeps
-              while k < len && (stripped(k) == ' ' || stripped(k) == '\n' || stripped(k) == '\r') do
-                k += 1
+              while k < len && (stripped(k) == ' ' || stripped(k) == '\n' || stripped(k) == '\r') do k += 1
               if k < len && stripped(k) == '{' then
                 val (body, _) = extractBraceContent(code, k)
                 val depNames  = parseDeps(deps)
                 calls += EffectCall(depNames, body, lineNum, isLayout)
         i += advance + 1
-      else
-        i += 1
+      else i += 1
 
     calls.toList
 
@@ -250,7 +249,7 @@ object EffectDepsChecker:
     reactiveVars.filter { name =>
       if localDecls.contains(name) then false
       else
-        val pattern = raw"\b${Regex.quote(name)}\b".r
+        val pattern = raw"\b${ Regex.quote(name) }\b".r
         pattern.findFirstIn(stripped).isDefined
     }
 
@@ -261,11 +260,12 @@ object EffectDepsChecker:
     * Returns `None` when the header cannot be parsed or counts differ.
     */
   private def parseLambdaHeader(
-    stripped:  String,
-    depCount:  Int
+    stripped: String,
+    depCount: Int
   ): Option[(List[String], String)] =
     val paramsOpt: Option[List[String]] =
-      LambdaMultiParamRx.findFirstMatchIn(stripped)
+      LambdaMultiParamRx
+        .findFirstMatchIn(stripped)
         .map(_.group(1).split(',').map(_.trim).filter(_.nonEmpty).toList)
         .orElse(LambdaSingleParamRx.findFirstMatchIn(stripped).map(m => List(m.group(1))))
     paramsOpt match
@@ -292,14 +292,14 @@ object EffectDepsChecker:
     val stripped   = stripStringLiterals(body)
     val localDecls = LocalValPattern.findAllMatchIn(stripped).map(_.group(1)).toSet
     parseLambdaHeader(stripped, deps.size) match
-      case None => Nil
+      case None                       => Nil
       case Some((params, afterArrow)) =>
-        deps.zip(params).flatMap { case (dep, param) =>
-          if localDecls.contains(dep) then None         // local val shadows dep
-          else if param == "_" || param == dep then None // trigger pattern / shadowing
-          else if raw"\b${Regex.quote(dep)}\b".r.findFirstIn(afterArrow).isDefined then
-            Some((dep, param))
-          else None
+        deps.zip(params).flatMap {
+          case (dep, param) =>
+            if localDecls.contains(dep) then None          // local val shadows dep
+            else if param == "_" || param == dep then None // trigger pattern / shadowing
+            else if raw"\b${ Regex.quote(dep) }\b".r.findFirstIn(afterArrow).isDefined then Some((dep, param))
+            else None
         }
 
   // ── Step 3d: find unused deps ─────────────────────────────────────────────
@@ -316,20 +316,21 @@ object EffectDepsChecker:
     val localDecls = LocalValPattern.findAllMatchIn(stripped).map(_.group(1)).toSet
     parseLambdaHeader(stripped, deps.size) match
       case Some((params, afterArrow)) =>
-        deps.zip(params).flatMap { case (dep, param) =>
-          if localDecls.contains(dep) then None
-          else
-            val depUsed   = raw"\b${Regex.quote(dep)}\b".r.findFirstIn(afterArrow).isDefined
-            val paramUsed = param == "_" ||
-              raw"\b${Regex.quote(param)}\b".r.findFirstIn(afterArrow).isDefined
-            if !depUsed && !paramUsed then Some(dep) else None
+        deps.zip(params).flatMap {
+          case (dep, param) =>
+            if localDecls.contains(dep) then None
+            else
+              val depUsed   = raw"\b${ Regex.quote(dep) }\b".r.findFirstIn(afterArrow).isDefined
+              val paramUsed = param == "_" ||
+                raw"\b${ Regex.quote(param) }\b".r.findFirstIn(afterArrow).isDefined
+              if !depUsed && !paramUsed then Some(dep) else None
         }
       case None =>
         // Fallback: only warn when SOME dep names ARE found in body (avoids false
         // positives when all values are accessed via positional arguments).
         val bodyRefs = deps.filter { dep =>
           !localDecls.contains(dep) &&
-            raw"\b${Regex.quote(dep)}\b".r.findFirstIn(stripped).isDefined
+          raw"\b${ Regex.quote(dep) }\b".r.findFirstIn(stripped).isDefined
         }.toSet
         val unused = deps.toSet -- bodyRefs
         if unused.nonEmpty && unused.size < deps.size then unused.toList.sorted
@@ -353,7 +354,7 @@ object EffectDepsChecker:
   private def buildUnusedMessage(unused: String, deps: List[String], isLayout: Boolean): String =
     val fn      = if isLayout then "layoutEffect" else "effect"
     val newDeps = deps.filterNot(_ == unused)
-    val hint    = if newDeps.isEmpty then s"$fn()" else s"$fn(${newDeps.mkString(", ")})"
+    val hint    = if newDeps.isEmpty then s"$fn()" else s"$fn(${ newDeps.mkString(", ") })"
     s"'$unused' is listed as a dependency but is never referenced in the $fn body. " +
       s"Removing unused deps prevents unnecessary re-runs. " +
       s"hint: remove it like $hint { ... }"
@@ -388,8 +389,8 @@ object EffectDepsChecker:
           else if interp && src(i) == '$' && i + 1 < len && src(i + 1) == '{' then
             i = appendInterpBlock(src, i, sb, len)
           else if interp && src(i) == '$' && i + 1 < len &&
-            (src(i + 1).isLetter || src(i + 1) == '_') then
-            i = appendInterpIdent(src, i, sb, len)
+            (src(i + 1).isLetter || src(i + 1) == '_')
+          then i = appendInterpIdent(src, i, sb, len)
           else
             sb.append(' ')
             i += 1
@@ -409,8 +410,8 @@ object EffectDepsChecker:
           else if interp && src(i) == '$' && i + 1 < len && src(i + 1) == '{' then
             i = appendInterpBlock(src, i, sb, len)
           else if interp && src(i) == '$' && i + 1 < len &&
-            (src(i + 1).isLetter || src(i + 1) == '_') then
-            i = appendInterpIdent(src, i, sb, len)
+            (src(i + 1).isLetter || src(i + 1) == '_')
+          then i = appendInterpIdent(src, i, sb, len)
           else
             sb.append(' ')
             i += 1
