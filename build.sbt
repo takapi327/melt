@@ -229,8 +229,8 @@ lazy val `meltkit-ssg` = project
   .in(file("modules/meltkit-ssg"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name         := "meltkit-ssg",
-    scalaVersion := scala38,
+    name                                   := "meltkit-ssg",
+    scalaVersion                           := scala38,
     libraryDependencies += "org.scalameta" %% "munit" % "1.2.4" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
