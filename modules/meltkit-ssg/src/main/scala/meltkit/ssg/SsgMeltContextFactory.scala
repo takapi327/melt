@@ -37,7 +37,10 @@ final class SsgMeltContextFactory[F[_]](
   /** The most recently constructed context; populated after [[build]] is called. */
   private[ssg] def lastContext: Option[SsgMeltContext[F, ?, ?]] = _lastContext
 
-  override def build[P <: AnyNamedTuple, B](params: P, bodyDecoder: BodyDecoder[B]): MeltContext[F, P, B, RenderResult] =
+  override def build[P <: AnyNamedTuple, B](
+    params:      P,
+    bodyDecoder: BodyDecoder[B]
+  ): MeltContext[F, P, B, RenderResult] =
     val ctx = new SsgMeltContext[F, P, B](
       params,
       requestPath,

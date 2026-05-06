@@ -10,7 +10,7 @@ import java.nio.file.{ Files, Path }
 
 import melt.runtime.render.RenderResult
 
-import meltkit.{ MeltKit, SyncRunner, Template, ViteManifest, param }
+import meltkit.{ param, MeltKit, SyncRunner, Template, ViteManifest }
 
 class SsgGeneratorSpec extends munit.FunSuite:
 
@@ -35,10 +35,10 @@ class SsgGeneratorSpec extends munit.FunSuite:
     val k = new MeltKit[Id]
     routes(k)
     new SsgApp[Id]:
-      override val kit:      MeltKit[Id]     = k
-      override val paths:    List[String]    = pathList
-      override val template: Template        = simpleTemplate
-      override val manifest: ViteManifest    = ViteManifest.empty
+      override val kit:      MeltKit[Id]  = k
+      override val paths:    List[String] = pathList
+      override val template: Template     = simpleTemplate
+      override val manifest: ViteManifest = ViteManifest.empty
       override given syncRunner: SyncRunner[Id] with
         override def runSync[A](fa: A): A = fa
 
@@ -137,7 +137,8 @@ class SsgGeneratorSpec extends munit.FunSuite:
       val app = makeSsgApp(
         kit =>
           kit.getAll { ctx => ctx.render(RenderResult(body = "<p>wildcard</p>", head = "")) }
-          kit.get("about") { ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")) },
+          kit.get("about") { ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")) }
+        ,
         List("/about")
       )
       app.generate(SsgConfig(out))
