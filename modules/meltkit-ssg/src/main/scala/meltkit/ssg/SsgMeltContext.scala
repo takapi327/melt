@@ -43,7 +43,7 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
   private var _capturedHtml: Option[String] = None
 
   /** The fully assembled HTML produced by [[render]], available after the handler runs. */
-  def capturedHtml: Option[String] = _capturedHtml
+  private[ssg] def capturedHtml: Option[String] = _capturedHtml
 
   val locals: Locals = new Locals()
 
