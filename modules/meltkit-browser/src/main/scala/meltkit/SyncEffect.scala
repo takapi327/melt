@@ -38,4 +38,4 @@ type Id = [A] =>> A
   * discarded.
   */
 given AsyncRunner[Id] with
-  def runAndForget(fa: Response): Unit = ()
+  override def runAndForget(fa: Response): Unit = ()

@@ -186,7 +186,7 @@ object BrowserAdapter:
     matched.foreach { route =>
       val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
       val factory   = new MeltContextFactory[F, dom.Element]:
-        def build[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): MeltContext[F, P, B, dom.Element] =
+        override def build[P <: AnyNamedTuple, B](params: P, decoder: BodyDecoder[B]): MeltContext[F, P, B, dom.Element] =
           BrowserMeltContext[F, P, B](params, decoder, outletEl)
       route.tryHandle(rawValues, factory).foreach(thunk => summon[AsyncRunner[F]].runAndForget(thunk()))
     }

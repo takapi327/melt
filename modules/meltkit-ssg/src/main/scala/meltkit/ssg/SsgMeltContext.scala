@@ -30,14 +30,14 @@ import meltkit.codec.*
   * @tparam B the request body type (`Unit` = no body)
   */
 final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
-  val params:      P,
-  val requestPath: String,
-  template:        Template,
-  manifest:        ViteManifest,
-  basePath:        String,
-  useHydration:    Boolean,
-  defaultTitle:    String,
-  defaultLang:     String
+  override val params:      P,
+  override val requestPath: String,
+  template:                 Template,
+  manifest:                 ViteManifest,
+  basePath:                 String,
+  useHydration:             Boolean,
+  defaultTitle:             String,
+  defaultLang:              String
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private var _capturedHtml: Option[String] = None
@@ -45,13 +45,13 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
   /** The fully assembled HTML produced by [[render]], available after the handler runs. */
   private[ssg] def capturedHtml: Option[String] = _capturedHtml
 
-  val locals: Locals = new Locals()
+  override val locals: Locals = new Locals()
 
-  def query(name:    String): Option[String]            = None
-  def queryAll(name: String): List[String]              = Nil
-  def queryParams:            Map[String, List[String]] = Map.empty
+  override def query(name:    String): Option[String]            = None
+  override def queryAll(name: String): List[String]              = Nil
+  override def queryParams:            Map[String, List[String]] = Map.empty
 
-  def render(component: => RenderResult): PlainResponse =
+  override def render(component: => RenderResult): PlainResponse =
     val result = Router.withPath(requestPath)(component)
     val html   =
       if useHydration then
@@ -67,34 +67,34 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
     _capturedHtml = Some(html)
     PlainResponse(200, "text/html; charset=utf-8", html)
 
-  def render(component: => RenderResult, status: StatusCode): PlainResponse =
+  override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     render(component) // status code is not meaningful in SSG
 
-  def ok[A: codec.BodyEncoder](value: A): PlainResponse =
+  override def ok[A: codec.BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", "")
 
-  def created[A: codec.BodyEncoder](value: A): PlainResponse =
+  override def created[A: codec.BodyEncoder](value: A): PlainResponse =
     PlainResponse(201, "application/json", "")
 
-  def noContent: PlainResponse =
+  override def noContent: PlainResponse =
     PlainResponse(204, "text/plain", "")
 
-  def text(value: String): PlainResponse =
+  override def text(value: String): PlainResponse =
     PlainResponse(200, "text/plain; charset=utf-8", value)
 
-  def json(value: String): PlainResponse =
+  override def json(value: String): PlainResponse =
     PlainResponse(200, "application/json", value)
 
-  def badRequest(err: BodyError): BadRequest =
+  override def badRequest(err: BodyError): BadRequest =
     Response.badRequest(err.message)
 
-  def redirect(path: String, permanent: Boolean = false): PlainResponse =
+  override def redirect(path: String, permanent: Boolean = false): PlainResponse =
     System.err.println(
       s"[meltkit-ssg] Warning: redirect('$path') ignored in SSG context at path '$requestPath'"
     )
     Response.redirect(path, permanent)
 
-  def notFound(message: String = "Not Found"): NotFound =
+  override def notFound(message: String = "Not Found"): NotFound =
     System.err.println(
       s"[meltkit-ssg] Warning: notFound() at path '$requestPath' — page will be skipped"
     )
@@ -106,17 +106,17 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
   // routes so body access should never occur. SsgGenerator wraps each handler
   // call in try/catch and surfaces any unexpected errors clearly.
 
-  val body: RequestBody[F, B] = new RequestBody[F, B]:
+  override val body: RequestBody[F, B] = new RequestBody[F, B]:
     private def noBody: Nothing =
       throw new UnsupportedOperationException("No request body in SSG context")
-    def text:                                           F[String]                      = noBody
-    def form:                                           F[Either[BodyError, FormData]] = noBody
-    def form[A](using FormDataDecoder[A]):              F[Either[BodyError, A]]        = noBody
-    def json[A](using BodyDecoder[A]):                  F[Either[BodyError, A]]        = noBody
-    def decode(using NotGiven[B =:= Unit]):             F[Either[BodyError, B]]        = noBody
-    def decodeOrBadRequest(using NotGiven[B =:= Unit]): F[B]                           = noBody
+    override def text:                                           F[String]                      = noBody
+    override def form:                                           F[Either[BodyError, FormData]] = noBody
+    override def form[A](using FormDataDecoder[A]):              F[Either[BodyError, A]]        = noBody
+    override def json[A](using BodyDecoder[A]):                  F[Either[BodyError, A]]        = noBody
+    override def decode(using NotGiven[B =:= Unit]):             F[Either[BodyError, B]]        = noBody
+    override def decodeOrBadRequest(using NotGiven[B =:= Unit]): F[B]                           = noBody
 
-  def cookie(name: String): Option[String]      = None
-  def cookies:              Map[String, String] = Map.empty
-  def header(name: String): Option[String]      = None
-  def headers:              Map[String, String] = Map.empty
+  override def cookie(name: String): Option[String]      = None
+  override def cookies:              Map[String, String] = Map.empty
+  override def header(name: String): Option[String]      = None
+  override def headers:              Map[String, String] = Map.empty
