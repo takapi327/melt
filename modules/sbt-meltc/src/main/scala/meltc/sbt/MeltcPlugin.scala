@@ -14,6 +14,30 @@ import sbt.Keys._
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
 
+/** Target platform / rendering mode for a Meltkit project.
+  *
+  * Setting [[MeltcPlugin.autoImport.meltMode]] to one of these values causes
+  * the plugin to automatically add the corresponding runtime dependency and
+  * to select the appropriate codegen mode.
+  */
+sealed abstract class MeltMode
+object MeltMode {
+
+  /** Browser SPA — adds `meltkit-browser` (Scala.js). Codegen: `spa`. */
+  case object Browser extends MeltMode
+
+  /** Node.js SSR server — adds `meltkit-node` (Scala.js). Codegen: `ssr`. */
+  case object Node extends MeltMode
+
+  /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
+  case object Http4s extends MeltMode
+
+  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`.
+    * Enables the [[MeltcPlugin.autoImport.meltcStaticGenerate]] task.
+    */
+  case object SSG extends MeltMode
+}
+
 /** sbt-meltc plugin
   *
   * Detects `.melt` files under `meltcSourceDirectory` and compiles each one
@@ -383,6 +407,68 @@ object MeltcPlugin extends AutoPlugin {
       settingKey[Boolean](
         "When true, automatically resolve preprocessor JARs via Ivy. Set false when providing meltcCompilerClasspath manually."
       )
+
+    // ── meltMode / runtime dependency management ──────────────────────────
+
+    /** Target platform mode.
+      *
+      * Setting this key causes the plugin to:
+      *   - automatically add the appropriate runtime `libraryDependency`
+      *     (when [[meltcManageRuntimeDeps]] is `true`)
+      *   - select the correct codegen mode (`spa` for [[Browser]], `ssr` otherwise)
+      *
+      * {{{
+      * meltMode := Browser  // → meltkit-browser (Scala.js SPA)
+      * meltMode := Node     // → meltkit-node (Node.js SSR)
+      * meltMode := Http4s   // → meltkit-adapter-http4s (http4s SSR)
+      * meltMode := SSG      // → meltkit-ssg (static site generation)
+      * }}}
+      *
+      * Default: `None` — no runtime dependency is added automatically.
+      */
+    val meltMode = settingKey[Option[MeltMode]]("Target platform / rendering mode")
+
+    /** When `true` (the default), the plugin automatically adds the runtime
+      * library corresponding to [[meltMode]] to `libraryDependencies`.
+      *
+      * Set to `false` to manage the runtime dependency manually.
+      */
+    val meltcManageRuntimeDeps =
+      settingKey[Boolean]("Auto-add meltkit runtime dependency based on meltMode")
+
+    // Convenience aliases so users can write `meltMode := Browser` without a prefix
+    val Browser: MeltMode = MeltMode.Browser
+    val Node:    MeltMode = MeltMode.Node
+    val Http4s:  MeltMode = MeltMode.Http4s
+    val SSG:     MeltMode = MeltMode.SSG
+
+    // ── SSG task keys ─────────────────────────────────────────────────────
+
+    /** Generates static HTML pages by running the [[SsgApp]] object.
+      * Only meaningful when `meltMode := SSG`.
+      */
+    val meltcStaticGenerate =
+      taskKey[Unit]("Generate static HTML pages via Meltkit SSG (requires meltMode := SSG)")
+
+    /** Output directory for the generated static HTML files.
+      * Default: `target/meltc-ssg`.
+      */
+    val meltcSsgOutputDir =
+      settingKey[File]("Output directory for generated static HTML files")
+
+    /** Fully-qualified class name of the [[SsgApp]] object to run.
+      * Must be set explicitly, e.g. `meltcSsgMainClass := "com.example.MySsg"`.
+      */
+    val meltcSsgMainClass =
+      settingKey[String]("Fully-qualified class name of the SsgApp object")
+
+    /** Optional Vite assets directory to copy alongside the generated HTML. */
+    val meltcSsgAssetsDir =
+      settingKey[Option[File]]("Vite assets directory to copy alongside generated HTML")
+
+    /** When `true` (the default), clean [[meltcSsgOutputDir]] before generation. */
+    val meltcSsgCleanOutput =
+      settingKey[Boolean]("Clean outputDir before static generation (default: true)")
   }
 
   import autoImport._
@@ -403,6 +489,8 @@ object MeltcPlugin extends AutoPlugin {
     meltcStylePreprocessor      := None,
     meltcManageCompilerDeps     := true,
     meltcManagePreprocessorDeps := true,
+    meltMode                    := None,
+    meltcManageRuntimeDeps      := true,
     meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories      := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
@@ -438,12 +526,40 @@ object MeltcPlugin extends AutoPlugin {
       configurationFilter(MeltcCompilerConfig.name)
     ),
 
+    // ── meltMode: auto-add runtime dependency ────────────────────────────
+    libraryDependencies ++= {
+      if (!meltcManageRuntimeDeps.value) Seq.empty
+      else {
+        val v    = meltcCompilerVersion.value
+        val binV = scalaBinaryVersion.value // Scala 3 → "3"
+        meltMode.value match {
+          case Some(MeltMode.Browser) =>
+            // Scala.js artefact — name must be specified explicitly
+            Seq("io.github.takapi327" % s"meltkit-browser_sjs1_$binV" % v)
+          case Some(MeltMode.Node) =>
+            Seq("io.github.takapi327" % s"meltkit-node_sjs1_$binV" % v)
+          case Some(MeltMode.Http4s) =>
+            Seq("io.github.takapi327" %% "meltkit-adapter-http4s" % v)
+          case Some(MeltMode.SSG) =>
+            Seq("io.github.takapi327" %% "meltkit-ssg" % v)
+          case None =>
+            Seq.empty
+        }
+      }
+    },
+
     meltcGenerate := compileMeltFiles(
-      streams       = streams.value,
-      srcDirs       = meltcSourceDirectories.value,
-      outDir        = meltcOutputDirectory.value,
-      pkg           = meltcPackage.value,
-      mode          = if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr",
+      streams = streams.value,
+      srcDirs = meltcSourceDirectories.value,
+      outDir  = meltcOutputDirectory.value,
+      pkg     = meltcPackage.value,
+      mode    = meltMode.value match {
+        case Some(MeltMode.Browser) => "spa"
+        case Some(MeltMode.Node)    => "ssr"
+        case Some(MeltMode.Http4s)  => "ssr"
+        case Some(MeltMode.SSG)     => "ssr"
+        case None                   => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
+      },
       hydration     = meltcHydration.value,
       hydrationRoot = meltcHydrationRoot.value,
       preprocessor  = meltcStylePreprocessor.value,
@@ -542,7 +658,48 @@ object MeltcPlugin extends AutoPlugin {
           Def.task(Seq.empty[File])
       }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
+
+    // ── SSG task ─────────────────────────────────────────────────────────
+    meltcSsgOutputDir   := target.value / "meltc-ssg",
+    meltcSsgMainClass   := "",
+    meltcSsgAssetsDir   := None,
+    meltcSsgCleanOutput := true,
+
+    meltcStaticGenerate := {
+      val log     = streams.value.log
+      val mode    = meltMode.value
+      val mainCls = meltcSsgMainClass.value
+
+      if (mode != Some(MeltMode.SSG))
+        log.warn("[sbt-meltc] meltcStaticGenerate is only meaningful when meltMode := SSG")
+
+      if (mainCls.isEmpty)
+        throw new MessageOnlyException(
+          "[sbt-meltc] meltcSsgMainClass is not set. " +
+            "Add `meltcSsgMainClass := \"com.example.MySsg\"` to your build.sbt."
+        )
+
+      val cp     = (Compile / fullClasspath).value
+      val outDir = meltcSsgOutputDir.value
+      val assets = meltcSsgAssetsDir.value
+      val clean  = meltcSsgCleanOutput.value
+      val cpStr  = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
+
+      val jvmArgs =
+        Seq("-cp", cpStr) ++
+          Seq(s"-DmeltcSsgOutputDir=${ outDir.getAbsolutePath }") ++
+          Seq(s"-DmeltcSsgClean=$clean") ++
+          assets.map(a => s"-DmeltcSsgAssetsDir=${ a.getAbsolutePath }").toSeq ++
+          Seq("meltkit.ssg.SsgRunner", mainCls)
+
+      log.info(s"[sbt-meltc] Generating static site: $mainCls -> ${ outDir.getAbsolutePath }")
+      val exitCode = Fork.java(ForkOptions(), jvmArgs)
+      if (exitCode != 0)
+        throw new MessageOnlyException(
+          s"[sbt-meltc] Static site generation failed (exit code $exitCode)"
+        )
+    }
   )
 
   private def compileMeltFiles(
