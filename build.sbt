@@ -606,6 +606,22 @@ lazy val `http4s-ssr-server` = project
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(`http4s-ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)
 
+// ── Documentation site (SSG → GitHub Pages) ──────────────────────────────────
+lazy val docs = project
+  .in(file("docs"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                    := "melt-docs",
+    publish / skip          := true,
+    scalaVersion            := scala38,
+    meltMode                := Some(SSG),
+    meltcManageCompilerDeps := false,
+    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
+    meltcSsgMainClass       := "docs.DocsSsg"
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(`meltkit-ssg`)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -649,7 +665,8 @@ lazy val root = project
     `http4s-spa-server`,
     `http4s-ssr-client`.jvm,
     `http4s-ssr-client`.js,
-    `http4s-ssr-server`
+    `http4s-ssr-server`,
+    docs
   )
   .settings(BuildSettings.commonSettings)
   .settings(
