@@ -1,0 +1,22 @@
+<script lang="scala">
+</script>
+
+<article class="page">
+  <h1 class="home-title">Melt</h1>
+  <p class="home-lead">A Svelte-inspired Single File Component framework for Scala.js.</p>
+</article>
+
+<style>
+.page {
+  padding: 0;
+}
+.home-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.home-lead {
+  font-size: 1.125rem;
+  color: #4a5568;
+}
+</style>

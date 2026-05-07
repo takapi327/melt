@@ -1,0 +1,106 @@
+<script lang="scala" props="Props">
+case class Props(basePath: String = "", lang: String = "en")
+
+val base = props.basePath + "/" + props.lang
+
+val guideItems = List(
+  "introduction", "installation", "quick-start",
+  "components", "template-syntax", "reactivity", "computed",
+  "effects", "events", "lifecycle", "control-flow",
+  "special-elements", "transitions", "trusted-html", "css",
+  "testing", "routing", "ssr", "ssg", "adapters"
+)
+
+val apiItems = List(
+  "template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin"
+)
+
+val exampleItems = List("counter", "todo-app")
+</script>
+
+<nav class="sidebar">
+  <a class="sidebar-home" href={base}>Home</a>
+
+  <section class="sidebar-section">
+    <h4 class="sidebar-heading">Guide</h4>
+    <ul class="sidebar-list">
+      {guideItems.map((item: String) =>
+        <li><a class="sidebar-link" href={base + "/guide/" + item}>{item}</a></li>
+      )}
+    </ul>
+  </section>
+
+  <section class="sidebar-section">
+    <h4 class="sidebar-heading">API Reference</h4>
+    <ul class="sidebar-list">
+      {apiItems.map((item: String) =>
+        <li><a class="sidebar-link" href={base + "/api/" + item}>{item}</a></li>
+      )}
+    </ul>
+  </section>
+
+  <section class="sidebar-section">
+    <h4 class="sidebar-heading">Examples</h4>
+    <ul class="sidebar-list">
+      <li><a class="sidebar-link" href={base + "/examples"}>All Examples</a></li>
+      {exampleItems.map((item: String) =>
+        <li><a class="sidebar-link" href={base + "/examples/" + item}>{item}</a></li>
+      )}
+    </ul>
+  </section>
+
+  <a class="sidebar-link sidebar-changelog" href={base + "/changelog"}>Changelog</a>
+</nav>
+
+<style>
+.sidebar {
+  width: 256px;
+  min-height: 100vh;
+  padding: 1.5rem 1rem;
+  border-right: 1px solid #e2e8f0;
+  background: #f7fafc;
+  flex-shrink: 0;
+}
+.sidebar-home {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1a202c;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+}
+.sidebar-section {
+  margin-bottom: 1.5rem;
+}
+.sidebar-heading {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #718096;
+  margin-bottom: 0.5rem;
+}
+.sidebar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.sidebar-list li {
+  padding: 0.125rem 0;
+}
+.sidebar-link {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  color: #4a5568;
+  text-decoration: none;
+  border-radius: 0.25rem;
+}
+.sidebar-link:hover {
+  color: #2b6cb0;
+  background: #ebf8ff;
+}
+.sidebar-changelog {
+  margin-top: 0.5rem;
+}
+</style>

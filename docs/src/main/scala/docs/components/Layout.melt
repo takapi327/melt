@@ -1,0 +1,30 @@
+<script lang="scala" props="Props">
+case class Props(basePath: String = "", lang: String = "en")
+</script>
+
+<div class="layout">
+  <Sidebar basePath={props.basePath} lang={props.lang}/>
+  <main class="layout-content">{children}</main>
+</div>
+
+<style>
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+}
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+.layout-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 860px;
+}
+</style>

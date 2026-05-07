@@ -6,27 +6,93 @@
 
 package docs
 
-import meltkit.{ MeltKit, SyncRunner, Template, ViteManifest }
+import docs.components.Layout
+import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
+import meltkit.*
 import meltkit.ssg.SsgApp
 
 type Id = [A] =>> A
 
 object DocsSsg extends SsgApp[Id]:
 
-  private val langs    = List("en", "ja")
-  private val guides   = List(
-    "introduction", "installation", "quick-start",
-    "components", "template-syntax", "reactivity", "computed",
-    "effects", "events", "lifecycle", "control-flow",
-    "special-elements", "transitions", "trusted-html", "css",
-    "testing", "routing", "ssr", "ssg", "adapters"
+  private val basePath = "/melt"
+
+  private val lang    = param[String]("lang")
+  private val guide   = param[String]("guide")
+  private val api     = param[String]("api")
+  private val example = param[String]("example")
+
+  private val langs  = List("en", "ja")
+  private val guides = List(
+    "introduction",
+    "installation",
+    "quick-start",
+    "components",
+    "template-syntax",
+    "reactivity",
+    "computed",
+    "effects",
+    "events",
+    "lifecycle",
+    "control-flow",
+    "special-elements",
+    "transitions",
+    "trusted-html",
+    "css",
+    "testing",
+    "routing",
+    "ssr",
+    "ssg",
+    "adapters"
   )
-  private val apis     = List(
-    "template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin"
+  private val apis = List(
+    "template-syntax",
+    "runtime",
+    "meltkit",
+    "meltkit-ssg",
+    "compiler",
+    "sbt-plugin"
   )
   private val examples = List("counter", "todo-app")
 
   override val kit: MeltKit[Id] = new MeltKit[Id]
+
+  kit.get("") { ctx =>
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = "en"), children = () => Home()))
+  }
+
+  kit.get("" / lang) { ctx =>
+    val l = ctx.params.lang
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => Home()))
+  }
+
+  kit.get("" / lang / "guide" / guide) { ctx =>
+    val l = ctx.params.lang
+    val s = ctx.params.guide
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => GuidePage(GuidePage.Props(slug = s))))
+  }
+
+  kit.get("" / lang / "api" / api) { ctx =>
+    val l = ctx.params.lang
+    val s = ctx.params.api
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ApiPage(ApiPage.Props(slug = s))))
+  }
+
+  kit.get("" / lang / "examples") { ctx =>
+    val l = ctx.params.lang
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplesPage()))
+  }
+
+  kit.get("" / lang / "examples" / example) { ctx =>
+    val l = ctx.params.lang
+    val s = ctx.params.example
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplePage(ExamplePage.Props(slug = s))))
+  }
+
+  kit.get("" / lang / "changelog") { ctx =>
+    val l = ctx.params.lang
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ChangelogPage()))
+  }
 
   override val paths: List[String] =
     langs.flatMap { lang =>
