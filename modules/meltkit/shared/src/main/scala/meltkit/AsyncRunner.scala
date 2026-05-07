@@ -15,9 +15,14 @@ package meltkit
   * import cats.effect.IO
   * import cats.effect.unsafe.implicits.global
   *
-  * given EffectRunner[IO] with
+  * given AsyncRunner[IO] with
   *   def runAndForget(fa: IO[Response]): Unit = fa.unsafeRunAndForget()
   * }}}
+  *
+  * @see [[SyncRunner]] for blocking execution used in SSG.
   */
-trait EffectRunner[F[_]]:
+trait AsyncRunner[F[_]]:
   def runAndForget(fa: F[Response]): Unit
+
+object AsyncRunner:
+  def apply[F[_]](using r: AsyncRunner[F]): AsyncRunner[F] = r
