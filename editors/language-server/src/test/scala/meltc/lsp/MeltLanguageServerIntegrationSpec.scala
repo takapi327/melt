@@ -273,3 +273,5 @@ private class NoOpLanguageClient extends LanguageClient:
   override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
     CompletableFuture.completedFuture(null)
   override def logMessage(p: MessageParams): Unit = ()
+  override def registerCapability(p: RegistrationParams): CompletableFuture[Void] =
+    CompletableFuture.completedFuture(null)
