@@ -18,7 +18,12 @@ import meltc.css.StyleLang
   */
 private[parser] object SectionSplitter:
 
-  case class RawScript(code: String, propsType: Option[String])
+  case class RawScript(
+    code:           String,
+    propsType:      Option[String],
+    imports:        List[String]          = Nil,
+    importWarnings: List[(String, String)] = Nil  // (message, path) for unsupported imports
+  )
 
   case class Sections(
     rawScript:      Option[RawScript],
@@ -37,6 +42,10 @@ private[parser] object SectionSplitter:
     */
   private val PropsAttr: Regex = """props\s*=\s*["']([^"']+)["']""".r
 
+  /** Matches `import "..."` — string literal import (always a file import, never valid Scala). */
+  private val StringImportPattern: Regex =
+    """^\s*import\s+"([^"]+)"\s*$""".r
+
   private val CloseScript = "</script>"
 
   /** Matches `<style>` or `<style lang="...">`.
@@ -50,18 +59,47 @@ private[parser] object SectionSplitter:
 
   private val StyleClose = "</style>"
 
+  /** Detects and removes string literal imports from script code.
+    *
+    * @return `(filteredCode, supportedImports, warnings)` where warnings is a
+    *         list of `(message, path)` pairs for unsupported import paths.
+    *         The caller uses `path` to locate the import statement in the
+    *         original source for accurate line-number reporting.
+    */
+  private[parser] def extractImports(
+    code: String
+  ): (String, List[String], List[(String, String)]) =
+    val lines    = code.linesIterator.toList
+    val allPaths = lines.collect { case StringImportPattern(path) => path }
+
+    def isUnsupported(p: String) =
+      p.startsWith("./") || p.startsWith("../") ||
+        p.startsWith("http://") || p.startsWith("https://") ||
+        p.startsWith("//")
+
+    val warnings: List[(String, String)] = allPaths.collect {
+      case p if p.startsWith("./") || p.startsWith("../") =>
+        (s"""relative path imports are not yet supported, use an absolute path: "$p"""", p)
+      case p if p.startsWith("http://") || p.startsWith("https://") || p.startsWith("//") =>
+        (s"""external URL imports are not yet supported: "$p"""", p)
+    }
+    val imports  = allPaths.filterNot(isUnsupported)
+    val filtered = lines.filterNot(l => StringImportPattern.matches(l)).mkString("\n")
+    (filtered, imports, warnings)
+
   def split(source: String): Either[String, Sections] =
     // ── 1. Extract <script lang="scala"> section ──────────────────────────
     val (rawScript, afterScript) = ScriptOpenTag.findFirstMatchIn(source) match
       case None    => (None, source)
       case Some(m) =>
-        val bodyStart = m.end
-        val bodyEnd   = source.indexOf(CloseScript, bodyStart)
+        val bodyStart                    = m.end
+        val bodyEnd                      = source.indexOf(CloseScript, bodyStart)
         if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
-        val code      = source.substring(bodyStart, bodyEnd).trim
+        val rawCode   = source.substring(bodyStart, bodyEnd).trim
         val propsType = PropsAttr.findFirstMatchIn(m.group(1)).map(_.group(1))
         val remaining = source.substring(0, m.start) + source.substring(bodyEnd + CloseScript.length)
-        (Some(RawScript(code, propsType)), remaining)
+        val (filteredCode, imports, warnings) = extractImports(rawCode)
+        (Some(RawScript(filteredCode, propsType, imports, warnings)), remaining)
 
     // ── 2. Extract <style> section ────────────────────────────────────────
     // Only plain `<style>` (no attributes) and `<style lang="...">` are
