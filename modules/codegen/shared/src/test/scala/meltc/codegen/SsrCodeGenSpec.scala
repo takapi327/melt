@@ -432,3 +432,82 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("children()"), code)
   }
+
+  // ── String literal file imports ────────────────────────────────────────
+
+  test("import \"/styles/global.css\" emits renderer.addImport(...)") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""renderer.addImport("/styles/global.css")"""), code)
+  }
+
+  test("multiple string imports emit multiple renderer.addImport calls") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/reset.css"
+        |import "/styles/theme.css"
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""renderer.addImport("/styles/reset.css")"""), code)
+    assert(code.contains("""renderer.addImport("/styles/theme.css")"""), code)
+  }
+
+  test("string import lines are removed from the generated Scala script body") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val greeting = "hello"
+        |</script>
+        |<p>{greeting}</p>""".stripMargin
+    val code = compile(src)
+    // The raw import "..." must not appear in user script body
+    assert(!code.contains("""import "/styles/global.css""""), code)
+    // The regular val must still be present
+    assert(code.contains("""val greeting = "hello""""), code)
+  }
+
+  test("no string imports → no renderer.addImport calls emitted") {
+    val src =
+      """<script lang="scala">
+        |import scala.math.*
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code = compile(src)
+    assert(!code.contains("addImport"), code)
+  }
+
+  test("string import with no <style> section still emits renderer.addImport()") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code = compile(src)
+    assert(!code.contains("renderer.css.add("),  s"Expected no css.add() in:\n$code")
+    assert(code.contains("""renderer.addImport("/styles/global.css")"""), code)
+  }
+
+  test("addImport() appears immediately after renderer.css.add() in generated code") {
+    val src =
+      """<style>
+        |.box { color: red; }
+        |</style>
+        |<script lang="scala">
+        |import "/styles/global.css"
+        |</script>
+        |<div class="box"></div>""".stripMargin
+    val code = compile(src)
+    val cssIdx    = code.indexOf("renderer.css.add(")
+    val importIdx = code.indexOf("""renderer.addImport("/styles/global.css")""")
+    assert(cssIdx >= 0,    s"Expected renderer.css.add() in:\n$code")
+    assert(importIdx >= 0, s"Expected renderer.addImport() in:\n$code")
+    assert(cssIdx < importIdx, s"addImport() should appear after css.add() in:\n$code")
+  }
