@@ -491,7 +491,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
         |</script>
         |<div>{x}</div>""".stripMargin
     val code = compile(src)
-    assert(!code.contains("renderer.css.add("),  s"Expected no css.add() in:\n$code")
+    assert(!code.contains("renderer.css.add("), s"Expected no css.add() in:\n$code")
     assert(code.contains("""renderer.addImport("/styles/global.css")"""), code)
   }
 
@@ -504,10 +504,10 @@ class SsrCodeGenSpec extends munit.FunSuite:
         |import "/styles/global.css"
         |</script>
         |<div class="box"></div>""".stripMargin
-    val code = compile(src)
+    val code      = compile(src)
     val cssIdx    = code.indexOf("renderer.css.add(")
     val importIdx = code.indexOf("""renderer.addImport("/styles/global.css")""")
-    assert(cssIdx >= 0,    s"Expected renderer.css.add() in:\n$code")
+    assert(cssIdx >= 0, s"Expected renderer.css.add() in:\n$code")
     assert(importIdx >= 0, s"Expected renderer.addImport() in:\n$code")
     assert(cssIdx < importIdx, s"addImport() should appear after css.add() in:\n$code")
   }

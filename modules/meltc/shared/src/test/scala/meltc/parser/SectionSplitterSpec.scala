@@ -792,7 +792,7 @@ val count = 0"""
   }
 
   test("extractImports: relative path import produces a warning and is excluded from imports") {
-    val code                       = """import "./local.css"
+    val code                = """import "./local.css"
 val x = 1"""
     val (_, imports, warns) = SectionSplitter.extractImports(code)
     assertEquals(imports, Nil)
@@ -802,7 +802,7 @@ val x = 1"""
   }
 
   test("extractImports: http URL import produces a warning and is excluded from imports") {
-    val code                       = """import "http://cdn.example.com/style.css""""
+    val code                = """import "http://cdn.example.com/style.css""""
     val (_, imports, warns) = SectionSplitter.extractImports(code)
     assertEquals(imports, Nil)
     assert(warns.nonEmpty)
@@ -810,7 +810,7 @@ val x = 1"""
   }
 
   test("extractImports: https URL import produces a warning and is excluded from imports") {
-    val code                       = """import "https://fonts.googleapis.com/css2?family=Roboto""""
+    val code                = """import "https://fonts.googleapis.com/css2?family=Roboto""""
     val (_, imports, warns) = SectionSplitter.extractImports(code)
     assertEquals(imports, Nil)
     assert(warns.nonEmpty)

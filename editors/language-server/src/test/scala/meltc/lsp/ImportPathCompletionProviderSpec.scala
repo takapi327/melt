@@ -47,7 +47,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
 
   test("detectImportPrefix is sensitive to cursor position — before closing quote") {
     // `import "/styles/global.css"` — cursor at position right after the slash
-    val line     = """import "/styles/global.css""""
+    val line       = """import "/styles/global.css""""
     val afterSlash = """import "/styles/""".length
     assertEquals(ImportPathCompletionProvider.detectImportPrefix(line, afterSlash), Some("/styles/"))
   }
@@ -66,19 +66,18 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
   }
 
   test("completionsFor finds .css files under workspace root") {
-    val tmpDir = Files.createTempDirectory("melt-lsp-test")
+    val tmpDir    = Files.createTempDirectory("melt-lsp-test")
     val stylesDir = tmpDir.resolve("styles")
     Files.createDirectories(stylesDir)
     Files.createFile(stylesDir.resolve("global.css"))
     Files.createFile(stylesDir.resolve("theme.css"))
 
     try
-      val items = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir))
+      val items  = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir))
       val labels = items.map(_.getLabel)
       assert(labels.contains("/styles/global.css"), s"Expected /styles/global.css in $labels")
       assert(labels.contains("/styles/theme.css"), s"Expected /styles/theme.css in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor finds .scss and .js files") {
@@ -91,8 +90,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val labels = items.map(_.getLabel)
       assert(labels.contains("/app.scss"), s"Expected /app.scss in $labels")
       assert(labels.contains("/plugin.js"), s"Expected /plugin.js in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor does not include unsupported file types") {
@@ -104,11 +102,10 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
     try
       val items  = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir))
       val labels = items.map(_.getLabel)
-      assert(!labels.exists(_.endsWith(".md")),   s"Unexpected .md file in $labels")
+      assert(!labels.exists(_.endsWith(".md")), s"Unexpected .md file in $labels")
       assert(!labels.exists(_.endsWith(".json")), s"Unexpected .json file in $labels")
       assert(labels.contains("/style.css"), s"Expected /style.css in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor filters by prefix") {
@@ -121,12 +118,11 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
     Files.createFile(pluginDir.resolve("analytics.js"))
 
     try
-      val items = ImportPathCompletionProvider.completionsFor("/styles/", Some(tmpDir))
+      val items  = ImportPathCompletionProvider.completionsFor("/styles/", Some(tmpDir))
       val labels = items.map(_.getLabel)
-      assert(labels.contains("/styles/global.css"),    s"Expected /styles/global.css in $labels")
+      assert(labels.contains("/styles/global.css"), s"Expected /styles/global.css in $labels")
       assert(!labels.contains("/plugins/analytics.js"), s"Unexpected /plugins/analytics.js in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor returns items sorted alphabetically") {
@@ -138,8 +134,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
     try
       val labels = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir)).map(_.getLabel)
       assertEquals(labels, labels.sorted)
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("CSS completion item has File kind and 'CSS import' detail") {
@@ -151,8 +146,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val item  = items.find(_.getLabel == "/global.css").getOrElse(fail("item not found"))
       assertEquals(item.getKind, org.eclipse.lsp4j.CompletionItemKind.File)
       assertEquals(item.getDetail, "CSS import")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("JS completion item has Module kind") {
@@ -163,8 +157,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val items = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir))
       val item  = items.find(_.getLabel == "/app.js").getOrElse(fail("item not found"))
       assertEquals(item.getKind, org.eclipse.lsp4j.CompletionItemKind.Module)
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   // ── excluded directories ──────────────────────────────────────────────────
@@ -180,13 +173,12 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val labels = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir)).map(_.getLabel)
       assert(!labels.exists(_.contains("node_modules")), s"node_modules should be excluded: $labels")
       assert(labels.contains("/app.css"), s"Expected /app.css in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor excludes files under .git") {
-    val tmpDir  = Files.createTempDirectory("melt-lsp-test")
-    val gitDir  = tmpDir.resolve(".git")
+    val tmpDir = Files.createTempDirectory("melt-lsp-test")
+    val gitDir = tmpDir.resolve(".git")
     Files.createDirectories(gitDir)
     Files.createFile(gitDir.resolve("config.css")) // artificial
     Files.createFile(tmpDir.resolve("main.css"))
@@ -195,8 +187,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val labels = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir)).map(_.getLabel)
       assert(!labels.exists(_.contains(".git")), s".git should be excluded: $labels")
       assert(labels.contains("/main.css"), s"Expected /main.css in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("completionsFor excludes files under target") {
@@ -210,8 +201,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val labels = ImportPathCompletionProvider.completionsFor("/", Some(tmpDir)).map(_.getLabel)
       assert(!labels.exists(_.contains("target")), s"target should be excluded: $labels")
       assert(labels.contains("/src.css"), s"Expected /src.css in $labels")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   // ── additional supported extensions ──────────────────────────────────────
@@ -226,8 +216,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       exts.foreach { name =>
         assert(labels.contains(s"/$name"), s"Expected /$name in $labels")
       }
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test(".ts and .tsx completion items have Module kind") {
@@ -241,8 +230,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val tsx   = items.find(_.getLabel == "/page.tsx").getOrElse(fail("/page.tsx not found"))
       assertEquals(ts.getKind, org.eclipse.lsp4j.CompletionItemKind.Module)
       assertEquals(tsx.getKind, org.eclipse.lsp4j.CompletionItemKind.Module)
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test(".less and .sass completion items have File kind and 'CSS import' detail") {
@@ -258,15 +246,14 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       assertEquals(less.getDetail, "CSS import")
       assertEquals(sass.getKind, org.eclipse.lsp4j.CompletionItemKind.File)
       assertEquals(sass.getDetail, "CSS import")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   // ── handleFileEvent ───────────────────────────────────────────────────────
 
   test("handleFileEvent: Created event adds a supported file to the index") {
-    val tmpDir  = Files.createTempDirectory("melt-lsp-handle-test")
-    val css     = tmpDir.resolve("styles/global.css")
+    val tmpDir = Files.createTempDirectory("melt-lsp-handle-test")
+    val css    = tmpDir.resolve("styles/global.css")
     Files.createDirectories(css.getParent)
     Files.createFile(css)
     val index = scala.collection.concurrent.TrieMap.empty[String, org.eclipse.lsp4j.CompletionItem]
@@ -275,8 +262,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val event = FileEvent(css.toUri.toString, FileChangeType.Created)
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       assert(index.contains("/styles/global.css"), s"Expected /styles/global.css in index: ${ index.keys }")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("handleFileEvent: Deleted event removes a file from the index") {
@@ -290,8 +276,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val event = FileEvent(css.toUri.toString, FileChangeType.Deleted)
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       assert(!index.contains("/app.css"), "Expected /app.css to be removed from index")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("handleFileEvent: Changed event updates the entry in the index") {
@@ -306,8 +291,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       val item = index.getOrElse("/app.js", fail("/app.js not found in index"))
       assertEquals(item.getLabel, "/app.js")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("handleFileEvent: unsupported extension is not added to index") {
@@ -320,8 +304,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val event = FileEvent(md.toUri.toString, FileChangeType.Created)
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       assert(index.isEmpty, s"Expected empty index for unsupported extension, got: ${ index.keys }")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("handleFileEvent: file inside excluded directory is not added to index") {
@@ -335,8 +318,7 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val event = FileEvent(nm.toUri.toString, FileChangeType.Created)
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       assert(index.isEmpty, s"Expected empty index for excluded dir, got: ${ index.keys }")
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }
 
   test("handleFileEvent: invalid URI is swallowed without crashing") {
@@ -347,6 +329,5 @@ class ImportPathCompletionProviderSpec extends munit.FunSuite:
       val event = FileEvent("not-a-valid:::uri", FileChangeType.Created)
       ImportPathCompletionProvider.handleFileEvent(tmpDir, event, index)
       assert(index.isEmpty)
-    finally
-      Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
+    finally Files.walk(tmpDir).sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
   }

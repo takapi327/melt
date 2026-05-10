@@ -89,7 +89,8 @@ object ImportPathCompletionProvider:
     prefix: String,
     index:  scala.collection.Map[String, CompletionItem]
   ): List[CompletionItem] =
-    index.collect { case (path, item) if path.startsWith(prefix) => item }
+    index
+      .collect { case (path, item) if path.startsWith(prefix) => item }
       .toList
       .sortBy(_.getLabel)
 
@@ -137,12 +138,12 @@ object ImportPathCompletionProvider:
     else SupportedExtensions.contains(name.substring(dot))
 
   private def makeItem(absPath: String, fsPath: Path): CompletionItem =
-    val item  = CompletionItem(absPath)
-    val name  = fsPath.getFileName.toString
-    val dot   = name.lastIndexOf('.')
-    val ext   = if dot >= 0 then name.substring(dot) else ""
-    val isJs  = Set(".js", ".mjs", ".ts", ".jsx", ".tsx").contains(ext)
-    val kind  = if isJs then CompletionItemKind.Module else CompletionItemKind.File
+    val item = CompletionItem(absPath)
+    val name = fsPath.getFileName.toString
+    val dot  = name.lastIndexOf('.')
+    val ext  = if dot >= 0 then name.substring(dot) else ""
+    val isJs = Set(".js", ".mjs", ".ts", ".jsx", ".tsx").contains(ext)
+    val kind = if isJs then CompletionItemKind.Module else CompletionItemKind.File
     item.setKind(kind)
     item.setDetail(if isJs then "JS import" else "CSS import")
     item.setInsertText(absPath)

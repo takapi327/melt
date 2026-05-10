@@ -183,15 +183,15 @@ class TemplateImportTest extends munit.FunSuite:
     )
     val lines = result.split("\n").toList
     assertEquals(lines.length, 2)
-    assert(!lines.head.contains("nonce"),        s"CSS link should not have nonce: ${ lines.head }")
+    assert(!lines.head.contains("nonce"), s"CSS link should not have nonce: ${ lines.head }")
     assert(lines(1).contains("""nonce="xyz789""""), s"JS script should have nonce: ${ lines(1) }")
   }
 
   // ── Import injection into result.head ────────────────────────────────
 
   test("import tags are prepended to existing head content") {
-    val imports = List("/styles/global.css")
-    val tags    = ImportTagResolver.resolveTags(imports, manifest, basePath = "")
+    val imports      = List("/styles/global.css")
+    val tags         = ImportTagResolver.resolveTags(imports, manifest, basePath = "")
     val existingHead = "<meta charset=\"UTF-8\">"
     val newHead      = if existingHead.isEmpty then tags else s"$tags\n$existingHead"
     assert(newHead.startsWith("""<link rel="stylesheet""""), newHead)
@@ -202,7 +202,7 @@ class TemplateImportTest extends munit.FunSuite:
   }
 
   test("no imports: result.head is unchanged") {
-    val result = RenderResult(body = "<div></div>", head = "<meta charset=\"UTF-8\">")
+    val result    = RenderResult(body = "<div></div>", head = "<meta charset=\"UTF-8\">")
     val augmented =
       if result.imports.isEmpty then result
       else

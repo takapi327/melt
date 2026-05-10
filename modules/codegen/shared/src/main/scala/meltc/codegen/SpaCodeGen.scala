@@ -57,8 +57,7 @@ object SpaCodeGen extends CodeGen:
     if fileImports.nonEmpty then
       tracker ++= "import scala.scalajs.js\n"
       tracker ++= "import scala.scalajs.js.annotation.{ JSExportTopLevel, JSImport }\n"
-    else
-      tracker ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
+    else tracker ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
     tracker ++= "import org.scalajs.dom\n"
     tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     tracker ++= "import melt.runtime.*\n"

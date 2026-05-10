@@ -2042,7 +2042,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |val x = 1
         |</script>
         |<div>{x}</div>""".stripMargin
-    val code    = compile(src)
+    val code      = compile(src)
     val facadeIdx = code.indexOf("@js.native @JSImport")
     val objectIdx = code.indexOf("object App {")
     assert(facadeIdx >= 0, "Expected @JSImport facade")
@@ -2063,7 +2063,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   }
 
   test("no string imports → only JSExportTopLevel is imported (not combined form)") {
-    val src = "<div></div>"
+    val src  = "<div></div>"
     val code = compile(src)
     assert(code.contains("import scala.scalajs.js.annotation.JSExportTopLevel"), code)
     assert(!code.contains("JSImport"), code)
@@ -2077,8 +2077,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |<div></div>""".stripMargin
     val result = MeltCompiler.compile(src, "App.melt", "App", "")
     assert(result.errors.isEmpty, s"Expected no errors, got: ${ result.errors }")
-    assert(result.warnings.exists(_.message.contains("relative path")),
-      s"Expected relative-path warning, got: ${ result.warnings.map(_.message) }")
+    assert(
+      result.warnings.exists(_.message.contains("relative path")),
+      s"Expected relative-path warning, got: ${ result.warnings.map(_.message) }"
+    )
     // The relative import must NOT produce a @JSImport facade
     result.scalaCode.foreach { code =>
       assert(!code.contains("@JSImport"), s"Relative import should not emit @JSImport: $code")
@@ -2093,8 +2095,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |<div></div>""".stripMargin
     val result = MeltCompiler.compile(src, "App.melt", "App", "")
     assert(result.errors.isEmpty, s"Expected no errors, got: ${ result.errors }")
-    assert(result.warnings.exists(_.message.contains("external URL")),
-      s"Expected external-URL warning, got: ${ result.warnings.map(_.message) }")
+    assert(
+      result.warnings.exists(_.message.contains("external URL")),
+      s"Expected external-URL warning, got: ${ result.warnings.map(_.message) }"
+    )
   }
 
   test("string import line is removed from user script body") {

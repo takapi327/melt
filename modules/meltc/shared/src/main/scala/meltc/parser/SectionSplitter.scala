@@ -21,8 +21,8 @@ private[parser] object SectionSplitter:
   case class RawScript(
     code:           String,
     propsType:      Option[String],
-    imports:        List[String]          = Nil,
-    importWarnings: List[(String, String)] = Nil  // (message, path) for unsupported imports
+    imports:        List[String]           = Nil,
+    importWarnings: List[(String, String)] = Nil // (message, path) for unsupported imports
   )
 
   case class Sections(
@@ -92,8 +92,8 @@ private[parser] object SectionSplitter:
     val (rawScript, afterScript) = ScriptOpenTag.findFirstMatchIn(source) match
       case None    => (None, source)
       case Some(m) =>
-        val bodyStart                    = m.end
-        val bodyEnd                      = source.indexOf(CloseScript, bodyStart)
+        val bodyStart = m.end
+        val bodyEnd   = source.indexOf(CloseScript, bodyStart)
         if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
         val rawCode   = source.substring(bodyStart, bodyEnd).trim
         val propsType = PropsAttr.findFirstMatchIn(m.group(1)).map(_.group(1))

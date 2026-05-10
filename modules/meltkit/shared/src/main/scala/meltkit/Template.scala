@@ -215,7 +215,7 @@ final class Template private[meltkit] (private val raw: String):
       .map(e => s"""<style id="${ e.scopeId }">${ e.code }</style>""")
       .mkString("\n")
 
-    val parts = List(result.head, cssHtml, extraHead).filter(_.nonEmpty)
+    val parts       = List(result.head, cssHtml, extraHead).filter(_.nonEmpty)
     val headContent = parts.mkString("\n")
 
     val bodyContent =

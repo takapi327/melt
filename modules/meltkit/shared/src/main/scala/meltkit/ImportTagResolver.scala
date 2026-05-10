@@ -45,12 +45,12 @@ private[meltkit] object ImportTagResolver:
       case None       => path
     val safeHref = Escape.attr(href)
     path.split('.').lastOption.map(_.toLowerCase).getOrElse("") match
-      case "css" | "scss" | "less" | "sass"       =>
+      case "css" | "scss" | "less" | "sass" =>
         s"""<link rel="stylesheet" href="$safeHref">"""
-      case "js" | "mjs" | "ts" | "jsx" | "tsx"   =>
+      case "js" | "mjs" | "ts" | "jsx" | "tsx" =>
         val nonceAttr = nonce.fold("")(n => s""" nonce="$n"""")
         s"""<script type="module" src="$safeHref"$nonceAttr></script>"""
-      case _                                       => ""
+      case _ => ""
 
   /** Resolves a list of import paths to deduplicated, non-empty HTML tags joined by newlines.
     *

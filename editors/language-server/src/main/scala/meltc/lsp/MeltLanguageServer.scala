@@ -41,9 +41,9 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   private given ExecutionContext = ExecutionContext.global
 
-  @volatile private var client:         Option[LanguageClient]          = None
-  @volatile private var workspaceRoot:  Option[java.nio.file.Path]      = None
-  private val metals:                   MetalsBridge                    = MetalsBridge()
+  @volatile private var client:        Option[LanguageClient]     = None
+  @volatile private var workspaceRoot: Option[java.nio.file.Path] = None
+  private val metals:                  MetalsBridge               = MetalsBridge()
 
   /** In-memory index of importable files (path → CompletionItem).
     * Built once in [[initialized]] and kept up-to-date via [[didChangeWatchedFiles]].
@@ -106,8 +106,15 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     // created, changed, or deleted, allowing incremental index updates.
     client.foreach { c =>
       val globs = List(
-        "**/*.css", "**/*.scss", "**/*.less", "**/*.sass",
-        "**/*.js", "**/*.mjs", "**/*.ts", "**/*.jsx", "**/*.tsx"
+        "**/*.css",
+        "**/*.scss",
+        "**/*.less",
+        "**/*.sass",
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.ts",
+        "**/*.jsx",
+        "**/*.tsx"
       )
       val watchers = globs.map { g =>
         val w = new FileSystemWatcher()
@@ -206,8 +213,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
           .getOrElse(Nil)
       else Nil
 
-    if importPathItems.nonEmpty then
-      CompletableFuture.completedFuture(JEither.forLeft(importPathItems.asJava))
+    if importPathItems.nonEmpty then CompletableFuture.completedFuture(JEither.forLeft(importPathItems.asJava))
     else
       val meltItems   = MeltCompletionProvider.completionsFor(section)
       val metalsItems =

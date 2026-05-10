@@ -353,7 +353,7 @@ object Http4sAdapter:
     // generated URL becomes "/assets/layout-XXX.js" — matching what fileService
     // resolves when serving clientDistDir at "/".
     indexFallback[F](clientDistDir / "index.html", manifest.scriptTags(basePath = "")).map { indexR =>
-      val appR   = routes(app)
+      val appR      = routes(app)
       val rawAssetR = fileService[F](FileService.Config(clientDistDir.toString))
       // Prevent fileService from serving index.html for "/" or "/index.html" —
       // those paths must be handled by indexR so that %melt.head% is processed.
