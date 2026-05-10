@@ -23,7 +23,6 @@ import org.http4s.headers.`Set-Cookie` as Http4sSetCookie
 import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.server.staticcontent.fileService
 import org.http4s.server.staticcontent.FileService
-import org.http4s.server.Router
 import org.http4s.Charset
 import org.http4s.Headers
 import org.http4s.HttpRoutes
@@ -204,14 +203,16 @@ object Http4sAdapter:
     * @param clientDistDir directory containing `index.html` (usually `AssetManifest.clientDistDir`)
     * @param manifest      the asset manifest (usually `AssetManifest.manifest`)
     * @param lang          default HTML `lang` attribute (default `"en"`)
-    * @param basePath      asset base path for [[Template.render]] (default `"/assets"`)
+    * @param basePath      the app's deployment root path (e.g. `""` for root, `"/myapp"` for
+    *                      sub-path). Note: Vite manifest `entry.file` already contains the
+    *                      `assets/` prefix, so this should be `""` for root deployments.
     */
   def apply[F[_]: Async: Files: meltkit.Defer](
     app:           ServerMeltKitPlatform[F],
     clientDistDir: Path,
     manifest:      ViteManifest,
     lang:          String = "en",
-    basePath:      String = "/assets",
+    basePath:      String = "",
     cspConfig:     Option[CspConfig] = None
   ): F[Http4sAdapter[F]] =
     Files[F]
@@ -220,6 +221,49 @@ object Http4sAdapter:
       .compile
       .string
       .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath, cspConfig))
+
+  /** Builds [[HttpRoutes]] for a full SSR setup:
+    *
+    *   - MeltKit routes (SSR page rendering + API endpoints)
+    *   - All paths → static files from `clientDistDir` (Vite output served at root),
+    *     excluding `"/"` and `"/index.html"` which are handled by SSR route handlers
+    *
+    * This is the SSR counterpart of [[spaRoutes]]. It combines the filtered static
+    * file service with the adapter's SSR-capable routes so that callers do not need
+    * to wire up the file service manually.
+    *
+    * `index.html` is read from `clientDistDir / "index.html"` once at startup.
+    * Use `meltcIndexHtml` in `build.sbt` to have sbt-meltc copy the template
+    * into `clientDistDir` automatically.
+    *
+    * @param app           the [[MeltKit]] router
+    * @param clientDistDir the directory produced by `vite build`
+    *                      (usually `AssetManifest.clientDistDir`)
+    * @param manifest      the asset manifest (usually `AssetManifest.manifest`)
+    * @param lang          default HTML `lang` attribute (default `"en"`)
+    * @param basePath      the app's deployment root path (default `""`)
+    * @param cspConfig     optional CSP configuration
+    */
+  def ssrRoutes[F[_]: Async: Files: meltkit.Defer](
+    app:           ServerMeltKitPlatform[F],
+    clientDistDir: Path,
+    manifest:      ViteManifest,
+    lang:          String = "en",
+    basePath:      String = "",
+    cspConfig:     Option[CspConfig] = None
+  ): F[HttpRoutes[F]] =
+    apply(app, clientDistDir, manifest, lang, basePath, cspConfig).map { adapter =>
+      val rawFileR = fileService[F](FileService.Config(clientDistDir.toString))
+      // Exclude "/" and "/index.html": those paths are handled by SSR route handlers.
+      // fileService auto-serves index.html for directory requests, which would bypass
+      // the SSR template rendering.
+      val assetR: HttpRoutes[F] = HttpRoutes[F] { req =>
+        val p = req.pathInfo.renderString
+        if p == "/" || p == "/index.html" then OptionT.none
+        else rawFileR(req)
+      }
+      assetR <+> adapter.routes
+    }
 
   /** Builds the `Content-Security-Policy` header value.
     *
@@ -284,7 +328,7 @@ object Http4sAdapter:
   /** Builds [[HttpRoutes]] for a full SPA setup:
     *
     *   - MeltKit routes (API endpoints)
-    *   - `/assets/...` → static files from `clientDistDir`
+    *   - All paths → static files from `clientDistDir` (Vite output served at root)
     *   - `GET` catch-all → `index.html` from `clientDistDir` with `%melt.head%`
     *     replaced by `<script type="module">` tags derived from `manifest`
     *
@@ -304,10 +348,23 @@ object Http4sAdapter:
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =
-    indexFallback[F](clientDistDir / "index.html", manifest.scriptTags()).map { indexR =>
+    // scriptTags with basePath="" because Vite's manifest `file` field already
+    // includes the "assets/" prefix (e.g. "assets/layout-XXX.js"), so the
+    // generated URL becomes "/assets/layout-XXX.js" — matching what fileService
+    // resolves when serving clientDistDir at "/".
+    indexFallback[F](clientDistDir / "index.html", manifest.scriptTags(basePath = "")).map { indexR =>
       val appR   = routes(app)
-      val assetR = fileService[F](FileService.Config(clientDistDir.toString))
-      appR <+> Router("/assets" -> assetR) <+> indexR
+      val rawAssetR = fileService[F](FileService.Config(clientDistDir.toString))
+      // Prevent fileService from serving index.html for "/" or "/index.html" —
+      // those paths must be handled by indexR so that %melt.head% is processed.
+      // fileService auto-serves index.html for directory requests, which would
+      // bypass the template rendering logic.
+      val assetR: HttpRoutes[F] = HttpRoutes[F] { req =>
+        val p = req.pathInfo.renderString
+        if p == "/" || p == "/index.html" then OptionT.none
+        else rawAssetR(req)
+      }
+      appR <+> assetR <+> indexR
     }
 
   // ── private helpers ────────────────────────────────────────────────────────

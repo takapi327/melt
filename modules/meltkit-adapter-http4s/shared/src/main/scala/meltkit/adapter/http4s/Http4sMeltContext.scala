@@ -42,7 +42,10 @@ private[http4s] final class BodyDecodeException(val error: BodyError) extends Ru
   *                    API-only `Http4sAdapter.routes(app)`
   * @param manifest    the [[ViteManifest]] used to resolve JS/CSS chunks for SSR
   * @param lang        the `lang` attribute value for the HTML root element
-  * @param basePath    the asset base path passed to [[Template.render]]
+  * @param basePath    the app's deployment root path (e.g. `""` for root, `"/myapp"` for
+  *                    sub-path). Note: `entry.file` in the Vite manifest already contains the
+  *                    `assets/` prefix, so this should be `""` for root deployments, NOT
+  *                    `"/assets"`.
   */
 final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   val params:              P,
@@ -51,7 +54,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val templateOpt: Option[Template] = None,
   private val manifest:    ViteManifest     = ViteManifest.empty,
   private val lang:        String           = "en",
-  private val basePath:    String           = "/assets",
+  private val basePath:    String           = "",
   override val locals:     Locals           = new Locals(),
   private val nonce:       Option[String]   = None
 ) extends ServerMeltContext[F, P, B, RenderResult]:
@@ -135,9 +138,15 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
         )
       case Some(template) =>
-        val result = Router.withPath(requestPath)(component)
-        val html   = template.render(
-          result,
+        val result    = Router.withPath(requestPath)(component)
+        val augmented =
+          if result.imports.isEmpty then result
+          else
+            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+            val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+            result.copy(head = newHead)
+        val html = template.render(
+          augmented,
           manifest,
           title    = "",
           lang     = lang,
