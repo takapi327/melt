@@ -31,7 +31,7 @@ final class ViteManifest private[meltkit] (
     * `<link rel="stylesheet">` tags; all other entries are emitted as
     * `<script type="module">` tags.
     */
-  def scriptTags(basePath: String = "/assets"): String =
+  def scriptTags(basePath: String = ""): String =
     val base = basePath.stripSuffix("/")
     entries.toList
       .sortBy(_._1)
