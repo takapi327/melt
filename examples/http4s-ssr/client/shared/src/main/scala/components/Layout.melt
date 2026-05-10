@@ -1,4 +1,5 @@
 <script lang="scala">
+import "/styles/global.css"
   val path = meltkit.Router.currentPath
 </script>
 
