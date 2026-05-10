@@ -114,6 +114,9 @@ object SsrCodeGen extends CodeGen:
     if propsType.exists(extractTypeParams(_).isEmpty) then
       tracker ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
     if hasCss then tracker ++= "    renderer.css.add(_scopeId, _css)\n"
+    ast.script.toList.flatMap(_.imports).foreach { path =>
+      tracker ++= s"""    renderer.addImport("${ escapeString(path) }")\n"""
+    }
     tracker ++= "\n"
 
     // ── Script body section — mark source line for position mapping ─────────
