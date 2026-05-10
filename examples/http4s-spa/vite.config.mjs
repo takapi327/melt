@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { melt } from '@melt/vite-plugin'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -13,6 +14,7 @@ const scalaInputs = existsSync(inputsFile)
 
 export default {
   root: __dirname,
+  plugins: [melt()],
   build: {
     manifest: true,
     outDir: resolve(__dirname, 'dist'),

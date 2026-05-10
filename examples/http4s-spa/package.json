@@ -2,6 +2,7 @@
   "name": "http4s-spa",
   "private": true,
   "devDependencies": {
+    "@melt/vite-plugin": "workspace:*",
     "vite": "^6.3.0"
   }
 }
