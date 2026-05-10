@@ -9,11 +9,9 @@ package docs
 import docs.components.Layout
 import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
 import meltkit.*
-import meltkit.ssg.SsgApp
+import meltkit.ssg.SyncSsgApp
 
-type Id = [A] =>> A
-
-object DocsSsg extends SsgApp[Id]:
+object DocsSsg extends SyncSsgApp:
 
   private val basePath = "/melt"
 
@@ -55,8 +53,6 @@ object DocsSsg extends SsgApp[Id]:
   )
   private val examples = List("counter", "todo-app")
 
-  override val kit: MeltKit[Id] = new MeltKit[Id]
-
   kit.get("") { ctx =>
     ctx.render(Layout(Layout.Props(basePath = basePath, lang = "en"), children = () => Home()))
   }
@@ -69,7 +65,9 @@ object DocsSsg extends SsgApp[Id]:
   kit.get("" / lang / "guide" / guide) { ctx =>
     val l = ctx.params.lang
     val s = ctx.params.guide
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => GuidePage(GuidePage.Props(slug = s))))
+    ctx.render(
+      Layout(Layout.Props(basePath = basePath, lang = l), children = () => GuidePage(GuidePage.Props(slug = s)))
+    )
   }
 
   kit.get("" / lang / "api" / api) { ctx =>
@@ -86,7 +84,9 @@ object DocsSsg extends SsgApp[Id]:
   kit.get("" / lang / "examples" / example) { ctx =>
     val l = ctx.params.lang
     val s = ctx.params.example
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplePage(ExamplePage.Props(slug = s))))
+    ctx.render(
+      Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplePage(ExamplePage.Props(slug = s)))
+    )
   }
 
   kit.get("" / lang / "changelog") { ctx =>
@@ -104,21 +104,6 @@ object DocsSsg extends SsgApp[Id]:
         List(s"/$lang/changelog")
     } :+ "/"
 
-  override val template: Template =
-    Template.fromString(
-      """|<!doctype html>
-         |<html lang="%melt.lang%">
-         |<head>
-         |  <meta charset="UTF-8">
-         |  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-         |  <title>%melt.title%</title>
-         |  %melt.head%
-         |</head>
-         |<body>%melt.body%</body>
-         |</html>""".stripMargin
-    )
+  override val template: Template = Template.fromResource("index.html")
 
   override val manifest: ViteManifest = ViteManifest.empty
-
-  override given syncRunner: SyncRunner[Id] with
-    override def runSync[A](fa: A): A = fa
