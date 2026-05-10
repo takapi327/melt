@@ -23,15 +23,24 @@ final class ViteManifest private[meltkit] (
   private val uriPrefix: String = "scalajs"
 ):
 
-  /** Returns `<script type="module" src="...">` tags for all JS modules
-    * in this manifest, suitable for injection into an SPA HTML shell via
-    * [[Template.render]].
+  /** Returns `<script type="module">` and `<link rel="stylesheet">` tags for
+    * all entry modules in this manifest, suitable for injection into an SPA
+    * HTML shell via [[Template.render]].
+    *
+    * CSS entry files (those whose `file` ends with `.css`) are emitted as
+    * `<link rel="stylesheet">` tags; all other entries are emitted as
+    * `<script type="module">` tags.
     */
   def scriptTags(basePath: String = "/assets"): String =
     val base = basePath.stripSuffix("/")
     entries.toList
       .sortBy(_._1)
-      .map { case (_, entry) => s"""<script type="module" src="$base/${ entry.file }"></script>""" }
+      .map {
+        case (_, entry) if entry.file.endsWith(".css") =>
+          s"""<link rel="stylesheet" href="$base/${ entry.file }">"""
+        case (_, entry) =>
+          s"""<script type="module" src="$base/${ entry.file }"></script>"""
+      }
       .mkString("\n")
 
   /** Returns the recursive list of JS chunk files required to load the
@@ -46,6 +55,20 @@ final class ViteManifest private[meltkit] (
     */
   def cssFor(moduleId: String): List[String] =
     resolveCss(s"$uriPrefix:$moduleId.js", Set.empty)
+
+  /** Returns the hashed output file path for the given source-file path,
+    * or `None` if the manifest has no entry for that path.
+    *
+    * The leading `/` is stripped before lookup because Vite manifest keys
+    * use paths relative to the project root without a leading slash
+    * (e.g. `"styles/global.css"` not `"/styles/global.css"`).
+    *
+    * Example: `fileForSourcePath("/styles/global.css")` may return
+    * `Some("assets/global-a1b2c3.css")` which the adapter can use to
+    * emit `<link rel="stylesheet" href="/assets/global-a1b2c3.css">`.
+    */
+  def fileForSourcePath(sourcePath: String): Option[String] =
+    entries.get(sourcePath.stripPrefix("/")).collect { case e if e.file.nonEmpty => e.file }
 
   private def resolve(key: String, visited: Set[String]): List[String] =
     if visited.contains(key) then Nil
@@ -166,7 +189,10 @@ object ViteManifest:
         parsePair(fields)
         skipWs()
         while peekChar(',') do
-          pos += 1; skipWs(); parsePair(fields); skipWs()
+          pos += 1
+          skipWs()
+          parsePair(fields)
+          skipWs()
       expect('}')
       JsonValue.Obj(fields.toMap)
 
@@ -181,8 +207,12 @@ object ViteManifest:
       skipWs()
       val items = scala.collection.mutable.ListBuffer.empty[JsonValue]
       if !peekChar(']') then
-        items += parseValue(); skipWs()
-        while peekChar(',') do pos += 1; items += parseValue(); skipWs()
+        items += parseValue()
+        skipWs()
+        while peekChar(',') do
+          pos += 1
+          items += parseValue()
+          skipWs()
       expect(']')
       JsonValue.Arr(items.toList)
 
