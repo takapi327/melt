@@ -35,6 +35,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
   private val headBuf        = new StringBuilder
   private val cssSet         = mutable.LinkedHashSet.empty[CssEntry]
   private val usedComponents = mutable.LinkedHashSet.empty[String]
+  private val importsSet     = mutable.LinkedHashSet.empty[String]
 
   private val hydrationPropsMap: mutable.LinkedHashMap[String, String] =
     mutable.LinkedHashMap.empty
@@ -100,6 +101,13 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
         trackSize(code)
         cssSet += entry
 
+  /** Records a file import path collected from `import "..."` statements
+    * in a component's script section. The path is stored deduplicated in
+    * insertion order so that adapters can emit `<link>`/`<script>` tags
+    * in the order the components were rendered.
+    */
+  def addImport(path: String): Unit = importsSet += path
+
   /** Records a used component `moduleID` for future Hydration chunk
     * resolution.
     */
@@ -125,8 +133,8 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     *   - `title`: child's title wins if present (last-call-wins)
     *   - `metaTags`: each name is replaced by the child's value
     *
-    * Other fields (body, head, css, components) are concatenated /
-    * union-merged as usual.
+    * Other fields (body, head, css) are concatenated / union-merged as usual.
+    * `child.components` is NOT merged — see inline comment for rationale.
     */
   def merge(child: RenderResult): Unit =
     trackSize(child.body)
@@ -144,15 +152,20 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
         trackSize(entry.code)
         cssSet += entry
     }
-    usedComponents ++= child.components
+    // child.components is intentionally NOT merged: only the root component's
+    // moduleID is kept in result.components so the Template generates a single
+    // hydrate() bootstrap call for the root only.  Sub-components are hydrated
+    // by the root component's hydrate() traversal; bootstrapping them separately
+    // causes double-hydration with empty children, overwriting the reactive owner
+    // tree and breaking event handlers.
+    importsSet ++= child.imports
     child.hydrationProps.foreach {
       case (moduleId, json) =>
         hydrationPropsMap.update(moduleId, json)
     }
 
-  /** Merges a child component's metadata (head, CSS, components, hydration
-    * props) into this renderer **without** appending `child.body` to the body
-    * buffer.
+  /** Merges a child component's metadata (head, CSS, hydration props) into
+    * this renderer **without** appending `child.body` to the body buffer.
     *
     * Use this when the body is already being written via an intermediate
     * `StringBuilder` (e.g. inside a conditional `if/else` expression) to avoid
@@ -173,7 +186,8 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
         trackSize(entry.code)
         cssSet += entry
     }
-    usedComponents ++= child.components
+    // child.components is intentionally NOT merged — same reason as merge().
+    importsSet ++= child.imports
     child.hydrationProps.foreach {
       case (moduleId, json) =>
         hydrationPropsMap.update(moduleId, json)
@@ -341,7 +355,10 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     *   1. Deduplicated `<meta name="..." content="...">` tags
     *   2. Free-form head content previously appended via `head.push(...)`
     *   3. Dedupped `<title>...</title>` (if set)
-    *   4. Collected `<style id="melt-...">` blocks
+    *
+    * Component-scoped CSS is intentionally NOT included in `head`. It flows
+    * exclusively through `result.css` so that [[meltkit.Template.renderInternal]]
+    * can inject it once, preventing duplication when sub-components are merged.
     *
     * Title placement after the free-form head content means that if a
     * component inserts its own `<title>` literally via
@@ -363,13 +380,10 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       case Some(t) => s"<title>$t</title>"
       case None    => ""
 
-    val cssHtml = cssSet
-      .map { entry =>
-        s"""<style id="${ entry.scopeId }">${ entry.code }</style>"""
-      }
-      .mkString("\n")
-
-    val headParts = List(metaHtml, headBuf.toString, titleHtml, cssHtml)
+    // CSS is intentionally NOT included in head here.
+    // It flows exclusively through result.css so that Template.renderInternal
+    // can inject it once, preventing duplication when sub-components are merged.
+    val headParts = List(metaHtml, headBuf.toString, titleHtml)
       .filter(_.nonEmpty)
 
     RenderResult(
@@ -379,7 +393,8 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       metaTags       = metaTagMap.toMap,
       css            = cssSet.toSet,
       components     = usedComponents.toSet,
-      hydrationProps = hydrationPropsMap.toMap
+      hydrationProps = hydrationPropsMap.toMap,
+      imports        = importsSet.toList
     )
 
   /** Tracks output size (UTF-16 char × 2 approximation) and raises
