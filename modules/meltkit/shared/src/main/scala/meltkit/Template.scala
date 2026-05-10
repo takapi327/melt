@@ -123,11 +123,11 @@ final class Template private[meltkit] (private val raw: String):
     *     into `%melt.body%`
     */
   def render(result: RenderResult, manifest: ViteManifest): String =
-    render(result, manifest, title = "", lang = "en", basePath = "/assets", vars = Map.empty, nonce = None)
+    render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and an explicit title. */
   def render(result: RenderResult, manifest: ViteManifest, title: String): String =
-    render(result, manifest, title, lang = "en", basePath = "/assets", vars = Map.empty, nonce = None)
+    render(result, manifest, title, lang = "en", basePath = "", vars = Map.empty, nonce = None)
 
   /** Renders with hydration asset injection and full control over all options. */
   def render(
@@ -208,10 +208,15 @@ final class Template private[meltkit] (private val raw: String):
     extraBody:      String,
     nonce:          Option[String] = None
   ): String =
-    val headContent =
-      if extraHead.isEmpty then result.head
-      else if result.head.isEmpty then extraHead
-      else s"${ result.head }\n$extraHead"
+    // Inject component-scoped CSS from result.css once here so that
+    // sub-component CSS merged via ServerRenderer.merge is never duplicated.
+    val cssHtml = result.css.toList
+      .sortBy(_.scopeId)
+      .map(e => s"""<style id="${ e.scopeId }">${ e.code }</style>""")
+      .mkString("\n")
+
+    val parts = List(result.head, cssHtml, extraHead).filter(_.nonEmpty)
+    val headContent = parts.mkString("\n")
 
     val bodyContent =
       if extraBody.isEmpty then result.body
