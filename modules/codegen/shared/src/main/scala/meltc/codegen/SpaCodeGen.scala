@@ -67,8 +67,8 @@ object SpaCodeGen extends CodeGen:
     tracker ++= "import melt.runtime.animate.*\n\n"
 
     fileImports.zipWithIndex.foreach { (path, idx) =>
-      tracker ++= s"""@js.native @JSImport("${ escapeString(path) }", JSImport.Namespace)\n"""
-      tracker ++= s"private object _meltImport_$idx extends js.Object\n\n"
+      tracker ++= s"""@js.native @JSImport("${ escapeString(path) }", JSImport.SideEffect)\n"""
+      tracker ++= s"private object _melt_import_$idx extends js.Object\n\n"
     }
 
     tracker ++= s"object $objectName {\n\n"
