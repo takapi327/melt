@@ -13,7 +13,7 @@ import meltkit.ssg.SyncSsgApp
 
 object DocsSsg extends SyncSsgApp:
 
-  override val basePath: String = "/melt"
+  override val basePath: String = ""
 
   private val lang    = param[String]("lang")
   private val guide   = param[String]("guide")
@@ -54,44 +54,44 @@ object DocsSsg extends SyncSsgApp:
   private val examples = List("counter", "todo-app")
 
   kit.get("") { ctx =>
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = "en"), children = () => Home()))
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = "en"), children = () => Home(Home.Props(basePath = basePath, lang = "en"))))
   }
 
   kit.get("" / lang) { ctx =>
     val l = ctx.params.lang
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => Home()))
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => Home(Home.Props(basePath = basePath, lang = l))))
   }
 
   kit.get("" / lang / "guide" / guide) { ctx =>
     val l = ctx.params.lang
     val s = ctx.params.guide
     ctx.render(
-      Layout(Layout.Props(basePath = basePath, lang = l), children = () => GuidePage(GuidePage.Props(slug = s)))
+      Layout(Layout.Props(basePath = basePath, lang = l, section = "guide", slug = s), children = () => GuidePage(GuidePage.Props(slug = s)))
     )
   }
 
   kit.get("" / lang / "api" / api) { ctx =>
     val l = ctx.params.lang
     val s = ctx.params.api
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ApiPage(ApiPage.Props(slug = s))))
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l, section = "api", slug = s), children = () => ApiPage(ApiPage.Props(slug = s))))
   }
 
   kit.get("" / lang / "examples") { ctx =>
     val l = ctx.params.lang
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplesPage()))
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l, section = "examples"), children = () => ExamplesPage()))
   }
 
   kit.get("" / lang / "examples" / example) { ctx =>
     val l = ctx.params.lang
     val s = ctx.params.example
     ctx.render(
-      Layout(Layout.Props(basePath = basePath, lang = l), children = () => ExamplePage(ExamplePage.Props(slug = s)))
+      Layout(Layout.Props(basePath = basePath, lang = l, section = "examples", slug = s), children = () => ExamplePage(ExamplePage.Props(slug = s)))
     )
   }
 
   kit.get("" / lang / "changelog") { ctx =>
     val l = ctx.params.lang
-    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l), children = () => ChangelogPage()))
+    ctx.render(Layout(Layout.Props(basePath = basePath, lang = l, section = "changelog"), children = () => ChangelogPage()))
   }
 
   override val paths: List[String] =

@@ -1,22 +1,393 @@
-<script lang="scala">
+<script lang="scala" props="Props">
+import docs.I18n
+import docs.CodeSamples
+
+case class Props(basePath: String = "", lang: String = "en")
+
+val base = props.basePath + "/" + props.lang
+val t    = I18n(props.lang).home
 </script>
 
-<article class="page">
-  <h1 class="home-title">Melt</h1>
-  <p class="home-lead">A Svelte-inspired Single File Component framework for Scala.js.</p>
+<article class="home">
+
+  <!-- Hero -->
+  <section class="hero">
+    <svg class="hero-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="hero-g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#d6526a" />
+          <stop offset="1" stop-color="#5a1820" />
+        </linearGradient>
+      </defs>
+      <path d="M6 4 L6 18 Q6 28 16 28 Q26 28 26 18 L26 4 L21 4 L21 18 Q21 23 16 23 Q11 23 11 18 L11 4 Z" fill="url(#hero-g)" />
+      <circle cx="16" cy="9" r="1.6" fill="#ece4d7" opacity="0.9" />
+    </svg>
+    <h1>M<span class="accent">e</span>lt</h1>
+    <p class="hero-tagline">{t.tagline}</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href={base + "/guide/introduction"}>{t.cta1} →</a>
+      <a class="btn btn-ghost" href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer">{t.cta2}</a>
+    </div>
+    <div class="hero-meta">
+      {t.meta.map((m: String) => <span>{m}</span>)}
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="home-section">
+    <div class="section-label">{t.featuresLabel}</div>
+    <h2 class="section-title">{t.featuresTitle}</h2>
+    <p class="section-sub">{t.featuresSub}</p>
+    <div class="features">
+      {t.features.map((f: I18n.HomeFeature) =>
+        <div class="feature">
+          <div class="feature-num">— {f.num}</div>
+          <h3>{f.title}</h3>
+          <p>{f.body}</p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <!-- Demo -->
+  <section class="home-section">
+    <div class="section-label">{t.demoLabel}</div>
+    <h2 class="section-title">{t.demoTitle}</h2>
+    <p class="section-sub">{t.demoSub}</p>
+    <div class="demo-split">
+      <div class="demo-code">
+        <div class="demo-code-header">
+          <span class="demo-code-file">Counter.melt</span>
+        </div>
+        <pre class="demo-code-body"><code>{CodeSamples.counterMelt}</code></pre>
+      </div>
+      <div class="demo-card">
+        <div class="demo-label">{t.demoCardLabel}</div>
+        <div class="counter-display">0</div>
+        <div class="counter-doubled">doubled = <b>0</b></div>
+        <div class="counter-buttons">
+          <button>−</button>
+          <button>+</button>
+          <button class="reset">Reset</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/counter-demo.js" defer></script>
+
+  <!-- Page nav -->
+  <div class="page-nav">
+    <div></div>
+    <a class="page-nav-link next" href={base + "/guide/quick-start"}>
+      <div class="page-nav-dir">{t.pageNavNextDir} →</div>
+      <div class="page-nav-title">{t.pageNavNext}</div>
+    </a>
+  </div>
+
 </article>
 
 <style>
-.page {
+.home {
   padding: 0;
 }
-.home-title {
-  font-size: 3rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
+
+/* ============ Hero ============ */
+.hero {
+  text-align: center;
+  padding: 80px 0 60px;
 }
-.home-lead {
-  font-size: 1.125rem;
-  color: #4a5568;
+.hero-mark {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 28px;
+  display: block;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: 96px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin-bottom: 22px;
+  color: var(--fg);
+}
+.accent { color: var(--wine-text); }
+.hero-tagline {
+  font-size: 20px;
+  color: var(--fg-mute);
+  max-width: 520px;
+  margin: 0 auto 40px;
+  line-height: 1.5;
+}
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 24px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-primary {
+  background: var(--wine);
+  color: #fff;
+  border-color: var(--wine);
+}
+.btn-primary:hover { background: #9c2939; border-color: #9c2939; }
+.btn-ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--line);
+}
+.btn-ghost:hover { border-color: var(--fg-dim); background: var(--bg-elev); }
+
+.hero-meta {
+  margin-top: 36px;
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+}
+.hero-meta span::before {
+  content: '◆';
+  margin-right: 8px;
+  color: var(--wine);
+  font-size: 8px;
+  vertical-align: middle;
+}
+
+/* ============ Sections ============ */
+.home-section {
+  margin-top: 80px;
+}
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--wine-text);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-label::before {
+  content: '';
+  width: 18px;
+  height: 1px;
+  background: var(--wine);
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+  color: var(--fg);
+}
+.section-sub {
+  color: var(--fg-mute);
+  max-width: 56ch;
+  margin-bottom: 36px;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+/* ============ Features grid ============ */
+.features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--line-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.feature {
+  background: var(--bg);
+  padding: 28px 26px;
+  transition: background .15s;
+}
+.feature:hover { background: var(--bg-elev); }
+.feature-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--wine-text);
+  letter-spacing: 0.1em;
+  margin-bottom: 14px;
+}
+.feature h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--fg);
+}
+.feature p {
+  font-size: 15px;
+  color: var(--fg-mute);
+  line-height: 1.6;
+  margin: 0;
+  max-width: none;
+}
+
+/* ============ Demo ============ */
+.demo-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.demo-code {
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.demo-code-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-mute);
+}
+.demo-code-body {
+  margin: 0;
+  padding: 20px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--fg);
+  overflow-x: auto;
+  white-space: pre;
+}
+.demo-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  gap: 0;
+}
+.demo-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--fg-dim);
+  margin-bottom: 24px;
+  align-self: flex-start;
+}
+.counter-display {
+  font-family: var(--font-display);
+  font-size: 80px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.counter-doubled {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-bottom: 22px;
+}
+.counter-doubled b { color: var(--wine-text); font-weight: 500; }
+.counter-buttons { display: flex; gap: 8px; }
+.counter-buttons button {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  width: 42px;
+  height: 42px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.counter-buttons button:hover {
+  background: var(--wine);
+  border-color: var(--wine);
+  color: #fff;
+}
+.counter-buttons button.reset:hover {
+  background: var(--bg-card);
+  border-color: var(--fg-dim);
+  color: var(--fg);
+}
+.counter-buttons button.reset {
+  width: auto;
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+/* ============ Page nav ============ */
+.page-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 64px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.page-nav-link {
+  display: block;
+  padding: 18px 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  transition: all .15s;
+}
+.page-nav-link:hover { border-color: var(--wine); background: var(--bg-card); }
+.page-nav-link.next { text-align: right; }
+.page-nav-dir {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-dim);
+  margin-bottom: 6px;
+}
+.page-nav-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* ============ Responsive ============ */
+@media (max-width: 960px) {
+  .demo-split { grid-template-columns: 1fr; }
+  .features { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .hero h1 { font-size: 60px; }
+  .hero-tagline { font-size: 17px; }
 }
 </style>
