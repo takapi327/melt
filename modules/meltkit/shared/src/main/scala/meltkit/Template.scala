@@ -215,6 +215,9 @@ final class Template private[meltkit] (private val raw: String):
       .map(e => s"""<style id="${ e.scopeId }">${ e.code }</style>""")
       .mkString("\n")
 
+    // Cascade order is intentional: global CSS links from string imports (result.head)
+    // come first, then component-scoped <style> blocks (cssHtml), so scoped styles
+    // take precedence over global styles when specificity is equal.
     val parts       = List(result.head, cssHtml, extraHead).filter(_.nonEmpty)
     val headContent = parts.mkString("\n")
 

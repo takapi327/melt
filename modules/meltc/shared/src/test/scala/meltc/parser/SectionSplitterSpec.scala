@@ -848,6 +848,27 @@ val x = 1"""
     assert(filtered.contains("val x = 1"), filtered)
   }
 
+  test("extractImports: import with trailing line comment emits a warning, extracts the path, and removes the line") {
+    val code                       = """import "/styles/global.css" // グローバルCSS
+val x = 1"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/styles/global.css"))
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("trailing line comments"))
+    assertEquals(warns.head._2, "/styles/global.css")
+    assert(!filtered.contains("""import "/styles/global.css""""), filtered)
+    assert(filtered.contains("val x = 1"), filtered)
+  }
+
+  test("extractImports: import with trailing // comment (no space) also emits a warning") {
+    val code                       = """import "/scripts/analytics.js"// no space before comment
+val x = 1"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/scripts/analytics.js"))
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("trailing line comments"))
+  }
+
   test("split: string literal CSS import is collected in RawScript.imports") {
     val src =
       """<script lang="scala">

@@ -46,6 +46,14 @@ private[parser] object SectionSplitter:
   private val StringImportPattern: Regex =
     """^\s*import\s+"([^"]+)"\s*$""".r
 
+  /** Matches `import "..."` followed by a trailing `//` line comment.
+    * Such lines are not valid Scala and would cause a compile error if passed
+    * through to scalac. We detect them separately to emit a helpful warning
+    * and still process the import path.
+    */
+  private val StringImportWithCommentPattern: Regex =
+    """^\s*import\s+"([^"]+)"\s*//.*$""".r
+
   private val CloseScript = "</script>"
 
   /** Matches `<style>` or `<style lang="...">`.
@@ -72,6 +80,16 @@ private[parser] object SectionSplitter:
     val lines    = code.linesIterator.toList
     val allPaths = lines.collect { case StringImportPattern(path) => path }
 
+    // Detect string imports with trailing line comments (not valid Scala).
+    // The import path is still processed, but the user is warned to remove the comment.
+    val commentedPaths = lines.collect { case StringImportWithCommentPattern(path) => path }
+    val commentedWarnings: List[(String, String)] = commentedPaths.map { p =>
+      (
+        s"""trailing line comments on string imports are not supported; remove the comment: import "$p" // ...""",
+        p
+      )
+    }
+
     def isUnsupported(p: String) =
       p.startsWith("./") || p.startsWith("../") ||
         p.startsWith("http://") || p.startsWith("https://") ||
@@ -82,9 +100,12 @@ private[parser] object SectionSplitter:
         (s"""relative path imports are not yet supported, use an absolute path: "$p"""", p)
       case p if p.startsWith("http://") || p.startsWith("https://") || p.startsWith("//") =>
         (s"""external URL imports are not yet supported: "$p"""", p)
-    }
-    val imports  = allPaths.filterNot(isUnsupported)
-    val filtered = lines.filterNot(l => StringImportPattern.matches(l)).mkString("\n")
+    } ++ commentedWarnings
+    val imports  = (allPaths ++ commentedPaths).filterNot(isUnsupported)
+    val filtered =
+      lines
+        .filterNot(l => StringImportPattern.matches(l) || StringImportWithCommentPattern.matches(l))
+        .mkString("\n")
     (filtered, imports, warnings)
 
   def split(source: String): Either[String, Sections] =
