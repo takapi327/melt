@@ -466,6 +466,15 @@ object MeltcPlugin extends AutoPlugin {
     val meltcSsgAssetsDir =
       settingKey[Option[File]]("Vite assets directory to copy alongside generated HTML")
 
+    /** Optional public directory whose contents are copied verbatim to the output root.
+      *
+      * Files placed here are served at the site root without any path prefix.
+      * For example, `public/styles/global.css` becomes `/styles/global.css` in the output,
+      * matching an `import "/styles/global.css"` statement in a `.melt` component.
+      */
+    val meltcSsgPublicDir =
+      settingKey[Option[File]]("Static public directory copied verbatim to the SSG output root")
+
     /** When `true` (the default), clean [[meltcSsgOutputDir]] before generation. */
     val meltcSsgCleanOutput =
       settingKey[Boolean]("Clean outputDir before static generation (default: true)")
@@ -664,6 +673,7 @@ object MeltcPlugin extends AutoPlugin {
     meltcSsgOutputDir   := target.value / "meltc-ssg",
     meltcSsgMainClass   := "",
     meltcSsgAssetsDir   := None,
+    meltcSsgPublicDir   := None,
     meltcSsgCleanOutput := true,
 
     meltcStaticGenerate := {
@@ -680,17 +690,19 @@ object MeltcPlugin extends AutoPlugin {
             "Add `meltcSsgMainClass := \"com.example.MySsg\"` to your build.sbt."
         )
 
-      val cp     = (Compile / fullClasspath).value
-      val outDir = meltcSsgOutputDir.value
-      val assets = meltcSsgAssetsDir.value
-      val clean  = meltcSsgCleanOutput.value
-      val cpStr  = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
+      val cp        = (Compile / fullClasspath).value
+      val outDir    = meltcSsgOutputDir.value
+      val assets    = meltcSsgAssetsDir.value
+      val publicDir = meltcSsgPublicDir.value
+      val clean     = meltcSsgCleanOutput.value
+      val cpStr     = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
       val jvmArgs =
         Seq("-cp", cpStr) ++
           Seq(s"-DmeltcSsgOutputDir=${ outDir.getAbsolutePath }") ++
           Seq(s"-DmeltcSsgClean=$clean") ++
           assets.map(a => s"-DmeltcSsgAssetsDir=${ a.getAbsolutePath }").toSeq ++
+          publicDir.map(p => s"-DmeltcSsgPublicDir=${ p.getAbsolutePath }").toSeq ++
           Seq("meltkit.ssg.SsgRunner", mainCls)
 
       log.info(s"[sbt-meltc] Generating static site: $mainCls -> ${ outDir.getAbsolutePath }")

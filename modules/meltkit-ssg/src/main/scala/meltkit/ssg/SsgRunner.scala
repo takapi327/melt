@@ -36,6 +36,11 @@ object SsgRunner:
         .filter(_.nonEmpty)
         .map(java.nio.file.Paths.get(_))
 
+    val publicDir =
+      Option(System.getProperty("meltcSsgPublicDir"))
+        .filter(_.nonEmpty)
+        .map(java.nio.file.Paths.get(_))
+
     val clean = Option(System.getProperty("meltcSsgClean")).forall(_ != "false")
 
     // Load the user's SsgApp object via reflection.
@@ -55,5 +60,5 @@ object SsgRunner:
             s"[meltkit-ssg] '$mainClass' does not extend SsgApp. Make sure the object extends meltkit.ssg.SsgApp."
           )
 
-    app.generate(SsgConfig(outputDir, assetsDir, cleanOutput = clean))
+    app.generate(SsgConfig(outputDir, assetsDir, publicDir, cleanOutput = clean))
     println(s"[meltkit-ssg] Done. Output: $outputDir")

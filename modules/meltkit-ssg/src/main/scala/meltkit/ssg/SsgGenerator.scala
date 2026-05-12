@@ -96,6 +96,13 @@ object SsgGenerator:
         if !config.quiet then println(s"[meltkit-ssg] Copied assets: $assetsDir -> $target")
     }
 
+    // 5. Copy public directory verbatim to output root
+    config.publicDir.foreach { publicDir =>
+      if Files.isDirectory(publicDir) then
+        copyDirectory(publicDir, out)
+        if !config.quiet then println(s"[meltkit-ssg] Copied public: $publicDir -> $out")
+    }
+
   /** Normalises a URL path to a file path.
     *
     * `"/"` → `"/index.html"`, `"/about"` → `"/about/index.html"`,
