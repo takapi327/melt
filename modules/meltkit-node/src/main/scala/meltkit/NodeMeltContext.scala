@@ -29,7 +29,10 @@ import meltkit.codec.BodyEncoder
   * @param templateOpt the [[Template]] for SSR rendering; `None` for API-only responses
   * @param manifest    the [[ViteManifest]] used to resolve JS/CSS chunks for SSR
   * @param lang        the `lang` attribute value for the HTML root element
-  * @param basePath    the asset base path passed to [[Template.render]]
+  * @param basePath    the app's deployment root path (e.g. `""` for root, `"/myapp"` for
+  *                    sub-path). Note: `entry.file` in the Vite manifest already contains the
+  *                    `assets/` prefix, so this should be `""` for root deployments, NOT
+  *                    `"/assets"`.
   */
 final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:               P,
@@ -39,7 +42,7 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
   private val templateOpt:  Option[Template]          = None,
   private val manifest:     ViteManifest              = ViteManifest.empty,
   private val lang:         String                    = "en",
-  private val basePath:     String                    = "/assets"
+  private val basePath:     String                    = ""
 ) extends MeltContext[F, P, B, RenderResult]:
 
   override val locals: Locals = new Locals()
@@ -65,8 +68,14 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
           "ctx.render() requires a NodeMeltContext initialized with a Template."
         )
       case Some(template) =>
-        val result = Router.withPath(requestPath)(component)
-        val html   = template.render(result, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty)
+        val result    = Router.withPath(requestPath)(component)
+        val augmented =
+          if result.imports.isEmpty then result
+          else
+            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath)
+            val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+            result.copy(head = newHead)
+        val html = template.render(augmented, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty)
         PlainResponse(status, "text/html; charset=utf-8", html)
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =

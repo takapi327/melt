@@ -45,7 +45,8 @@ final case class RenderResult(
   metaTags:       Map[String, String] = Map.empty,
   css:            Set[CssEntry]       = Set.empty,
   components:     Set[String]         = Set.empty,
-  hydrationProps: Map[String, String] = Map.empty
+  hydrationProps: Map[String, String] = Map.empty,
+  imports:        List[String]        = Nil
 )
 
 object RenderResult:

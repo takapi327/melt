@@ -2004,3 +2004,111 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val exprEntry = entries.find { case (_, src, col) => src == 4 && col == 6 }
     assert(exprEntry.isDefined, s"Expected entry with sourceLine=4 col=6, got: $entries\nFull LINES: $linesStr")
   }
+
+  // ── String literal file imports ────────────────────────────────────────
+
+  test("string import emits @JSImport facade and js/JSImport imports") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("import scala.scalajs.js\n"), code)
+    assert(code.contains("import scala.scalajs.js.annotation.{ JSExportTopLevel, JSImport }"), code)
+    assert(code.contains("""@js.native @JSImport("/styles/global.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("private object _melt_import_0 extends js.Object"), code)
+  }
+
+  test("multiple string imports emit separate @JSImport facades with unique names") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/reset.css"
+        |import "/styles/theme.css"
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("""@js.native @JSImport("/styles/reset.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("private object _melt_import_0 extends js.Object"), code)
+    assert(code.contains("""@js.native @JSImport("/styles/theme.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("private object _melt_import_1 extends js.Object"), code)
+  }
+
+  test("facades are emitted at top level (before object declaration)") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code      = compile(src)
+    val facadeIdx = code.indexOf("@js.native @JSImport")
+    val objectIdx = code.indexOf("object App {")
+    assert(facadeIdx >= 0, "Expected @JSImport facade")
+    assert(objectIdx >= 0, "Expected object App {")
+    assert(facadeIdx < objectIdx, "Facade must appear before object declaration")
+  }
+
+  test("no string imports → no @JSImport and no js import") {
+    val src =
+      """<script lang="scala">
+        |import scala.math.*
+        |val x = 1
+        |</script>
+        |<div>{x}</div>""".stripMargin
+    val code = compile(src)
+    assert(!code.contains("@JSImport"), code)
+    assert(!code.contains("import scala.scalajs.js\n"), code)
+  }
+
+  test("no string imports → only JSExportTopLevel is imported (not combined form)") {
+    val src  = "<div></div>"
+    val code = compile(src)
+    assert(code.contains("import scala.scalajs.js.annotation.JSExportTopLevel"), code)
+    assert(!code.contains("JSImport"), code)
+  }
+
+  test("relative path import emits a compiler warning and is not treated as JSImport") {
+    val src =
+      """<script lang="scala">
+        |import "./styles/local.css"
+        |</script>
+        |<div></div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(result.errors.isEmpty, s"Expected no errors, got: ${ result.errors }")
+    assert(
+      result.warnings.exists(_.message.contains("relative path")),
+      s"Expected relative-path warning, got: ${ result.warnings.map(_.message) }"
+    )
+    // The relative import must NOT produce a @JSImport facade
+    result.scalaCode.foreach { code =>
+      assert(!code.contains("@JSImport"), s"Relative import should not emit @JSImport: $code")
+    }
+  }
+
+  test("external URL import emits a compiler warning and is not treated as JSImport") {
+    val src =
+      """<script lang="scala">
+        |import "https://cdn.example.com/style.css"
+        |</script>
+        |<div></div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(result.errors.isEmpty, s"Expected no errors, got: ${ result.errors }")
+    assert(
+      result.warnings.exists(_.message.contains("external URL")),
+      s"Expected external-URL warning, got: ${ result.warnings.map(_.message) }"
+    )
+  }
+
+  test("string import line is removed from user script body") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val greeting = "hello"
+        |</script>
+        |<p>{greeting}</p>""".stripMargin
+    val code = compile(src)
+    assert(!code.contains("""import "/styles/global.css""""), code)
+    assert(code.contains("""val greeting = "hello""""), code)
+  }

@@ -63,7 +63,7 @@ class ServerRendererSpec extends FunSuite:
     assertEquals(r.result().components, Set("counter", "todo-list"))
   }
 
-  test("merge propagates body, head, css, and components from children") {
+  test("merge propagates body, head, and css from children") {
     val r = ServerRenderer()
     r.push("<parent>")
     val child = RenderResult(
@@ -78,7 +78,25 @@ class ServerRendererSpec extends FunSuite:
     assertEquals(result.body, "<parent><child/></parent>")
     assert(result.head.contains("<meta name=\"c\">"))
     assert(result.css.contains(CssEntry("melt-c", ".c{}")))
-    assert(result.components.contains("child-id"))
+  }
+
+  test("merge does NOT propagate child components (prevents double-hydration)") {
+    // child.components is intentionally not merged: only the root component's
+    // moduleID must appear in result.components so the Template generates a
+    // single hydrate() bootstrap call. Propagating sub-components would cause
+    // double-hydration with empty children, overwriting the reactive owner tree
+    // and breaking event handlers.
+    val r = ServerRenderer()
+    r.trackComponent("root-id")
+    val child = RenderResult(
+      body       = "<child/>",
+      head       = "",
+      components = Set("child-id")
+    )
+    r.merge(child)
+    val result = r.result()
+    assert(result.components.contains("root-id"))
+    assert(!result.components.contains("child-id"))
   }
 
   // ── §12.2.1 recursion depth limit ─────────────────────────────────────
@@ -424,4 +442,57 @@ class ServerRendererSpec extends FunSuite:
     val metas = parent.result().metaTags
     assertEquals(metas("description"), "Child desc")
     assertEquals(metas("author"), "Parent author")
+  }
+
+  // ── addImport and import propagation ──────────────────────────────────
+
+  test("addImport registers a path that appears in result().imports") {
+    val r = ServerRenderer()
+    r.addImport("/styles/global.css")
+    assertEquals(r.result().imports, List("/styles/global.css"))
+  }
+
+  test("addImport deduplicates identical paths") {
+    val r = ServerRenderer()
+    r.addImport("/styles/global.css")
+    r.addImport("/styles/global.css")
+    assertEquals(r.result().imports, List("/styles/global.css"))
+  }
+
+  test("addImport preserves insertion order for distinct paths") {
+    val r = ServerRenderer()
+    r.addImport("/styles/reset.css")
+    r.addImport("/styles/theme.css")
+    r.addImport("/styles/app.css")
+    assertEquals(r.result().imports, List("/styles/reset.css", "/styles/theme.css", "/styles/app.css"))
+  }
+
+  test("merge propagates child imports into parent") {
+    val parent = ServerRenderer()
+    parent.addImport("/styles/parent.css")
+    val child = RenderResult("", "", imports = List("/styles/child.css"))
+    parent.merge(child)
+    assertEquals(parent.result().imports, List("/styles/parent.css", "/styles/child.css"))
+  }
+
+  test("mergeMeta propagates child imports into parent") {
+    val parent = ServerRenderer()
+    parent.addImport("/styles/parent.css")
+    val child = RenderResult("", "", imports = List("/styles/child.css"))
+    parent.mergeMeta(child)
+    assertEquals(parent.result().imports, List("/styles/parent.css", "/styles/child.css"))
+  }
+
+  test("merge deduplicates imports from child that already exist in parent") {
+    val parent = ServerRenderer()
+    parent.addImport("/styles/shared.css")
+    val child = RenderResult("", "", imports = List("/styles/shared.css", "/styles/extra.css"))
+    parent.merge(child)
+    assertEquals(parent.result().imports, List("/styles/shared.css", "/styles/extra.css"))
+  }
+
+  test("result().imports is Nil when no imports are registered") {
+    val r = ServerRenderer()
+    r.push("<div></div>")
+    assertEquals(r.result().imports, Nil)
   }

@@ -53,7 +53,11 @@ object SpaCodeGen extends CodeGen:
     if pkg.nonEmpty then tracker ++= s"package $pkg\n\n"
 
     tracker ++= "import scala.language.implicitConversions\n"
-    tracker ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
+    val fileImports = ast.script.toList.flatMap(_.imports)
+    if fileImports.nonEmpty then
+      tracker ++= "import scala.scalajs.js\n"
+      tracker ++= "import scala.scalajs.js.annotation.{ JSExportTopLevel, JSImport }\n"
+    else tracker ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
     tracker ++= "import org.scalajs.dom\n"
     tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
     tracker ++= "import melt.runtime.*\n"
@@ -61,6 +65,11 @@ object SpaCodeGen extends CodeGen:
       tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     tracker ++= "import melt.runtime.transition.*\n"
     tracker ++= "import melt.runtime.animate.*\n\n"
+
+    fileImports.zipWithIndex.foreach { (path, idx) =>
+      tracker ++= s"""@js.native @JSImport("${ escapeString(path) }", JSImport.SideEffect)\n"""
+      tracker ++= s"private object _melt_import_$idx extends js.Object\n\n"
+    }
 
     tracker ++= s"object $objectName {\n\n"
     tracker ++= s"""  private val _scopeId = "$scopeId"\n\n"""
