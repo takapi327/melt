@@ -766,3 +766,140 @@ class SectionSplitterSpec extends munit.FunSuite:
     assert(!sections.templateSource.contains("<style"))
     assert(sections.templateSource.contains("<main>"))
   }
+
+  // ── String literal imports (import "...") ─────────────────────────────────
+
+  test("extractImports: single absolute CSS import is extracted and removed from code") {
+    val code                       = """import "/styles/global.css"
+val x = 1"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/styles/global.css"))
+    assertEquals(warns, Nil)
+    assert(!filtered.contains("""import "/styles/global.css""""))
+    assert(filtered.contains("val x = 1"))
+  }
+
+  test("extractImports: multiple absolute imports are all collected") {
+    val code                       = """import "/styles/reset.css"
+import "/styles/theme.css"
+val count = 0"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/styles/reset.css", "/styles/theme.css"))
+    assertEquals(warns, Nil)
+    assert(!filtered.contains("reset.css"))
+    assert(!filtered.contains("theme.css"))
+    assert(filtered.contains("val count = 0"))
+  }
+
+  test("extractImports: relative path import produces a warning and is excluded from imports") {
+    val code                = """import "./local.css"
+val x = 1"""
+    val (_, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, Nil)
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("relative path"))
+    assertEquals(warns.head._2, "./local.css")
+  }
+
+  test("extractImports: http URL import produces a warning and is excluded from imports") {
+    val code                = """import "http://cdn.example.com/style.css""""
+    val (_, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, Nil)
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("external URL"))
+  }
+
+  test("extractImports: https URL import produces a warning and is excluded from imports") {
+    val code                = """import "https://fonts.googleapis.com/css2?family=Roboto""""
+    val (_, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, Nil)
+    assert(warns.nonEmpty)
+  }
+
+  test("extractImports: protocol-relative URL import produces a warning and is excluded from imports") {
+    val code                = """import "//cdn.example.com/style.css""""
+    val (_, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, Nil)
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("external URL"))
+  }
+
+  test("extractImports: regular Scala import is not matched") {
+    val code                       = "import scala.collection.mutable.ListBuffer\nval xs = ListBuffer()"
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, Nil)
+    assertEquals(warns, Nil)
+    assert(filtered.contains("import scala.collection.mutable.ListBuffer"))
+  }
+
+  test("extractImports: empty code returns empty results") {
+    val (filtered, imports, warns) = SectionSplitter.extractImports("")
+    assertEquals(imports, Nil)
+    assertEquals(warns, Nil)
+    assertEquals(filtered, "")
+  }
+
+  test("extractImports: indented import \"...\" is also detected and removed") {
+    val code                       = "  import \"/styles/global.css\"\nval x = 1"
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/styles/global.css"))
+    assertEquals(warns, Nil)
+    assert(!filtered.contains("""import "/styles/global.css""""), filtered)
+    assert(filtered.contains("val x = 1"), filtered)
+  }
+
+  test("extractImports: import with trailing line comment emits a warning, extracts the path, and removes the line") {
+    val code                       = """import "/styles/global.css" // グローバルCSS
+val x = 1"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/styles/global.css"))
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("trailing line comments"))
+    assertEquals(warns.head._2, "/styles/global.css")
+    assert(!filtered.contains("""import "/styles/global.css""""), filtered)
+    assert(filtered.contains("val x = 1"), filtered)
+  }
+
+  test("extractImports: import with trailing // comment (no space) also emits a warning") {
+    val code                       = """import "/scripts/analytics.js"// no space before comment
+val x = 1"""
+    val (filtered, imports, warns) = SectionSplitter.extractImports(code)
+    assertEquals(imports, List("/scripts/analytics.js"))
+    assert(warns.nonEmpty)
+    assert(warns.head._1.contains("trailing line comments"))
+  }
+
+  test("split: string literal CSS import is collected in RawScript.imports") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/global.css"
+        |val count = Var(0)
+        |</script>
+        |<div>{count}</div>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.rawScript.map(_.imports), Some(List("/styles/global.css")))
+    assert(!sections.rawScript.map(_.code).exists(_.contains("""import "/styles/global.css"""")))
+  }
+
+  test("split: multiple string imports are collected in order") {
+    val src =
+      """<script lang="scala">
+        |import "/styles/reset.css"
+        |import "/styles/theme.css"
+        |val x = 1
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.rawScript.map(_.imports), Some(List("/styles/reset.css", "/styles/theme.css")))
+  }
+
+  test("split: no string imports → RawScript.imports is Nil") {
+    val src =
+      """<script lang="scala">
+        |import scala.math.*
+        |val x = 1
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.rawScript.map(_.imports), Some(Nil))
+  }

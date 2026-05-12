@@ -55,8 +55,22 @@ object MeltParser:
   def parseWithWarnings(source: String): Either[String, ParseResult] =
     SectionSplitter.split(source).map { sections =>
       val (nodes, positions, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
-      val ast                                  = MeltFile(
-        script   = sections.rawScript.map(r => ScriptSection(r.code, r.propsType)),
+
+      // ── String import warnings with source-level offset ────────────────
+      // Warnings were collected in SectionSplitter.split() alongside the
+      // filtered code. Here we convert (message, path) pairs to
+      // (message, charOffset) so the compiler can report accurate line numbers.
+      val importWarningTuples: List[(String, Int)] =
+        sections.rawScript.toList.flatMap { r =>
+          r.importWarnings.map { (msg, path) =>
+            val needle = s"""import "$path""""
+            val offset = source.indexOf(needle)
+            (msg, if offset >= 0 then offset else 0)
+          }
+        }
+
+      val ast = MeltFile(
+        script   = sections.rawScript.map(r => ScriptSection(r.code, r.propsType, r.imports)),
         template = nodes,
         style    = sections.style.map((content, lang) => StyleSection(content, lang))
       )
@@ -73,5 +87,12 @@ object MeltParser:
       val templateStartLine: Int =
         SourcePosition.searchLine(source, sections.templateSource, default = 1)
 
-      ParseResult(ast, templateWarnings, scriptBodyLine, templateStartLine, sections.templateSource, positions)
+      ParseResult(
+        ast,
+        templateWarnings ++ importWarningTuples,
+        scriptBodyLine,
+        templateStartLine,
+        sections.templateSource,
+        positions
+      )
     }

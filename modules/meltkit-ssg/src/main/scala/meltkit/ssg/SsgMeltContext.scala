@@ -52,18 +52,24 @@ final class SsgMeltContext[F[_], P <: AnyNamedTuple, B](
   override def queryParams:            Map[String, List[String]] = Map.empty
 
   override def render(component: => RenderResult): PlainResponse =
-    val result = Router.withPath(requestPath)(component)
-    val html   =
+    val result    = Router.withPath(requestPath)(component)
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    val html =
       if useHydration then
         template.render(
-          result,
+          augmented,
           manifest,
           title    = defaultTitle,
           lang     = defaultLang,
           basePath = basePath,
           vars     = Map.empty
         )
-      else template.render(result, title = defaultTitle, lang = defaultLang, vars = Map.empty)
+      else template.render(augmented, title = defaultTitle, lang = defaultLang, vars = Map.empty)
     _capturedHtml = Some(html)
     PlainResponse(200, "text/html; charset=utf-8", html)
 

@@ -545,8 +545,7 @@ lazy val `http4s-spa-server` = project
       "org.http4s" %% "http4s-ember-server" % "0.23.33",
       "io.circe"   %% "circe-generic"       % "0.14.9"
     ),
-    meltcAssetManifestClient := Some(`http4s-spa-client`),
-    meltcProd                := false
+    meltcAssetManifestClient := Some(`http4s-spa-client`)
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(runtime.jvm, `meltkit-adapter-http4s`.jvm)
@@ -600,8 +599,7 @@ lazy val `http4s-ssr-server` = project
       "org.http4s" %% "http4s-dsl"          % "0.23.33",
       "io.circe"   %% "circe-generic"       % "0.14.9"
     ),
-    meltcAssetManifestClient := Some(`http4s-ssr-client`.js),
-    meltcProd                := false
+    meltcAssetManifestClient := Some(`http4s-ssr-client`.js)
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(`http4s-ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)

@@ -15,12 +15,14 @@ case class MeltFile(
 
 /** The `<script lang="scala">` section of a `.melt` file.
   *
-  * @param code      the raw Scala source inside the script tags
+  * @param code      the raw Scala source inside the script tags (string literal imports removed)
   * @param propsType the value of the `props="..."` attribute, if present
+  * @param imports   absolute paths from string literal imports (e.g. `List("/styles/global.css")`)
   */
 case class ScriptSection(
   code:      String,
-  propsType: Option[String]
+  propsType: Option[String],
+  imports:   List[String] = Nil
 )
 
 /** The `<style>` section of a `.melt` file.

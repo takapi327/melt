@@ -128,3 +128,72 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     val vf = VirtualFileGenerator.generate(source)
     assertEquals(vf.mapper.sectionAt(2), MeltSection.Style)
   }
+
+  // ── String literal import blanking ────────────────────────────────────────
+
+  test("import \"...\" line in script body becomes blank in virtual file") {
+    val source =
+      """|<script lang="scala">
+         |import "/styles/global.css"
+         |val x = 1
+         |</script>
+         |<div></div>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "", "import \"...\" line should be blanked out")
+    assertEquals(lines(2), "val x = 1", "regular val line should be preserved verbatim")
+  }
+
+  test("multiple import \"...\" lines in script body all become blank") {
+    val source =
+      """|<script lang="scala">
+         |import "/styles/reset.css"
+         |import "/styles/theme.css"
+         |val count = 0
+         |</script>
+         |<p></p>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "")
+    assertEquals(lines(2), "")
+    assertEquals(lines(3), "val count = 0")
+  }
+
+  test("indented import \"...\" line is also blanked in virtual file") {
+    val source =
+      """|<script lang="scala">
+         |  import "/styles/global.css"
+         |val x = 1
+         |</script>
+         |<div></div>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "", "indented import \"...\" line should also be blanked out")
+    assertEquals(lines(2), "val x = 1")
+  }
+
+  test("regular Scala import is NOT blanked — only string literal imports are") {
+    val source =
+      """|<script lang="scala">
+         |import scala.math.*
+         |val x = 1
+         |</script>
+         |<p></p>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "import scala.math.*", "regular Scala import must be preserved")
+  }
+
+  test("import \"...\" line position is still counted in line mapping") {
+    val source =
+      """|<script lang="scala">
+         |import "/styles/global.css"
+         |val x = 1
+         |</script>
+         |<div>{x}</div>""".stripMargin
+    val vf = VirtualFileGenerator.generate(source)
+    // Line 2 (import "...") is in the script body, so sectionAt reports Script
+    assertEquals(vf.mapper.sectionAt(2), MeltSection.Script)
+    // Line 4 (template) is outside script
+    assertEquals(vf.mapper.sectionAt(4), MeltSection.Template)
+  }

@@ -41,8 +41,14 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   private given ExecutionContext = ExecutionContext.global
 
-  @volatile private var client: Option[LanguageClient] = None
-  private val metals:           MetalsBridge           = MetalsBridge()
+  @volatile private var client:        Option[LanguageClient]     = None
+  @volatile private var workspaceRoot: Option[java.nio.file.Path] = None
+  private val metals:                  MetalsBridge               = MetalsBridge()
+
+  /** In-memory index of importable files (path → CompletionItem).
+    * Built once in [[initialized]] and kept up-to-date via [[didChangeWatchedFiles]].
+    */
+  private val fileIndex = scala.collection.concurrent.TrieMap.empty[String, CompletionItem]
 
   /** Open documents: URI → current .melt source text. */
   private val documents = scala.collection.concurrent.TrieMap.empty[String, String]
@@ -55,6 +61,20 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── LanguageServer lifecycle ──────────────────────────────────────────────
 
   override def initialize(params: InitializeParams): CompletableFuture[InitializeResult] =
+    // Capture the workspace root so ImportPathCompletionProvider can scan for files.
+    // Safe URI → Path conversion: invalid URIs must not crash initialize().
+    def uriToPath(uri: String): Option[java.nio.file.Path] =
+      Option(uri).filter(_.nonEmpty).flatMap { u =>
+        try Some(java.nio.file.Paths.get(java.net.URI.create(u)))
+        catch case _: Exception => None
+      }
+    workspaceRoot = uriToPath(params.getRootUri)
+      .orElse(
+        Option(params.getWorkspaceFolders)
+          .flatMap(_.asScala.headOption)
+          .flatMap(f => uriToPath(f.getUri))
+      )
+
     // Start Metals in the background so initialize() returns immediately.
     Future(metals.startIfAvailable()).failed
       .foreach(e => System.err.println(s"[melt-lsp] Metals startup error: $e"))
@@ -70,10 +90,45 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     caps.setTextDocumentSync(JEither.forRight(syncOpts))
     caps.setHoverProvider(true)
     caps.setDefinitionProvider(true)
-    caps.setCompletionProvider(CompletionOptions(false, List(".", " ", "<", "{").asJava))
+    // `"` and `/` are added as trigger characters so that completions activate
+    // when the user opens or types a path inside `import "..."`.
+    caps.setCompletionProvider(CompletionOptions(false, List(".", " ", "<", "{", "/", "\"").asJava))
     CompletableFuture.completedFuture(InitializeResult(caps))
 
-  override def initialized(params: InitializedParams): Unit = ()
+  override def initialized(params: InitializedParams): Unit =
+    // Build the file index in the background so initialized() returns immediately.
+    workspaceRoot.foreach { root =>
+      Future(blocking(ImportPathCompletionProvider.buildIndex(root)))
+        .foreach(index => fileIndex ++= index)
+    }
+    // Register file watchers for supported extensions.
+    // The client will send workspace/didChangeWatchedFiles when files are
+    // created, changed, or deleted, allowing incremental index updates.
+    client.foreach { c =>
+      val globs = List(
+        "**/*.css",
+        "**/*.scss",
+        "**/*.less",
+        "**/*.sass",
+        "**/*.js",
+        "**/*.mjs",
+        "**/*.ts",
+        "**/*.jsx",
+        "**/*.tsx"
+      )
+      val watchers = globs.map { g =>
+        val w = new FileSystemWatcher()
+        w.setGlobPattern(JEither.forLeft(g))
+        w
+      }
+      val regOpts = new DidChangeWatchedFilesRegistrationOptions()
+      regOpts.setWatchers(watchers.asJava)
+      val reg = new Registration()
+      reg.setId("melt-import-file-watcher")
+      reg.setMethod("workspace/didChangeWatchedFiles")
+      reg.setRegisterOptions(regOpts)
+      c.registerCapability(new RegistrationParams(List(reg).asJava))
+    }
 
   override def shutdown(): CompletableFuture[Object] =
     metals.shutdown()
@@ -146,12 +201,26 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val char    = params.getPosition.getCharacter
     val section = vf.mapper.sectionAt(line)
 
-    val meltItems   = MeltCompletionProvider.completionsFor(section)
-    val metalsItems =
-      if section == MeltSection.Script then metals.completionsForScript(uri, vf, line, char)
+    // ── Import path completions (highest priority when inside `import "..."`) ──
+    // When the cursor is inside the string of an `import "..."` statement in the
+    // script section, return only file-path completions and skip Melt/Metals items.
+    val lineText = content.split("\n", -1).lift(line).getOrElse("")
+    val importPathItems: List[CompletionItem] =
+      if section == MeltSection.Script then
+        ImportPathCompletionProvider
+          .detectImportPrefix(lineText, char)
+          .map(prefix => ImportPathCompletionProvider.completionsFor(prefix, fileIndex))
+          .getOrElse(Nil)
       else Nil
 
-    CompletableFuture.completedFuture(JEither.forLeft((metalsItems ++ meltItems).asJava))
+    if importPathItems.nonEmpty then CompletableFuture.completedFuture(JEither.forLeft(importPathItems.asJava))
+    else
+      val meltItems   = MeltCompletionProvider.completionsFor(section)
+      val metalsItems =
+        if section == MeltSection.Script then metals.completionsForScript(uri, vf, line, char)
+        else Nil
+
+      CompletableFuture.completedFuture(JEither.forLeft((metalsItems ++ meltItems).asJava))
 
   /** Returns the definition location for the symbol under the cursor.
     *
@@ -185,7 +254,13 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   // ── WorkspaceService ──────────────────────────────────────────────────────
 
   override def didChangeConfiguration(params: DidChangeConfigurationParams): Unit = ()
-  override def didChangeWatchedFiles(params:  DidChangeWatchedFilesParams):  Unit = ()
+
+  override def didChangeWatchedFiles(params: DidChangeWatchedFilesParams): Unit =
+    workspaceRoot.foreach { root =>
+      params.getChanges.asScala.foreach { event =>
+        ImportPathCompletionProvider.handleFileEvent(root, event, fileIndex)
+      }
+    }
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 

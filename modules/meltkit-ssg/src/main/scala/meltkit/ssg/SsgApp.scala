@@ -79,8 +79,12 @@ trait SsgApp[F[_]]:
     */
   given syncRunner: SyncRunner[F]
 
-  /** Asset base path injected into `<script>` / `<link>` tags. Default: `"/assets"`. */
-  def basePath: String = "/assets"
+  /** The app's deployment root path (e.g. `""` for root, `"/myapp"` for sub-path).
+    *
+    * Note: Vite manifest `entry.file` already contains the `assets/` prefix,
+    * so this should be `""` for root deployments, NOT `"/assets"`.
+    */
+  def basePath: String = ""
 
   /** When `true`, JS/CSS chunks from [[manifest]] are injected into every page.
     *

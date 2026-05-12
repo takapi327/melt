@@ -47,7 +47,8 @@ case class VirtualFile(content: String, mapper: PositionMapper)
   */
 object VirtualFileGenerator:
 
-  private val ScalaLangRe = """lang\s*=\s*["']scala["']""".r
+  private val ScalaLangRe    = """lang\s*=\s*["']scala["']""".r
+  private val StringImportRe = """^\s*import\s+"[^"]+"\s*$""".r
 
   /** Generates a [[VirtualFile]] from a raw .melt source string. */
   def generate(meltSource: String): VirtualFile =
@@ -61,7 +62,7 @@ object VirtualFileGenerator:
         case (open, close) =>
           idx > open && idx < close
       }
-      if inScriptBody then line else ""
+      if inScriptBody && !StringImportRe.matches(line) then line else ""
     }
 
     val scriptRange = scriptBounds
