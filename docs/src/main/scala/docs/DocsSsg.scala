@@ -13,7 +13,7 @@ import meltkit.ssg.SyncSsgApp
 
 object DocsSsg extends SyncSsgApp:
 
-  private val basePath = "/melt"
+  override val basePath: String = "/melt"
 
   private val lang    = param[String]("lang")
   private val guide   = param[String]("guide")

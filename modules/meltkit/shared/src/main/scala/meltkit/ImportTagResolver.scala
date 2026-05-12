@@ -21,7 +21,8 @@ import melt.runtime.Escape
   * Path resolution:
   *   - If the path appears in the manifest, the hashed output file is used:
   *     `basePath + "/" + entry.file` (e.g. `"/assets/global-abc.css"`)
-  *   - Otherwise the source path is used as-is (Vite dev-server serves it directly).
+  *   - Otherwise `basePath` is prepended to the source path
+  *     (e.g. `basePath="/melt"`, path=`"/styles/global.css"` → `"/melt/styles/global.css"`).
   *
   * The `href`/`src` value is run through [[Escape.attr]] before embedding in HTML.
   *
@@ -42,7 +43,7 @@ private[meltkit] object ImportTagResolver:
   def resolveTag(path: String, manifest: ViteManifest, basePath: String, nonce: Option[String] = None): String =
     val href = manifest.fileForSourcePath(path) match
       case Some(file) => s"${ basePath.stripSuffix("/") }/$file"
-      case None       => path
+      case None       => s"${ basePath.stripSuffix("/") }$path"
     val safeHref = Escape.attr(href)
     path.split('.').lastOption.map(_.toLowerCase).getOrElse("") match
       case "css" | "scss" | "less" | "sass" =>
