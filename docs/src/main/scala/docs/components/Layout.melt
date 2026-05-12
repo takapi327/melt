@@ -1,4 +1,5 @@
 <script lang="scala" props="Props">
+import "/styles/global.css"
 case class Props(basePath: String = "", lang: String = "en")
 </script>
 
@@ -8,16 +9,6 @@ case class Props(basePath: String = "", lang: String = "en")
 </div>
 
 <style>
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  color: #1a202c;
-}
 .layout {
   display: flex;
   min-height: 100vh;

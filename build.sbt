@@ -615,7 +615,8 @@ lazy val docs = project
     meltMode                := Some(SSG),
     meltcManageCompilerDeps := false,
     meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
-    meltcSsgMainClass       := "docs.DocsSsg"
+    meltcSsgMainClass       := "docs.DocsSsg",
+    meltcSsgPublicDir       := Some(baseDirectory.value / "public")
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(`meltkit-ssg`)
