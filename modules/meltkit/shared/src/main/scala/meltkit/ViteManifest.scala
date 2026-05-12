@@ -24,14 +24,14 @@ final class ViteManifest private[meltkit] (
 ):
 
   /** Returns `<script type="module">` and `<link rel="stylesheet">` tags for
-    * all entry modules in this manifest, suitable for injection into an SPA
-    * HTML shell via [[Template.render]].
+    * all entry modules in this manifest, suitable for injection into the
+    * `<head>` of an HTML shell via [[Template.render]].
     *
     * CSS entry files (those whose `file` ends with `.css`) are emitted as
     * `<link rel="stylesheet">` tags; all other entries are emitted as
     * `<script type="module">` tags.
     */
-  def scriptTags(basePath: String = ""): String =
+  def headTags(basePath: String = ""): String =
     val base = basePath.stripSuffix("/")
     entries.toList
       .sortBy(_._1)

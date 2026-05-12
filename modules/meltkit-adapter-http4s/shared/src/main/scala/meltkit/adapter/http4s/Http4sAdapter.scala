@@ -348,11 +348,11 @@ object Http4sAdapter:
     clientDistDir: Path,
     manifest:      ViteManifest
   ): F[HttpRoutes[F]] =
-    // scriptTags with basePath="" because Vite's manifest `file` field already
+    // headTags with basePath="" because Vite's manifest `file` field already
     // includes the "assets/" prefix (e.g. "assets/layout-XXX.js"), so the
     // generated URL becomes "/assets/layout-XXX.js" — matching what fileService
     // resolves when serving clientDistDir at "/".
-    indexFallback[F](clientDistDir / "index.html", manifest.scriptTags(basePath = "")).map { indexR =>
+    indexFallback[F](clientDistDir / "index.html", manifest.headTags(basePath = "")).map { indexR =>
       val appR      = routes(app)
       val rawAssetR = fileService[F](FileService.Config(clientDistDir.toString))
       // Prevent fileService from serving index.html for "/" or "/index.html" —
