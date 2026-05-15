@@ -8,7 +8,7 @@ package meltkit
 
 /** A platform-independent URL abstraction, inspired by SvelteKit's `URL`.
   *
-  * Used by [[RequestEvent]] and [[MeltRequest]] to expose the parsed URL
+  * Used by [[RequestEvent]] and [[Request]] to expose the parsed URL
   * of the incoming request.
   *
   * @param pathname     the path component (e.g. `"/users/42"`)

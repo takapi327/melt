@@ -142,9 +142,9 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
     val config        = CspConfig(directives = Map("script-src" -> List("'self'")))
     val capturedNonce = scala.collection.mutable.Buffer.empty[String]
     val app           = new ServerMeltKitPlatform[IO] {}
-    app.use { (info, next) =>
-      info.locals.get(CspNonce.localsKey).foreach(capturedNonce += _)
-      next
+    app.use { (event, resolve) =>
+      event.locals.get(CspNonce.localsKey).foreach(capturedNonce += _)
+      resolve()
     }
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
     val dir   = JFiles.createTempDirectory("meltkit-csp-test5")

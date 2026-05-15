@@ -158,29 +158,33 @@ trait MeltKitPlatform[F[_], C]:
   */
 trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
-  private val _middlewares = ListBuffer[Middleware[F]]()
+  private val _hooks = ListBuffer[ServerHook[F]]()
 
-  // var + Option: handlers are single (overwrite), unlike middlewares (accumulate).
+  // var + Option: handlers are single (overwrite), unlike hooks (accumulate).
   private var _notFoundHandler: Option[MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]] = None
   private var _errorHandler: Option[(MeltContext[F, NamedTuple.Empty, Unit, RenderResult], Throwable) => F[Response]] =
     None
 
-  /** Registers a middleware to run around every matched route handler.
+  /** Registers a hook to run around every matched route handler.
     *
-    * Middlewares run in registration order (first registered = outermost).
+    * Hooks run in registration order (first registered = outermost).
     *
     * {{{
-    * app.use { (info, next) =>
-    *   info.cookie("session_id") match
+    * app.use { (event, resolve) =>
+    *   event.cookie("session_id") match
     *     case None     => IO.pure(Unauthorized())
-    *     case Some(_)  => next
+    *     case Some(_)  => resolve()
     * }
     * }}}
     */
-  def use(middleware: Middleware[F]): Unit =
-    _middlewares += middleware
+  def use(hook: ServerHook[F]): Unit =
+    _hooks += hook
 
-  private[meltkit] def middlewares: List[Middleware[F]] = _middlewares.toList
+  /** Registers a hook from a simple function. */
+  def use(fn: (RequestEvent[F], Resolve[F]) => F[Response]): Unit =
+    _hooks += ServerHook(fn)
+
+  private[meltkit] def hooks: List[ServerHook[F]] = _hooks.toList
 
   /** Registers a handler for requests that don't match any route.
     *
