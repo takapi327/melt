@@ -6,46 +6,38 @@
 
 package meltkit
 
+import scala.util.NotGiven
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
-import meltkit.codec.BodyDecoder
-import meltkit.codec.BodyEncoder
+import meltkit.codec.{ BodyDecoder, BodyEncoder, FormDataDecoder }
+import meltkit.exceptions.BodyDecodeException
 
-/** Node.js SSR implementation of [[MeltContext]] with `C = RenderResult`.
+/** Node.js SSR implementation of [[ServerMeltContext]] fixed to `Future`.
   *
   * `render` evaluates the component inside `Router.withPath(requestPath)(...)`,
   * setting `Router.currentPath` for the duration of the synchronous render.
   *
-  * This context is used by [[MeltKit]] for Node.js server-side rendering without
-  * the http4s adapter. For http4s-based Node.js servers, use
-  * [[meltkit.adapter.http4s.Http4sMeltContext]] via [[meltkit-adapter-http4s]].
-  *
-  * @param params      the decoded path parameters for this request
-  * @param requestPath the URL path for this request (e.g. `"/users/42"`)
-  * @param queryParams the parsed query string parameters
-  * @param bodyDecoder the [[BodyDecoder]] bound to the endpoint's body type `B`
-  * @param templateOpt the [[Template]] for SSR rendering; `None` for API-only responses
-  * @param manifest    the [[ViteManifest]] used to resolve JS/CSS chunks for SSR
-  * @param lang        the `lang` attribute value for the HTML root element
-  * @param basePath    the app's deployment root path (e.g. `""` for root, `"/myapp"` for
-  *                    sub-path). Note: `entry.file` in the Vite manifest already contains the
-  *                    `assets/` prefix, so this should be `""` for root deployments, NOT
-  *                    `"/assets"`.
+  * For `IO`-based Node.js servers, use
+  * [[meltkit.adapter.http4s.Http4sMeltContext]] via `meltkit-adapter-http4s`.
   */
-final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
+final class NodeMeltContext[P <: AnyNamedTuple, B](
   val params:               P,
   val requestPath:          String,
   private val _queryParams: Map[String, List[String]] = Map.empty,
   private val bodyDecoder:  BodyDecoder[B],
-  private val templateOpt:  Option[Template]          = None,
-  private val manifest:     ViteManifest              = ViteManifest.empty,
-  private val lang:         String                    = "en",
-  private val basePath:     String                    = ""
-) extends MeltContext[F, P, B, RenderResult]:
-
-  override val locals: Locals = new Locals()
+  private val rawBody:      Future[String],
+  private val rawHeaders:   Map[String, String]  = Map.empty,
+  private val rawCookies:   Map[String, String]  = Map.empty,
+  private val templateOpt:  Option[Template]     = None,
+  private val manifest:     ViteManifest         = ViteManifest.empty,
+  private val lang:         String               = "en",
+  private val basePath:     String               = "",
+  override val locals:      Locals               = new Locals(),
+  private val nonce:        Option[String]        = None
+)(using ec: ExecutionContext) extends ServerMeltContext[Future, P, B, RenderResult]:
 
   override def query(name: String): Option[String] =
     _queryParams.get(name).flatMap(_.headOption)
@@ -55,9 +47,43 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
 
   override def queryParams: Map[String, List[String]] = _queryParams
 
-  /** Evaluates `component` inside `Router.withPath(requestPath)` so that
-    * `Router.currentPath` returns the correct path during SSR rendering.
-    */
+  // ── ServerMeltContext: body ────────────────────────────────────────────
+
+  override val body: RequestBody[Future, B] = new RequestBody[Future, B]:
+
+    def text: Future[String] = rawBody
+
+    def form: Future[Either[BodyError, FormData]] =
+      rawBody.map(FormData.parse)
+
+    def form[A](using fdd: FormDataDecoder[A]): Future[Either[BodyError, A]] =
+      rawBody.map(raw => FormData.parse(raw).flatMap(fdd.decode))
+
+    def json[A](using dec: BodyDecoder[A]): Future[Either[BodyError, A]] =
+      rawBody.map(dec.decode)
+
+    def decode(using NotGiven[B =:= Unit]): Future[Either[BodyError, B]] =
+      rawBody.map(bodyDecoder.decode)
+
+    def decodeOrBadRequest(using NotGiven[B =:= Unit]): Future[B] =
+      rawBody.map { raw =>
+        bodyDecoder.decode(raw) match
+          case Right(b)  => b
+          case Left(err) => throw BodyDecodeException(err)
+      }
+
+  // ── ServerMeltContext: cookies / headers ───────────────────────────────
+
+  override def cookie(name: String): Option[String] = rawCookies.get(name)
+
+  override def cookies: Map[String, String] = rawCookies
+
+  override def header(name: String): Option[String] = rawHeaders.get(name.toLowerCase)
+
+  override def headers: Map[String, String] = rawHeaders
+
+  // ── MeltContext: render ────────────────────────────────────────────────
+
   override def render(component: => RenderResult): PlainResponse =
     render(component, 200)
 
@@ -72,11 +98,21 @@ final class NodeMeltContext[F[_], P <: AnyNamedTuple, B](
         val augmented =
           if result.imports.isEmpty then result
           else
-            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath)
+            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
             val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
             result.copy(head = newHead)
-        val html = template.render(augmented, manifest, title = "", lang = lang, basePath = basePath, vars = Map.empty)
+        val html = template.render(
+          augmented,
+          manifest,
+          title    = "",
+          lang     = lang,
+          basePath = basePath,
+          vars     = Map.empty,
+          nonce    = nonce
+        )
         PlainResponse(status, "text/html; charset=utf-8", html)
+
+  // ── MeltContext: response builders ─────────────────────────────────────
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))
