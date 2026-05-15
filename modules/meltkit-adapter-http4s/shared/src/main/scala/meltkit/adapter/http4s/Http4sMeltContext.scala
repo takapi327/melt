@@ -13,10 +13,10 @@ import melt.runtime.render.RenderResult
 
 import cats.effect.Concurrent
 import cats.syntax.all.*
-import meltkit.exceptions.BodyDecodeException
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
+import meltkit.exceptions.BodyDecodeException
 import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.Request
 

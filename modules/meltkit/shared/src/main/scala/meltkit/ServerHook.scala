@@ -34,7 +34,7 @@ trait ServerHook[F[_]]:
 
 /** Resolves the request through the remaining pipeline. */
 trait Resolve[F[_]]:
-  def apply(): F[Response]
+  def apply():                        F[Response]
   def apply(options: ResolveOptions): F[Response]
 
 /** Options for [[Resolve]] to transform the response. */
@@ -45,7 +45,7 @@ case class ResolveOptions(
 
 /** A bundle of hooks registered via [[MeltApp.hooks]]. */
 case class ServerHooks[F[_]](
-  handle:      Seq[ServerHook[F]]       = Nil,
+  handle:      Seq[ServerHook[F]]      = Nil,
   handleError: Option[ErrorHandler[F]] = None
 )
 
@@ -69,12 +69,12 @@ object ServerHook:
               outer.handle(
                 event,
                 new Resolve[F]:
-                  def apply(): F[Response] = inner.handle(event, resolve)
+                  def apply():                     F[Response] = inner.handle(event, resolve)
                   def apply(opts: ResolveOptions): F[Response] =
                     inner.handle(
                       event,
                       new Resolve[F]:
-                        def apply(): F[Response]                    = resolve(opts)
+                        def apply():                          F[Response] = resolve(opts)
                         def apply(innerOpts: ResolveOptions): F[Response] = resolve(mergeOptions(opts, innerOpts))
                     )
               )

@@ -32,21 +32,21 @@ object NodeServer:
     Builder(app)
 
   case class Builder(
-    app:               MeltApp[Future],
-    host:              String               = "0.0.0.0",
-    port:              Int                   = 3000,
-    templateContent:   Option[String]        = None,
-    manifestJson:      Option[String]        = None,
-    manifestInstance:  Option[ViteManifest]   = None,
-    basePath:          String               = "",
-    clientDistDir:     Option[String]        = None
+    app:              MeltApp[Future],
+    host:             String               = "0.0.0.0",
+    port:             Int                  = 3000,
+    templateContent:  Option[String]       = None,
+    manifestJson:     Option[String]       = None,
+    manifestInstance: Option[ViteManifest] = None,
+    basePath:         String               = "",
+    clientDistDir:    Option[String]       = None
   )(using ec: ExecutionContext):
-    def withHost(h: String):           Builder = copy(host = h)
-    def withPort(p: Int):              Builder = copy(port = p)
-    def withTemplate(content: String): Builder = copy(templateContent = Some(content))
-    def withManifest(json: String):    Builder = copy(manifestJson = Some(json))
-    def withManifest(m: ViteManifest): Builder = copy(manifestInstance = Some(m))
-    def withBasePath(bp: String):      Builder = copy(basePath = bp)
+    def withHost(h:           String):       Builder = copy(host = h)
+    def withPort(p:           Int):          Builder = copy(port = p)
+    def withTemplate(content: String):       Builder = copy(templateContent = Some(content))
+    def withManifest(json:    String):       Builder = copy(manifestJson = Some(json))
+    def withManifest(m:       ViteManifest): Builder = copy(manifestInstance = Some(m))
+    def withBasePath(bp:      String):       Builder = copy(basePath = bp)
 
     /** Sets the directory containing client build output (JS/CSS assets).
       * Enables static file serving for hydration scripts and stylesheets.

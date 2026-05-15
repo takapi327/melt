@@ -41,15 +41,17 @@ class MiddlewareCsrfTest extends munit.FunSuite:
       override val isDataRequest:          Boolean                   = false
 
   def run(hook: ServerHook[Id], event: RequestEvent[Id]): Response =
-    hook.handle(event, new Resolve[Id]:
-      def apply(): Response                    = ok
-      def apply(options: ResolveOptions): Response = ok
+    hook.handle(
+      event,
+      new Resolve[Id]:
+        def apply():                        Response = ok
+        def apply(options: ResolveOptions): Response = ok
     )
 
   // ── CsrfConfig.disabled ───────────────────────────────────────────────────
 
   test("disabled config skips all checks"):
-    val event = makeEvent("POST", "/", Map("Content-Type" -> "application/x-www-form-urlencoded"))
+    val event  = makeEvent("POST", "/", Map("Content-Type" -> "application/x-www-form-urlencoded"))
     val result = run(ServerHook.csrf(CsrfConfig.disabled), event)
     assertEquals(result, ok)
 
@@ -64,11 +66,15 @@ class MiddlewareCsrfTest extends munit.FunSuite:
     assertEquals(run(ServerHook.csrf(), event), ok)
 
   test("Content-Type with charset param is still recognised as form"):
-    val event = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded; charset=UTF-8",
-      "Origin"       -> "https://example.com",
-      "Host"         -> "example.com"
-    ))
+    val event = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded; charset=UTF-8",
+        "Origin"       -> "https://example.com",
+        "Host"         -> "example.com"
+      )
+    )
     assertEquals(run(ServerHook.csrf(), event), ok)
 
   // ── Safe HTTP methods ─────────────────────────────────────────────────────
@@ -127,44 +133,64 @@ class MiddlewareCsrfTest extends munit.FunSuite:
   // ── Origin validation ─────────────────────────────────────────────────────
 
   test("Origin matches server origin → allowed"):
-    val event = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Origin"       -> "https://example.com",
-      "Host"         -> "example.com"
-    ))
+    val event = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Origin"       -> "https://example.com",
+        "Host"         -> "example.com"
+      )
+    )
     assertEquals(run(ServerHook.csrf(), event), ok)
 
   test("Origin mismatch → 403"):
-    val event = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Origin"       -> "https://evil.com",
-      "Host"         -> "example.com"
-    ))
+    val event = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Origin"       -> "https://evil.com",
+        "Host"         -> "example.com"
+      )
+    )
     assertEquals(run(ServerHook.csrf(), event).status, (403: StatusCode))
 
   test("Origin in trustedOrigins → allowed"):
     val config = CsrfConfig(trustedOrigins = Set("https://app.example.com"))
-    val event  = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Origin"       -> "https://app.example.com",
-      "Host"         -> "example.com"
-    ))
+    val event  = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Origin"       -> "https://app.example.com",
+        "Host"         -> "example.com"
+      )
+    )
     assertEquals(run(ServerHook.csrf(config), event), ok)
 
   test("Origin not in trustedOrigins → 403"):
     val config = CsrfConfig(trustedOrigins = Set("https://app.example.com"))
-    val event  = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Origin"       -> "https://other.example.com",
-      "Host"         -> "example.com"
-    ))
+    val event  = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Origin"       -> "https://other.example.com",
+        "Host"         -> "example.com"
+      )
+    )
     assertEquals(run(ServerHook.csrf(config), event).status, (403: StatusCode))
 
   test("missing Origin header → 403"):
-    val event = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Host"         -> "example.com"
-    ))
+    val event = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Host"         -> "example.com"
+      )
+    )
     val result = run(ServerHook.csrf(), event)
     assertEquals(result.status, (403: StatusCode))
     assertEquals(result.body, "CSRF check failed: missing Origin header")
@@ -183,40 +209,56 @@ class MiddlewareCsrfTest extends munit.FunSuite:
 
   test("trustForwardedHost uses X-Forwarded-Host for origin resolution"):
     val config = CsrfConfig(trustForwardedHost = true)
-    val event  = makeEvent("POST", "/", Map(
-      "Content-Type"      -> "application/x-www-form-urlencoded",
-      "Origin"            -> "https://proxied.example.com",
-      "Host"              -> "internal-host",
-      "X-Forwarded-Host"  -> "proxied.example.com",
-      "X-Forwarded-Proto" -> "https"
-    ))
+    val event  = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type"      -> "application/x-www-form-urlencoded",
+        "Origin"            -> "https://proxied.example.com",
+        "Host"              -> "internal-host",
+        "X-Forwarded-Host"  -> "proxied.example.com",
+        "X-Forwarded-Proto" -> "https"
+      )
+    )
     assertEquals(run(ServerHook.csrf(config), event), ok)
 
   test("without trustForwardedHost, X-Forwarded-Host is ignored"):
     val config = CsrfConfig(trustForwardedHost = false)
-    val event  = makeEvent("POST", "/", Map(
-      "Content-Type"      -> "application/x-www-form-urlencoded",
-      "Origin"            -> "https://proxied.example.com",
-      "Host"              -> "internal-host",
-      "X-Forwarded-Host"  -> "proxied.example.com",
-      "X-Forwarded-Proto" -> "https"
-    ))
+    val event  = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type"      -> "application/x-www-form-urlencoded",
+        "Origin"            -> "https://proxied.example.com",
+        "Host"              -> "internal-host",
+        "X-Forwarded-Host"  -> "proxied.example.com",
+        "X-Forwarded-Proto" -> "https"
+      )
+    )
     assertEquals(run(ServerHook.csrf(config), event).status, (403: StatusCode))
 
   test("X-Forwarded-Proto overrides protocol inference"):
     val config = CsrfConfig(trustForwardedHost = true)
-    val event  = makeEvent("POST", "/", Map(
-      "Content-Type"      -> "application/x-www-form-urlencoded",
-      "Origin"            -> "http://example.com",
-      "Host"              -> "example.com",
-      "X-Forwarded-Proto" -> "http"
-    ))
+    val event  = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type"      -> "application/x-www-form-urlencoded",
+        "Origin"            -> "http://example.com",
+        "Host"              -> "example.com",
+        "X-Forwarded-Proto" -> "http"
+      )
+    )
     assertEquals(run(ServerHook.csrf(config), event), ok)
 
   test("port 443 in Host infers https"):
-    val event = makeEvent("POST", "/", Map(
-      "Content-Type" -> "application/x-www-form-urlencoded",
-      "Origin"       -> "https://example.com:443",
-      "Host"         -> "example.com:443"
-    ))
+    val event = makeEvent(
+      "POST",
+      "/",
+      Map(
+        "Content-Type" -> "application/x-www-form-urlencoded",
+        "Origin"       -> "https://example.com:443",
+        "Host"         -> "example.com:443"
+      )
+    )
     assertEquals(run(ServerHook.csrf(), event), ok)

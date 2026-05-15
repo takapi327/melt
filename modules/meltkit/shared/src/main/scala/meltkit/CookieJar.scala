@@ -59,13 +59,13 @@ private[meltkit] final class CookieJarImpl(requestCookies: Map[String, String]) 
 
   private def serializeCookie(c: ResponseCookie): String =
     val sb = new StringBuilder
-    sb.append(s"${c.name}=${c.value}")
-    sb.append(s"; Path=${c.options.path}")
+    sb.append(s"${ c.name }=${ c.value }")
+    sb.append(s"; Path=${ c.options.path }")
     c.options.maxAge.foreach(ma => sb.append(s"; Max-Age=$ma"))
     c.options.domain.foreach(d => sb.append(s"; Domain=$d"))
     if c.options.httpOnly then sb.append("; HttpOnly")
     if c.options.secure || c.options.sameSite == "None" then sb.append("; Secure")
-    sb.append(s"; SameSite=${c.options.sameSite}")
+    sb.append(s"; SameSite=${ c.options.sameSite }")
     sb.result()
 
 object CookieJar:

@@ -34,13 +34,13 @@ trait ServerAdapter[F[_]]:
   *                      disables static file serving.
   */
 case class ServerConfig(
-  host:          String              = "0.0.0.0",
-  port:          Int                 = 3000,
+  host:          String            = "0.0.0.0",
+  port:          Int               = 3000,
   template:      Template,
   manifest:      ViteManifest,
-  basePath:      String              = "/assets",
-  cspConfig:     Option[CspConfig]   = None,
-  clientDistDir: Option[String]      = None
+  basePath:      String            = "/assets",
+  cspConfig:     Option[CspConfig] = None,
+  clientDistDir: Option[String]    = None
 )
 
 /** A handle to a running server.

@@ -6,8 +6,8 @@
 
 package meltkit
 
-import scala.scalajs.js
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.scalajs.js
 
 /** A [[ServerAdapter]] that uses Node.js `http.createServer` directly.
   *
@@ -21,9 +21,8 @@ class NodeServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Future
   def start(app: MeltApp[Future], config: ServerConfig): Future[RunningServer[Future]] =
     Future {
       val binding = new NodeHttpBinding(app, config)
-      val server = NodeHttp.createServer { (req, res) =>
-        try
-          binding.handleRequest(req, res)
+      val server  = NodeHttp.createServer { (req, res) =>
+        try binding.handleRequest(req, res)
         catch
           case _: Throwable =>
             res.writeHead(500, js.Dictionary("Content-Type" -> "text/plain"))
@@ -33,8 +32,9 @@ class NodeServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Future
       RunningServer(
         host = config.host,
         port = config.port,
-        stop = () => Future {
-          server.close(() => ())
-        }
+        stop = () =>
+          Future {
+            server.close(() => ())
+          }
       )
     }

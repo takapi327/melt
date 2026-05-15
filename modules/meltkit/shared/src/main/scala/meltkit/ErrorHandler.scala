@@ -22,6 +22,6 @@ trait ErrorHandler[F[_]]:
 /** Data returned by [[ErrorHandler]], exposed to error pages. */
 case class ErrorData(
   message: String,
-  errorId: Option[String]            = None,
+  errorId: Option[String]      = None,
   details: Map[String, String] = Map.empty
 )

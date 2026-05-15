@@ -6,9 +6,9 @@
 
 package meltkit
 
-import scala.scalajs.js
 import scala.concurrent.{ ExecutionContext, Future, Promise }
-import scala.util.{ Success, Failure }
+import scala.scalajs.js
+import scala.util.{ Failure, Success }
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
@@ -68,8 +68,7 @@ private[meltkit] class NodeHttpBinding(
         )
 
     // Try static file serving first (GET/HEAD only)
-    if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, res, isHead) then
-      return
+    if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, res, isHead) then return
 
     val matched = parsedMethod.flatMap { m =>
       app.routes.find { r =>
@@ -85,9 +84,7 @@ private[meltkit] class NodeHttpBinding(
             res.end("Not Found")
           case Some(handler) =>
             val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
-            val inner = Future(()).flatMap(_ =>
-              handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]]))
-            )
+            val inner = Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
             val wrapped = runHooks(app.hooks, event, inner)
             writeResponse(wrapped, res, isHead)
 
@@ -98,8 +95,8 @@ private[meltkit] class NodeHttpBinding(
             res.writeHead(404, js.Dictionary("Content-Type" -> "text/plain; charset=utf-8"))
             res.end("Not Found")
           case Some(thunk) =>
-            val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
-            val inner = Future(()).flatMap(_ => thunk())
+            val event   = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
+            val inner   = Future(()).flatMap(_ => thunk())
             val wrapped = runHooks(app.hooks, event, inner)
             writeResponse(wrapped, res, isHead)
 
@@ -134,13 +131,13 @@ private[meltkit] class NodeHttpBinding(
 
   private def serializeCookie(c: ResponseCookie): String =
     val sb = new StringBuilder
-    sb.append(s"${c.name}=${c.value}")
-    sb.append(s"; Path=${c.options.path}")
+    sb.append(s"${ c.name }=${ c.value }")
+    sb.append(s"; Path=${ c.options.path }")
     c.options.maxAge.foreach(ma => sb.append(s"; Max-Age=$ma"))
     c.options.domain.foreach(d => sb.append(s"; Domain=$d"))
     if c.options.httpOnly then sb.append("; HttpOnly")
     if c.options.secure || c.options.sameSite == "None" then sb.append("; Secure")
-    sb.append(s"; SameSite=${c.options.sameSite}")
+    sb.append(s"; SameSite=${ c.options.sameSite }")
     sb.result()
 
   private def readBody(req: IncomingMessage): Future[String] =
@@ -158,7 +155,7 @@ private[meltkit] class NodeHttpBinding(
 
   private def tryServeStaticFile(pathname: String, res: ServerResponse, isHead: Boolean): Boolean =
     config.clientDistDir match
-      case None => false
+      case None          => false
       case Some(distDir) =>
         if pathname == "/" || pathname == "/index.html" then return false
         if pathname.contains("..") then return false
@@ -175,46 +172,51 @@ private[meltkit] class NodeHttpBinding(
         val stats = NodeFs.lstatSync(filePath)
         if !stats.isFile() || stats.isSymbolicLink() then return false
 
-        val ext          = NodePath.extname(filePath).toLowerCase
-        val contentType  = mimeType(ext)
-        val isHashed     = pathname.matches(".*-[a-f0-9]{8,}\\.[a-z]+$") ||
-                           pathname.matches(".*\\.[a-f0-9]{8,}\\.[a-z]+$")
+        val ext         = NodePath.extname(filePath).toLowerCase
+        val contentType = mimeType(ext)
+        val isHashed    = pathname.matches(".*-[a-f0-9]{8,}\\.[a-z]+$") ||
+          pathname.matches(".*\\.[a-f0-9]{8,}\\.[a-z]+$")
         val cacheControl =
           if isHashed then "public, max-age=31536000, immutable"
           else "no-cache"
 
-        NodeFs.readFile(filePath, (err, data) =>
-          if err != null then
-            res.writeHead(500, js.Dictionary("Content-Type" -> "text/plain"))
-            res.end("Internal Server Error")
-          else
-            res.writeHead(200, js.Dictionary(
-              "Content-Type"  -> contentType,
-              "Cache-Control" -> cacheControl
-            ))
-            if isHead then res.end()
-            else res.asInstanceOf[js.Dynamic].end(js.Dynamic.global.Buffer.from(data))
+        NodeFs.readFile(
+          filePath,
+          (err, data) =>
+            if err != null then
+              res.writeHead(500, js.Dictionary("Content-Type" -> "text/plain"))
+              res.end("Internal Server Error")
+            else
+              res.writeHead(
+                200,
+                js.Dictionary(
+                  "Content-Type"  -> contentType,
+                  "Cache-Control" -> cacheControl
+                )
+              )
+              if isHead then res.end()
+              else res.asInstanceOf[js.Dynamic].end(js.Dynamic.global.Buffer.from(data))
         )
         true
 
   private def mimeType(ext: String): String = ext match
-    case ".html"             => "text/html; charset=utf-8"
-    case ".css"              => "text/css; charset=utf-8"
-    case ".js" | ".mjs"      => "application/javascript; charset=utf-8"
-    case ".json"             => "application/json; charset=utf-8"
-    case ".png"              => "image/png"
-    case ".jpg" | ".jpeg"    => "image/jpeg"
-    case ".gif"              => "image/gif"
-    case ".svg"              => "image/svg+xml"
-    case ".ico"              => "image/x-icon"
-    case ".woff"             => "font/woff"
-    case ".woff2"            => "font/woff2"
-    case ".ttf"              => "font/ttf"
-    case ".map"              => "application/json"
-    case ".wasm"             => "application/wasm"
-    case ".txt"              => "text/plain; charset=utf-8"
-    case ".xml"              => "application/xml; charset=utf-8"
-    case _                   => "application/octet-stream"
+    case ".html"          => "text/html; charset=utf-8"
+    case ".css"           => "text/css; charset=utf-8"
+    case ".js" | ".mjs"   => "application/javascript; charset=utf-8"
+    case ".json"          => "application/json; charset=utf-8"
+    case ".png"           => "image/png"
+    case ".jpg" | ".jpeg" => "image/jpeg"
+    case ".gif"           => "image/gif"
+    case ".svg"           => "image/svg+xml"
+    case ".ico"           => "image/x-icon"
+    case ".woff"          => "font/woff"
+    case ".woff2"         => "font/woff2"
+    case ".ttf"           => "font/ttf"
+    case ".map"           => "application/json"
+    case ".wasm"          => "application/wasm"
+    case ".txt"           => "text/plain; charset=utf-8"
+    case ".xml"           => "application/xml; charset=utf-8"
+    case _                => "application/octet-stream"
 
   private def runHooks(
     hooks: List[ServerHook[Future]],
@@ -224,9 +226,11 @@ private[meltkit] class NodeHttpBinding(
     if hooks.isEmpty then inner
     else
       val combined = ServerHook.sequence(hooks*)
-      combined.handle(event, new Resolve[Future]:
-        def apply(): Future[Response]                        = inner
-        def apply(options: ResolveOptions): Future[Response] = inner
+      combined.handle(
+        event,
+        new Resolve[Future]:
+          def apply():                        Future[Response] = inner
+          def apply(options: ResolveOptions): Future[Response] = inner
       )
 
   private def buildRequestEvent(
@@ -237,17 +241,17 @@ private[meltkit] class NodeHttpBinding(
     httpMethod:    String
   ): RequestEvent[Future] =
     new RequestEvent[Future]:
-      val method                               = httpMethod
-      val requestPath                          = meltUrl.pathname
-      def query(name: String): Option[String]  = meltUrl.query(name)
-      def queryAll(name: String): List[String] = meltUrl.queryAll(name)
-      val queryParams                          = meltUrl.searchParams
-      def header(name: String): Option[String] = hdrs.get(name.toLowerCase)
-      val headers                              = hdrs
-      def cookie(name: String): Option[String] = parsedCookies.get(name)
-      val cookies                              = parsedCookies
-      val locals                               = sharedLocals
-      val cookieJar                            = CookieJar(parsedCookies)
-      val url                                  = meltUrl
-      val routeId                              = None
-      val isDataRequest                        = false
+      val method      = httpMethod
+      val requestPath = meltUrl.pathname
+      def query(name:    String): Option[String] = meltUrl.query(name)
+      def queryAll(name: String): List[String]   = meltUrl.queryAll(name)
+      val queryParams = meltUrl.searchParams
+      def header(name:   String): Option[String] = hdrs.get(name.toLowerCase)
+      val headers = hdrs
+      def cookie(name:   String): Option[String] = parsedCookies.get(name)
+      val cookies = parsedCookies
+      val locals = sharedLocals
+      val cookieJar = CookieJar(parsedCookies)
+      val url = meltUrl
+      val routeId = None
+      val isDataRequest = false

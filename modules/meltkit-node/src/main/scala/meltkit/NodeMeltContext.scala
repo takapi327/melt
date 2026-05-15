@@ -6,8 +6,8 @@
 
 package meltkit
 
-import scala.util.NotGiven
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
@@ -29,15 +29,16 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
   private val _queryParams: Map[String, List[String]] = Map.empty,
   private val bodyDecoder:  BodyDecoder[B],
   private val rawBody:      Future[String],
-  private val rawHeaders:   Map[String, String]  = Map.empty,
-  private val rawCookies:   Map[String, String]  = Map.empty,
-  private val templateOpt:  Option[Template]     = None,
-  private val manifest:     ViteManifest         = ViteManifest.empty,
-  private val lang:         String               = "en",
-  private val basePath:     String               = "",
-  override val locals:      Locals               = new Locals(),
-  private val nonce:        Option[String]        = None
-)(using ec: ExecutionContext) extends ServerMeltContext[Future, P, B, RenderResult]:
+  private val rawHeaders:   Map[String, String]       = Map.empty,
+  private val rawCookies:   Map[String, String]       = Map.empty,
+  private val templateOpt:  Option[Template]          = None,
+  private val manifest:     ViteManifest              = ViteManifest.empty,
+  private val lang:         String                    = "en",
+  private val basePath:     String                    = "",
+  override val locals:      Locals                    = new Locals(),
+  private val nonce:        Option[String]            = None
+)(using ec: ExecutionContext)
+  extends ServerMeltContext[Future, P, B, RenderResult]:
 
   override def query(name: String): Option[String] =
     _queryParams.get(name).flatMap(_.headOption)

@@ -54,7 +54,7 @@ abstract class MeltApp[F[_]] extends ServerMeltKitPlatform[F]:
     * }}}
     */
   def hooks(
-    handle:      Seq[ServerHook[F]]       = Nil,
+    handle:      Seq[ServerHook[F]] = Nil,
     handleError: Option[ErrorHandler[F]] = None
   ): Unit =
     _serverHooks = ServerHooks(handle, handleError)

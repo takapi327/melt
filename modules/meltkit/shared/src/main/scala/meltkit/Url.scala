@@ -42,7 +42,7 @@ object Url:
   def parse(rawUrl: String, origin: String): Url =
     val qIdx     = rawUrl.indexOf('?')
     val pathname = if qIdx >= 0 then rawUrl.substring(0, qIdx) else rawUrl
-    val params =
+    val params   =
       if qIdx < 0 || qIdx + 1 >= rawUrl.length then Map.empty[String, List[String]]
       else
         rawUrl
@@ -50,7 +50,7 @@ object Url:
           .split('&')
           .filter(_.nonEmpty)
           .foldLeft(Map.empty[String, List[String]]) { (acc, pair) =>
-            val eqIdx = pair.indexOf('=')
+            val eqIdx  = pair.indexOf('=')
             val (k, v) =
               if eqIdx >= 0 then (decodeComponent(pair.substring(0, eqIdx)), decodeComponent(pair.substring(eqIdx + 1)))
               else (decodeComponent(pair), "")

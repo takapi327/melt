@@ -518,8 +518,8 @@ class Http4sAdapterTest extends CatsEffectSuite:
       }
 
   test("ServerHook.sequence composes hooks in order"):
-    val app   = MeltKit[IO]()
-    val order = scala.collection.mutable.ListBuffer[Int]()
+    val app      = MeltKit[IO]()
+    val order    = scala.collection.mutable.ListBuffer[Int]()
     val combined = ServerHook.sequence[IO](
       ServerHook((_, resolve) => IO(order += 1) *> resolve()),
       ServerHook((_, resolve) => IO(order += 2) *> resolve())

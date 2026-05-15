@@ -10,7 +10,7 @@ import java.net.InetSocketAddress
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import com.sun.net.httpserver.{ HttpServer => JdkHttpServer }
+import com.sun.net.httpserver.HttpServer as JdkHttpServer
 
 /** A [[ServerAdapter]] that uses the JDK built-in `com.sun.net.httpserver.HttpServer`.
   *
@@ -23,16 +23,15 @@ class JdkServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Future]
     Future {
       val binding = new JdkHttpBinding(app, config)
       val server  = JdkHttpServer.create(InetSocketAddress(config.host, config.port), 0)
-      server.createContext("/", exchange => {
-        ec.execute(() => binding.handleExchange(exchange))
-      })
+      server.createContext("/", exchange => ec.execute(() => binding.handleExchange(exchange)))
       server.setExecutor(null) // use default executor
       server.start()
       RunningServer(
         host = config.host,
         port = config.port,
-        stop = () => Future {
-          server.stop(0)
-        }
+        stop = () =>
+          Future {
+            server.stop(0)
+          }
       )
     }

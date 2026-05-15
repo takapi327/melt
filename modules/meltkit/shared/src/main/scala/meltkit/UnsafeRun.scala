@@ -7,7 +7,7 @@
 package meltkit
 
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Success, Failure }
+import scala.util.{ Failure, Success }
 
 /** A typeclass for executing an effect `F[A]` asynchronously and delivering the
   * result to a callback.

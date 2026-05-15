@@ -34,20 +34,20 @@ object JdkServer:
   case class Builder(
     app:              MeltApp[Future],
     host:             String               = "0.0.0.0",
-    port:             Int                   = 3000,
-    templateContent:  Option[String]        = None,
-    manifestJson:     Option[String]        = None,
-    manifestInstance: Option[ViteManifest]   = None,
+    port:             Int                  = 3000,
+    templateContent:  Option[String]       = None,
+    manifestJson:     Option[String]       = None,
+    manifestInstance: Option[ViteManifest] = None,
     basePath:         String               = "",
-    clientDistDir:    Option[String]        = None
+    clientDistDir:    Option[String]       = None
   )(using ec: ExecutionContext):
-    def withHost(h: String):           Builder = copy(host = h)
-    def withPort(p: Int):              Builder = copy(port = p)
-    def withTemplate(content: String): Builder = copy(templateContent = Some(content))
-    def withManifest(json: String):    Builder = copy(manifestJson = Some(json))
-    def withManifest(m: ViteManifest): Builder = copy(manifestInstance = Some(m))
-    def withBasePath(bp: String):      Builder = copy(basePath = bp)
-    def withClientDistDir(dir: String): Builder = copy(clientDistDir = Some(dir))
+    def withHost(h:            String):       Builder = copy(host = h)
+    def withPort(p:            Int):          Builder = copy(port = p)
+    def withTemplate(content:  String):       Builder = copy(templateContent = Some(content))
+    def withManifest(json:     String):       Builder = copy(manifestJson = Some(json))
+    def withManifest(m:        ViteManifest): Builder = copy(manifestInstance = Some(m))
+    def withBasePath(bp:       String):       Builder = copy(basePath = bp)
+    def withClientDistDir(dir: String):       Builder = copy(clientDistDir = Some(dir))
 
     def start(): Future[RunningServer[Future]] =
       val manifest = manifestInstance

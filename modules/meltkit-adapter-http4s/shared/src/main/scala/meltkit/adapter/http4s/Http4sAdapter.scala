@@ -372,19 +372,24 @@ object Http4sAdapter:
 
   /** Runs a list of hooks around an inner effect, producing the final response. */
   private[http4s] def runHooks[F2[_]](
-    hooks:  List[ServerHook[F2]],
-    event:  RequestEvent[F2],
-    inner:  F2[Response]
+    hooks: List[ServerHook[F2]],
+    event: RequestEvent[F2],
+    inner: F2[Response]
   ): F2[Response] =
     if hooks.isEmpty then inner
     else
       val combined = ServerHook.sequence(hooks*)
-      combined.handle(event, new Resolve[F2]:
-        def apply(): F2[Response]                    = inner
-        def apply(options: ResolveOptions): F2[Response] = inner // ResolveOptions handled in Phase 2
+      combined.handle(
+        event,
+        new Resolve[F2]:
+          def apply():                        F2[Response] = inner
+          def apply(options: ResolveOptions): F2[Response] = inner // ResolveOptions handled in Phase 2
       )
 
-  private[http4s] def buildRequestEvent[F2[_]](request: org.http4s.Request[F2], sharedLocals: Locals): RequestEvent[F2] =
+  private[http4s] def buildRequestEvent[F2[_]](
+    request:      org.http4s.Request[F2],
+    sharedLocals: Locals
+  ): RequestEvent[F2] =
     new RequestEvent[F2]:
       val method      = request.method.name
       val requestPath = request.uri.path.renderString
@@ -404,20 +409,20 @@ object Http4sAdapter:
           case None         => Map.empty
           case Some(cookie) => cookie.values.toList.map(c => c.name -> c.content).toMap
 
-      def cookie(name: String): Option[String] = parsedCookies.get(name)
-      val cookies: Map[String, String]         = parsedCookies
+      def cookie(name: String): Option[String]      = parsedCookies.get(name)
+      val cookies:              Map[String, String] = parsedCookies
 
       private lazy val parsedHeaders: Map[String, String] =
         request.headers.headers
           .groupBy(_.name.toString.toLowerCase)
           .map { case (name, vals) => name -> vals.map(_.value).mkString(", ") }
 
-      def header(name: String): Option[String] = parsedHeaders.get(name.toLowerCase)
-      val headers: Map[String, String]         = parsedHeaders
+      def header(name: String): Option[String]      = parsedHeaders.get(name.toLowerCase)
+      val headers:              Map[String, String] = parsedHeaders
 
-      val cookieJar    = CookieJar(parsedCookies)
-      val url          = Url(requestPath, queryParams, "")
-      val routeId      = None
+      val cookieJar     = CookieJar(parsedCookies)
+      val url           = Url(requestPath, queryParams, "")
+      val routeId       = None
       val isDataRequest = false
 
   /** Reads `index.html` from the filesystem once at startup and serves it
