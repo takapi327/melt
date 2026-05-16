@@ -550,19 +550,17 @@ lazy val `http4s-spa-server` = project
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
   .dependsOn(runtime.jvm, `meltkit-adapter-http4s`.jvm)
 
-// ── Example: http4s SSR + Hydration ─────────────────────────────────────────
+// ── Shared SSR client (crossProject: JVM + JS) ─────────────────────────────
 //
-// crossProject for SSR components: same .melt files compile to
-// JVM (HTML string rendering) and JS (hydration entries).
-//
-//   sbt "~http4s-ssr-server/reStart"
+// Common .melt components shared by http4s-ssr, node-ssr, and jdk-ssr.
+// JVM side: SSR HTML string rendering. JS side: hydration entries.
 
-lazy val `http4s-ssr-client` = crossProject(JVMPlatform, JSPlatform)
+lazy val `ssr-client` = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
-  .in(file("examples/http4s-ssr/client"))
+  .in(file("examples/ssr-client"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                    := "http4s-ssr-client",
+    name                    := "ssr-client",
     publish / skip          := true,
     scalaVersion            := scala38,
     meltcManageCompilerDeps := false,
@@ -587,6 +585,12 @@ lazy val `http4s-ssr-client` = crossProject(JVMPlatform, JSPlatform)
     }
   )
 
+// ── Example: http4s SSR + Hydration ─────────────────────────────────────────
+//
+//   sbt "~http4s-ssr-server/reStart"
+
+lazy val ssrClientDir = file("examples/ssr-client")
+
 lazy val `http4s-ssr-server` = project
   .in(file("examples/http4s-ssr/server"))
   .settings(BuildSettings.commonSettings)
@@ -599,10 +603,68 @@ lazy val `http4s-ssr-server` = project
       "org.http4s" %% "http4s-dsl"          % "0.23.33",
       "io.circe"   %% "circe-generic"       % "0.14.9"
     ),
-    meltcAssetManifestClient := Some(`http4s-ssr-client`.js)
+    meltcManageCompilerDeps  := false,
+    meltcCompilerClasspath   := (codegen.jvm / Compile / fullClasspath).value.files,
+    meltcAssetManifestClient := Some(`ssr-client`.js),
+    meltcViteDistDir         := ssrClientDir / "dist",
+    meltcViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json"
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin, RevolverPlugin)
-  .dependsOn(`http4s-ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)
+  .dependsOn(`ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)
+
+// ── Example: Node.js SSR + Hydration (pure Scala, no cats-effect / http4s) ──
+//
+//   sbt "node-ssr-server/run"
+
+lazy val `node-ssr-server` = project
+  .in(file("examples/node-ssr/server"))
+  .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                            := "node-ssr-server",
+    publish / skip                  := true,
+    scalaVersion                    := scala38,
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+    jsEnv                           := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
+    meltMode                        := Some(Node),
+    meltcManageCompilerDeps         := false,
+    meltcManageRuntimeDeps          := false,
+    meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files,
+    meltcAssetManifestClient        := Some(`ssr-client`.js),
+    meltcViteDistDir                := ssrClientDir / "dist",
+    meltcViteManifestPath           := ssrClientDir / "dist" / ".vite" / "manifest.json",
+    // Include client shared sources so .melt files are compiled in SSR mode
+    // (meltMode := Node) without duplicating them.
+    Compile / unmanagedSourceDirectories +=
+      (`ssr-client`.js / baseDirectory).value / ".." / "shared" / "src" / "main" / "scala",
+    libraryDependencies ++= Seq(
+      "io.circe" %%% "circe-core"    % "0.14.9",
+      "io.circe" %%% "circe-generic" % "0.14.9",
+      "io.circe" %%% "circe-parser"  % "0.14.9"
+    )
+  )
+  .dependsOn(`meltkit-node`)
+
+// ── Example: JDK SSR + Hydration (pure Scala, no cats-effect / http4s) ──
+//
+//   sbt "jdk-ssr-server/run"
+
+lazy val `jdk-ssr-server` = project
+  .in(file("examples/jdk-ssr/server"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name           := "jdk-ssr-server",
+    publish / skip := true,
+    scalaVersion   := scala38,
+    meltcManageCompilerDeps := false,
+    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
+    meltcAssetManifestClient := Some(`ssr-client`.js),
+    meltcViteDistDir         := ssrClientDir / "dist",
+    meltcViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(`ssr-client`.jvm, meltkit.jvm)
 
 // ── Root (no publish) ──
 lazy val root = project
@@ -645,12 +707,16 @@ lazy val root = project
     boundary,
     `http4s-spa-client`,
     `http4s-spa-server`,
-    `http4s-ssr-client`.jvm,
-    `http4s-ssr-client`.js,
-    `http4s-ssr-server`
+    `ssr-client`.jvm,
+    `ssr-client`.js,
+    `http4s-ssr-server`,
+    `node-ssr-server`,
+    `jdk-ssr-server`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty // root project does not cross-compile
+    crossScalaVersions := Seq.empty, // root project does not cross-compile
+    // meltcViteDistDir / meltcViteManifestPath are used only when meltcProd := true
+    Global / excludeLintKeys ++= Set(meltcViteDistDir, meltcViteManifestPath)
   )

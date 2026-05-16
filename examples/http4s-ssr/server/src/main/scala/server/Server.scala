@@ -56,9 +56,9 @@ object Server extends IOApp.Simple:
 
     // Locals example: attach a request-id to every request via middleware,
     // then read it in a handler using IO.pure (works because of Defer).
-    app.use { (info, next) =>
-      val id = info.header("x-request-id").getOrElse(java.util.UUID.randomUUID().toString)
-      IO { info.locals.set(requestId, id) } *> next
+    app.use { (event, resolve) =>
+      val id = event.header("x-request-id").getOrElse(java.util.UUID.randomUUID().toString)
+      IO { event.locals.set(requestId, id) } *> resolve()
     }
 
     val createTodo = Endpoint.post("api/todos").body[CreateTodoBody]
@@ -187,7 +187,11 @@ object Server extends IOApp.Simple:
       nextId    <- Ref.of[IO, Int](initialUsers.size + 1)
       httpApp   <-
         Http4sAdapter
-          .ssrRoutes(buildApp(todoStore, userStore, nextId), AssetManifest.clientDistDir, AssetManifest.manifest)
+          .ssrRoutes(
+            buildApp(todoStore, userStore, nextId),
+            fs2.io.file.Path(AssetManifest.clientDistDir),
+            AssetManifest.manifest
+          )
           .map(_.orNotFound)
       _ <- EmberServerBuilder
              .default[IO]
