@@ -16,14 +16,9 @@ import cats.syntax.all.*
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
+import meltkit.exceptions.BodyDecodeException
 import org.http4s.headers.Cookie as Http4sCookieHeader
 import org.http4s.Request
-
-/** An exception raised by [[RequestBody.decodeOrBadRequest]] when body
-  * decoding fails. [[Http4sAdapter]] catches this and converts it to a 400
-  * Bad Request response.
-  */
-private[http4s] final class BodyDecodeException(val error: BodyError) extends RuntimeException(error.message)
 
 /** http4s implementation of [[ServerMeltContext]] for SSR (JVM and Node.js).
   *

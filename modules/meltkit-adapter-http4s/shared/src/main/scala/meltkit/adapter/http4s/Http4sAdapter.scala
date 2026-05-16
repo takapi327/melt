@@ -18,6 +18,7 @@ import fs2.io.file.Files
 import fs2.io.file.Path
 import meltkit.*
 import meltkit.codec.BodyDecoder
+import meltkit.exceptions.BodyDecodeException
 import org.http4s.headers.`Content-Type`
 import org.http4s.headers.`Set-Cookie` as Http4sSetCookie
 import org.http4s.headers.Cookie as Http4sCookieHeader
@@ -128,24 +129,24 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
             }
         }
 
+      val event = Http4sAdapter.buildRequestEvent(request, locals)
+
       matched match
         case None =>
           app.notFoundHandler match
             case None          => OptionT.none
             case Some(handler) =>
-              val info       = Http4sAdapter.buildRequestInfo(request, locals)
-              val lazyEffect = meltkit.Defer[F].defer {
+              val innerEffect = meltkit.Defer[F].defer {
                 handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]]))
               }
-              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
+              val wrapped = Http4sAdapter.runHooks(app.hooks, event, innerEffect)
               OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           route.tryHandle(rawValues, factory) match
             case None        => OptionT.none
             case Some(thunk) =>
-              val info       = Http4sAdapter.buildRequestInfo(request, locals)
-              val lazyEffect = meltkit.Defer[F].defer {
+              val innerEffect = meltkit.Defer[F].defer {
                 thunk().handleErrorWith {
                   case e: BodyDecodeException =>
                     Concurrent[F].pure(Response.badRequest(e.error.message))
@@ -159,7 +160,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
                         }
                 }
               }
-              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
+              val wrapped = Http4sAdapter.runHooks(app.hooks, event, innerEffect)
               OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
     }
 
@@ -314,14 +315,14 @@ object Http4sAdapter:
           route.tryHandle(rawValues, factory) match
             case None        => OptionT.none
             case Some(thunk) =>
-              val info       = buildRequestInfo(request, locals)
+              val event      = buildRequestEvent(request, locals)
               val lazyEffect = meltkit.Defer[F].defer {
                 thunk().handleErrorWith {
                   case e: BodyDecodeException =>
                     Concurrent[F].pure(Response.badRequest(e.error.message))
                 }
               }
-              val wrapped = app.middlewares.foldRight(lazyEffect) { (mw, acc) => mw(info, acc) }
+              val wrapped = runHooks(app.hooks, event, lazyEffect)
               OptionT.liftF(wrapped.map(toHttp4sResponse[F]))
     }
 
@@ -369,8 +370,27 @@ object Http4sAdapter:
 
   // ── private helpers ────────────────────────────────────────────────────────
 
-  private[http4s] def buildRequestInfo[F2[_]](request: org.http4s.Request[F2], sharedLocals: Locals): RequestInfo =
-    new RequestInfo:
+  /** Runs a list of hooks around an inner effect, producing the final response. */
+  private[http4s] def runHooks[F2[_]](
+    hooks: List[ServerHook[F2]],
+    event: RequestEvent[F2],
+    inner: F2[Response]
+  ): F2[Response] =
+    if hooks.isEmpty then inner
+    else
+      val combined = ServerHook.sequence(hooks*)
+      combined.handle(
+        event,
+        new Resolve[F2]:
+          def apply():                        F2[Response] = inner
+          def apply(options: ResolveOptions): F2[Response] = inner // ResolveOptions handled in Phase 2
+      )
+
+  private[http4s] def buildRequestEvent[F2[_]](
+    request:      org.http4s.Request[F2],
+    sharedLocals: Locals
+  ): RequestEvent[F2] =
+    new RequestEvent[F2]:
       val method      = request.method.name
       val requestPath = request.uri.path.renderString
       val locals      = sharedLocals
@@ -399,6 +419,11 @@ object Http4sAdapter:
 
       def header(name: String): Option[String]      = parsedHeaders.get(name.toLowerCase)
       val headers:              Map[String, String] = parsedHeaders
+
+      val cookieJar     = CookieJar(parsedCookies)
+      val url           = Url(requestPath, queryParams, "")
+      val routeId       = None
+      val isDataRequest = false
 
   /** Reads `index.html` from the filesystem once at startup and serves it
     * for every GET request that no other route handles.

@@ -53,7 +53,7 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
   /** The request-scoped local store, populated by middleware.
     *
     * One [[Locals]] instance is created per matched request and shared between
-    * all middleware (via [[RequestInfo.locals]]) and the route handler.
+    * all hooks (via [[RequestEvent.locals]]) and the route handler.
     * On the browser there is no middleware, so this map is always empty.
     *
     * {{{
