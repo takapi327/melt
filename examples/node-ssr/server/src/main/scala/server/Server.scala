@@ -6,10 +6,10 @@
 
 package server
 
-import scala.scalajs.js
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.scalajs.js
 
 import components.*
 import meltkit.*
@@ -69,7 +69,7 @@ object Server:
     User(5, "Eve", "eve@example.com", "Manager")
   )
 
-  private val userStore = ListBuffer.from(initialUsers)
+  private val userStore  = ListBuffer.from(initialUsers)
   private var nextUserId = initialUsers.size + 1
 
   private val todoId = param[String]("id")
@@ -100,8 +100,9 @@ object Server:
 
     post("api/todos" / todoId / "toggle") { ctx =>
       val id = ctx.params.id
-      todoStore.zipWithIndex.find(_._1.id == id).foreach { case (todo, idx) =>
-        todoStore(idx) = todo.copy(done = !todo.done)
+      todoStore.zipWithIndex.find(_._1.id == id).foreach {
+        case (todo, idx) =>
+          todoStore(idx) = todo.copy(done = !todo.done)
       }
       Future.successful(ctx.text(""))
     }
@@ -185,12 +186,14 @@ object Server:
   def main(args: Array[String]): Unit =
     // Read template via Node.js fs module (scala.io.Source is JVM-only).
     // __dirname points to the fastopt output dir; resolve relative to process.cwd() instead.
-    val fs       = js.Dynamic.global.require("fs")
-    val nodePath = js.Dynamic.global.require("path")
-    val templatePath = nodePath.resolve(
-      js.Dynamic.global.process.cwd(),
-      "examples/node-ssr/server/src/main/resources/index.html"
-    ).asInstanceOf[String]
+    val fs           = js.Dynamic.global.require("fs")
+    val nodePath     = js.Dynamic.global.require("path")
+    val templatePath = nodePath
+      .resolve(
+        js.Dynamic.global.process.cwd(),
+        "examples/node-ssr/server/src/main/resources/index.html"
+      )
+      .asInstanceOf[String]
     val template = fs.readFileSync(templatePath, "utf8").asInstanceOf[String]
     NodeServer
       .builder(app)
@@ -207,7 +210,7 @@ object Server:
     // Use Web Crypto API (available in Node.js) instead of java.util.UUID
     val bytes = new scala.scalajs.js.typedarray.Uint8Array(16)
     js.Dynamic.global.crypto.getRandomValues(bytes)
-    bytes.toArray.map(b => f"${b & 0xff}%02x").mkString
+    bytes.toArray.map(b => f"${ b & 0xff }%02x").mkString
 
 /** Minimal JSON encoder/decoder — avoids circe dependency on the server. */
 private object SimpleJson:
@@ -226,7 +229,9 @@ private object SimpleJson:
     ts.map(encodeTodo).mkString("[", ",", "]")
 
   def encodeUser(u: User): String =
-    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(u.role) }"}"""
+    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(
+        u.role
+      ) }"}"""
 
   def encodeUsers(us: List[User]): String =
     us.map(encodeUser).mkString("[", ",", "]")

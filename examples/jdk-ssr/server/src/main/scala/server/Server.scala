@@ -8,9 +8,9 @@ package server
 
 import java.util.UUID
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 import components.*
 import meltkit.*
@@ -49,11 +49,13 @@ object Server:
   case class UpdateUserBody(name: String, email: String, role: String)
 
   // Mutable stores (synchronized for JVM multi-threaded access)
-  private val todoStore = ListBuffer.synchronized(ListBuffer[Todo](
-    Todo(UUID.randomUUID().toString, "Learn Melt SSR"),
-    Todo(UUID.randomUUID().toString, "Build a component", done = true),
-    Todo(UUID.randomUUID().toString, "Deploy to production")
-  ))
+  private val todoStore = ListBuffer.synchronized(
+    ListBuffer[Todo](
+      Todo(UUID.randomUUID().toString, "Learn Melt SSR"),
+      Todo(UUID.randomUUID().toString, "Build a component", done = true),
+      Todo(UUID.randomUUID().toString, "Deploy to production")
+    )
+  )
 
   private val initialUsers = List(
     User(1, "Alice", "alice@example.com", "Admin"),
@@ -63,7 +65,7 @@ object Server:
     User(5, "Eve", "eve@example.com", "Manager")
   )
 
-  private val userStore = ListBuffer.synchronized(ListBuffer.from(initialUsers))
+  private val userStore            = ListBuffer.synchronized(ListBuffer.from(initialUsers))
   @volatile private var nextUserId = initialUsers.size + 1
 
   private val todoId = param[String]("id")
@@ -92,8 +94,9 @@ object Server:
 
     post("api/todos" / todoId / "toggle") { ctx =>
       todoStore.synchronized {
-        todoStore.zipWithIndex.find(_._1.id == ctx.params.id).foreach { case (todo, idx) =>
-          todoStore(idx) = todo.copy(done = !todo.done)
+        todoStore.zipWithIndex.find(_._1.id == ctx.params.id).foreach {
+          case (todo, idx) =>
+            todoStore(idx) = todo.copy(done = !todo.done)
         }
       }
       Future.successful(ctx.text(""))
@@ -119,7 +122,7 @@ object Server:
     post("api/users") { ctx =>
       ctx.body.json[CreateUserBody].map {
         case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
-          val id = synchronized { val i = nextUserId; nextUserId += 1; i }
+          val id   = synchronized { val i = nextUserId; nextUserId += 1; i }
           val user = User(id = id, name = body.name, email = body.email, role = body.role)
           userStore.synchronized { userStore += user }
           ctx.json(SimpleJson.encodeUser(user))
@@ -206,7 +209,9 @@ private object SimpleJson:
     ts.map(encodeTodo).mkString("[", ",", "]")
 
   def encodeUser(u: User): String =
-    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(u.role) }"}"""
+    s"""{"id":${ u.id },"name":"${ escapeJson(u.name) }","email":"${ escapeJson(u.email) }","role":"${ escapeJson(
+        u.role
+      ) }"}"""
 
   def encodeUsers(us: List[User]): String =
     us.map(encodeUser).mkString("[", ",", "]")
