@@ -6,26 +6,54 @@
 
 package meltkit.ssg
 
-/** JVM entry point forked by `sbt-meltc`'s `meltcStaticGenerate` task.
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.Duration
+
+import meltkit.{ SyncRunner, Template, ViteManifest }
+
+/** Utilities for running static site generation from a `@main` entry point.
   *
-  * == Arguments ==
+  * Users define a `@main def generate()` in their project and call
+  * [[SsgRunner.configFromProps]] to build [[SsgConfig]] from the system
+  * properties injected by `sbt-meltc`'s `meltcStaticGenerate` task:
   *
-  * `args(0)` — fully-qualified class name of the user's [[SsgApp]] object
-  *             (e.g. `"docs.MySsg"`)
+  * {{{
+  * import meltkit.ssg.{ SsgGenerator, SsgRunner }
+  * import meltkit.ssg.SsgRunner.given   // brings SyncRunner[Future] into scope
   *
-  * == System properties ==
+  * @main def generate(): Unit =
+  *   val config = SsgRunner.configFromProps(
+  *     template = Template.fromFile(Paths.get("src/main/resources/index.html"))
+  *   )
+  *   SsgGenerator.run(MyApp.app, config)
+  * }}}
+  *
+  * == System properties set by `meltcStaticGenerate` ==
   *
   *   - `meltcSsgOutputDir`  — output directory path (required)
   *   - `meltcSsgAssetsDir`  — Vite assets directory to copy (optional)
+  *   - `meltcSsgPublicDir`  — public directory to copy verbatim to output root (optional)
   *   - `meltcSsgClean`      — set to `"false"` to skip cleaning (default: `true`)
   */
 object SsgRunner:
 
-  def main(args: Array[String]): Unit =
-    val mainClass = args.headOption.getOrElse(
-      sys.error("[meltkit-ssg] SsgApp class name not provided")
-    )
+  /** [[SyncRunner]] for [[scala.concurrent.Future]] that blocks via `Await.result`. */
+  given SyncRunner[Future] with
+    def runSync[A](fa: Future[A]): A = Await.result(fa, Duration.Inf)
 
+  /** [[SyncRunner]] for the identity effect `[A] =>> A` (synchronous, no wrapping). */
+  given SyncRunner[[A] =>> A] with
+    def runSync[A](fa: A): A = fa
+
+  /** Builds [[SsgConfig]] from system properties injected by `sbt-meltc`.
+    *
+    * @param template  HTML shell template applied to every generated page
+    * @param manifest  Vite asset manifest; defaults to [[ViteManifest.empty]]
+    */
+  def configFromProps(
+    template: Template,
+    manifest: ViteManifest = ViteManifest.empty
+  ): SsgConfig =
     val outputDir =
       Option(System.getProperty("meltcSsgOutputDir"))
         .map(java.nio.file.Paths.get(_))
@@ -36,24 +64,18 @@ object SsgRunner:
         .filter(_.nonEmpty)
         .map(java.nio.file.Paths.get(_))
 
+    val publicDir =
+      Option(System.getProperty("meltcSsgPublicDir"))
+        .filter(_.nonEmpty)
+        .map(java.nio.file.Paths.get(_))
+
     val clean = Option(System.getProperty("meltcSsgClean")).forall(_ != "false")
 
-    // Load the user's SsgApp object via reflection.
-    // generate(config) captures syncRunner from the trait — no using arg needed.
-    val app =
-      try
-        Class
-          .forName(mainClass + "$")
-          .getField("MODULE$")
-          .get(null)
-          .asInstanceOf[SsgApp[?]]
-      catch
-        case _: ClassNotFoundException =>
-          sys.error(s"[meltkit-ssg] SsgApp class not found: '$mainClass'. Check meltcSsgMainClass in your build.sbt.")
-        case _: ClassCastException =>
-          sys.error(
-            s"[meltkit-ssg] '$mainClass' does not extend SsgApp. Make sure the object extends meltkit.ssg.SsgApp."
-          )
-
-    app.generate(SsgConfig(outputDir, assetsDir, cleanOutput = clean))
-    println(s"[meltkit-ssg] Done. Output: $outputDir")
+    SsgConfig(
+      outputDir   = outputDir,
+      template    = template,
+      manifest    = manifest,
+      assetsDir   = assetsDir,
+      publicDir   = publicDir,
+      cleanOutput = clean
+    )
