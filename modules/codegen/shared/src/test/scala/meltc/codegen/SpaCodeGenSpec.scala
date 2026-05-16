@@ -2017,7 +2017,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("import scala.scalajs.js\n"), code)
     assert(code.contains("import scala.scalajs.js.annotation.{ JSExportTopLevel, JSImport }"), code)
-    assert(code.contains("""@js.native @JSImport("/styles/global.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("""@js.native @JSImport("/styles/global.css", JSImport.Namespace)"""), code)
     assert(code.contains("private object _melt_import_0 extends js.Object"), code)
   }
 
@@ -2029,9 +2029,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |</script>
         |<div></div>""".stripMargin
     val code = compile(src)
-    assert(code.contains("""@js.native @JSImport("/styles/reset.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("""@js.native @JSImport("/styles/reset.css", JSImport.Namespace)"""), code)
     assert(code.contains("private object _melt_import_0 extends js.Object"), code)
-    assert(code.contains("""@js.native @JSImport("/styles/theme.css", JSImport.SideEffect)"""), code)
+    assert(code.contains("""@js.native @JSImport("/styles/theme.css", JSImport.Namespace)"""), code)
     assert(code.contains("private object _melt_import_1 extends js.Object"), code)
   }
 
