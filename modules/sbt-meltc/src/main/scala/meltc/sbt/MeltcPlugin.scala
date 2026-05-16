@@ -456,15 +456,22 @@ object MeltcPlugin extends AutoPlugin {
     val meltcSsgOutputDir =
       settingKey[File]("Output directory for generated static HTML files")
 
-    /** Fully-qualified class name of the [[SsgApp]] object to run.
-      * Must be set explicitly, e.g. `meltcSsgMainClass := "com.example.MySsg"`.
+    /** Fully-qualified class name of the `@main def generate()` entry point.
+      *
+      * Must be set explicitly, e.g. `meltcSsgMainClass := "com.example.generate"`.
+      * The class must call [[meltkit.ssg.SsgGenerator.run]] internally and read
+      * its config via [[meltkit.ssg.SsgRunner.configFromProps]].
       */
     val meltcSsgMainClass =
-      settingKey[String]("Fully-qualified class name of the SsgApp object")
+      settingKey[String]("Fully-qualified class name of the @main generate entry point")
 
-    /** Optional Vite assets directory to copy alongside the generated HTML. */
+    /** Optional Vite assets directory to copy into `outputDir/assets`. */
     val meltcSsgAssetsDir =
       settingKey[Option[File]]("Vite assets directory to copy alongside generated HTML")
+
+    /** Optional public directory whose contents are copied verbatim to [[meltcSsgOutputDir]]. */
+    val meltcSsgPublicDir =
+      settingKey[Option[File]]("Public directory to copy verbatim to the SSG output root")
 
     /** When `true` (the default), clean [[meltcSsgOutputDir]] before generation. */
     val meltcSsgCleanOutput =
@@ -668,6 +675,7 @@ object MeltcPlugin extends AutoPlugin {
     meltcSsgOutputDir   := target.value / "meltc-ssg",
     meltcSsgMainClass   := "",
     meltcSsgAssetsDir   := None,
+    meltcSsgPublicDir   := None,
     meltcSsgCleanOutput := true,
 
     meltcStaticGenerate := {
@@ -681,12 +689,13 @@ object MeltcPlugin extends AutoPlugin {
       if (mainCls.isEmpty)
         throw new MessageOnlyException(
           "[sbt-meltc] meltcSsgMainClass is not set. " +
-            "Add `meltcSsgMainClass := \"com.example.MySsg\"` to your build.sbt."
+            "Add `meltcSsgMainClass := \"com.example.generate\"` to your build.sbt."
         )
 
       val cp     = (Compile / fullClasspath).value
       val outDir = meltcSsgOutputDir.value
       val assets = meltcSsgAssetsDir.value
+      val public = meltcSsgPublicDir.value
       val clean  = meltcSsgCleanOutput.value
       val cpStr  = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
@@ -695,7 +704,8 @@ object MeltcPlugin extends AutoPlugin {
           Seq(s"-DmeltcSsgOutputDir=${ outDir.getAbsolutePath }") ++
           Seq(s"-DmeltcSsgClean=$clean") ++
           assets.map(a => s"-DmeltcSsgAssetsDir=${ a.getAbsolutePath }").toSeq ++
-          Seq("meltkit.ssg.SsgRunner", mainCls)
+          public.map(p => s"-DmeltcSsgPublicDir=${ p.getAbsolutePath }").toSeq ++
+          Seq(mainCls)
 
       log.info(s"[sbt-meltc] Generating static site: $mainCls -> ${ outDir.getAbsolutePath }")
       val exitCode = Fork.java(ForkOptions(), jvmArgs)
