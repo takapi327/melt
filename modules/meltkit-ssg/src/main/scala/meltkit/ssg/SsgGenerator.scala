@@ -59,35 +59,36 @@ object SsgGenerator:
       }
 
     // 3. Generate HTML for each (route, path) pair
-    targets.foreach { case (route, rawPath) =>
-      val segments  = splitPath(rawPath)
-      val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-      val factory   = new SsgMeltContextFactory[F](rawPath, config)
+    targets.foreach {
+      case (route, rawPath) =>
+        val segments  = splitPath(rawPath)
+        val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
+        val factory   = new SsgMeltContextFactory[F](rawPath, config)
 
-      route.tryHandle(rawValues, factory) match
-        case None =>
-          System.err.println(s"[meltkit-ssg] Warning: route did not match '$rawPath' — skipped")
+        route.tryHandle(rawValues, factory) match
+          case None =>
+            System.err.println(s"[meltkit-ssg] Warning: route did not match '$rawPath' — skipped")
 
-        case Some(handler) =>
-          val response: Response =
-            try SyncRunner[F].runSync(handler())
-            catch
-              case e: Throwable =>
-                throw new RuntimeException(
-                  s"[meltkit-ssg] Failed to render '$rawPath': ${ e.getMessage }",
-                  e
-                )
+          case Some(handler) =>
+            val response: Response =
+              try SyncRunner[F].runSync(handler())
+              catch
+                case e: Throwable =>
+                  throw new RuntimeException(
+                    s"[meltkit-ssg] Failed to render '$rawPath': ${ e.getMessage }",
+                    e
+                  )
 
-          response match
-            case plain: PlainResponse if plain.body.nonEmpty =>
-              val normalizedPath = normalizePath(rawPath)
-              val outFile        = out.resolve(normalizedPath.stripPrefix("/"))
-              Files.createDirectories(outFile.getParent)
-              Files.writeString(outFile, plain.body)
-              if !config.quiet then println(s"[meltkit-ssg] Generated: $normalizedPath")
+            response match
+              case plain: PlainResponse if plain.body.nonEmpty =>
+                val normalizedPath = normalizePath(rawPath)
+                val outFile        = out.resolve(normalizedPath.stripPrefix("/"))
+                Files.createDirectories(outFile.getParent)
+                Files.writeString(outFile, plain.body)
+                if !config.quiet then println(s"[meltkit-ssg] Generated: $normalizedPath")
 
-            case _ =>
-              if !config.quiet then println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
+              case _ =>
+                if !config.quiet then println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
     }
 
     // 4. Copy Vite assets

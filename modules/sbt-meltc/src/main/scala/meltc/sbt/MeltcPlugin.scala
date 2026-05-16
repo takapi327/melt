@@ -632,8 +632,7 @@ object MeltcPlugin extends AutoPlugin {
           Def.task(Seq.empty[File])
       }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
-
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
   )
 
   private def compileMeltFiles(
