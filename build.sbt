@@ -626,14 +626,14 @@ lazy val `node-ssr-server` = project
     scalaVersion                    := scala38,
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-    jsEnv                           := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
-    meltMode                        := Some(Node),
-    meltcManageCompilerDeps         := false,
-    meltcManageRuntimeDeps          := false,
-    meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files,
-    meltcAssetManifestClient        := Some(`ssr-client`.js),
-    meltcViteDistDir                := ssrClientDir / "dist",
-    meltcViteManifestPath           := ssrClientDir / "dist" / ".vite" / "manifest.json",
+    jsEnv                    := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
+    meltMode                 := Some(Node),
+    meltcManageCompilerDeps  := false,
+    meltcManageRuntimeDeps   := false,
+    meltcCompilerClasspath   := (codegen.jvm / Compile / fullClasspath).value.files,
+    meltcAssetManifestClient := Some(`ssr-client`.js),
+    meltcViteDistDir         := ssrClientDir / "dist",
+    meltcViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json",
     // Include client shared sources so .melt files are compiled in SSR mode
     // (meltMode := Node) without duplicating them.
     Compile / unmanagedSourceDirectories +=
@@ -654,11 +654,11 @@ lazy val `jdk-ssr-server` = project
   .in(file("examples/jdk-ssr/server"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name           := "jdk-ssr-server",
-    publish / skip := true,
-    scalaVersion   := scala38,
-    meltcManageCompilerDeps := false,
-    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files,
+    name                     := "jdk-ssr-server",
+    publish / skip           := true,
+    scalaVersion             := scala38,
+    meltcManageCompilerDeps  := false,
+    meltcCompilerClasspath   := (codegen.jvm / Compile / fullClasspath).value.files,
     meltcAssetManifestClient := Some(`ssr-client`.js),
     meltcViteDistDir         := ssrClientDir / "dist",
     meltcViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json"
