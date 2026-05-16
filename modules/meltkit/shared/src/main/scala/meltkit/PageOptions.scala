@@ -6,7 +6,7 @@
 
 package meltkit
 
-/** Per-route rendering options, inspired by SvelteKit's page options.
+/** Per-route rendering options.
   *
   * Passed to [[MeltApp.page]] to control how the page is rendered:
   *
@@ -25,8 +25,7 @@ package meltkit
   * @param csr           whether to hydrate/client-render the page (default `true`)
   * @param prerender     whether to prerender the page at build time (default `Off`)
   * @param trailingSlash how to handle trailing slashes (default `Never`)
-  * @param entries       concrete URL paths to generate for dynamic routes (equivalent to
-  *                      Next.js `generateStaticParams` / SvelteKit `entries()`).
+  * @param entries       concrete URL paths to generate for dynamic routes.
   *                      Required when the route contains path parameters and
   *                      `prerender` is `On` or `Auto`. Ignored for static routes.
   */

@@ -6,15 +6,13 @@
 
 package meltkit
 
-/** SvelteKit's `handle()` hook equivalent.
-  *
-  * Wraps around the request pipeline and can modify the request event,
+/** A hook that wraps around the request pipeline and can modify the request event,
   * transform the HTML response, or filter response headers.
   *
   * Register via `app.use()`:
   *
   * {{{
-  * // Simple form — like SvelteKit's handle
+  * // Simple form
   * app.use { (event, resolve) =>
   *   event.cookie("session") match
   *     case None    => Future.successful(Unauthorized())

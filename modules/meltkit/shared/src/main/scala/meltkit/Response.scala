@@ -185,8 +185,7 @@ object Response:
     * Allowed: paths that start with `/` but not `//`.
     * Rejected: `http://...`, `https://...`, `//...`, `javascript:...`, etc.
     *
-    * This mirrors the same-origin check in SvelteKit's `goto()` and prevents
-    * open-redirect attacks when user-supplied input flows into `ctx.redirect`.
+    * Prevents open-redirect attacks when user-supplied input flows into `ctx.redirect`.
     */
   private[meltkit] def requireRelativePath(path: String): Unit =
     if path.startsWith("//") || path.contains("://") then

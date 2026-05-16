@@ -93,7 +93,7 @@ object MeltcPlugin extends AutoPlugin {
       * `ModuleKind.ESModule` and a small-modules split style so each
       * component ends up in its own public chunk.
       *
-      * For full-page hydration (Approach A, SvelteKit-like), use
+      * For full-page hydration (Approach A), use
       * [[meltcHydrationRoot]] instead. The two settings are mutually
       * exclusive: `meltcHydrationRoot` takes precedence when set.
       */
@@ -107,8 +107,7 @@ object MeltcPlugin extends AutoPlugin {
       * All other `.melt` files are compiled without a hydration export,
       * keeping them as internal Scala.js chunks.
       *
-      * This mirrors SvelteKit's single-entry-point hydration model:
-      * one bootstrap `<script>` mounts the entire component tree from
+      * One bootstrap `<script>` mounts the entire component tree from
       * the server-rendered HTML markers.
       *
       * Default: `None` — falls back to [[meltcHydration]] behaviour.
@@ -444,7 +443,7 @@ object MeltcPlugin extends AutoPlugin {
 
     // ── SSG task keys ─────────────────────────────────────────────────────
 
-    /** Generates static HTML pages by running the [[SsgApp]] object.
+    /** Generates static HTML pages by forking the user's `@main def generate()` entry point.
       * Only meaningful when `meltMode := SSG`.
       */
     val meltcStaticGenerate =

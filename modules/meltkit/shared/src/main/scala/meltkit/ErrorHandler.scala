@@ -6,8 +6,7 @@
 
 package meltkit
 
-/** Handles unexpected errors in route handlers, inspired by SvelteKit's
-  * `handleError` hook.
+/** Handles unexpected errors in route handlers.
   *
   * {{{
   * val errorHandler: ErrorHandler[Future] = (error, event, status, message) =>

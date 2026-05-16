@@ -6,8 +6,7 @@
 
 package meltkit
 
-/** The request context passed to [[ServerHook]] handlers, inspired by
-  * SvelteKit's `RequestEvent`.
+/** The request context passed to [[ServerHook]] handlers.
   *
   * Provides read-only access to headers, query params, and cookies,
   * plus mutable cookie access via [[cookieJar]] and the request-scoped

@@ -6,7 +6,7 @@
 
 package meltkit
 
-/** A platform-independent URL abstraction, inspired by SvelteKit's `URL`.
+/** A platform-independent URL abstraction.
   *
   * Used by [[RequestEvent]] and [[Request]] to expose the parsed URL
   * of the incoming request.
