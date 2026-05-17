@@ -13,7 +13,7 @@ import meltkit.SyncRunner
 
 /** Provides [[SyncRunner]] given instances for use with [[SsgGenerator]].
   *
-  * Import `SsgRunner.given` to bring the appropriate instance into scope:
+  * Import `meltkit.ssg.SsgRunner.given` to bring the appropriate instance into scope:
   *
   * {{{
   * import meltkit.ssg.SsgRunner.given   // SyncRunner[Future] or SyncRunner[[A]=>>A]
