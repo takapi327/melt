@@ -147,6 +147,6 @@ object DocsSsg:
 @main def generate(): Unit =
   val config = SsgConfig(
     outputDir = Paths.get("docs-dist"),
-    template  = Template.fromResource("index.html")
+    template  = Template.fromFile(Paths.get("docs/src/main/resources/index.html"))
   )
   SsgGenerator.run(DocsSsg.buildApp(), config)
