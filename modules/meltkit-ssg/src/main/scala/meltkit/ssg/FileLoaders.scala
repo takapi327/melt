@@ -22,6 +22,13 @@ extension (obj: Template.type)
   /** Reads a template from the file at `path` using the platform default charset. */
   def fromFile(path: Path): Template = obj.fromString(Files.readString(path))
 
+  /** Reads a template from a classpath resource by name (e.g. `"index.html"`). */
+  def fromResource(name: String): Template =
+    val stream = Thread.currentThread().getContextClassLoader.getResourceAsStream(name)
+    if stream == null then sys.error(s"[meltkit-ssg] Classpath resource not found: $name")
+    try obj.fromString(scala.io.Source.fromInputStream(stream, "UTF-8").mkString)
+    finally stream.close()
+
 extension (obj: ViteManifest.type)
   /** Reads and parses a Vite manifest from the file at `path`. */
   def fromFile(path: Path, uriPrefix: String = "scalajs"): ViteManifest =

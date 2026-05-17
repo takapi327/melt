@@ -8,14 +8,14 @@ package meltkit.ssg
 
 import java.nio.file.{ Files, Path }
 
-import meltkit.{ MeltApp, PathSegment, PlainResponse, PrerenderOption, Response, SyncRunner }
+import meltkit.{ PathSegment, PlainResponse, PrerenderOption, Response, ServerMeltKitPlatform, SyncRunner }
 
 /** Core static site generation engine.
   *
-  * Collects routes from [[MeltApp]] that have [[meltkit.PageOptions.prerender]] set to
-  * [[PrerenderOption.On]] or [[PrerenderOption.Auto]], derives concrete URL paths for
-  * each, runs the handler synchronously via [[SyncRunner]], and writes the resulting
-  * HTML to disk.
+  * Collects routes registered with a [[meltkit.PageOptions]] argument where
+  * [[meltkit.PageOptions.prerender]] is set to [[PrerenderOption.On]] or
+  * [[PrerenderOption.Auto]], derives concrete URL paths for each, runs the handler
+  * synchronously via [[SyncRunner]], and writes the resulting HTML to disk.
   *
   * Static routes (no path parameters) yield a single output path derived from the route
   * segments. Dynamic routes (containing [[PathSegment.Param]]) require concrete paths to
@@ -27,7 +27,7 @@ object SsgGenerator:
     *
     * @tparam F effect type; must have a [[SyncRunner]] instance
     */
-  def run[F[_]: SyncRunner](app: MeltApp[F], config: SsgConfig): Unit =
+  def run[F[_]: SyncRunner](app: ServerMeltKitPlatform[F], config: SsgConfig): Unit =
     val out = config.outputDir
 
     // 1. Clean output directory

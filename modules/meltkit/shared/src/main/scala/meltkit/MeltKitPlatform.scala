@@ -127,8 +127,8 @@ trait MeltKitPlatform[F[_], C]:
     sub.routes.foreach { r => _routes += r.withPrefix(prefix) }
 
 /** Server-specific extension of [[MeltKitPlatform]] that adds data-mutation
-  * routes (`post` / `put` / `patch` / `delete`) and typed endpoint support
-  * via [[on]].
+  * routes (`post` / `put` / `patch` / `delete`), typed endpoint support
+  * via [[on]], and page route registration with [[PageOptions]] for SSG.
   *
   * Extended by the JVM and Node.js platform [[MeltKit]] subclasses only.
   * Browser routing handles GET navigation only, so these methods are
@@ -139,6 +139,12 @@ trait MeltKitPlatform[F[_], C]:
   * cookies (`ctx.cookie`), and headers (`ctx.header`).
   *
   * {{{
+  * val app = MeltKit[IO]()
+  *
+  * // GET route with SSG prerender options
+  * val On = PageOptions(prerender = PrerenderOption.On)
+  * app.get("about", On) { ctx => IO.delay(ctx.render(AboutPage())) }
+  *
   * // Simple route with body access
   * app.post("api/todos") { ctx =>
   *   ctx.body.json[CreateTodo].flatMap {
@@ -159,6 +165,38 @@ trait MeltKitPlatform[F[_], C]:
 trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
   private val _hooks = ListBuffer[ServerHook[F]]()
+
+  // ── Page Options ──────────────────────────────────────────────────────
+
+  private val _pageOptions = scala.collection.mutable.Map[List[PathSegment], PageOptions]()
+
+  /** Returns the [[PageOptions]] for a route registered with a [[PageOptions]] argument, if any. */
+  def pageOptionsFor(segments: List[PathSegment]): Option[PageOptions] =
+    _pageOptions.get(segments)
+
+  // ── GET with PageOptions ───────────────────────────────────────────────
+
+  /** Registers a GET route with [[PageOptions]] (e.g. for SSG prerendering).
+    *
+    * {{{
+    * val On = PageOptions(prerender = PrerenderOption.On)
+    * app.get("about", On) { ctx => IO.delay(ctx.render(AboutPage())) }
+    * app.get(lang / "guide" / guide, On.copy(entries = ...)) { ctx => ... }
+    * }}}
+    */
+  def get[P <: AnyNamedTuple](spec: PathSpec[P], options: PageOptions)(
+    handler: MeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    _pageOptions(spec.segments) = options
+    get(spec)(handler)
+
+  /** Registers a GET route with a string path and [[PageOptions]]. */
+  def get(path: String, options: PageOptions)(
+    handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    val spec = PathSpec.fromString(path)
+    _pageOptions(spec.segments) = options
+    get(spec)(handler)
 
   // var + Option: handlers are single (overwrite), unlike hooks (accumulate).
   private var _notFoundHandler: Option[MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]] = None
