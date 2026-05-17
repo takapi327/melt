@@ -6,6 +6,8 @@
 
 package meltkit
 
+import scala.NamedTuple.AnyNamedTuple
+
 import melt.runtime.render.RenderResult
 
 /** The main application class for building melt servers.
