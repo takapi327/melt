@@ -6,6 +6,9 @@
 
 package meltkit
 
+import scala.concurrent.Future
+import scala.util.{ Failure, Success }
+
 /** A typeclass for blocking execution of `F[A]` effects.
   *
   * Used by [[meltkit.ssg.SsgGenerator]] to run route handlers synchronously
@@ -29,3 +32,22 @@ trait SyncRunner[F[_]]:
 
 object SyncRunner:
   def apply[F[_]](using r: SyncRunner[F]): SyncRunner[F] = r
+
+  /** [[SyncRunner]] for [[scala.concurrent.Future]].
+    *
+    * Extracts the value immediately via [[Future.value]] without blocking.
+    * SSG handlers must complete synchronously (i.e. return `Future.successful`);
+    * a not-yet-completed `Future` will throw at runtime.
+    */
+  given SyncRunner[Future] with
+    def runSync[A](fa: Future[A]): A = fa.value match
+      case Some(Success(v)) => v
+      case Some(Failure(e)) => throw e
+      case None             =>
+        throw new RuntimeException(
+          "[meltkit-ssg] Future was not completed synchronously. SSG handlers must be synchronous."
+        )
+
+  /** [[SyncRunner]] for the identity effect `[A] =>> A` (synchronous, no wrapping). */
+  given SyncRunner[[A] =>> A] with
+    def runSync[A](fa: A): A = fa

@@ -36,7 +36,8 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
   private val lang:         String                    = "en",
   private val basePath:     String                    = "",
   override val locals:      Locals                    = new Locals(),
-  private val nonce:        Option[String]            = None
+  private val nonce:        Option[String]            = None,
+  private val defaultTitle: String                    = ""
 )(using ec: ExecutionContext)
   extends ServerMeltContext[Future, P, B, RenderResult]:
 
@@ -105,7 +106,7 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
         val html = template.render(
           augmented,
           manifest,
-          title    = "",
+          title    = defaultTitle,
           lang     = lang,
           basePath = basePath,
           vars     = Map.empty,

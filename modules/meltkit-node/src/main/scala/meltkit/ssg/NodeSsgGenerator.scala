@@ -6,9 +6,26 @@
 
 package meltkit.ssg
 
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.scalajs.js
+import scala.NamedTuple.AnyNamedTuple
 
-import meltkit.{ NodePath, PathSegment, PlainResponse, PrerenderOption, Response, ServerMeltKitPlatform, SyncRunner }
+import melt.runtime.render.RenderResult
+
+import meltkit.{
+  MeltContext,
+  MeltContextFactory,
+  NodeMeltContext,
+  NodePath,
+  PathSegment,
+  PlainResponse,
+  PrerenderOption,
+  Response,
+  ServerConfig,
+  ServerMeltKitPlatform,
+  SyncRunner
+}
+import meltkit.codec.BodyDecoder
 
 /** Core static site generation engine for Node.js.
   *
@@ -28,10 +45,14 @@ object NodeSsgGenerator:
 
   /** Runs static site generation for `app` according to `config`.
     *
-    * @tparam F effect type; must have a [[SyncRunner]] instance (identity effect only on Node.js)
+    * `config.outputDir` must be set; an [[IllegalArgumentException]] is thrown if it is `None`.
     */
-  def run[F[_]: SyncRunner](app: ServerMeltKitPlatform[F], config: NodeSsgConfig): Unit =
-    val out = config.outputDir
+  def run(app: ServerMeltKitPlatform[Future], config: ServerConfig)(using ExecutionContext): Unit =
+    val out = config.outputDir.getOrElse(
+      throw new IllegalArgumentException(
+        "[meltkit-ssg] ServerConfig.outputDir must be set to run NodeSsgGenerator"
+      )
+    )
 
     // 1. Clean output directory
     if config.cleanOutput && NodeFsSsg.existsSync(out) then
@@ -67,7 +88,22 @@ object NodeSsgGenerator:
       case (route, rawPath) =>
         val segments  = splitPath(rawPath)
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-        val factory   = new NodeSsgMeltContextFactory[F](rawPath, config)
+        val factory   = new MeltContextFactory[Future, RenderResult]:
+          def build[P <: AnyNamedTuple, B](
+            params:      P,
+            bodyDecoder: BodyDecoder[B]
+          ): MeltContext[Future, P, B, RenderResult] =
+            NodeMeltContext(
+              params       = params,
+              requestPath  = rawPath,
+              bodyDecoder  = bodyDecoder,
+              rawBody      = Future.successful(""),
+              templateOpt  = Some(config.template),
+              manifest     = config.manifest,
+              lang         = config.defaultLang,
+              basePath     = config.basePath,
+              defaultTitle = config.defaultTitle
+            )
 
         route.tryHandle(rawValues, factory) match
           case None =>
@@ -75,7 +111,7 @@ object NodeSsgGenerator:
 
           case Some(handler) =>
             val response: Response =
-              try SyncRunner[F].runSync(handler())
+              try SyncRunner[Future].runSync(handler())
               catch
                 case e: Throwable =>
                   throw new RuntimeException(
@@ -84,7 +120,7 @@ object NodeSsgGenerator:
                   )
 
             response match
-              case plain: PlainResponse if plain.body.nonEmpty =>
+              case plain: PlainResponse if plain.body.nonEmpty && plain.contentType.startsWith("text/") =>
                 val normalizedPath = normalizePath(rawPath)
                 val outFile        = NodePath.join(out, normalizedPath.stripPrefix("/"))
                 NodeFsSsg.mkdirSync(NodePath.dirname(outFile), js.Dynamic.literal(recursive = true))
@@ -92,7 +128,7 @@ object NodeSsgGenerator:
                 if !config.quiet then println(s"[meltkit-ssg] Generated: $normalizedPath")
 
               case _ =>
-                if !config.quiet then println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
+                if !config.quiet then println(s"[meltkit-ssg] Skipped (non-text response): $rawPath")
     }
 
     // 4. Copy Vite assets

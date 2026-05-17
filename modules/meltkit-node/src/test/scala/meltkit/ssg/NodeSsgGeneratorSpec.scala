@@ -6,6 +6,8 @@
 
 package meltkit.ssg
 
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.scalajs.concurrent.JSExecutionContext
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 
@@ -20,6 +22,8 @@ import meltkit.ssg.NodeSsgRunner.given
 
 class NodeSsgGeneratorSpec extends munit.FunSuite:
 
+  given ExecutionContext = JSExecutionContext.Implicits.queue
+
   val simpleTemplate: Template =
     Template.fromString("<html><body>%melt.body%</body></html>")
 
@@ -30,7 +34,10 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
     try f(dir)
     finally NodeFsSsg.rmSync(dir, js.Dynamic.literal(recursive = true, force = true))
 
-  def config(out: String): NodeSsgConfig = NodeSsgConfig(out, simpleTemplate)
+  def config(out: String): ServerConfig = ServerConfig(
+    template  = simpleTemplate,
+    outputDir = Some(out)
+  )
 
   val On = PageOptions(prerender = PrerenderOption.On)
 
@@ -38,24 +45,24 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("/ is written to index.html"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("", On)(ctx => ctx.render(RenderResult(body = "<p>home</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<p>home</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       assert(NodeFsSsg.existsSync(NodePath.join(out, "index.html")))
     }
 
   test("/about is written to about/index.html"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("about", On)(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("about", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<p>about</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       assert(NodeFsSsg.existsSync(NodePath.join(out, "about/index.html")))
     }
 
   test("/feed.xml is written to feed.xml (preserves extension)"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("feed.xml", On)(ctx => ctx.text("<rss/>"))
+      val app = MeltKit[Future]()
+      app.get("feed.xml", On)(ctx => Future.successful(ctx.text("<rss/>")))
       NodeSsgGenerator.run(app, config(out))
       assert(NodeFsSsg.existsSync(NodePath.join(out, "feed.xml")))
     }
@@ -64,8 +71,8 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("generated HTML wraps component body in template"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("about", On)(ctx => ctx.render(RenderResult(body = "<h1>About</h1>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("about", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<h1>About</h1>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       val html = NodeFsSsg.readFileSync(NodePath.join(out, "about/index.html"), "utf8")
       assert(html.contains("<h1>About</h1>"))
@@ -76,11 +83,11 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("dynamic route /posts/:slug generates one file per entry"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
+      val app = MeltKit[Future]()
       app.get(
         "posts" / slug,
         PageOptions(prerender = PrerenderOption.On, entries = List("/posts/hello", "/posts/world"))
-      )(ctx => ctx.render(RenderResult(body = s"<p>${ ctx.params.slug }</p>", head = "")))
+      )(ctx => Future.successful(ctx.render(RenderResult(body = s"<p>${ ctx.params.slug }</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       assert(NodeFsSsg.existsSync(NodePath.join(out, "posts/hello/index.html")))
       assert(NodeFsSsg.existsSync(NodePath.join(out, "posts/world/index.html")))
@@ -88,11 +95,11 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("dynamic route injects path parameter value into rendered HTML"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
+      val app = MeltKit[Future]()
       app.get(
         "posts" / slug,
         PageOptions(prerender = PrerenderOption.On, entries = List("/posts/scala"))
-      )(ctx => ctx.render(RenderResult(body = s"<p>${ ctx.params.slug }</p>", head = "")))
+      )(ctx => Future.successful(ctx.render(RenderResult(body = s"<p>${ ctx.params.slug }</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       val html = NodeFsSsg.readFileSync(NodePath.join(out, "posts/scala/index.html"), "utf8")
       assert(html.contains("<p>scala</p>"))
@@ -102,8 +109,8 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("route without prerender = On is not generated"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("about")(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("about")(ctx => Future.successful(ctx.render(RenderResult(body = "<p>about</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       assert(!NodeFsSsg.existsSync(NodePath.join(out, "about/index.html")))
     }
@@ -112,9 +119,9 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   test("getAll (wildcard) route is never prerendered"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.getAll { ctx => ctx.render(RenderResult(body = "<p>wildcard</p>", head = "")) }
-      app.get("about", On)(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.getAll { ctx => Future.successful(ctx.render(RenderResult(body = "<p>wildcard</p>", head = ""))) }
+      app.get("about", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<p>about</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out))
       val html = NodeFsSsg.readFileSync(NodePath.join(out, "about/index.html"), "utf8")
       assert(html.contains("<p>about</p>"))
@@ -122,18 +129,18 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
 
   // ── Non-HTML / empty-body responses ──────────────────────────────────────
 
-  test("ok response (empty body in SSG) does not create a file"):
+  test("ok response (JSON) does not create a file"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("api", On)(ctx => ctx.ok("ignored"))
+      val app = MeltKit[Future]()
+      app.get("api", On)(ctx => Future.successful(ctx.ok("ignored")))
       NodeSsgGenerator.run(app, config(out))
       assert(!NodeFsSsg.existsSync(NodePath.join(out, "api/index.html")))
     }
 
   test("notFound response does not create a file"):
     withTempDir { out =>
-      val app = MeltKit[[A] =>> A]()
-      app.get("gone", On)(ctx => ctx.notFound())
+      val app = MeltKit[Future]()
+      app.get("gone", On)(ctx => Future.successful(ctx.notFound()))
       NodeSsgGenerator.run(app, config(out))
       assert(!NodeFsSsg.existsSync(NodePath.join(out, "gone/index.html")))
     }
@@ -144,8 +151,8 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
     withTempDir { out =>
       val stale = NodePath.join(out, "stale.html")
       NodeFsSsg.writeFileSync(stale, "old content", "utf8")
-      val app = MeltKit[[A] =>> A]()
-      app.get("about", On)(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("about", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<p>about</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out).copy(cleanOutput = true))
       assert(!NodeFsSsg.existsSync(stale))
     }
@@ -154,8 +161,8 @@ class NodeSsgGeneratorSpec extends munit.FunSuite:
     withTempDir { out =>
       val stale = NodePath.join(out, "stale.html")
       NodeFsSsg.writeFileSync(stale, "old content", "utf8")
-      val app = MeltKit[[A] =>> A]()
-      app.get("about", On)(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
+      val app = MeltKit[Future]()
+      app.get("about", On)(ctx => Future.successful(ctx.render(RenderResult(body = "<p>about</p>", head = ""))))
       NodeSsgGenerator.run(app, config(out).copy(cleanOutput = false))
       assert(NodeFsSsg.existsSync(stale))
     }

@@ -10,7 +10,7 @@ import melt.runtime.Escape
 
 /** Resolves `.melt` string literal import paths to HTML `<link>` / `<script>` tags.
   *
-  * Shared by all server-side adapter contexts (`Http4sMeltContext`, `SsgMeltContext`,
+  * Shared by all server-side adapter contexts (`Http4sMeltContext`, `JvmMeltContext`,
   * `NodeMeltContext`).  Not part of the public API.
   *
   * Tag selection by extension:

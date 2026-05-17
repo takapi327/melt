@@ -6,15 +6,14 @@
 
 package meltkit.ssg
 
+import scala.concurrent.Future
+import scala.util.{ Failure, Success }
+
 import meltkit.SyncRunner
 
-/** Provides a [[SyncRunner]] given instance for use with [[NodeSsgGenerator]].
+/** Provides [[SyncRunner]] given instances for use with [[NodeSsgGenerator]].
   *
-  * Only the identity effect `[A] =>> A` is supported on Node.js/Scala.js because
-  * Scala.js runs on a single-threaded event loop and cannot block on a `Future`
-  * (no `Await.result` equivalent).
-  *
-  * Import `NodeSsgRunner.given` to bring the instance into scope:
+  * Import `NodeSsgRunner.given` to bring the instances into scope:
   *
   * {{{
   * import meltkit.ssg.NodeSsgRunner.given
@@ -23,6 +22,21 @@ import meltkit.SyncRunner
   * }}}
   */
 object NodeSsgRunner:
+
+  /** [[SyncRunner]] for [[scala.concurrent.Future]].
+    *
+    * Extracts the value immediately via [[Future.value]] without blocking.
+    * SSG handlers must complete synchronously (i.e. return `Future.successful`);
+    * a not-yet-completed `Future` will throw at runtime.
+    */
+  given SyncRunner[Future] with
+    def runSync[A](fa: Future[A]): A = fa.value match
+      case Some(Success(v)) => v
+      case Some(Failure(e)) => throw e
+      case None             =>
+        throw new RuntimeException(
+          "[meltkit-ssg] Future was not completed synchronously. SSG handlers must be synchronous."
+        )
 
   /** [[SyncRunner]] for the identity effect `[A] =>> A` (synchronous, no wrapping). */
   given SyncRunner[[A] =>> A] with

@@ -6,9 +6,26 @@
 
 package meltkit.ssg
 
-import java.nio.file.{ Files, Path }
+import java.nio.file.{ Files, Path, Paths }
 
-import meltkit.{ PathSegment, PlainResponse, PrerenderOption, Response, ServerMeltKitPlatform, SyncRunner }
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.NamedTuple.AnyNamedTuple
+
+import melt.runtime.render.RenderResult
+
+import meltkit.{
+  JvmMeltContext,
+  MeltContext,
+  MeltContextFactory,
+  PathSegment,
+  PlainResponse,
+  PrerenderOption,
+  Response,
+  ServerConfig,
+  ServerMeltKitPlatform,
+  SyncRunner
+}
+import meltkit.codec.BodyDecoder
 
 /** Core static site generation engine.
   *
@@ -25,10 +42,15 @@ object SsgGenerator:
 
   /** Runs static site generation for `app` according to `config`.
     *
-    * @tparam F effect type; must have a [[SyncRunner]] instance
+    * `config.outputDir` must be set; an [[IllegalArgumentException]] is thrown if it is `None`.
     */
-  def run[F[_]: SyncRunner](app: ServerMeltKitPlatform[F], config: SsgConfig): Unit =
-    val out = config.outputDir
+  def run(app: ServerMeltKitPlatform[Future], config: ServerConfig)(using ExecutionContext): Unit =
+    val outStr = config.outputDir.getOrElse(
+      throw new IllegalArgumentException(
+        "[meltkit-ssg] ServerConfig.outputDir must be set to run SsgGenerator"
+      )
+    )
+    val out = Paths.get(outStr)
 
     // 1. Clean output directory
     if config.cleanOutput && Files.exists(out) then deleteDirectory(out)
@@ -63,7 +85,22 @@ object SsgGenerator:
       case (route, rawPath) =>
         val segments  = splitPath(rawPath)
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-        val factory   = new SsgMeltContextFactory[F](rawPath, config)
+        val factory   = new MeltContextFactory[Future, RenderResult]:
+          def build[P <: AnyNamedTuple, B](
+            params:      P,
+            bodyDecoder: BodyDecoder[B]
+          ): MeltContext[Future, P, B, RenderResult] =
+            JvmMeltContext(
+              params       = params,
+              requestPath  = rawPath,
+              bodyDecoder  = bodyDecoder,
+              rawBody      = Future.successful(""),
+              templateOpt  = Some(config.template),
+              manifest     = config.manifest,
+              lang         = config.defaultLang,
+              basePath     = config.basePath,
+              defaultTitle = config.defaultTitle
+            )
 
         route.tryHandle(rawValues, factory) match
           case None =>
@@ -71,7 +108,7 @@ object SsgGenerator:
 
           case Some(handler) =>
             val response: Response =
-              try SyncRunner[F].runSync(handler())
+              try SyncRunner[Future].runSync(handler())
               catch
                 case e: Throwable =>
                   throw new RuntimeException(
@@ -80,7 +117,7 @@ object SsgGenerator:
                   )
 
             response match
-              case plain: PlainResponse if plain.body.nonEmpty =>
+              case plain: PlainResponse if plain.body.nonEmpty && plain.contentType.startsWith("text/") =>
                 val normalizedPath = normalizePath(rawPath)
                 val outFile        = out.resolve(normalizedPath.stripPrefix("/"))
                 Files.createDirectories(outFile.getParent)
@@ -88,11 +125,12 @@ object SsgGenerator:
                 if !config.quiet then println(s"[meltkit-ssg] Generated: $normalizedPath")
 
               case _ =>
-                if !config.quiet then println(s"[meltkit-ssg] Skipped (non-HTML response): $rawPath")
+                if !config.quiet then println(s"[meltkit-ssg] Skipped (non-text response): $rawPath")
     }
 
     // 4. Copy Vite assets
-    config.assetsDir.foreach { assetsDir =>
+    config.assetsDir.foreach { assetsDirStr =>
+      val assetsDir = Paths.get(assetsDirStr)
       if Files.isDirectory(assetsDir) then
         val target = out.resolve("assets")
         copyDirectory(assetsDir, target)
@@ -100,7 +138,8 @@ object SsgGenerator:
     }
 
     // 5. Copy public directory verbatim to output root
-    config.publicDir.foreach { publicDir =>
+    config.publicDir.foreach { publicDirStr =>
+      val publicDir = Paths.get(publicDirStr)
       if Files.isDirectory(publicDir) then
         copyDirectory(publicDir, out)
         if !config.quiet then println(s"[meltkit-ssg] Copied public: $publicDir -> $out")
