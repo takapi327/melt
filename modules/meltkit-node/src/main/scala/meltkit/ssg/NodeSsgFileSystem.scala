@@ -21,12 +21,12 @@ import meltkit.NodeFsStats
   */
 @js.native @JSImport("fs", JSImport.Namespace)
 object NodeFsSsg extends js.Object:
-  def readFileSync(path: String, encoding: String): String               = js.native
-  def writeFileSync(path: String, data: String, encoding: String): Unit  = js.native
-  def mkdirSync(path: String, options: js.Dynamic): Unit                 = js.native
-  def rmSync(path: String, options: js.Dynamic): Unit                    = js.native
-  def copyFileSync(src: String, dst: String): Unit                       = js.native
-  def readdirSync(path: String): js.Array[String]                        = js.native
-  def existsSync(path: String): Boolean                                  = js.native
-  def lstatSync(path: String): NodeFsStats                               = js.native
-  def mkdtempSync(prefix: String): String                                = js.native
+  def readFileSync(path:  String, encoding: String):                   String           = js.native
+  def writeFileSync(path: String, data:     String, encoding: String): Unit             = js.native
+  def mkdirSync(path:     String, options:  js.Dynamic):               Unit             = js.native
+  def rmSync(path:        String, options:  js.Dynamic):               Unit             = js.native
+  def copyFileSync(src:   String, dst:      String):                   Unit             = js.native
+  def readdirSync(path:   String):                                     js.Array[String] = js.native
+  def existsSync(path:    String):                                     Boolean          = js.native
+  def lstatSync(path:     String):                                     NodeFsStats      = js.native
+  def mkdtempSync(prefix: String):                                     String           = js.native

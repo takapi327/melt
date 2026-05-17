@@ -28,12 +28,12 @@ import meltkit.{ Template, ViteManifest }
 final case class NodeSsgConfig(
   outputDir:    String,
   template:     Template,
-  manifest:     ViteManifest    = ViteManifest.empty,
-  assetsDir:    Option[String]  = None,
-  publicDir:    Option[String]  = None,
-  cleanOutput:  Boolean         = true,
-  quiet:        Boolean         = false,
-  basePath:     String          = "",
-  defaultTitle: String          = "",
-  defaultLang:  String          = "en"
+  manifest:     ViteManifest   = ViteManifest.empty,
+  assetsDir:    Option[String] = None,
+  publicDir:    Option[String] = None,
+  cleanOutput:  Boolean        = true,
+  quiet:        Boolean        = false,
+  basePath:     String         = "",
+  defaultTitle: String         = "",
+  defaultLang:  String         = "en"
 )
