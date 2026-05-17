@@ -10,26 +10,18 @@ import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
-import meltkit.{ MeltContext, MeltContextFactory, Template, ViteManifest }
+import meltkit.{ MeltContext, MeltContextFactory, ViteManifest }
 import meltkit.codec.BodyDecoder
 
 /** [[MeltContextFactory]] implementation for SSG.
   *
-  * Passed to [[meltkit.Route.tryHandle]] in place of the http4s factory.
+  * Passed to [[meltkit.Route.tryHandle]] in place of the http4s / node factory.
   * After the handler runs, [[lastContext]] exposes the [[SsgMeltContext]]
   * so that [[SsgGenerator]] can read [[SsgMeltContext.capturedHtml]].
-  *
-  * [[SsgMeltContext]] extends [[ServerMeltContext]] which extends [[MeltContext]],
-  * so no `asInstanceOf` cast is required.
   */
 final class SsgMeltContextFactory[F[_]](
-  requestPath:  String,
-  template:     Template,
-  manifest:     ViteManifest,
-  basePath:     String,
-  useHydration: Boolean,
-  defaultTitle: String,
-  defaultLang:  String
+  requestPath: String,
+  config:      SsgConfig
 ) extends MeltContextFactory[F, RenderResult]:
 
   private var _lastContext: Option[SsgMeltContext[F, ?, ?]] = None
@@ -44,12 +36,12 @@ final class SsgMeltContextFactory[F[_]](
     val ctx = new SsgMeltContext[F, P, B](
       params,
       requestPath,
-      template,
-      manifest,
-      basePath,
-      useHydration,
-      defaultTitle,
-      defaultLang
+      config.template,
+      config.manifest,
+      config.basePath,
+      config.manifest ne ViteManifest.empty,
+      config.defaultTitle,
+      config.defaultLang
     )
     _lastContext = Some(ctx)
     ctx

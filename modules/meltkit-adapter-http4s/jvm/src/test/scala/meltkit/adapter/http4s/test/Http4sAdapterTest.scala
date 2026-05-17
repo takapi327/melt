@@ -428,10 +428,10 @@ class Http4sAdapterTest extends CatsEffectSuite:
 
   // ── Middleware ────────────────────────────────────────────────────────────
 
-  test("middleware runs before and after handler"):
+  test("hook runs before and after handler"):
     val app = MeltKit[IO]()
     val log = scala.collection.mutable.ListBuffer[String]()
-    app.use { (info, next) => IO(log += "before") *> next.flatMap(r => IO(log += "after").as(r)) }
+    app.use { (event, resolve) => IO(log += "before") *> resolve().flatMap(r => IO(log += "after").as(r)) }
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/ping")
@@ -444,9 +444,9 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(log.toList, List("before", "after"))
       }
 
-  test("middleware can short-circuit handler"):
+  test("hook can short-circuit handler"):
     val app = MeltKit[IO]()
-    app.use { (info, next) => IO.pure(Unauthorized()) }
+    app.use { (event, resolve) => IO.pure(Unauthorized()) }
     app.get("secret") { ctx => IO.pure(ctx.text("secret data")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/secret")
@@ -459,9 +459,9 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(resp.get.status, Status.Unauthorized)
       }
 
-  test("middleware can modify response headers"):
+  test("hook can modify response headers"):
     val app = MeltKit[IO]()
-    app.use { (info, next) => next.map(_.withHeaders(Map("X-Test" -> "mw"))) }
+    app.use { (event, resolve) => resolve().map(_.withHeaders(Map("X-Test" -> "mw"))) }
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/ping")
@@ -475,12 +475,12 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(h, List("mw"))
       }
 
-  test("multiple middlewares apply in registration order"):
+  test("multiple hooks apply in registration order"):
     val app   = MeltKit[IO]()
     val order = scala.collection.mutable.ListBuffer[Int]()
-    app.use { (_, next) => IO(order += 1) *> next }
-    app.use { (_, next) => IO(order += 2) *> next }
-    app.use { (_, next) => IO(order += 3) *> next }
+    app.use { (_, resolve) => IO(order += 1) *> resolve() }
+    app.use { (_, resolve) => IO(order += 2) *> resolve() }
+    app.use { (_, resolve) => IO(order += 3) *> resolve() }
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/ping")
@@ -490,17 +490,17 @@ class Http4sAdapterTest extends CatsEffectSuite:
       .value
       .map { _ => assertEquals(order.toList, List(1, 2, 3)) }
 
-  test("middleware receives RequestInfo with correct values"):
+  test("hook receives RequestEvent with correct values"):
     var capturedPath   = ""
     var capturedMethod = ""
     var capturedHeader = Option.empty[String]
 
     val app = MeltKit[IO]()
-    app.use { (info, next) =>
-      capturedPath   = info.requestPath
-      capturedMethod = info.method
-      capturedHeader = info.header("x-trace")
-      next
+    app.use { (event, resolve) =>
+      capturedPath   = event.requestPath
+      capturedMethod = event.method
+      capturedHeader = event.header("x-trace")
+      resolve()
     }
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
@@ -517,14 +517,14 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(capturedHeader, Some("abc123"))
       }
 
-  test("Middleware.sequence composes middlewares in order"):
-    val app   = MeltKit[IO]()
-    val order = scala.collection.mutable.ListBuffer[Int]()
-    val mw    = Middleware.sequence[IO](
-      (_, next) => IO(order += 1) *> next,
-      (_, next) => IO(order += 2) *> next
+  test("ServerHook.sequence composes hooks in order"):
+    val app      = MeltKit[IO]()
+    val order    = scala.collection.mutable.ListBuffer[Int]()
+    val combined = ServerHook.sequence[IO](
+      ServerHook((_, resolve) => IO(order += 1) *> resolve()),
+      ServerHook((_, resolve) => IO(order += 2) *> resolve())
     )
-    app.use(mw)
+    app.use(combined)
     app.get("ping") { ctx => IO.pure(ctx.text("pong")) }
 
     val req = Request[IO](method = Method.GET, uri = uri"/ping")
@@ -645,7 +645,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
   test("middleware sets local and handler reads it"):
     val key = LocalKey.make[String]
     val app = MeltKit[IO]()
-    app.use { (info, next) => IO { info.locals.set(key, "from-mw") } *> next }
+    app.use { (event, resolve) => IO { event.locals.set(key, "from-mw") } *> resolve() }
     app.on(Endpoint.get("whoami").response[String]) { ctx =>
       IO.pure(ctx.ok(ctx.locals.get(key).getOrElse("missing")))
     }
@@ -660,12 +660,12 @@ class Http4sAdapterTest extends CatsEffectSuite:
         resp.get.as[String].map(body => assert(body.contains("from-mw"), body))
       }
 
-  test("multiple middlewares can each set different locals"):
+  test("multiple hooks can each set different locals"):
     val keyA = LocalKey.make[String]
     val keyB = LocalKey.make[Int]
     val app  = MeltKit[IO]()
-    app.use { (info, next) => IO { info.locals.set(keyA, "alpha") } *> next }
-    app.use { (info, next) => IO { info.locals.set(keyB, 42) } *> next }
+    app.use { (event, resolve) => IO { event.locals.set(keyA, "alpha") } *> resolve() }
+    app.use { (event, resolve) => IO { event.locals.set(keyB, 42) } *> resolve() }
     app.on(Endpoint.get("both").response[String]) { ctx =>
       IO.pure(ctx.ok(s"${ ctx.locals.get(keyA).getOrElse("?") }:${ ctx.locals.get(keyB).getOrElse(-1) }"))
     }
@@ -700,9 +700,9 @@ class Http4sAdapterTest extends CatsEffectSuite:
   test("locals are isolated per request"):
     val key = LocalKey.make[String]
     val app = MeltKit[IO]()
-    app.use { (info, next) =>
-      val id = info.header("x-id").getOrElse("none")
-      IO { info.locals.set(key, id) } *> next
+    app.use { (event, resolve) =>
+      val id = event.header("x-id").getOrElse("none")
+      IO { event.locals.set(key, id) } *> resolve()
     }
     app.on(Endpoint.get("id").response[String]) { ctx =>
       IO.pure(ctx.ok(ctx.locals.get(key).getOrElse("missing")))

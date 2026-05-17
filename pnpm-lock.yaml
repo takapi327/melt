@@ -21,7 +21,7 @@ importers:
         specifier: ^6.3.0
         version: 6.4.2(@types/node@25.6.2)
 
-  examples/http4s-ssr:
+  examples/ssr-client:
     devDependencies:
       '@melt/vite-plugin':
         specifier: workspace:*

@@ -15,15 +15,13 @@ import melt.runtime.render.RenderResult
 import meltkit.codec.{ BodyDecoder, BodyEncoder, FormDataDecoder }
 import meltkit.exceptions.BodyDecodeException
 
-/** Node.js SSR implementation of [[ServerMeltContext]] fixed to `Future`.
+/** JVM SSR implementation of [[ServerMeltContext]] fixed to `Future`.
   *
   * `render` evaluates the component inside `Router.withPath(requestPath)(...)`,
-  * setting `Router.currentPath` for the duration of the synchronous render.
-  *
-  * For `IO`-based Node.js servers, use
-  * [[meltkit.adapter.http4s.Http4sMeltContext]] via `meltkit-adapter-http4s`.
+  * setting `Router.currentPath` via `ThreadLocal` for the duration of the
+  * synchronous render.
   */
-final class NodeMeltContext[P <: AnyNamedTuple, B](
+final class JvmMeltContext[P <: AnyNamedTuple, B](
   val params:               P,
   val requestPath:          String,
   private val _queryParams: Map[String, List[String]] = Map.empty,
@@ -48,8 +46,6 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
 
   override def queryParams: Map[String, List[String]] = _queryParams
 
-  // ── ServerMeltContext: body ────────────────────────────────────────────
-
   override val body: RequestBody[Future, B] = new RequestBody[Future, B]:
 
     def text: Future[String] = rawBody
@@ -73,8 +69,6 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
           case Left(err) => throw BodyDecodeException(err)
       }
 
-  // ── ServerMeltContext: cookies / headers ───────────────────────────────
-
   override def cookie(name: String): Option[String] = rawCookies.get(name)
 
   override def cookies: Map[String, String] = rawCookies
@@ -83,8 +77,6 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
 
   override def headers: Map[String, String] = rawHeaders
 
-  // ── MeltContext: render ────────────────────────────────────────────────
-
   override def render(component: => RenderResult): PlainResponse =
     render(component, 200)
 
@@ -92,7 +84,7 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
     templateOpt match
       case None =>
         throw new IllegalStateException(
-          "ctx.render() requires a NodeMeltContext initialized with a Template."
+          "ctx.render() requires a JvmMeltContext initialized with a Template."
         )
       case Some(template) =>
         val result    = Router.withPath(requestPath)(component)
@@ -112,8 +104,6 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
           nonce    = nonce
         )
         PlainResponse(status, "text/html; charset=utf-8", html)
-
-  // ── MeltContext: response builders ─────────────────────────────────────
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))

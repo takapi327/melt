@@ -28,7 +28,7 @@ object LocalKey:
 /** A mutable, request-scoped store for arbitrary typed values.
   *
   * One [[Locals]] instance is created per matched request and shared between
-  * all middleware (via [[RequestInfo.locals]]) and the route handler
+  * all hooks (via [[RequestEvent.locals]]) and the route handler
   * (via [[ServerMeltContext.locals]]).
   *
   * Reading values is done directly; writing is done via adapter-provided

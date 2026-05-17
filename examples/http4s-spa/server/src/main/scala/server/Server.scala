@@ -146,7 +146,11 @@ object Server extends IOApp.Simple:
       nextId    <- Ref.of[IO, Int](initialUsers.size + 1)
       httpApp   <-
         Http4sAdapter
-          .spaRoutes(buildApp(todoStore, userStore, nextId), AssetManifest.clientDistDir, AssetManifest.manifest)
+          .spaRoutes(
+            buildApp(todoStore, userStore, nextId),
+            fs2.io.file.Path(AssetManifest.clientDistDir),
+            AssetManifest.manifest
+          )
           .map(_.orNotFound)
       _ <- EmberServerBuilder
              .default[IO]

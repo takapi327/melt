@@ -1,5 +1,5 @@
 {
-  "name": "http4s-ssr",
+  "name": "ssr-client",
   "private": true,
   "devDependencies": {
     "@melt/vite-plugin": "workspace:*",

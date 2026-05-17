@@ -12,9 +12,9 @@ import scala.concurrent.Future
 /** A minimal typeclass for suspending the evaluation of an effectful computation.
   *
   * `defer(fa)` guarantees that `fa` is not evaluated until the `F` computation
-  * is actually executed by the runtime. This is equivalent to SvelteKit's
-  * `resolve(event)` pattern: the route handler is not invoked until the effect
-  * chain reaches the deferred point, ensuring middleware can set [[Locals]] before
+  * is actually executed by the runtime. The route handler is not invoked until
+  * the effect chain reaches the deferred point, ensuring middleware can set
+  * [[Locals]] before
   * the handler reads them.
   *
   * Without `defer`, route handlers are invoked eagerly at request-description time,

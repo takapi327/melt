@@ -32,9 +32,7 @@ object MeltMode {
   /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
   case object Http4s extends MeltMode
 
-  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`.
-    * Enables the [[MeltcPlugin.autoImport.meltcStaticGenerate]] task.
-    */
+  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`. */
   case object SSG extends MeltMode
 }
 
@@ -93,7 +91,7 @@ object MeltcPlugin extends AutoPlugin {
       * `ModuleKind.ESModule` and a small-modules split style so each
       * component ends up in its own public chunk.
       *
-      * For full-page hydration (Approach A, SvelteKit-like), use
+      * For full-page hydration (Approach A), use
       * [[meltcHydrationRoot]] instead. The two settings are mutually
       * exclusive: `meltcHydrationRoot` takes precedence when set.
       */
@@ -107,8 +105,7 @@ object MeltcPlugin extends AutoPlugin {
       * All other `.melt` files are compiled without a hydration export,
       * keeping them as internal Scala.js chunks.
       *
-      * This mirrors SvelteKit's single-entry-point hydration model:
-      * one bootstrap `<script>` mounts the entire component tree from
+      * One bootstrap `<script>` mounts the entire component tree from
       * the server-rendered HTML markers.
       *
       * Default: `None` — falls back to [[meltcHydration]] behaviour.
@@ -442,42 +439,6 @@ object MeltcPlugin extends AutoPlugin {
     val Http4s:  MeltMode = MeltMode.Http4s
     val SSG:     MeltMode = MeltMode.SSG
 
-    // ── SSG task keys ─────────────────────────────────────────────────────
-
-    /** Generates static HTML pages by running the [[SsgApp]] object.
-      * Only meaningful when `meltMode := SSG`.
-      */
-    val meltcStaticGenerate =
-      taskKey[Unit]("Generate static HTML pages via Meltkit SSG (requires meltMode := SSG)")
-
-    /** Output directory for the generated static HTML files.
-      * Default: `target/meltc-ssg`.
-      */
-    val meltcSsgOutputDir =
-      settingKey[File]("Output directory for generated static HTML files")
-
-    /** Fully-qualified class name of the [[SsgApp]] object to run.
-      * Must be set explicitly, e.g. `meltcSsgMainClass := "com.example.MySsg"`.
-      */
-    val meltcSsgMainClass =
-      settingKey[String]("Fully-qualified class name of the SsgApp object")
-
-    /** Optional Vite assets directory to copy alongside the generated HTML. */
-    val meltcSsgAssetsDir =
-      settingKey[Option[File]]("Vite assets directory to copy alongside generated HTML")
-
-    /** Optional public directory whose contents are copied verbatim to the output root.
-      *
-      * Files placed here are served at the site root without any path prefix.
-      * For example, `public/styles/global.css` becomes `/styles/global.css` in the output,
-      * matching an `import "/styles/global.css"` statement in a `.melt` component.
-      */
-    val meltcSsgPublicDir =
-      settingKey[Option[File]]("Static public directory copied verbatim to the SSG output root")
-
-    /** When `true` (the default), clean [[meltcSsgOutputDir]] before generation. */
-    val meltcSsgCleanOutput =
-      settingKey[Boolean]("Clean outputDir before static generation (default: true)")
   }
 
   import autoImport._
@@ -602,7 +563,9 @@ object MeltcPlugin extends AutoPlugin {
 
     meltcMeltKitConfigGenerate := Def.taskDyn {
       val client = meltcAssetManifestClient.value
-      if (client.isDefined && !hasScalaJSPlugin(thisProject.value))
+      val isNode = meltMode.value.contains(MeltMode.Node)
+      // Generate for JVM servers (no ScalaJSPlugin) OR Node.js servers (MeltMode.Node)
+      if (client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode))
         Def.task {
           generateMeltKitConfig(
             streams        = streams.value,
@@ -654,64 +617,22 @@ object MeltcPlugin extends AutoPlugin {
           Def.task {
             val distDir = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
             meltcIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
+            val isNode = meltMode.value.contains(MeltMode.Node)
             generateAssetManifest(
-              streams    = streams.value,
-              outDir     = (Compile / sourceManaged).value / "generated",
-              pkgName    = meltcAssetManifestPackage.value,
-              objectName = meltcAssetManifestObject.value,
-              report     = (clientProject / Compile / fastLinkJS).value.data,
-              distDir    = distDir
+              streams      = streams.value,
+              outDir       = (Compile / sourceManaged).value / "generated",
+              pkgName      = meltcAssetManifestPackage.value,
+              objectName   = meltcAssetManifestObject.value,
+              report       = (clientProject / Compile / fastLinkJS).value.data,
+              distDir      = distDir,
+              isNodeServer = isNode
             )
           }
         case None =>
           Def.task(Seq.empty[File])
       }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
-
-    // ── SSG task ─────────────────────────────────────────────────────────
-    meltcSsgOutputDir   := target.value / "meltc-ssg",
-    meltcSsgMainClass   := "",
-    meltcSsgAssetsDir   := None,
-    meltcSsgPublicDir   := None,
-    meltcSsgCleanOutput := true,
-
-    meltcStaticGenerate := {
-      val log     = streams.value.log
-      val mode    = meltMode.value
-      val mainCls = meltcSsgMainClass.value
-
-      if (mode != Some(MeltMode.SSG))
-        log.warn("[sbt-meltc] meltcStaticGenerate is only meaningful when meltMode := SSG")
-
-      if (mainCls.isEmpty)
-        throw new MessageOnlyException(
-          "[sbt-meltc] meltcSsgMainClass is not set. " +
-            "Add `meltcSsgMainClass := \"com.example.MySsg\"` to your build.sbt."
-        )
-
-      val cp        = (Compile / fullClasspath).value
-      val outDir    = meltcSsgOutputDir.value
-      val assets    = meltcSsgAssetsDir.value
-      val publicDir = meltcSsgPublicDir.value
-      val clean     = meltcSsgCleanOutput.value
-      val cpStr     = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
-
-      val jvmArgs =
-        Seq("-cp", cpStr) ++
-          Seq(s"-DmeltcSsgOutputDir=${ outDir.getAbsolutePath }") ++
-          Seq(s"-DmeltcSsgClean=$clean") ++
-          assets.map(a => s"-DmeltcSsgAssetsDir=${ a.getAbsolutePath }").toSeq ++
-          publicDir.map(p => s"-DmeltcSsgPublicDir=${ p.getAbsolutePath }").toSeq ++
-          Seq("meltkit.ssg.SsgRunner", mainCls)
-
-      log.info(s"[sbt-meltc] Generating static site: $mainCls -> ${ outDir.getAbsolutePath }")
-      val exitCode = Fork.java(ForkOptions(), jvmArgs)
-      if (exitCode != 0)
-        throw new MessageOnlyException(
-          s"[sbt-meltc] Static site generation failed (exit code $exitCode)"
-        )
-    }
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
   )
 
   private def compileMeltFiles(
@@ -969,12 +890,13 @@ object MeltcPlugin extends AutoPlugin {
     * component requires zero edits to this file.
     */
   private def generateAssetManifest(
-    streams:    TaskStreams,
-    outDir:     File,
-    pkgName:    String,
-    objectName: String,
-    report:     Report,
-    distDir:    File
+    streams:      TaskStreams,
+    outDir:       File,
+    pkgName:      String,
+    objectName:   String,
+    report:       Report,
+    distDir:      File,
+    isNodeServer: Boolean = false // unused, kept for binary compat
   ): Seq[File] = {
     val log = streams.log
     IO.createDirectory(outDir)
@@ -990,10 +912,11 @@ object MeltcPlugin extends AutoPlugin {
 
     val distPathLit = distDir.getAbsolutePath.replace("\\", "\\\\")
 
+    // Always use String for clientDistDir — no fs2 dependency required.
+    // http4s users can convert via Path(AssetManifest.clientDistDir).
     val code =
       s"""package $pkgName
          |
-         |import fs2.io.file.Path
          |import meltkit.ViteManifest
          |
          |/** Auto-generated by sbt-meltc — do not edit.
@@ -1001,19 +924,17 @@ object MeltcPlugin extends AutoPlugin {
          |  * Maps every `@JSExportTopLevel("hydrate", moduleID = ...)` from
          |  * the client project's Scala.js `fastLinkJS` output to its
          |  * emitted chunk file name. `clientDistDir` is the absolute path
-         |  * of the fastopt directory, for use with http4s `fileService`
-         |  * (or equivalent static content handlers in other servers).
+         |  * of the fastopt directory.
          |  *
-         |  * Regenerated automatically on every `sbt compile` — add or
-         |  * remove a `.melt` file and this object will re-flow with no
-         |  * manual edits.
+         |  * For http4s `fileService`, convert to `Path` via
+         |  * `fs2.io.file.Path(AssetManifest.clientDistDir)`.
          |  */
          |object $objectName {
          |  val manifest: ViteManifest = ViteManifest.fromEntries(Map(
          |$entriesSrc
          |  ))
          |
-         |  val clientDistDir: Path = Path("$distPathLit")
+         |  val clientDistDir: String = "$distPathLit"
          |}
          |""".stripMargin
 
@@ -1089,28 +1010,30 @@ object MeltcPlugin extends AutoPlugin {
     val manifestPathLit = manifestPath.getAbsolutePath.replace("\\", "\\\\")
     val distPathLit     = distDir.getAbsolutePath.replace("\\", "\\\\")
 
+    // Read manifest JSON at sbt compile time and embed it as a string literal.
+    // This avoids java.nio.file at runtime, making it compatible with Scala.js.
+    val manifestContent = IO.read(manifestPath).replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+
     val code =
       s"""package $pkgName
          |
-         |import fs2.io.file.Path
-         |import java.nio.charset.StandardCharsets
-         |import java.nio.file.{ Files, Paths }
          |import meltkit.ViteManifest
          |
          |/** Auto-generated by sbt-meltc (prod mode) — do not edit.
          |  *
-         |  * Loads the Vite-produced `manifest.json` at application startup.
+         |  * Embeds the Vite-produced `manifest.json` at compile time.
          |  * All chunk filenames are content-hashed by Vite, enabling
          |  * `Cache-Control: immutable` on production deployments.
          |  *
-         |  * Regenerated when `MELT_PROD=true sbt compile` is run.
+         |  * For http4s `fileService`, convert to `Path` via
+         |  * `fs2.io.file.Path(AssetManifest.clientDistDir)`.
          |  */
          |object $objectName {
          |  val manifest: ViteManifest = ViteManifest.fromString(
-         |    new String(Files.readAllBytes(Paths.get("$manifestPathLit")), StandardCharsets.UTF_8)
+         |    "$manifestContent"
          |  )
          |
-         |  val clientDistDir: Path = Path("$distPathLit")
+         |  val clientDistDir: String = "$distPathLit"
          |}
          |""".stripMargin
 
