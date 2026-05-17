@@ -4,8 +4,10 @@ import docs.CodeSamples
 
 case class Props(basePath: String = "", lang: String = "en")
 
-val base = props.basePath + "/" + props.lang
-val t    = I18n(props.lang).home
+val base    = props.basePath + "/" + props.lang
+val t       = I18n(props.lang).home
+val count   = Var(0)
+val doubled = count.map(_ * 2)
 </script>
 
 <article class="home">
@@ -63,18 +65,16 @@ val t    = I18n(props.lang).home
       </div>
       <div class="demo-card">
         <div class="demo-label">{t.demoCardLabel}</div>
-        <div class="counter-display">0</div>
-        <div class="counter-doubled">doubled = <b>0</b></div>
+        <div class="counter-display">{count}</div>
+        <div class="counter-doubled">doubled = <b>{doubled}</b></div>
         <div class="counter-buttons">
-          <button>−</button>
-          <button>+</button>
-          <button class="reset">Reset</button>
+          <button onclick={_ => count -= 1}>−</button>
+          <button onclick={_ => count += 1}>+</button>
+          <button class="reset" onclick={_ => count.set(0)}>Reset</button>
         </div>
       </div>
     </div>
   </section>
-
-  <script src="/js/counter-demo.js" defer></script>
 
   <!-- Page nav -->
   <div class="page-nav">

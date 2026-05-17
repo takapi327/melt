@@ -6,14 +6,17 @@
 
 package docs
 
+import java.nio.file.Paths
+
 import docs.components.Layout
 import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
 import meltkit.*
-import meltkit.ssg.SyncSsgApp
+import meltkit.ssg.*
+import meltkit.ssg.SsgRunner.given
 
-object DocsSsg extends SyncSsgApp:
+object DocsSsg:
 
-  override val basePath: String = ""
+  private val basePath = ""
 
   private val lang    = param[String]("lang")
   private val guide   = param[String]("guide")
@@ -53,82 +56,97 @@ object DocsSsg extends SyncSsgApp:
   )
   private val examples = List("counter", "todo-app")
 
-  kit.get("") { ctx =>
-    ctx.render(
-      Layout(
-        Layout.Props(basePath = basePath, lang = "en"),
-        children = () => Home(Home.Props(basePath = basePath, lang = "en"))
+  private val On = PageOptions(prerender = PrerenderOption.On)
+
+  def buildApp(): MeltKit[[A] =>> A] =
+    val app = MeltKit[[A] =>> A]()
+
+    app.get("", On) { ctx =>
+      ctx.render(
+        Layout(
+          Layout.Props(basePath = basePath, lang = "en"),
+          children = () => Home(Home.Props(basePath = basePath, lang = "en"))
+        )
       )
-    )
-  }
+    }
 
-  kit.get("" / lang) { ctx =>
-    val l = ctx.params.lang
-    ctx.render(
-      Layout(
-        Layout.Props(basePath = basePath, lang = l),
-        children = () => Home(Home.Props(basePath = basePath, lang = l))
+    app.get(lang, On.copy(entries = langs.map("/" + _))) { ctx =>
+      val l = ctx.params.lang
+      ctx.render(
+        Layout(
+          Layout.Props(basePath = basePath, lang = l),
+          children = () => Home(Home.Props(basePath = basePath, lang = l))
+        )
       )
-    )
-  }
+    }
 
-  kit.get("" / lang / "guide" / guide) { ctx =>
-    val l = ctx.params.lang
-    val s = ctx.params.guide
-    ctx.render(
-      Layout(
-        Layout.Props(basePath = basePath, lang = l, section = "guide", slug = s),
-        children = () => GuidePage(GuidePage.Props(slug = s))
+    app.get(
+      lang / "guide" / guide,
+      On.copy(entries = for l <- langs; g <- guides yield s"/$l/guide/$g")
+    ) { ctx =>
+      val l = ctx.params.lang
+      val s = ctx.params.guide
+      ctx.render(
+        Layout(
+          Layout.Props(basePath = basePath, lang = l, section = "guide", slug = s),
+          children = () => GuidePage(GuidePage.Props(slug = s))
+        )
       )
-    )
-  }
+    }
 
-  kit.get("" / lang / "api" / api) { ctx =>
-    val l = ctx.params.lang
-    val s = ctx.params.api
-    ctx.render(
-      Layout(
-        Layout.Props(basePath = basePath, lang = l, section = "api", slug = s),
-        children = () => ApiPage(ApiPage.Props(slug = s))
+    app.get(
+      lang / "api" / api,
+      On.copy(entries = for l <- langs; a <- apis yield s"/$l/api/$a")
+    ) { ctx =>
+      val l = ctx.params.lang
+      val s = ctx.params.api
+      ctx.render(
+        Layout(
+          Layout.Props(basePath = basePath, lang = l, section = "api", slug = s),
+          children = () => ApiPage(ApiPage.Props(slug = s))
+        )
       )
-    )
-  }
+    }
 
-  kit.get("" / lang / "examples") { ctx =>
-    val l = ctx.params.lang
-    ctx.render(
-      Layout(Layout.Props(basePath = basePath, lang = l, section = "examples"), children = () => ExamplesPage())
-    )
-  }
-
-  kit.get("" / lang / "examples" / example) { ctx =>
-    val l = ctx.params.lang
-    val s = ctx.params.example
-    ctx.render(
-      Layout(
-        Layout.Props(basePath = basePath, lang = l, section = "examples", slug = s),
-        children = () => ExamplePage(ExamplePage.Props(slug = s))
+    app.get(
+      lang / "examples",
+      On.copy(entries = langs.map(l => s"/$l/examples"))
+    ) { ctx =>
+      val l = ctx.params.lang
+      ctx.render(
+        Layout(Layout.Props(basePath = basePath, lang = l, section = "examples"), children = () => ExamplesPage())
       )
-    )
-  }
+    }
 
-  kit.get("" / lang / "changelog") { ctx =>
-    val l = ctx.params.lang
-    ctx.render(
-      Layout(Layout.Props(basePath = basePath, lang = l, section = "changelog"), children = () => ChangelogPage())
-    )
-  }
+    app.get(
+      lang / "examples" / example,
+      On.copy(entries = for l <- langs; e <- examples yield s"/$l/examples/$e")
+    ) { ctx =>
+      val l = ctx.params.lang
+      val s = ctx.params.example
+      ctx.render(
+        Layout(
+          Layout.Props(basePath = basePath, lang = l, section = "examples", slug = s),
+          children = () => ExamplePage(ExamplePage.Props(slug = s))
+        )
+      )
+    }
 
-  override val paths: List[String] =
-    langs.flatMap { lang =>
-      List(s"/$lang") ++
-        guides.map(p => s"/$lang/guide/$p") ++
-        apis.map(p => s"/$lang/api/$p") ++
-        List(s"/$lang/examples") ++
-        examples.map(p => s"/$lang/examples/$p") ++
-        List(s"/$lang/changelog")
-    } :+ "/"
+    app.get(
+      lang / "changelog",
+      On.copy(entries = langs.map(l => s"/$l/changelog"))
+    ) { ctx =>
+      val l = ctx.params.lang
+      ctx.render(
+        Layout(Layout.Props(basePath = basePath, lang = l, section = "changelog"), children = () => ChangelogPage())
+      )
+    }
 
-  override val template: Template = Template.fromResource("index.html")
+    app
 
-  override val manifest: ViteManifest = ViteManifest.empty
+@main def generate(): Unit =
+  val config = SsgConfig(
+    outputDir = Paths.get("docs-dist"),
+    template  = Template.fromResource("index.html")
+  )
+  SsgGenerator.run(DocsSsg.buildApp(), config)
