@@ -10,7 +10,7 @@ import java.nio.file.{ Files, Path }
 
 import melt.runtime.render.RenderResult
 
-import meltkit.{ MeltKit, PageOptions, PrerenderOption, Template, param }
+import meltkit.*
 import meltkit.ssg.SsgRunner.given
 
 class SsgGeneratorSpec extends munit.FunSuite:
