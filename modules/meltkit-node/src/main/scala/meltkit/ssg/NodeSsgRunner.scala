@@ -7,6 +7,7 @@
 package meltkit.ssg
 
 import scala.concurrent.Future
+import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 import scala.util.{ Failure, Success }
 
 import meltkit.SyncRunner
@@ -28,6 +29,9 @@ object NodeSsgRunner:
     * Extracts the value immediately via [[Future.value]] without blocking.
     * SSG handlers must complete synchronously (i.e. return `Future.successful`);
     * a not-yet-completed `Future` will throw at runtime.
+    *
+    * Uses [[scala.scalajs.concurrent.JSExecutionContext]] for `map`, which is
+    * always available in a Node.js environment.
     */
   given SyncRunner[Future] with
     def runSync[A](fa: Future[A]): A = fa.value match
@@ -37,7 +41,11 @@ object NodeSsgRunner:
         throw new RuntimeException(
           "[meltkit-ssg] Future was not completed synchronously. SSG handlers must be synchronous."
         )
+    def map[A, B](fa: Future[A])(f: A => B): Future[B] = fa.map(f)
+    def pure[A](a:    A):                    Future[A] = Future.successful(a)
 
   /** [[SyncRunner]] for the identity effect `[A] =>> A` (synchronous, no wrapping). */
   given SyncRunner[[A] =>> A] with
-    def runSync[A](fa: A): A = fa
+    def runSync[A](fa: A):            A = fa
+    def map[A, B](fa:  A)(f: A => B): B = f(fa)
+    def pure[A](a:     A):            A = a

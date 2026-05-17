@@ -8,7 +8,6 @@ package meltkit.ssg
 
 import java.nio.file.{ Files, Path, Paths }
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
@@ -44,7 +43,7 @@ object SsgGenerator:
     *
     * `config.outputDir` must be set; an [[IllegalArgumentException]] is thrown if it is `None`.
     */
-  def run(app: ServerMeltKitPlatform[Future], config: ServerConfig)(using ExecutionContext): Unit =
+  def run[F[_]: SyncRunner](app: ServerMeltKitPlatform[F], config: ServerConfig): Unit =
     val outStr = config.outputDir.getOrElse(
       throw new IllegalArgumentException(
         "[meltkit-ssg] ServerConfig.outputDir must be set to run SsgGenerator"
@@ -85,16 +84,16 @@ object SsgGenerator:
       case (route, rawPath) =>
         val segments  = splitPath(rawPath)
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-        val factory   = new MeltContextFactory[Future, RenderResult]:
+        val factory   = new MeltContextFactory[F, RenderResult]:
           def build[P <: AnyNamedTuple, B](
             params:      P,
             bodyDecoder: BodyDecoder[B]
-          ): MeltContext[Future, P, B, RenderResult] =
+          ): MeltContext[F, P, B, RenderResult] =
             JvmMeltContext(
               params       = params,
               requestPath  = rawPath,
               bodyDecoder  = bodyDecoder,
-              rawBody      = Future.successful(""),
+              rawBody      = summon[SyncRunner[F]].pure(""),
               templateOpt  = Some(config.template),
               manifest     = config.manifest,
               lang         = config.defaultLang,
@@ -108,7 +107,7 @@ object SsgGenerator:
 
           case Some(handler) =>
             val response: Response =
-              try SyncRunner[Future].runSync(handler())
+              try SyncRunner[F].runSync(handler())
               catch
                 case e: Throwable =>
                   throw new RuntimeException(
