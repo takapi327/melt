@@ -1,0 +1,23 @@
+<script lang="scala" props="Props">
+case class Props(slug: String = "")
+</script>
+
+<article class="page">
+  <h1 class="page-title">{props.slug}</h1>
+  <p class="page-placeholder">Example coming soon.</p>
+</article>
+
+<style>
+.page {
+  padding: 0;
+}
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-transform: capitalize;
+}
+.page-placeholder {
+  color: #718096;
+}
+</style>

@@ -666,6 +666,21 @@ lazy val `jdk-ssr-server` = project
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(`ssr-client`.jvm, meltkit.jvm)
 
+// ── Documentation site (SSG → GitHub Pages) ──────────────────────────────────
+lazy val docs = project
+  .in(file("docs"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name                    := "melt-docs",
+    publish / skip          := true,
+    scalaVersion            := scala38,
+    meltMode                := Some(SSG),
+    meltcManageCompilerDeps := false,
+    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files
+  )
+  .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
+  .dependsOn(`meltkit-ssg`)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -711,7 +726,8 @@ lazy val root = project
     `ssr-client`.js,
     `http4s-ssr-server`,
     `node-ssr-server`,
-    `jdk-ssr-server`
+    `jdk-ssr-server`,
+    docs
   )
   .settings(BuildSettings.commonSettings)
   .settings(

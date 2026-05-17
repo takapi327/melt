@@ -1,0 +1,21 @@
+<script lang="scala">
+</script>
+
+<article class="page">
+  <h1 class="page-title">Examples</h1>
+  <p class="page-placeholder">Examples coming soon.</p>
+</article>
+
+<style>
+.page {
+  padding: 0;
+}
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.page-placeholder {
+  color: #718096;
+}
+</style>

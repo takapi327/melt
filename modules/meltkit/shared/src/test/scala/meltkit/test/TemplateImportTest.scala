@@ -67,9 +67,14 @@ class TemplateImportTest extends munit.FunSuite:
     assertEquals(tag, """<link rel="stylesheet" href="/assets/global-abc123.css">""")
   }
 
-  test("resolveTag: CSS path NOT in manifest is served as-is") {
+  test("resolveTag: CSS path NOT in manifest uses basePath prefix (empty basePath)") {
     val tag = ImportTagResolver.resolveTag("/styles/unknown.css", manifest, basePath = "")
     assertEquals(tag, """<link rel="stylesheet" href="/styles/unknown.css">""")
+  }
+
+  test("resolveTag: CSS path NOT in manifest uses basePath prefix (non-empty basePath)") {
+    val tag = ImportTagResolver.resolveTag("/styles/global.css", ViteManifest.empty, basePath = "/melt")
+    assertEquals(tag, """<link rel="stylesheet" href="/melt/styles/global.css">""")
   }
 
   test("resolveTag: JS path found in manifest emits <script type=module>") {

@@ -11,6 +11,7 @@ project/project/target/
 .bsp/
 .bloop/
 project/metals.sbt
+*/metals.sbt
 
 # Scala
 *.class
