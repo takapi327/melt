@@ -32,9 +32,7 @@ object MeltMode {
   /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
   case object Http4s extends MeltMode
 
-  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`.
-    * Enables the [[MeltcPlugin.autoImport.meltcStaticGenerate]] task.
-    */
+  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`. */
   case object SSG extends MeltMode
 }
 
@@ -93,7 +91,7 @@ object MeltcPlugin extends AutoPlugin {
       * `ModuleKind.ESModule` and a small-modules split style so each
       * component ends up in its own public chunk.
       *
-      * For full-page hydration (Approach A, SvelteKit-like), use
+      * For full-page hydration (Approach A), use
       * [[meltcHydrationRoot]] instead. The two settings are mutually
       * exclusive: `meltcHydrationRoot` takes precedence when set.
       */
@@ -107,8 +105,7 @@ object MeltcPlugin extends AutoPlugin {
       * All other `.melt` files are compiled without a hydration export,
       * keeping them as internal Scala.js chunks.
       *
-      * This mirrors SvelteKit's single-entry-point hydration model:
-      * one bootstrap `<script>` mounts the entire component tree from
+      * One bootstrap `<script>` mounts the entire component tree from
       * the server-rendered HTML markers.
       *
       * Default: `None` — falls back to [[meltcHydration]] behaviour.
@@ -442,33 +439,6 @@ object MeltcPlugin extends AutoPlugin {
     val Http4s:  MeltMode = MeltMode.Http4s
     val SSG:     MeltMode = MeltMode.SSG
 
-    // ── SSG task keys ─────────────────────────────────────────────────────
-
-    /** Generates static HTML pages by running the [[SsgApp]] object.
-      * Only meaningful when `meltMode := SSG`.
-      */
-    val meltcStaticGenerate =
-      taskKey[Unit]("Generate static HTML pages via Meltkit SSG (requires meltMode := SSG)")
-
-    /** Output directory for the generated static HTML files.
-      * Default: `target/meltc-ssg`.
-      */
-    val meltcSsgOutputDir =
-      settingKey[File]("Output directory for generated static HTML files")
-
-    /** Fully-qualified class name of the [[SsgApp]] object to run.
-      * Must be set explicitly, e.g. `meltcSsgMainClass := "com.example.MySsg"`.
-      */
-    val meltcSsgMainClass =
-      settingKey[String]("Fully-qualified class name of the SsgApp object")
-
-    /** Optional Vite assets directory to copy alongside the generated HTML. */
-    val meltcSsgAssetsDir =
-      settingKey[Option[File]]("Vite assets directory to copy alongside generated HTML")
-
-    /** When `true` (the default), clean [[meltcSsgOutputDir]] before generation. */
-    val meltcSsgCleanOutput =
-      settingKey[Boolean]("Clean outputDir before static generation (default: true)")
   }
 
   import autoImport._
@@ -662,48 +632,7 @@ object MeltcPlugin extends AutoPlugin {
           Def.task(Seq.empty[File])
       }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
-
-    // ── SSG task ─────────────────────────────────────────────────────────
-    meltcSsgOutputDir   := target.value / "meltc-ssg",
-    meltcSsgMainClass   := "",
-    meltcSsgAssetsDir   := None,
-    meltcSsgCleanOutput := true,
-
-    meltcStaticGenerate := {
-      val log     = streams.value.log
-      val mode    = meltMode.value
-      val mainCls = meltcSsgMainClass.value
-
-      if (mode != Some(MeltMode.SSG))
-        log.warn("[sbt-meltc] meltcStaticGenerate is only meaningful when meltMode := SSG")
-
-      if (mainCls.isEmpty)
-        throw new MessageOnlyException(
-          "[sbt-meltc] meltcSsgMainClass is not set. " +
-            "Add `meltcSsgMainClass := \"com.example.MySsg\"` to your build.sbt."
-        )
-
-      val cp     = (Compile / fullClasspath).value
-      val outDir = meltcSsgOutputDir.value
-      val assets = meltcSsgAssetsDir.value
-      val clean  = meltcSsgCleanOutput.value
-      val cpStr  = cp.files.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
-
-      val jvmArgs =
-        Seq("-cp", cpStr) ++
-          Seq(s"-DmeltcSsgOutputDir=${ outDir.getAbsolutePath }") ++
-          Seq(s"-DmeltcSsgClean=$clean") ++
-          assets.map(a => s"-DmeltcSsgAssetsDir=${ a.getAbsolutePath }").toSeq ++
-          Seq("meltkit.ssg.SsgRunner", mainCls)
-
-      log.info(s"[sbt-meltc] Generating static site: $mainCls -> ${ outDir.getAbsolutePath }")
-      val exitCode = Fork.java(ForkOptions(), jvmArgs)
-      if (exitCode != 0)
-        throw new MessageOnlyException(
-          s"[sbt-meltc] Static site generation failed (exit code $exitCode)"
-        )
-    }
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
   )
 
   private def compileMeltFiles(

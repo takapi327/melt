@@ -102,6 +102,29 @@ abstract class MeltApp[F[_]] extends ServerMeltKitPlatform[F]:
     _pageOptions(path.segments) = options
     get(path)(handler)
 
+  /** Registers a page route (GET) with a string path and handler. */
+  def page(path: String)(
+    handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    val spec = PathSpec.fromString(path)
+    _pageOptions(spec.segments) = PageOptions()
+    get(spec)(handler)
+
+  /** Registers a page route (GET) with a string path, options, and handler. */
+  def page(path: String, options: PageOptions)(
+    handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
+  ): Unit =
+    val spec = PathSpec.fromString(path)
+    _pageOptions(spec.segments) = options
+    get(spec)(handler)
+
+  /** Registers a page route (GET) with a typed path, options, and handler. */
+  def page[P <: AnyNamedTuple](path: PathSpec[P], options: PageOptions)(
+    handler: MeltContext[F, P, Unit, RenderResult] => F[Response]
+  ): Unit =
+    _pageOptions(path.segments) = options
+    get(path)(handler)
+
   /** Registers a page route for a static component (no data loading). */
   def page[P <: AnyNamedTuple](path: PathSpec[P])(
     component: => RenderResult

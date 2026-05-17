@@ -10,7 +10,7 @@ import scala.collection.mutable
 
 import org.scalajs.dom
 
-/** SvelteKit-style claim hydration coordinator.
+/** Claim-based hydration coordinator.
   *
   * During initial hydration the generated `_meltHydrateEntry` function
   * calls [[withCursor]] with a [[HydrationCursor]] that walks the

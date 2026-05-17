@@ -6,54 +6,27 @@
 
 package meltkit.ssg
 
-/** JVM entry point forked by `sbt-meltc`'s `meltcStaticGenerate` task.
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.Duration
+
+import meltkit.SyncRunner
+
+/** Provides [[SyncRunner]] given instances for use with [[SsgGenerator]].
   *
-  * == Arguments ==
+  * Import `SsgRunner.given` to bring the appropriate instance into scope:
   *
-  * `args(0)` — fully-qualified class name of the user's [[SsgApp]] object
-  *             (e.g. `"docs.MySsg"`)
+  * {{{
+  * import meltkit.ssg.SsgRunner.given   // SyncRunner[Future] or SyncRunner[[A]=>>A]
   *
-  * == System properties ==
-  *
-  *   - `meltcSsgOutputDir`  — output directory path (required)
-  *   - `meltcSsgAssetsDir`  — Vite assets directory to copy (optional)
-  *   - `meltcSsgClean`      — set to `"false"` to skip cleaning (default: `true`)
+  * SsgGenerator.run(MyApp.app, config)
+  * }}}
   */
 object SsgRunner:
 
-  def main(args: Array[String]): Unit =
-    val mainClass = args.headOption.getOrElse(
-      sys.error("[meltkit-ssg] SsgApp class name not provided")
-    )
+  /** [[SyncRunner]] for [[scala.concurrent.Future]] that blocks via `Await.result`. */
+  given SyncRunner[Future] with
+    def runSync[A](fa: Future[A]): A = Await.result(fa, Duration.Inf)
 
-    val outputDir =
-      Option(System.getProperty("meltcSsgOutputDir"))
-        .map(java.nio.file.Paths.get(_))
-        .getOrElse(sys.error("[meltkit-ssg] meltcSsgOutputDir system property not set"))
-
-    val assetsDir =
-      Option(System.getProperty("meltcSsgAssetsDir"))
-        .filter(_.nonEmpty)
-        .map(java.nio.file.Paths.get(_))
-
-    val clean = Option(System.getProperty("meltcSsgClean")).forall(_ != "false")
-
-    // Load the user's SsgApp object via reflection.
-    // generate(config) captures syncRunner from the trait — no using arg needed.
-    val app =
-      try
-        Class
-          .forName(mainClass + "$")
-          .getField("MODULE$")
-          .get(null)
-          .asInstanceOf[SsgApp[?]]
-      catch
-        case _: ClassNotFoundException =>
-          sys.error(s"[meltkit-ssg] SsgApp class not found: '$mainClass'. Check meltcSsgMainClass in your build.sbt.")
-        case _: ClassCastException =>
-          sys.error(
-            s"[meltkit-ssg] '$mainClass' does not extend SsgApp. Make sure the object extends meltkit.ssg.SsgApp."
-          )
-
-    app.generate(SsgConfig(outputDir, assetsDir, cleanOutput = clean))
-    println(s"[meltkit-ssg] Done. Output: $outputDir")
+  /** [[SyncRunner]] for the identity effect `[A] =>> A` (synchronous, no wrapping). */
+  given SyncRunner[[A] =>> A] with
+    def runSync[A](fa: A): A = fa
