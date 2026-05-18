@@ -18,7 +18,6 @@ private object NodeOs extends js.Object:
   def tmpdir(): String = js.native
 
 import meltkit.*
-import meltkit.ssg.NodeSsgRunner.given
 
 class NodeSsgGeneratorSpec extends munit.FunSuite:
 
