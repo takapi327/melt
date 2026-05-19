@@ -52,6 +52,9 @@ jobs:
       - name: Generate Vite inputs
         run: sbt docsJVM/meltcViteInputGenerate
 
+      - name: Build vite-plugin
+        run: pnpm --filter @melt/vite-plugin build
+
       - name: Vite build
         run: pnpm exec vite build
         working-directory: docs
