@@ -61,8 +61,9 @@ private[meltkit] class NodeHttpBinding(
           rawCookies   = cookies,
           templateOpt  = Some(config.template),
           manifest     = config.manifest,
-          lang         = "en",
+          lang         = config.defaultLang,
           basePath     = config.basePath,
+          defaultTitle = config.defaultTitle,
           locals       = locals,
           nonce        = nonce
         )

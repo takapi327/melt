@@ -13,23 +13,14 @@ import melt.runtime.render.RenderResult
 /** The main application class for building melt servers.
   *
   * Extends [[ServerMeltKitPlatform]] to inherit the existing routing DSL
-  * (`get()`, `post()`, `use()`, `on()`, etc.) and adds higher-level
-  * convenience methods: `page()`, `api()`, `hooks()`.
+  * (`get()`, `post()`, `page()`, `use()`, `on()`, etc.) and adds higher-level
+  * convenience methods: `api()`, `hooks()`.
   *
   * Placed in the `meltkit` package so it can access `private[meltkit]`
   * members (`routes`, `middlewares`, `MeltContextFactory`, etc.).
   *
   * The only type-class constraints on `F[_]` are `Functor`, `Pure`, and
   * `Defer` — cats-effect is not required. `Future` works out of the box.
-  *
-  * {{{
-  * val app = new MeltApp[Future]:
-  *   page("/")(ctx => Future.successful(ctx.render(HomePage())))
-  *
-  *   post("api/users") { ctx =>
-  *     ctx.body.json[CreateUser].flatMap(UserService.create).map(ctx.created(_))
-  *   }
-  * }}}
   */
 abstract class MeltApp[F[_]] extends ServerMeltKitPlatform[F]:
 
@@ -71,66 +62,6 @@ abstract class MeltApp[F[_]] extends ServerMeltKitPlatform[F]:
 
   /** Returns the CSP configuration, if set. */
   def cspConfig: Option[CspConfig] = _cspConfig
-
-  // ── Page Options ──────────────────────────────────────────────────────
-
-  private val _pageOptions = scala.collection.mutable.Map[List[PathSegment], PageOptions]()
-
-  /** Returns the [[PageOptions]] for a route, if registered via [[page]]. */
-  def pageOptionsFor(segments: List[PathSegment]): Option[PageOptions] =
-    _pageOptions.get(segments)
-
-  // ── Page Routes ───────────────────────────────────────────────────────
-
-  /** Registers a page route (GET) with a handler.
-    *
-    * Delegates to `get()`, so the handler receives a [[MeltContext]].
-    * `render()`, `ok()`, `json()`, `params`, and `locals` are all available.
-    * For Cookie/Header access, use [[ServerHook]] or [[Middleware]] to
-    * populate `locals`.
-    *
-    * {{{
-    * app.page("users" / userId) { ctx =>
-    *   UserService.findById(ctx.params.id).map(u => ctx.render(UserPage(u)))
-    * }
-    * }}}
-    */
-  def page[P <: AnyNamedTuple](path: PathSpec[P])(
-    handler: MeltContext[F, P, Unit, RenderResult] => F[Response],
-    options: PageOptions = PageOptions()
-  ): Unit =
-    _pageOptions(path.segments) = options
-    get(path)(handler)
-
-  /** Registers a page route (GET) with a string path and handler. */
-  def page(path: String)(
-    handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
-  ): Unit =
-    val spec = PathSpec.fromString(path)
-    _pageOptions(spec.segments) = PageOptions()
-    get(spec)(handler)
-
-  /** Registers a page route (GET) with a string path, options, and handler. */
-  def page(path: String, options: PageOptions)(
-    handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
-  ): Unit =
-    val spec = PathSpec.fromString(path)
-    _pageOptions(spec.segments) = options
-    get(spec)(handler)
-
-  /** Registers a page route (GET) with a typed path, options, and handler. */
-  def page[P <: AnyNamedTuple](path: PathSpec[P], options: PageOptions)(
-    handler: MeltContext[F, P, Unit, RenderResult] => F[Response]
-  ): Unit =
-    _pageOptions(path.segments) = options
-    get(path)(handler)
-
-  /** Registers a page route for a static component (no data loading). */
-  def page[P <: AnyNamedTuple](path: PathSpec[P])(
-    component: => RenderResult
-  )(using Pure[F]): Unit =
-    _pageOptions(path.segments) = PageOptions()
-    get(path)(ctx => Pure[F].pure(ctx.render(component)))
 
   // ── API Routes ────────────────────────────────────────────────────────
 
