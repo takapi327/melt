@@ -12,7 +12,7 @@ import docs.components.Layout
 import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
 import meltkit.*
 import meltkit.ssg.*
-import meltkit.ssg.SsgRunner.given
+import meltkit.syntax.*
 
 object DocsSsg:
 
@@ -70,7 +70,7 @@ object DocsSsg:
       )
     }
 
-    app.get(lang, On.copy(entries = langs.map("/" + _))) { ctx =>
+    app.get("" / lang, On.copy(entries = langs.map("/" + _))) { ctx =>
       val l = ctx.params.lang
       ctx.render(
         Layout(
@@ -81,7 +81,7 @@ object DocsSsg:
     }
 
     app.get(
-      lang / "guide" / guide,
+      "" / lang / "guide" / guide,
       On.copy(entries = for l <- langs; g <- guides yield s"/$l/guide/$g")
     ) { ctx =>
       val l = ctx.params.lang
@@ -95,7 +95,7 @@ object DocsSsg:
     }
 
     app.get(
-      lang / "api" / api,
+      "" / lang / "api" / api,
       On.copy(entries = for l <- langs; a <- apis yield s"/$l/api/$a")
     ) { ctx =>
       val l = ctx.params.lang
@@ -109,7 +109,7 @@ object DocsSsg:
     }
 
     app.get(
-      lang / "examples",
+      "" / lang / "examples",
       On.copy(entries = langs.map(l => s"/$l/examples"))
     ) { ctx =>
       val l = ctx.params.lang
@@ -119,7 +119,7 @@ object DocsSsg:
     }
 
     app.get(
-      lang / "examples" / example,
+      "" / lang / "examples" / example,
       On.copy(entries = for l <- langs; e <- examples yield s"/$l/examples/$e")
     ) { ctx =>
       val l = ctx.params.lang
@@ -133,7 +133,7 @@ object DocsSsg:
     }
 
     app.get(
-      lang / "changelog",
+      "" / lang / "changelog",
       On.copy(entries = langs.map(l => s"/$l/changelog"))
     ) { ctx =>
       val l = ctx.params.lang
@@ -145,8 +145,8 @@ object DocsSsg:
     app
 
 @main def generate(): Unit =
-  val config = SsgConfig(
-    outputDir = Paths.get("docs-dist"),
+  val config = ServerConfig(
+    outputDir = Some("docs-dist"),
     template  = Template.fromFile(Paths.get("docs/src/main/resources/index.html"))
   )
   SsgGenerator.run(DocsSsg.buildApp(), config)

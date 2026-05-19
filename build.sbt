@@ -661,12 +661,11 @@ lazy val docs = project
     name                    := "melt-docs",
     publish / skip          := true,
     scalaVersion            := scala38,
-    meltMode                := Some(SSG),
     meltcManageCompilerDeps := false,
     meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(`meltkit-ssg`)
+  .dependsOn(meltkit.jvm)
 
 // ── Root (no publish) ──
 lazy val root = project
