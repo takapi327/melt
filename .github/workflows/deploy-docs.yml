@@ -58,9 +58,13 @@ jobs:
       - name: Vite build
         run: pnpm exec vite build
         working-directory: docs
+        env:
+          MELT_BASE_PATH: /melt/
 
       - name: SSG generate
         run: sbt 'docsJVM/runMain docs.generate'
+        env:
+          MELT_BASE_PATH: /melt/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

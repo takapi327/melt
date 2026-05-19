@@ -14,6 +14,7 @@ const scalaInputs = existsSync(inputsFile)
 
 export default {
   root: __dirname,
+  base: process.env.MELT_BASE_PATH ?? '/',
   plugins: [melt()],
   build: {
     manifest: true,
