@@ -28,11 +28,11 @@ import scala.concurrent.{ ExecutionContext, Future }
   */
 object NodeServer:
 
-  def builder(app: MeltApp[Future])(using ExecutionContext): Builder =
+  def builder(app: ServerMeltKitPlatform[Future])(using ExecutionContext): Builder =
     Builder(app)
 
   case class Builder(
-    app:              MeltApp[Future],
+    app:              ServerMeltKitPlatform[Future],
     host:             String               = "0.0.0.0",
     port:             Int                  = 3000,
     templateContent:  Option[String]       = None,

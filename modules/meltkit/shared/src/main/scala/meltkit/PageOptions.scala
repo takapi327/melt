@@ -8,7 +8,7 @@ package meltkit
 
 /** Per-route rendering options.
   *
-  * Passed to [[MeltApp.page]] to control how the page is rendered:
+  * Passed to [[ServerMeltKitPlatform.get]] to control how the page is rendered:
   *
   * {{{
   * app.page("dashboard")(handler, PageOptions(ssr = true, csr = true))

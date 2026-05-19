@@ -653,8 +653,16 @@ lazy val `jdk-ssr-server` = project
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(`ssr-client`.jvm, meltkit.jvm)
 
-// ── Documentation site (SSG → GitHub Pages) ──────────────────────────────────
-lazy val docs = project
+// ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
+//
+// Shared:  .melt components + DocsApp routes
+// JVM:     JdkServer (SSR dev) + SsgGenerator (static build)
+// JS:      meltkit-browser hydration (meltcHydration := true auto-generates entries)
+//
+//   sbt "docs/jvm/run server"   ← SSR dev server
+//   sbt "docs/jvm/run generate" ← static site generation
+lazy val docs = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
   .in(file("docs"))
   .settings(BuildSettings.commonSettings)
   .settings(
@@ -665,7 +673,21 @@ lazy val docs = project
     meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(meltkit.jvm)
+  .dependsOn(meltkit)
+  .jsConfigure(_.dependsOn(`meltkit-browser`))
+  .jsSettings(
+    meltcHydration                  := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
+    }
+  )
+  .jvmSettings(
+    meltcAssetManifestClient := Some(LocalProject("docsJS")),
+    meltcViteDistDir         := file("docs") / "dist",
+    meltcViteManifestPath    := file("docs") / "dist" / ".vite" / "manifest.json"
+  )
 
 // ── Root (no publish) ──
 lazy val root = project
@@ -712,7 +734,8 @@ lazy val root = project
     `http4s-ssr-server`,
     `node-ssr-server`,
     `jdk-ssr-server`,
-    docs
+    docs.jvm,
+    docs.js
   )
   .settings(BuildSettings.commonSettings)
   .settings(

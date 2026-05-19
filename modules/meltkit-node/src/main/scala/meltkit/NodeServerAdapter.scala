@@ -18,7 +18,7 @@ import scala.scalajs.js
   */
 class NodeServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Future]:
 
-  def start(app: MeltApp[Future], config: ServerConfig): Future[RunningServer[Future]] =
+  def start(app: ServerMeltKitPlatform[Future], config: ServerConfig): Future[RunningServer[Future]] =
     Future {
       val binding = new NodeHttpBinding(app, config)
       val server  = NodeHttp.createServer { (req, res) =>

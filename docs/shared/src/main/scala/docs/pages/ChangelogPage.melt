@@ -1,10 +1,15 @@
-<script lang="scala">
+<script lang="scala" props="Props">
+import docs.components.Layout
+
+case class Props(basePath: String = "", lang: String = "en")
 </script>
 
+<Layout basePath={props.basePath} lang={props.lang} section="changelog">
 <article class="page">
   <h1 class="page-title">Changelog</h1>
   <p class="page-placeholder">Changelog coming soon.</p>
 </article>
+</Layout>
 
 <style>
 .page {

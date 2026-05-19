@@ -224,6 +224,46 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
   private[meltkit] def hooks: List[ServerHook[F]] = _hooks.toList
 
+  // ── CSP Configuration ─────────────────────────────────────────────────
+
+  private var _cspConfig: Option[CspConfig] = None
+
+  /** Configures Content Security Policy nonce injection. */
+  def csp(config: CspConfig): Unit = _cspConfig = Some(config)
+
+  /** Returns the CSP configuration, if set. */
+  def cspConfig: Option[CspConfig] = _cspConfig
+
+  // ── API Routes ────────────────────────────────────────────────────────
+
+  /** Convenient HTTP method constants for use with [[api]]. */
+  val GET:    "GET"    = "GET"
+  val POST:   "POST"   = "POST"
+  val PUT:    "PUT"    = "PUT"
+  val DELETE: "DELETE" = "DELETE"
+  val PATCH:  "PATCH"  = "PATCH"
+
+  /** Registers multiple HTTP method handlers for the same path.
+    *
+    * {{{
+    * app.api("api/users")(
+    *   GET  -> { ctx => UserService.listAll.map(ctx.ok(_)) },
+    *   POST -> { ctx => ... }
+    * )
+    * }}}
+    */
+  def api[P <: AnyNamedTuple](path: PathSpec[P])(
+    handlers: (HttpMethod, MeltContext[F, P, Unit, RenderResult] => F[Response])*
+  ): Unit =
+    handlers.foreach {
+      case ("GET", h)    => get(path)(h)
+      case ("POST", h)   => post(path)(h)
+      case ("PUT", h)    => put(path)(h)
+      case ("DELETE", h) => delete(path)(h)
+      case ("PATCH", h)  => patch(path)(h)
+      case _             => ()
+    }
+
   /** Registers a handler for requests that don't match any route.
     *
     * Only effective when using `Http4sAdapter(app, clientDistDir, manifest).routes`

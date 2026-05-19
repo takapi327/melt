@@ -90,6 +90,29 @@ object PathSpec:
   private[meltkit] def fromString(s: String): PathSpec[Empty] =
     of(staticSegments(s))
 
+  /** Automatically converts a [[PathParam]] to a single-segment [[PathSpec]].
+    *
+    * Placed in the [[PathSpec]] companion so it is found via the implicit
+    * scope of [[PathSpec]] without requiring an explicit import.
+    *
+    * This allows path params to be passed directly wherever a [[PathSpec]] is
+    * expected:
+    *
+    * {{{
+    * val lang = param[String]("lang")
+    *
+    * app.get(lang) { ctx => ... }             // /:lang
+    * app.get(lang, PageOptions(...)) { ... }   // /:lang with options
+    * }}}
+    */
+  given pathParamToPathSpec[N <: String, A]: Conversion[PathParam[N, A], PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]]] with
+    def apply(p: PathParam[N, A]): PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]] =
+      of(
+        List(PathSegment.Param(p.paramName)),
+        List(p.paramName -> p.decoder),
+        List(p.paramName -> p.encoder)
+      )
+
   extension [P <: AnyNamedTuple](spec: PathSpec[P])
 
     /** `spec / id` or `spec / "posts"` — appends a dynamic or static segment.
@@ -111,6 +134,22 @@ object PathSpec:
             spec.paramDecoders,
             spec.paramEncoders
           ).asInstanceOf[PathSpec[AppendedWith[P, T]]]
+
+// ── PathParam-receiver DSL ───────────────────────────────────────────────────
+
+extension [N <: String, A](p: PathParam[N, A])
+
+  /** `id / "posts"` or `id / slug` — starts a PathSpec with this param, then appends `t`.
+    *
+    * Equivalent to `"" / id / t` but without the empty string prefix.
+    */
+  transparent inline def /[T](t: T): PathSpec[AppendedWith[NT[N *: EmptyTuple, A *: EmptyTuple], T]] =
+    val base: PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]] = PathSpec.of(
+      List(PathSegment.Param(p.paramName)),
+      List(p.paramName -> p.decoder),
+      List(p.paramName -> p.encoder)
+    )
+    base / t
 
 // ── String-receiver DSL ──────────────────────────────────────────────────────
 

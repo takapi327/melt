@@ -77,109 +77,109 @@ object Server:
 
   // ── Application ────────────────────────────────────────────────────────
 
-  val app: MeltApp[Future] = new MeltApp[Future]:
+  val app: MeltKit[Future] = MeltKit[Future]()
 
-    // ── Todo API ──────────────────────────────────────────────────────
+  // ── Todo API ──────────────────────────────────────────────────────
 
-    get("api/todos") { ctx =>
-      Future.successful(ctx.json(SimpleJson.encodeTodos(todoStore.toList)))
+  app.get("api/todos") { ctx =>
+    Future.successful(ctx.json(SimpleJson.encodeTodos(todoStore.toList)))
+  }
+
+  app.post("api/todos") { ctx =>
+    ctx.body.json[CreateTodoBody].map {
+      case Right(body) if body.text.nonEmpty =>
+        val todo = Todo(id = randomId(), text = body.text)
+        todoStore += todo
+        ctx.json(SimpleJson.encodeTodo(todo))
+      case Right(_) =>
+        ctx.badRequest(BodyError.DecodeError("text must not be empty"))
+      case Left(err) =>
+        ctx.badRequest(err)
     }
+  }
 
-    post("api/todos") { ctx =>
-      ctx.body.json[CreateTodoBody].map {
-        case Right(body) if body.text.nonEmpty =>
-          val todo = Todo(id = randomId(), text = body.text)
-          todoStore += todo
-          ctx.json(SimpleJson.encodeTodo(todo))
-        case Right(_) =>
-          ctx.badRequest(BodyError.DecodeError("text must not be empty"))
-        case Left(err) =>
-          ctx.badRequest(err)
-      }
+  app.post("api/todos" / todoId / "toggle") { ctx =>
+    val id = ctx.params.id
+    todoStore.zipWithIndex.find(_._1.id == id).foreach {
+      case (todo, idx) =>
+        todoStore(idx) = todo.copy(done = !todo.done)
     }
+    Future.successful(ctx.text(""))
+  }
 
-    post("api/todos" / todoId / "toggle") { ctx =>
-      val id = ctx.params.id
-      todoStore.zipWithIndex.find(_._1.id == id).foreach {
-        case (todo, idx) =>
-          todoStore(idx) = todo.copy(done = !todo.done)
-      }
-      Future.successful(ctx.text(""))
+  app.delete("api/todos" / todoId) { ctx =>
+    todoStore.filterInPlace(_.id != ctx.params.id)
+    Future.successful(ctx.text(""))
+  }
+
+  // ── User API ─────────────────────────────────────────────────────
+
+  app.get("api/users") { ctx =>
+    Future.successful(ctx.json(SimpleJson.encodeUsers(userStore.toList)))
+  }
+
+  app.get("api/users" / userId) { ctx =>
+    userStore.find(_.id == ctx.params.id) match
+      case Some(u) => Future.successful(ctx.json(SimpleJson.encodeUser(u)))
+      case None    => Future.successful(ctx.notFound(s"User ${ ctx.params.id } not found"))
+  }
+
+  app.post("api/users") { ctx =>
+    ctx.body.json[CreateUserBody].map {
+      case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
+        val id   = nextUserId; nextUserId += 1
+        val user = User(id = id, name = body.name, email = body.email, role = body.role)
+        userStore += user
+        ctx.json(SimpleJson.encodeUser(user))
+      case Right(_) =>
+        ctx.badRequest(BodyError.DecodeError("name and email must not be empty"))
+      case Left(err) =>
+        ctx.badRequest(err)
     }
+  }
 
-    delete("api/todos" / todoId) { ctx =>
-      todoStore.filterInPlace(_.id != ctx.params.id)
-      Future.successful(ctx.text(""))
+  app.put("api/users" / userId) { ctx =>
+    ctx.body.json[UpdateUserBody].map {
+      case Right(body) =>
+        userStore.zipWithIndex.find(_._1.id == ctx.params.id) match
+          case Some((u, idx)) =>
+            val updated = u.copy(name = body.name, email = body.email, role = body.role)
+            userStore(idx) = updated
+            ctx.json(SimpleJson.encodeUser(updated))
+          case None =>
+            ctx.notFound(s"User ${ ctx.params.id } not found")
+      case Left(err) =>
+        ctx.badRequest(err)
     }
+  }
 
-    // ── User API ─────────────────────────────────────────────────────
+  app.delete("api/users" / userId) { ctx =>
+    userStore.filterInPlace(_.id != ctx.params.id)
+    Future.successful(ctx.text(""))
+  }
 
-    get("api/users") { ctx =>
-      Future.successful(ctx.json(SimpleJson.encodeUsers(userStore.toList)))
-    }
+  // ── SSR page routes ──────────────────────────────────────────────
 
-    get("api/users" / userId) { ctx =>
-      userStore.find(_.id == ctx.params.id) match
-        case Some(u) => Future.successful(ctx.json(SimpleJson.encodeUser(u)))
-        case None    => Future.successful(ctx.notFound(s"User ${ ctx.params.id } not found"))
-    }
+  app.get("") { ctx =>
+    Future.successful(ctx.render(TodoPage(TodoPage.Props(initialTodos = todoStore.toList))))
+  }
 
-    post("api/users") { ctx =>
-      ctx.body.json[CreateUserBody].map {
-        case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
-          val id   = nextUserId; nextUserId += 1
-          val user = User(id = id, name = body.name, email = body.email, role = body.role)
-          userStore += user
-          ctx.json(SimpleJson.encodeUser(user))
-        case Right(_) =>
-          ctx.badRequest(BodyError.DecodeError("name and email must not be empty"))
-        case Left(err) =>
-          ctx.badRequest(err)
-      }
-    }
+  app.get("counter") { ctx =>
+    Future.successful(ctx.render(CounterPage()))
+  }
 
-    put("api/users" / userId) { ctx =>
-      ctx.body.json[UpdateUserBody].map {
-        case Right(body) =>
-          userStore.zipWithIndex.find(_._1.id == ctx.params.id) match
-            case Some((u, idx)) =>
-              val updated = u.copy(name = body.name, email = body.email, role = body.role)
-              userStore(idx) = updated
-              ctx.json(SimpleJson.encodeUser(updated))
-            case None =>
-              ctx.notFound(s"User ${ ctx.params.id } not found")
-        case Left(err) =>
-          ctx.badRequest(err)
-      }
-    }
+  app.get("users") { ctx =>
+    Future.successful(ctx.render(UserPage(UserPage.Props(initialUsers = userStore.toList))))
+  }
 
-    delete("api/users" / userId) { ctx =>
-      userStore.filterInPlace(_.id != ctx.params.id)
-      Future.successful(ctx.text(""))
-    }
+  app.get("users" / userId) { ctx =>
+    val user = userStore.find(_.id == ctx.params.id)
+    Future.successful(ctx.render(UserDetailPage(UserDetailPage.Props(userId = ctx.params.id, initialUser = user))))
+  }
 
-    // ── SSR page routes ──────────────────────────────────────────────
-
-    get("") { ctx =>
-      Future.successful(ctx.render(TodoPage(TodoPage.Props(initialTodos = todoStore.toList))))
-    }
-
-    get("counter") { ctx =>
-      Future.successful(ctx.render(CounterPage()))
-    }
-
-    get("users") { ctx =>
-      Future.successful(ctx.render(UserPage(UserPage.Props(initialUsers = userStore.toList))))
-    }
-
-    get("users" / userId) { ctx =>
-      val user = userStore.find(_.id == ctx.params.id)
-      Future.successful(ctx.render(UserDetailPage(UserDetailPage.Props(userId = ctx.params.id, initialUser = user))))
-    }
-
-    getAll { ctx =>
-      Future.successful(ctx.render(TodoPage(TodoPage.Props(initialTodos = todoStore.toList))))
-    }
+  app.getAll { ctx =>
+    Future.successful(ctx.render(TodoPage(TodoPage.Props(initialTodos = todoStore.toList))))
+  }
 
   // ── Entry point ────────────────────────────────────────────────────────
 

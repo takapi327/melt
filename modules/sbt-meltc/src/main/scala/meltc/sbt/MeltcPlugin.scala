@@ -8,8 +8,8 @@ package meltc.sbt
 
 import java.util.Optional
 
-import sbt.*
-import sbt.Keys.*
+import sbt._
+import sbt.Keys._
 
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
@@ -21,7 +21,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, 
   * to select the appropriate codegen mode.
   */
 sealed abstract class MeltMode
-object MeltMode:
+object MeltMode {
 
   /** Browser SPA — adds `meltkit-browser` (Scala.js). Codegen: `spa`. */
   case object Browser extends MeltMode
@@ -34,6 +34,7 @@ object MeltMode:
 
   /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`. */
   case object SSG extends MeltMode
+}
 
 /** sbt-meltc plugin
   *
@@ -65,7 +66,7 @@ object MeltMode:
   * meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
   * }}}
   */
-object MeltcPlugin extends AutoPlugin:
+object MeltcPlugin extends AutoPlugin {
 
   override def trigger  = noTrigger
   override def requires = plugins.JvmPlugin
@@ -75,7 +76,7 @@ object MeltcPlugin extends AutoPlugin:
     */
   private val MeltcCompilerConfig = config("meltc-compiler").hide
 
-  object autoImport:
+  object autoImport {
 
     /** Enable emission of `@JSExportTopLevel("hydrate", moduleID = ...)`
       * hydration entries in SPA-mode generated code.
@@ -212,7 +213,7 @@ object MeltcPlugin extends AutoPlugin:
       * }}}
       */
     val meltcAssetManifestClient =
-      settingKey[Option[Project]](
+      settingKey[Option[ProjectReference]](
         "Client sub-project whose fastLinkJS output drives AssetManifest generation"
       )
 
@@ -438,7 +439,9 @@ object MeltcPlugin extends AutoPlugin:
     val Http4s:  MeltMode = MeltMode.Http4s
     val SSG:     MeltMode = MeltMode.SSG
 
-  import autoImport.*
+  }
+
+  import autoImport._
 
   /** Class name of Scala.js's sbt plugin. We check for this by string rather
     * than importing the class, so sbt-meltc does not need to declare a hard
@@ -462,7 +465,7 @@ object MeltcPlugin extends AutoPlugin:
     meltcSourceDirectories      := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
       val legacy    = meltcSourceDirectory.value
-      (unmanaged ++ (if unmanaged.contains(legacy) then Nil else Seq(legacy))).distinct
+      (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
     },
     meltcOutputDirectory := (Compile / sourceManaged).value / "meltc",
     meltcPackage         := "",
@@ -470,15 +473,16 @@ object MeltcPlugin extends AutoPlugin:
 
     ivyConfigurations += MeltcCompilerConfig,
     libraryDependencies ++= {
-      if !meltcManageCompilerDeps.value then Seq.empty
-      else
+      if (!meltcManageCompilerDeps.value) Seq.empty
+      else {
         val v = meltcCompilerVersion.value
         Seq(("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig)
+      }
     },
     libraryDependencies ++= {
-      if !meltcManagePreprocessorDeps.value then Seq.empty
+      if (!meltcManagePreprocessorDeps.value) Seq.empty
       else
-        meltcStylePreprocessor.value match
+        meltcStylePreprocessor.value match {
           case Some(cls) if cls == SassPreprocessor =>
             val v = meltcCompilerVersion.value
             Seq(
@@ -486,6 +490,7 @@ object MeltcPlugin extends AutoPlugin:
               ("io.github.takapi327" % "meltc-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
             )
           case _ => Seq.empty
+        }
     },
     meltcCompilerClasspath := update.value.select(
       configurationFilter(MeltcCompilerConfig.name)
@@ -493,11 +498,11 @@ object MeltcPlugin extends AutoPlugin:
 
     // ── meltMode: auto-add runtime dependency ────────────────────────────
     libraryDependencies ++= {
-      if !meltcManageRuntimeDeps.value then Seq.empty
-      else
+      if (!meltcManageRuntimeDeps.value) Seq.empty
+      else {
         val v    = meltcCompilerVersion.value
         val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        meltMode.value match
+        meltMode.value match {
           case Some(MeltMode.Browser) =>
             // Scala.js artefact — name must be specified explicitly
             Seq("io.github.takapi327" % s"meltkit-browser_sjs1_$binV" % v)
@@ -509,6 +514,8 @@ object MeltcPlugin extends AutoPlugin:
             Seq("io.github.takapi327" %% "meltkit-ssg" % v)
           case None =>
             Seq.empty
+        }
+      }
     },
 
     meltcGenerate := compileMeltFiles(
@@ -516,13 +523,13 @@ object MeltcPlugin extends AutoPlugin:
       srcDirs = meltcSourceDirectories.value,
       outDir  = meltcOutputDirectory.value,
       pkg     = meltcPackage.value,
-      mode    = meltMode.value match
+      mode    = meltMode.value match {
         case Some(MeltMode.Browser) => "spa"
         case Some(MeltMode.Node)    => "ssr"
         case Some(MeltMode.Http4s)  => "ssr"
         case Some(MeltMode.SSG)     => "ssr"
-        case None                   => if hasScalaJSPlugin(thisProject.value) then "spa" else "ssr"
-      ,
+        case None                   => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
+      },
       hydration     = meltcHydration.value,
       hydrationRoot = meltcHydrationRoot.value,
       preprocessor  = meltcStylePreprocessor.value,
@@ -547,7 +554,7 @@ object MeltcPlugin extends AutoPlugin:
     meltcViteDistDir      := baseDirectory.value / ".." / "dist",
     meltcIndexHtml        := {
       val f = (Compile / resourceDirectory).value / "index.html"
-      if f.exists() then Some(f) else None
+      if (f.exists()) Some(f) else None
     },
 
     meltcMeltKitConfigObject   := "MeltKitConfig",
@@ -558,7 +565,7 @@ object MeltcPlugin extends AutoPlugin:
       val client = meltcAssetManifestClient.value
       val isNode = meltMode.value.contains(MeltMode.Node)
       // Generate for JVM servers (no ScalaJSPlugin) OR Node.js servers (MeltMode.Node)
-      if client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode) then
+      if (client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode))
         Def.task {
           generateMeltKitConfig(
             streams        = streams.value,
@@ -570,12 +577,13 @@ object MeltcPlugin extends AutoPlugin:
             basePath       = meltcMeltKitConfigBasePath.value
           )
         }
-      else Def.task(Seq.empty[File])
+      else
+        Def.task(Seq.empty[File])
     }.value,
     Compile / sourceGenerators += meltcMeltKitConfigGenerate.taskValue,
 
     meltcViteInputGenerate := Def.taskDyn {
-      meltcAssetManifestClient.value match
+      meltcAssetManifestClient.value match {
         case Some(clientProject) =>
           Def.task {
             generateViteInputs(
@@ -587,10 +595,11 @@ object MeltcPlugin extends AutoPlugin:
           }
         case None =>
           Def.task(file(""))
+      }
     }.value,
 
     meltcAssetManifestGenerate := Def.taskDyn {
-      meltcAssetManifestClient.value match
+      meltcAssetManifestClient.value match {
         case Some(clientProject) if meltcProd.value =>
           Def.task {
             val distDir = meltcViteDistDir.value
@@ -621,8 +630,10 @@ object MeltcPlugin extends AutoPlugin:
           }
         case None =>
           Def.task(Seq.empty[File])
+      }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
+
   )
 
   private def compileMeltFiles(
@@ -636,15 +647,16 @@ object MeltcPlugin extends AutoPlugin:
     preprocessor:  Option[String],
     compilerCp:    Seq[File],
     reporter:      xsbti.Reporter
-  ): Seq[File] =
+  ): Seq[File] = {
     val log = streams.log
 
-    if compilerCp.isEmpty then
+    if (compilerCp.isEmpty) {
       log.warn(
         "[sbt-meltc] meltcCompilerClasspath is empty — no .melt files will be compiled.\n" +
           "  Run `sbt meltcJVM/publishLocal` in the melt monorepo first."
       )
       return Seq.empty
+    }
 
     IO.createDirectory(outDir)
 
@@ -653,9 +665,10 @@ object MeltcPlugin extends AutoPlugin:
         (srcDir ** "*.melt").get.map(f => (f, srcDir))
       }
 
-    if meltFilesWithRoot.isEmpty then
+    if (meltFilesWithRoot.isEmpty) {
       log.debug(s"[sbt-meltc] No .melt files found under ${ srcDirs.mkString(", ") }")
       return Seq.empty
+    }
 
     val cpStr = compilerCp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator)
 
@@ -669,10 +682,11 @@ object MeltcPlugin extends AutoPlugin:
           .relativize(srcDir, meltFile.getParentFile)
           .map(_.replace(java.io.File.separatorChar, '.'))
           .getOrElse("")
-        val fullPkg = (pkg, subPkg) match
+        val fullPkg = (pkg, subPkg) match {
           case (p, "") => p
           case ("", s) => s
           case (p, s)  => s"$p.$s"
+        }
 
         val outSubDir = IO
           .relativize(srcDir, meltFile.getParentFile)
@@ -694,13 +708,14 @@ object MeltcPlugin extends AutoPlugin:
         // used as a proxy for "has the compiler changed?".
         val relPath = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
         val safeKey = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
-        val cpFingerprint: String =
+        val cpFingerprint: String = {
           def stamp(f: File): Long =
-            if f.isDirectory then
+            if (f.isDirectory) {
               val children = Option(f.listFiles()).toSeq.flatten
-              if children.isEmpty then f.lastModified
+              if (children.isEmpty) f.lastModified
               else children.map(stamp).max
-            else f.lastModified
+            } else
+              f.lastModified
           val raw = compilerCp
             .sortBy(_.getAbsolutePath)
             .map(f => s"${ f.getName }:${ stamp(f) }")
@@ -711,6 +726,7 @@ object MeltcPlugin extends AutoPlugin:
             .take(8)
             .map(b => "%02x".format(b & 0xff))
             .mkString
+        }
         val cacheDir = streams.cacheDirectory / "meltc" / safeKey / cpFingerprint
 
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
@@ -719,9 +735,10 @@ object MeltcPlugin extends AutoPlugin:
           // Determine whether this component gets a hydration entry:
           //   - Approach A (meltcHydrationRoot set): only the named root component
           //   - Approach B (meltcHydration := true): all components
-          val emitHydration = hydrationRoot match
+          val emitHydration = hydrationRoot match {
             case Some(root) => objectName == root
             case None       => hydration
+          }
 
           val javaArgs = Seq(
             "-cp",
@@ -733,7 +750,7 @@ object MeltcPlugin extends AutoPlugin:
             fullPkg,
             "--mode",
             normalisedMode
-          ) ++ (if emitHydration then Seq("--hydration") else Seq.empty) ++
+          ) ++ (if (emitHydration) Seq("--hydration") else Seq.empty) ++
             preprocessor.toSeq.flatMap(cls => Seq("--preprocessor", cls))
 
           val exitCode = Fork.java(ForkOptions(), javaArgs)
@@ -746,18 +763,19 @@ object MeltcPlugin extends AutoPlugin:
           warnings.foreach {
             case (path, lineNum, col, msg) =>
               try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
-              catch case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg")
+              catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
           }
 
-          if exitCode != 0 then
+          if (exitCode != 0) {
             errors.foreach {
               case (path, lineNum, col, msg) =>
                 try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
-                catch case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg")
+                catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
             }
             throw new MessageOnlyException(
               s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
             )
+          }
 
           log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
           Set(outFile)
@@ -765,6 +783,7 @@ object MeltcPlugin extends AutoPlugin:
 
         cachedCompile(Set(meltFile)).toSeq
     }
+  }
 
   /** Reads the structured `.diag` file written by `MeltcMain`.
     *
@@ -775,24 +794,26 @@ object MeltcPlugin extends AutoPlugin:
     */
   private def readDiagnostics(
     diagFile: File
-  ): (List[(String, Int, Int, String)], List[(String, Int, Int, String)]) =
-    if !diagFile.exists() then return (Nil, Nil)
+  ): (List[(String, Int, Int, String)], List[(String, Int, Int, String)]) = {
+    if (!diagFile.exists()) return (Nil, Nil)
     def parseInt(s: String): Int = try s.toInt
-    catch case _: NumberFormatException => 0
-    def parseLine(line: String): Option[(String, Int, Int, String)] =
+    catch { case _: NumberFormatException => 0 }
+    def parseLine(line: String): Option[(String, Int, Int, String)] = {
       val parts = line.split("\t", 5)
-      if parts.length >= 5 then Some((parts(1), parseInt(parts(2)), parseInt(parts(3)), parts(4)))
+      if (parts.length >= 5) Some((parts(1), parseInt(parts(2)), parseInt(parts(3)), parts(4)))
       else None
+    }
     val lines    = IO.readLines(diagFile)
     val errors   = lines.filter(_.startsWith("E\t")).flatMap(parseLine)
     val warnings = lines.filter(_.startsWith("W\t")).flatMap(parseLine)
     (errors, warnings)
+  }
 
   /** Creates an `xsbti.Position` pointing at a location in a `.melt` file. */
   private def mkPosition(absPath: String, lineNum: Int): xsbti.Position =
-    new xsbti.Position:
+    new xsbti.Position {
       override def line(): Optional[Integer] =
-        if lineNum > 0 then Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
+        if (lineNum > 0) Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
       override def lineContent():  String                 = ""
       override def offset():       Optional[Integer]      = Optional.empty()
       override def pointer():      Optional[Integer]      = Optional.empty()
@@ -800,6 +821,7 @@ object MeltcPlugin extends AutoPlugin:
       override def sourcePath():   Optional[String]       = Optional.of(absPath)
       override def sourceFile():   Optional[java.io.File] =
         Optional.of(new java.io.File(absPath))
+    }
 
   /** Creates an `xsbti.Problem` suitable for reporting to the BSP/IDE reporter. */
   private def mkProblem(
@@ -809,11 +831,12 @@ object MeltcPlugin extends AutoPlugin:
     msg:     String,
     sev:     xsbti.Severity
   ): xsbti.Problem =
-    new xsbti.Problem:
+    new xsbti.Problem {
       override def category(): String         = "meltc"
       override def severity(): xsbti.Severity = sev
       override def message():  String         = msg
       override def position(): xsbti.Position = mkPosition(absPath, lineNum)
+    }
 
   /** Writes a `MeltKitConfig` Scala source that bundles the [[meltkit.Template]],
     * manifest reference, asset base path, and default language for SSR rendering.
@@ -830,7 +853,7 @@ object MeltcPlugin extends AutoPlugin:
     manifestObject: String,
     lang:           String,
     basePath:       String
-  ): Seq[File] =
+  ): Seq[File] = {
     val log = streams.log
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -858,6 +881,7 @@ object MeltcPlugin extends AutoPlugin:
     IO.write(outFile, code)
     log.info(s"[sbt-meltc] generated ${ outFile.getName }")
     Seq(outFile)
+  }
 
   /** Writes a `generated.AssetManifest` Scala source that exposes the
     * client project's Scala.js `fastLinkJS` output as a
@@ -874,7 +898,7 @@ object MeltcPlugin extends AutoPlugin:
     report:       Report,
     distDir:      File,
     isNodeServer: Boolean = false // unused, kept for binary compat
-  ): Seq[File] =
+  ): Seq[File] = {
     val log = streams.log
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -920,6 +944,7 @@ object MeltcPlugin extends AutoPlugin:
       s"[sbt-meltc] regenerated ${ outFile.getName } with ${ sortedModules.size } public modules"
     )
     Seq(outFile)
+  }
 
   /** Writes a `vite-inputs.json` file that maps each Scala.js public
     * module's moduleID to its absolute filesystem path. `vite.config.js`
@@ -936,7 +961,7 @@ object MeltcPlugin extends AutoPlugin:
     report:  Report,
     distDir: File,
     outFile: File
-  ): File =
+  ): File = {
     val log           = streams.log
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
@@ -952,6 +977,7 @@ object MeltcPlugin extends AutoPlugin:
       s"[sbt-meltc] wrote ${ outFile.getName } with ${ sortedModules.size } entries"
     )
     outFile
+  }
 
   /** Writes a `generated.AssetManifest` Scala source that loads the
     * Vite-produced `manifest.json` at startup. Used in production mode
@@ -968,15 +994,16 @@ object MeltcPlugin extends AutoPlugin:
     objectName:   String,
     manifestPath: File,
     distDir:      File
-  ): Seq[File] =
+  ): Seq[File] = {
     val log = streams.log
 
-    if !manifestPath.exists() then
+    if (!manifestPath.exists()) {
       log.error(
         s"[sbt-meltc] Vite manifest not found at ${ manifestPath.getAbsolutePath }. " +
           "Run `npx vite build` in the example directory first."
       )
       return Seq.empty
+    }
 
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -1016,3 +1043,5 @@ object MeltcPlugin extends AutoPlugin:
       s"[sbt-meltc] regenerated ${ outFile.getName } (prod mode, Vite manifest)"
     )
     Seq(outFile)
+  }
+}

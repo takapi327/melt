@@ -1,11 +1,15 @@
 <script lang="scala" props="Props">
-case class Props(slug: String = "")
+import docs.components.Layout
+
+case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 </script>
 
+<Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>
 <article class="page">
   <h1 class="page-title">{props.slug}</h1>
-  <p class="page-placeholder">This page is coming soon.</p>
+  <p class="page-placeholder">API reference coming soon.</p>
 </article>
+</Layout>
 
 <style>
 .page {

@@ -1,6 +1,7 @@
 <script lang="scala" props="Props">
 import docs.I18n
 import docs.CodeSamples
+import docs.components.Layout
 
 case class Props(basePath: String = "", lang: String = "en")
 
@@ -10,6 +11,7 @@ val count   = Var(0)
 val doubled = count.map(_ * 2)
 </script>
 
+<Layout basePath={props.basePath} lang={props.lang}>
 <article class="home">
 
   <!-- Hero -->
@@ -86,6 +88,7 @@ val doubled = count.map(_ * 2)
   </div>
 
 </article>
+</Layout>
 
 <style>
 .home {

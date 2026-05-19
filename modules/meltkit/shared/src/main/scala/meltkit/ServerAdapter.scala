@@ -6,7 +6,7 @@
 
 package meltkit
 
-/** A server adapter that starts an HTTP server for a [[MeltApp]].
+/** A server adapter that starts an HTTP server for a [[MeltKit]].
   *
   * The core module does not depend on cats-effect, so the lifecycle uses
   * a simple callback pattern instead of `Resource`.
@@ -18,7 +18,7 @@ package meltkit
 trait ServerAdapter[F[_]]:
 
   /** Starts the server and returns a handle to stop it. */
-  def start(app: MeltApp[F], config: ServerConfig): F[RunningServer[F]]
+  def start(app: ServerMeltKitPlatform[F], config: ServerConfig): F[RunningServer[F]]
 
 /** Server configuration shared across SSR and SSG.
   *

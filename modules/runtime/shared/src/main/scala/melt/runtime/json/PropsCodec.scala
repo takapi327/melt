@@ -59,43 +59,43 @@ trait PropsCodec[A]:
 
 object PropsCodec:
 
-  given PropsCodec[String] with
+  given propsCodecString: PropsCodec[String] with
     def encode(v: String, buf: StringBuilder): Unit   = buf ++= SimpleJson.encString(v)
     def decode(j: SimpleJson.JsonValue):       String = j match
       case SimpleJson.JsonValue.Str(s) => s
       case other                       => typeMismatch("String", other)
 
-  given PropsCodec[Int] with
+  given propsCodecInt: PropsCodec[Int] with
     def encode(v: Int, buf: StringBuilder): Unit = buf.append(v)
     def decode(j: SimpleJson.JsonValue):    Int  = j match
       case SimpleJson.JsonValue.Num(n) => n.toInt
       case other                       => typeMismatch("Int", other)
 
-  given PropsCodec[Long] with
+  given propsCodecLong: PropsCodec[Long] with
     def encode(v: Long, buf: StringBuilder): Unit = buf.append(v)
     def decode(j: SimpleJson.JsonValue):     Long = j match
       case SimpleJson.JsonValue.Num(n) => n.toLong
       case other                       => typeMismatch("Long", other)
 
-  given PropsCodec[Double] with
+  given propsCodecDouble: PropsCodec[Double] with
     def encode(v: Double, buf: StringBuilder): Unit   = buf ++= SimpleJson.encNumber(v)
     def decode(j: SimpleJson.JsonValue):       Double = j match
       case SimpleJson.JsonValue.Num(n) => n
       case other                       => typeMismatch("Double", other)
 
-  given PropsCodec[Float] with
+  given propsCodecFloat: PropsCodec[Float] with
     def encode(v: Float, buf: StringBuilder): Unit  = buf ++= SimpleJson.encNumber(v.toDouble)
     def decode(j: SimpleJson.JsonValue):      Float = j match
       case SimpleJson.JsonValue.Num(n) => n.toFloat
       case other                       => typeMismatch("Float", other)
 
-  given PropsCodec[Boolean] with
+  given propsCodecBoolean: PropsCodec[Boolean] with
     def encode(v: Boolean, buf: StringBuilder): Unit    = buf.append(v)
     def decode(j: SimpleJson.JsonValue):        Boolean = j match
       case SimpleJson.JsonValue.Bool(b) => b
       case other                        => typeMismatch("Boolean", other)
 
-  given [A](using inner: PropsCodec[A]): PropsCodec[Option[A]] with
+  given propsCodecOption[A](using inner: PropsCodec[A]): PropsCodec[Option[A]] with
     def encode(v: Option[A], buf: StringBuilder): Unit = v match
       case None    => buf ++= "null"
       case Some(a) => inner.encode(a, buf)
@@ -103,7 +103,7 @@ object PropsCodec:
       case SimpleJson.JsonValue.Null => None
       case other                     => Some(inner.decode(other))
 
-  given [A](using inner: PropsCodec[A]): PropsCodec[List[A]] with
+  given propsCodecList[A](using inner: PropsCodec[A]): PropsCodec[List[A]] with
     def encode(v: List[A], buf: StringBuilder): Unit =
       buf += '['
       var first = true
@@ -117,7 +117,7 @@ object PropsCodec:
       case SimpleJson.JsonValue.Null       => Nil
       case other                           => typeMismatch("List", other)
 
-  given [A](using inner: PropsCodec[A]): PropsCodec[Vector[A]] with
+  given propsCodecVector[A](using inner: PropsCodec[A]): PropsCodec[Vector[A]] with
     def encode(v: Vector[A], buf: StringBuilder): Unit =
       buf += '['
       var first = true
@@ -131,7 +131,7 @@ object PropsCodec:
       case SimpleJson.JsonValue.Null       => Vector.empty
       case other                           => typeMismatch("Vector", other)
 
-  given [A](using inner: PropsCodec[A]): PropsCodec[Seq[A]] with
+  given propsCodecSeq[A](using inner: PropsCodec[A]): PropsCodec[Seq[A]] with
     def encode(v: Seq[A], buf: StringBuilder): Unit =
       buf += '['
       var first = true
