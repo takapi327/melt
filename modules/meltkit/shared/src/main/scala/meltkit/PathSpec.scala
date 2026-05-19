@@ -105,7 +105,8 @@ object PathSpec:
     * app.get(lang, PageOptions(...)) { ... }   // /:lang with options
     * }}}
     */
-  given pathParamToPathSpec[N <: String, A]: Conversion[PathParam[N, A], PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]]] with
+  given pathParamToPathSpec[N <: String, A]: Conversion[PathParam[N, A], PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]]]
+  with
     def apply(p: PathParam[N, A]): PathSpec[NT[N *: EmptyTuple, A *: EmptyTuple]] =
       of(
         List(PathSegment.Param(p.paramName)),
