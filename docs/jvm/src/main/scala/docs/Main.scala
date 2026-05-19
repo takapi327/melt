@@ -8,6 +8,7 @@ package docs
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.Try
 
 import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
 import meltkit.*
@@ -143,9 +144,18 @@ private def createApp(): MeltKit[Future] =
 val app: MeltKit[Future] = createApp()
 
 @main def generate(): Unit =
+  val manifestPath = "../dist/.vite/manifest.json"
+  val manifest = Try(scala.io.Source.fromFile(manifestPath).mkString)
+    .map(ViteManifest.fromString(_))
+    .getOrElse {
+      println(s"[warn] Vite manifest not found at $manifestPath — generating without JS bootstrap")
+      ViteManifest.empty
+    }
   val config = ServerConfig(
     outputDir = Some("docs-dist"),
     publicDir = Some("public"),
+    assetsDir = Some("../dist/assets"),
+    manifest  = manifest,
     template  = Template.fromResource("index.html")
   )
   SsgGenerator.run(app, config)
