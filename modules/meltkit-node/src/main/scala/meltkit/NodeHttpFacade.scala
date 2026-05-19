@@ -52,6 +52,7 @@ object NodeFs extends js.Object:
 @js.native
 trait NodeFsStats extends js.Object:
   def isFile():         Boolean = js.native
+  def isDirectory():    Boolean = js.native
   def isSymbolicLink(): Boolean = js.native
 
 /** Facade for Node.js `path` module. */
@@ -61,3 +62,4 @@ object NodePath extends js.Object:
   def resolve(paths: String*): String = js.native
   def extname(p:     String):  String = js.native
   def normalize(p:   String):  String = js.native
+  def dirname(p:     String):  String = js.native

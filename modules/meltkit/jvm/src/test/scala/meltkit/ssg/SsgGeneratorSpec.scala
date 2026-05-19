@@ -11,7 +11,6 @@ import java.nio.file.{ Files, Path }
 import melt.runtime.render.RenderResult
 
 import meltkit.*
-import meltkit.ssg.SsgRunner.given
 
 class SsgGeneratorSpec extends munit.FunSuite:
 
@@ -30,7 +29,10 @@ class SsgGeneratorSpec extends munit.FunSuite:
     try stream.sorted(java.util.Comparator.reverseOrder()).forEach(Files.delete)
     finally stream.close()
 
-  def config(out: Path): SsgConfig = SsgConfig(out, simpleTemplate)
+  def config(out: Path): ServerConfig = ServerConfig(
+    template  = simpleTemplate,
+    outputDir = Some(out.toString)
+  )
 
   val On = PageOptions(prerender = PrerenderOption.On)
 
@@ -122,7 +124,7 @@ class SsgGeneratorSpec extends munit.FunSuite:
 
   // ── Non-HTML / empty-body responses ──────────────────────────────────────
 
-  test("ok response (empty body in SSG) does not create a file"):
+  test("ok response (JSON) does not create a file"):
     withTempDir { out =>
       val app = MeltKit[[A] =>> A]()
       app.get("api", On)(ctx => ctx.ok("ignored"))

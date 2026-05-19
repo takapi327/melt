@@ -6,7 +6,6 @@
 
 package meltkit
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.NotGiven
 import scala.NamedTuple.AnyNamedTuple
 
@@ -15,18 +14,23 @@ import melt.runtime.render.RenderResult
 import meltkit.codec.{ BodyDecoder, BodyEncoder, FormDataDecoder }
 import meltkit.exceptions.BodyDecodeException
 
-/** JVM SSR implementation of [[ServerMeltContext]] fixed to `Future`.
+/** JVM SSR/SSG implementation of [[ServerMeltContext]] parameterised over `F[_]`.
   *
   * `render` evaluates the component inside `Router.withPath(requestPath)(...)`,
   * setting `Router.currentPath` via `ThreadLocal` for the duration of the
   * synchronous render.
+  *
+  * Body methods delegate to `runner.map(rawBody)(...)` so that the same class
+  * works for both `Future`-based SSR (via [[JdkHttpBinding]]) and identity-effect
+  * SSG (via [[meltkit.ssg.SsgGenerator]]) without requiring `ExecutionContext`
+  * at the SSG call site.
   */
-final class JvmMeltContext[P <: AnyNamedTuple, B](
+final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:               P,
   val requestPath:          String,
   private val _queryParams: Map[String, List[String]] = Map.empty,
   private val bodyDecoder:  BodyDecoder[B],
-  private val rawBody:      Future[String],
+  private val rawBody:      F[String],
   private val rawHeaders:   Map[String, String]       = Map.empty,
   private val rawCookies:   Map[String, String]       = Map.empty,
   private val templateOpt:  Option[Template]          = None,
@@ -34,9 +38,10 @@ final class JvmMeltContext[P <: AnyNamedTuple, B](
   private val lang:         String                    = "en",
   private val basePath:     String                    = "",
   override val locals:      Locals                    = new Locals(),
-  private val nonce:        Option[String]            = None
-)(using ec: ExecutionContext)
-  extends ServerMeltContext[Future, P, B, RenderResult]:
+  private val nonce:        Option[String]            = None,
+  private val defaultTitle: String                    = ""
+)(using runner: SyncRunner[F])
+  extends ServerMeltContext[F, P, B, RenderResult]:
 
   override def query(name: String): Option[String] =
     _queryParams.get(name).flatMap(_.headOption)
@@ -46,28 +51,32 @@ final class JvmMeltContext[P <: AnyNamedTuple, B](
 
   override def queryParams: Map[String, List[String]] = _queryParams
 
-  override val body: RequestBody[Future, B] = new RequestBody[Future, B]:
+  // ── ServerMeltContext: body ────────────────────────────────────────────
 
-    def text: Future[String] = rawBody
+  override val body: RequestBody[F, B] = new RequestBody[F, B]:
 
-    def form: Future[Either[BodyError, FormData]] =
-      rawBody.map(FormData.parse)
+    def text: F[String] = rawBody
 
-    def form[A](using fdd: FormDataDecoder[A]): Future[Either[BodyError, A]] =
-      rawBody.map(raw => FormData.parse(raw).flatMap(fdd.decode))
+    def form: F[Either[BodyError, FormData]] =
+      runner.map(rawBody)(FormData.parse)
 
-    def json[A](using dec: BodyDecoder[A]): Future[Either[BodyError, A]] =
-      rawBody.map(dec.decode)
+    def form[A](using fdd: FormDataDecoder[A]): F[Either[BodyError, A]] =
+      runner.map(rawBody)(raw => FormData.parse(raw).flatMap(fdd.decode))
 
-    def decode(using NotGiven[B =:= Unit]): Future[Either[BodyError, B]] =
-      rawBody.map(bodyDecoder.decode)
+    def json[A](using dec: BodyDecoder[A]): F[Either[BodyError, A]] =
+      runner.map(rawBody)(dec.decode)
 
-    def decodeOrBadRequest(using NotGiven[B =:= Unit]): Future[B] =
-      rawBody.map { raw =>
+    def decode(using NotGiven[B =:= Unit]): F[Either[BodyError, B]] =
+      runner.map(rawBody)(bodyDecoder.decode)
+
+    def decodeOrBadRequest(using NotGiven[B =:= Unit]): F[B] =
+      runner.map(rawBody) { raw =>
         bodyDecoder.decode(raw) match
           case Right(b)  => b
           case Left(err) => throw BodyDecodeException(err)
       }
+
+  // ── ServerMeltContext: cookies / headers ───────────────────────────────
 
   override def cookie(name: String): Option[String] = rawCookies.get(name)
 
@@ -76,6 +85,8 @@ final class JvmMeltContext[P <: AnyNamedTuple, B](
   override def header(name: String): Option[String] = rawHeaders.get(name.toLowerCase)
 
   override def headers: Map[String, String] = rawHeaders
+
+  // ── MeltContext: render ────────────────────────────────────────────────
 
   override def render(component: => RenderResult): PlainResponse =
     render(component, 200)
@@ -97,13 +108,15 @@ final class JvmMeltContext[P <: AnyNamedTuple, B](
         val html = template.render(
           augmented,
           manifest,
-          title    = "",
+          title    = defaultTitle,
           lang     = lang,
           basePath = basePath,
           vars     = Map.empty,
           nonce    = nonce
         )
         PlainResponse(status, "text/html; charset=utf-8", html)
+
+  // ── MeltContext: response builders ─────────────────────────────────────
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))
