@@ -145,7 +145,7 @@ val app: MeltKit[Future] = createApp()
 
 @main def generate(): Unit =
   val manifestPath = "../dist/.vite/manifest.json"
-  val manifest = Try(scala.io.Source.fromFile(manifestPath).mkString)
+  val manifest     = Try(scala.io.Source.fromFile(manifestPath).mkString)
     .map(ViteManifest.fromString(_))
     .getOrElse {
       println(s"[warn] Vite manifest not found at $manifestPath — generating without JS bootstrap")
