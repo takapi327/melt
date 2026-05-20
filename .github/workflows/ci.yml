@@ -94,7 +94,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Install Scala Native dependencies
-        if: matrix.project == 'meltcNative'
+        if: matrix.project == 'compilerNative'
         run: |
           sudo apt-get update
           sudo apt-get install -y clang libstdc++-12-dev
@@ -119,11 +119,11 @@ jobs:
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        run: mkdir -p modules/meltc/jvm/target modules/meltc/js/target modules/meltc/native/target modules/sbt-meltc/target modules/runtime/target modules/melt-testing/target editors/language-server/target target project/target
+        run: mkdir -p modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-meltc/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        run: tar cf targets.tar modules/meltc/jvm/target modules/meltc/js/target modules/meltc/native/target modules/sbt-meltc/target modules/runtime/target modules/melt-testing/target editors/language-server/target target project/target
+        run: tar cf targets.tar modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-meltc/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
@@ -175,32 +175,32 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Download target directories (3.3.7, meltcJVM)
+      - name: Download target directories (3.3.7, compilerJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJVM
 
-      - name: Inflate target directories (3.3.7, meltcJVM)
+      - name: Inflate target directories (3.3.7, compilerJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.7, meltcJS)
+      - name: Download target directories (3.3.7, compilerJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJS
 
-      - name: Inflate target directories (3.3.7, meltcJS)
+      - name: Inflate target directories (3.3.7, compilerJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.7, meltcNative)
+      - name: Download target directories (3.3.7, compilerNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-meltcNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerNative
 
-      - name: Inflate target directories (3.3.7, meltcNative)
+      - name: Inflate target directories (3.3.7, compilerNative)
         run: |
           tar xf targets.tar
           rm targets.tar
