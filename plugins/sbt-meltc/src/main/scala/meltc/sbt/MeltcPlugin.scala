@@ -23,17 +23,14 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, 
 sealed abstract class MeltMode
 object MeltMode {
 
-  /** Browser SPA — adds `meltkit-browser` (Scala.js). Codegen: `spa`. */
+  /** Browser SPA — adds `meltkit-adapter-browser` (Scala.js). Codegen: `spa`. */
   case object Browser extends MeltMode
 
-  /** Node.js SSR server — adds `meltkit-node` (Scala.js). Codegen: `ssr`. */
+  /** Node.js SSR server — adds `meltkit-adapter-node` (Scala.js). Codegen: `ssr`. */
   case object Node extends MeltMode
 
   /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
   case object Http4s extends MeltMode
-
-  /** Static site generation (JVM) — adds `meltkit-ssg`. Codegen: `ssr`. */
-  case object SSG extends MeltMode
 }
 
 /** sbt-meltc plugin
@@ -52,7 +49,7 @@ object MeltMode {
   *
   * {{{
   * // One-time in the melt monorepo:
-  * sbt meltcJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-meltc/publishLocal
+  * sbt compilerJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-meltc/publishLocal
   * }}}
   *
   * The plugin resolves `melt-codegen` (including all transitive deps such as
@@ -178,7 +175,7 @@ object MeltcPlugin extends AutoPlugin {
       * By default this is resolved automatically from [[meltcCompilerVersion]]
       * using the `meltc-compiler` Ivy configuration.
       * Override to point at the meltc JVM output directly
-      * (e.g. `(meltcJVM / Compile / fullClasspath).value.files`).
+      * (e.g. `(compilerJVM / Compile / fullClasspath).value.files`).
       */
     val meltcCompilerClasspath =
       taskKey[Seq[File]]("Classpath for the meltc compiler JVM process")
@@ -357,10 +354,10 @@ object MeltcPlugin extends AutoPlugin {
 
     /** Preprocessor constant for SCSS support via Dart Sass.
       *
-      * Requires the `meltc-sass` artifact on the compiler classpath.
+      * Requires the `melt-compiler-sass` artifact on the compiler classpath.
       * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)` and
       * [[meltcManagePreprocessorDeps]] is `true` (the default), the plugin adds
-      * `meltc-css` and `meltc-sass` to the compiler classpath automatically.
+      * `melt-compiler-css` and `melt-compiler-sass` to the compiler classpath automatically.
       *
       * {{{
       * meltcStylePreprocessor := Some(SassPreprocessor)
@@ -386,7 +383,7 @@ object MeltcPlugin extends AutoPlugin {
       )
 
     /** When `true` (the default), the plugin automatically adds the required
-      * preprocessor JARs (e.g. `meltc-css_3`, `meltc-sass_3`) to the
+      * preprocessor JARs (e.g. `melt-compiler-css_3`, `melt-compiler-sass_3`) to the
       * `meltc-compiler` Ivy configuration so they are resolved and placed on
       * [[meltcCompilerClasspath]].
       *
@@ -396,8 +393,8 @@ object MeltcPlugin extends AutoPlugin {
       * {{{
       * meltcManagePreprocessorDeps := false,
       * meltcStylePreprocessor      := Some(SassPreprocessor),
-      * meltcCompilerClasspath      := (meltc.jvm / Compile / fullClasspath).value.files ++
-      *                                (`meltc-sass` / Compile / fullClasspath).value.files
+      * meltcCompilerClasspath      := (compiler.jvm / Compile / fullClasspath).value.files ++
+      *                                (`compiler-sass` / Compile / fullClasspath).value.files
       * }}}
       */
     val meltcManagePreprocessorDeps =
@@ -415,10 +412,9 @@ object MeltcPlugin extends AutoPlugin {
       *   - select the correct codegen mode (`spa` for [[Browser]], `ssr` otherwise)
       *
       * {{{
-      * meltMode := Browser  // → meltkit-browser (Scala.js SPA)
-      * meltMode := Node     // → meltkit-node (Node.js SSR)
+      * meltMode := Browser  // → meltkit-adapter-browser (Scala.js SPA)
+      * meltMode := Node     // → meltkit-adapter-node (Node.js SSR)
       * meltMode := Http4s   // → meltkit-adapter-http4s (http4s SSR)
-      * meltMode := SSG      // → meltkit-ssg (static site generation)
       * }}}
       *
       * Default: `None` — no runtime dependency is added automatically.
@@ -437,7 +433,6 @@ object MeltcPlugin extends AutoPlugin {
     val Browser: MeltMode = MeltMode.Browser
     val Node:    MeltMode = MeltMode.Node
     val Http4s:  MeltMode = MeltMode.Http4s
-    val SSG:     MeltMode = MeltMode.SSG
 
   }
 
@@ -486,8 +481,8 @@ object MeltcPlugin extends AutoPlugin {
           case Some(cls) if cls == SassPreprocessor =>
             val v = meltcCompilerVersion.value
             Seq(
-              ("io.github.takapi327" % "meltc-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
-              ("io.github.takapi327" % "meltc-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
+              ("io.github.takapi327" % "melt-compiler-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
+              ("io.github.takapi327" % "melt-compiler-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
             )
           case _ => Seq.empty
         }
@@ -505,13 +500,11 @@ object MeltcPlugin extends AutoPlugin {
         meltMode.value match {
           case Some(MeltMode.Browser) =>
             // Scala.js artefact — name must be specified explicitly
-            Seq("io.github.takapi327" % s"meltkit-browser_sjs1_$binV" % v)
+            Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
           case Some(MeltMode.Node) =>
-            Seq("io.github.takapi327" % s"meltkit-node_sjs1_$binV" % v)
+            Seq("io.github.takapi327" % s"meltkit-adapter-node_sjs1_$binV" % v)
           case Some(MeltMode.Http4s) =>
             Seq("io.github.takapi327" %% "meltkit-adapter-http4s" % v)
-          case Some(MeltMode.SSG) =>
-            Seq("io.github.takapi327" %% "meltkit-ssg" % v)
           case None =>
             Seq.empty
         }
@@ -527,7 +520,6 @@ object MeltcPlugin extends AutoPlugin {
         case Some(MeltMode.Browser) => "spa"
         case Some(MeltMode.Node)    => "ssr"
         case Some(MeltMode.Http4s)  => "ssr"
-        case Some(MeltMode.SSG)     => "ssr"
         case None                   => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
       },
       hydration     = meltcHydration.value,
@@ -652,7 +644,7 @@ object MeltcPlugin extends AutoPlugin {
     if (compilerCp.isEmpty) {
       log.warn(
         "[sbt-meltc] meltcCompilerClasspath is empty — no .melt files will be compiled.\n" +
-          "  Run `sbt meltcJVM/publishLocal` in the melt monorepo first."
+          "  Run `sbt compilerJVM/publishLocal` in the melt monorepo first."
       )
       return Seq.empty
     }
