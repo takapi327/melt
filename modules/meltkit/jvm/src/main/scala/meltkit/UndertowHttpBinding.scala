@@ -6,33 +6,38 @@
 
 package meltkit
 
-import java.io.{ InputStream, OutputStream }
-import java.nio.file.{ Files, Path, Paths }
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.nio.file.{ Files, Paths }
 
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.jdk.CollectionConverters.*
 import scala.util.{ Failure, Success }
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
-import com.sun.net.httpserver.HttpExchange
+import io.undertow.server.HttpServerExchange
+import io.undertow.util.{ Headers, HttpString }
 import meltkit.codec.BodyDecoder
 import meltkit.exceptions.BodyDecodeException
 
-/** Bridges JDK `HttpExchange` to the [[MeltKit]] routing pipeline.
+/** Bridges Undertow `HttpServerExchange` to the [[MeltKit]] routing pipeline.
   *
   * Fixed to `Future`. For `IO`-based JVM servers, use `meltkit-adapter-http4s`.
   */
-private[meltkit] class JdkHttpBinding(
+private[meltkit] class UndertowHttpBinding(
   app:    ServerMeltKitPlatform[Future],
   config: ServerConfig
 )(using ec: ExecutionContext):
 
-  def handleExchange(exchange: HttpExchange): Unit =
+  def handleExchange(exchange: HttpServerExchange): Unit =
     try
-      val method   = exchange.getRequestMethod.toUpperCase
-      val uri      = exchange.getRequestURI
-      val rawUrl   = if uri.getRawPath == null then "/" else uri.getRawPath + Option(uri.getRawQuery).fold("")("?" + _)
+      exchange.startBlocking()
+      val method   = exchange.getRequestMethod.toString.toUpperCase
+      val path     = exchange.getRequestPath
+      val query    = exchange.getQueryString
+      val rawUrl   = if query.isEmpty then path else s"$path?$query"
       val url      = Url.parse(rawUrl, s"http://${ config.host }:${ config.port }")
       val segments = url.pathname.split('/').filter(_.nonEmpty).toList
 
@@ -40,7 +45,7 @@ private[meltkit] class JdkHttpBinding(
       val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
       val nonce   = config.cspConfig.map(_ => CspNonce.generate())
 
-      val rawBody: Future[String] = Future(readBody(exchange.getRequestBody))
+      val rawBody: Future[String] = Future(readBody(exchange.getInputStream))
 
       val isHead       = method == "HEAD"
       val routeMethod  = if isHead then "GET" else method
@@ -107,29 +112,24 @@ private[meltkit] class JdkHttpBinding(
         try sendText(exchange, 500, "Internal Server Error")
         catch case _: Throwable => ()
 
-  private def writeResponse(effect: Future[Response], exchange: HttpExchange, isHead: Boolean): Unit =
+  private def writeResponse(effect: Future[Response], exchange: HttpServerExchange, isHead: Boolean): Unit =
     effect.onComplete {
       case Success(response) =>
         try
           response.headers.foreach {
             case (k, v) =>
-              exchange.getResponseHeaders.set(k, v)
+              exchange.getResponseHeaders.put(new HttpString(k), v)
           }
-          exchange.getResponseHeaders.set("Content-Type", response.contentType)
+          exchange.getResponseHeaders.put(Headers.CONTENT_TYPE, response.contentType)
           response.responseCookies.foreach { c =>
-            exchange.getResponseHeaders.add("Set-Cookie", serializeCookie(c))
+            exchange.getResponseHeaders.add(Headers.SET_COOKIE, serializeCookie(c))
           }
-          val bodyBytes = response.body.getBytes("UTF-8")
-          if isHead then exchange.sendResponseHeaders(response.status, -1)
-          else
-            exchange.sendResponseHeaders(response.status, bodyBytes.length.toLong)
-            val os = exchange.getResponseBody
-            os.write(bodyBytes)
-            os.close()
-          exchange.close()
+          exchange.setStatusCode(response.status)
+          if isHead then exchange.endExchange()
+          else exchange.getResponseSender.send(ByteBuffer.wrap(response.body.getBytes("UTF-8")))
         catch
           case _: Throwable =>
-            try exchange.close()
+            try exchange.endExchange()
             catch case _: Throwable => ()
 
       case Failure(error) =>
@@ -141,18 +141,14 @@ private[meltkit] class JdkHttpBinding(
               sendText(exchange, 500, "Internal Server Error")
         catch
           case _: Throwable =>
-            try exchange.close()
+            try exchange.endExchange()
             catch case _: Throwable => ()
     }
 
-  private def sendText(exchange: HttpExchange, status: Int, body: String): Unit =
-    val bytes = body.getBytes("UTF-8")
-    exchange.getResponseHeaders.set("Content-Type", "text/plain; charset=utf-8")
-    exchange.sendResponseHeaders(status, bytes.length.toLong)
-    val os = exchange.getResponseBody
-    os.write(bytes)
-    os.close()
-    exchange.close()
+  private def sendText(exchange: HttpServerExchange, status: Int, body: String): Unit =
+    exchange.setStatusCode(status)
+    exchange.getResponseHeaders.put(Headers.CONTENT_TYPE, "text/plain; charset=utf-8")
+    exchange.getResponseSender.send(ByteBuffer.wrap(body.getBytes("UTF-8")))
 
   private def serializeCookie(c: ResponseCookie): String =
     val sb = new StringBuilder
@@ -169,20 +165,21 @@ private[meltkit] class JdkHttpBinding(
     try new String(is.readAllBytes(), "UTF-8")
     finally is.close()
 
-  private def parseHeaders(exchange: HttpExchange): Map[String, String] =
+  private def parseHeaders(exchange: HttpServerExchange): Map[String, String] =
     val builder = Map.newBuilder[String, String]
-    exchange.getRequestHeaders.forEach { (k, vs) =>
-      builder += (k.toLowerCase -> vs.toArray.mkString(", "))
+    exchange.getRequestHeaders.getHeaderNames.forEach { (name: HttpString) =>
+      val values = exchange.getRequestHeaders.get(name)
+      builder += (name.toString.toLowerCase -> values.asScala.mkString(", "))
     }
     builder.result()
 
-  private def tryServeStaticFile(pathname: String, exchange: HttpExchange, isHead: Boolean): Boolean =
+  private def tryServeStaticFile(pathname: String, exchange: HttpServerExchange, isHead: Boolean): Boolean =
     if pathname == "/" || pathname == "/index.html" then return false
     if pathname.contains("..") then return false
     val dirs = List(config.clientDistDir, config.publicDir).flatten
     dirs.exists(dir => tryServeFromDir(pathname, dir, exchange, isHead))
 
-  private def tryServeFromDir(pathname: String, dir: String, exchange: HttpExchange, isHead: Boolean): Boolean =
+  private def tryServeFromDir(pathname: String, dir: String, exchange: HttpServerExchange, isHead: Boolean): Boolean =
     val normalized = pathname.stripPrefix("/")
     val filePath   = Paths.get(dir, normalized).normalize()
     val basePath   = Paths.get(dir).normalize()
@@ -202,15 +199,11 @@ private[meltkit] class JdkHttpBinding(
       else "no-cache"
 
     val bytes = Files.readAllBytes(filePath)
-    exchange.getResponseHeaders.set("Content-Type", contentType)
-    exchange.getResponseHeaders.set("Cache-Control", cacheControl)
-    if isHead then exchange.sendResponseHeaders(200, -1)
-    else
-      exchange.sendResponseHeaders(200, bytes.length.toLong)
-      val os = exchange.getResponseBody
-      os.write(bytes)
-      os.close()
-    exchange.close()
+    exchange.setStatusCode(200)
+    exchange.getResponseHeaders.put(Headers.CONTENT_TYPE, contentType)
+    exchange.getResponseHeaders.put(Headers.CACHE_CONTROL, cacheControl)
+    if isHead then exchange.endExchange()
+    else exchange.getResponseSender.send(ByteBuffer.wrap(bytes))
     true
 
   private def mimeType(ext: String): String = ext match

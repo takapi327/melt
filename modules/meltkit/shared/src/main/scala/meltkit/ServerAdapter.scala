@@ -13,7 +13,7 @@ package meltkit
   *
   * Platform-specific modules provide concrete implementations:
   *   - `meltkit-node`:        [[NodeServerAdapter]] (node:http direct)
-  *   - `meltkit` (jvm, future): `JdkServerAdapter` (JDK HttpServer)
+  *   - `meltkit` (jvm, future): `UndertowServerAdapter` (Undertow)
   */
 trait ServerAdapter[F[_]]:
 
