@@ -24,7 +24,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "meltkitJVM",
     "meltkitJS",
     "meltkit-adapter-browser",
-    "meltkit-node",
+    "meltkit-adapter-node",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS"
   )
@@ -40,8 +40,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-browser", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-browser", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
   // Scala 3.8.3 runs on Java 17 only
@@ -66,7 +66,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
     cond = Some(
-      "contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
+      "contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)"
     )
   ),
   WorkflowStep.Sbt(
@@ -208,12 +208,12 @@ lazy val `meltkit-adapter-browser` = project
   .dependsOn(meltkit.js)
 
 // ── MeltKit: Node.js server adapter (Scala.js only, Scala 3.8+) ──────────────
-lazy val `meltkit-node` = project
-  .in(file("modules/meltkit-node"))
+lazy val `meltkit-adapter-node` = project
+  .in(file("modules/meltkit-adapter-node"))
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .settings(BuildSettings.commonSettings)
   .settings(
-    name         := "meltkit-node",
+    name         := "meltkit-adapter-node",
     scalaVersion := scala38,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.CommonJSModule)
@@ -241,7 +241,7 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(AutomateHeaderPlugin)
   .jvmConfigure(_.dependsOn(meltkit.jvm))
-  .jsConfigure(_.dependsOn(`meltkit-node`))
+  .jsConfigure(_.dependsOn(`meltkit-adapter-node`))
   .jsSettings(
     // Node.js: AsyncLocalStorage uses @JSImport which requires module support
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
@@ -630,7 +630,7 @@ lazy val `node-ssr-server` = project
       "io.circe" %%% "circe-parser"  % "0.14.9"
     )
   )
-  .dependsOn(`meltkit-node`)
+  .dependsOn(`meltkit-adapter-node`)
 
 // ── Example: JDK SSR + Hydration (pure Scala, no cats-effect / http4s) ──
 //
@@ -707,7 +707,7 @@ lazy val root = project
     meltkit.jvm,
     meltkit.js,
     `meltkit-adapter-browser`,
-    `meltkit-node`,
+    `meltkit-adapter-node`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
     `sbt-meltc`,
