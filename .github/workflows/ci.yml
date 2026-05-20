@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-latest]
         scala: [3.3.7, 3.8.3]
         java: [corretto@17, corretto@21, corretto@25]
-        project: [compilerJVM, compilerJS, compilerNative, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
+        project: [compilerJVM, compilerJS, compilerNative, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
         exclude:
           - project: compilerJS
             java: corretto@21
@@ -47,9 +47,9 @@ jobs:
             java: corretto@21
           - project: meltkit-adapter-browser
             java: corretto@25
-          - project: meltkit-node
+          - project: meltkit-adapter-node
             java: corretto@21
-          - project: meltkit-node
+          - project: meltkit-adapter-node
             java: corretto@25
           - project: meltkit-adapter-http4sJS
             java: corretto@21
@@ -107,7 +107,7 @@ jobs:
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
       - name: scalaJSLink
-        if: contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)
+        if: contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/scalaJSLinkerResult
 
       - name: nativeLink
