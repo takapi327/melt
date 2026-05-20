@@ -255,10 +255,10 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
 // `meltc-compiler` Ivy configuration after `publishLocal`. In this monorepo the
 // hello-world example wires codegen.jvm directly (see below).
 lazy val `sbt-meltc` = BuildSettings
-  .MeltSbtPluginProject("sbt-meltc", "modules/sbt-meltc")
+  .MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
   .settings(
     crossScalaVersions := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
-    // sbt-scalajs is pulled in via modules/sbt-meltc/build.sbt (a
+    // sbt-scalajs is pulled in via plugins/sbt-meltc/build.sbt (a
     // sub-project build file), because the meta-build compiles
     // sbt-meltc as a source dependency of the root meta-project and
     // that compile phase reads sbt-meltc's OWN build.sbt — not this
