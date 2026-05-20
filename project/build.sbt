@@ -6,7 +6,7 @@
 // plugins/sbt-meltkit/project/build.sbt, which makes sbt-meltc available on the
 // sbt-meltkit sub-build's classpath (same pattern as this file for the root build).
 
-lazy val sbtMeltcRef   = ProjectRef(file("../plugins/sbt-meltc"),   "sbt-meltc")
+lazy val sbtMeltcRef   = ProjectRef(file("../plugins/sbt-meltc"), "sbt-meltc")
 lazy val sbtMeltkitRef = ProjectRef(file("../plugins/sbt-meltkit"), "sbt-meltkit")
 
 lazy val root = (project in file("."))

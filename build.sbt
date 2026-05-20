@@ -257,7 +257,7 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
 lazy val `sbt-meltc` = BuildSettings
   .MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
+    crossScalaVersions                     := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
 
@@ -645,9 +645,9 @@ lazy val `jdk-ssr-server` = project
   .in(file("examples/jdk-ssr/server"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                     := "jdk-ssr-server",
-    publish / skip           := true,
-    scalaVersion             := scala38,
+    name                       := "jdk-ssr-server",
+    publish / skip             := true,
+    scalaVersion               := scala38,
     meltcManageCompilerDeps    := false,
     meltcCompilerClasspath     := (codegen.jvm / Compile / fullClasspath).value.files,
     meltkitAssetManifestClient := Some(`ssr-client`.js),

@@ -6,8 +6,8 @@
 
 package meltkit.sbt
 
-import sbt._
-import sbt.Keys._
+import sbt.*
+import sbt.Keys.*
 
 import org.scalajs.linker.interface.Report
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
@@ -19,7 +19,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, 
   * to select the appropriate codegen mode.
   */
 sealed abstract class MeltMode
-object MeltMode {
+object MeltMode:
 
   /** Browser SPA — adds `meltkit-adapter-browser` (Scala.js). Codegen: `spa`. */
   case object Browser extends MeltMode
@@ -29,7 +29,6 @@ object MeltMode {
 
   /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
   case object Http4s extends MeltMode
-}
 
 /** sbt-meltkit plugin
   *
@@ -45,7 +44,7 @@ object MeltMode {
   * meltcPackage := "components"
   * }}}
   */
-object MeltkitPlugin extends AutoPlugin {
+object MeltkitPlugin extends AutoPlugin:
 
   override def trigger  = noTrigger
   override def requires = meltc.sbt.MeltcPlugin
@@ -59,7 +58,7 @@ object MeltkitPlugin extends AutoPlugin {
   private def hasScalaJSPlugin(project: sbt.ResolvedProject): Boolean =
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
-  object autoImport {
+  object autoImport:
 
     /** Target platform mode.
       *
@@ -228,10 +227,9 @@ object MeltkitPlugin extends AutoPlugin {
     val meltkitConfigBasePath =
       settingKey[String]("Asset base path used in Template.render for SSR")
 
-  }
-
-  import autoImport._
   import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcCompilerVersion }
+
+  import autoImport.*
 
   override def projectSettings: Seq[Setting[_]] = Seq(
     meltMode                 := None,
@@ -239,21 +237,20 @@ object MeltkitPlugin extends AutoPlugin {
 
     // Override meltcCodegenMode based on meltMode
     meltcCodegenMode := {
-      meltMode.value match {
+      meltMode.value match
         case Some(MeltMode.Browser) => "spa"
         case Some(MeltMode.Node)    => "ssr"
         case Some(MeltMode.Http4s)  => "ssr"
         case None                   => "auto"
-      }
     },
 
     // ── meltMode: auto-add runtime dependency ─────────────────────────────
     libraryDependencies ++= {
-      if (!meltkitManageRuntimeDeps.value) Seq.empty
-      else {
+      if !meltkitManageRuntimeDeps.value then Seq.empty
+      else
         val v    = meltcCompilerVersion.value
         val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        meltMode.value match {
+        meltMode.value match
           case Some(MeltMode.Browser) =>
             // Scala.js artefact — name must be specified explicitly
             Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
@@ -263,8 +260,6 @@ object MeltkitPlugin extends AutoPlugin {
             Seq("io.github.takapi327" %% "meltkit-adapter-http4s" % v)
           case None =>
             Seq.empty
-        }
-      }
     },
 
     meltkitAssetManifestClient  := None,
@@ -276,7 +271,7 @@ object MeltkitPlugin extends AutoPlugin {
     meltkitViteDistDir      := baseDirectory.value / ".." / "dist",
     meltkitIndexHtml        := {
       val f = (Compile / resourceDirectory).value / "index.html"
-      if (f.exists()) Some(f) else None
+      if f.exists() then Some(f) else None
     },
 
     meltkitConfigObject   := "MeltKitConfig",
@@ -287,7 +282,7 @@ object MeltkitPlugin extends AutoPlugin {
       val client = meltkitAssetManifestClient.value
       val isNode = meltMode.value.contains(MeltMode.Node)
       // Generate for JVM servers (no ScalaJSPlugin) OR Node.js servers (MeltMode.Node)
-      if (client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode))
+      if client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode) then
         Def.task {
           generateMeltKitConfig(
             streams        = streams.value,
@@ -299,13 +294,12 @@ object MeltkitPlugin extends AutoPlugin {
             basePath       = meltkitConfigBasePath.value
           )
         }
-      else
-        Def.task(Seq.empty[File])
+      else Def.task(Seq.empty[File])
     }.value,
     Compile / sourceGenerators += meltkitConfigGenerate.taskValue,
 
     meltkitViteInputGenerate := Def.taskDyn {
-      meltkitAssetManifestClient.value match {
+      meltkitAssetManifestClient.value match
         case Some(clientProject) =>
           Def.task {
             generateViteInputs(
@@ -317,11 +311,10 @@ object MeltkitPlugin extends AutoPlugin {
           }
         case None =>
           Def.task(file(""))
-      }
     }.value,
 
     meltkitAssetManifestGenerate := Def.taskDyn {
-      meltkitAssetManifestClient.value match {
+      meltkitAssetManifestClient.value match
         case Some(clientProject) if meltkitProd.value =>
           Def.task {
             val distDir = meltkitViteDistDir.value
@@ -352,7 +345,6 @@ object MeltkitPlugin extends AutoPlugin {
           }
         case None =>
           Def.task(Seq.empty[File])
-      }
     }.value,
     Compile / sourceGenerators += meltkitAssetManifestGenerate.taskValue
   )
@@ -372,7 +364,7 @@ object MeltkitPlugin extends AutoPlugin {
     manifestObject: String,
     lang:           String,
     basePath:       String
-  ): Seq[File] = {
+  ): Seq[File] =
     val log = streams.log
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -400,7 +392,6 @@ object MeltkitPlugin extends AutoPlugin {
     IO.write(outFile, code)
     log.info(s"[sbt-meltkit] generated ${ outFile.getName }")
     Seq(outFile)
-  }
 
   /** Writes a `generated.AssetManifest` Scala source that exposes the
     * client project's Scala.js `fastLinkJS` output as a
@@ -417,7 +408,7 @@ object MeltkitPlugin extends AutoPlugin {
     report:       Report,
     distDir:      File,
     isNodeServer: Boolean = false // unused, kept for binary compat
-  ): Seq[File] = {
+  ): Seq[File] =
     val log = streams.log
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -463,7 +454,6 @@ object MeltkitPlugin extends AutoPlugin {
       s"[sbt-meltkit] regenerated ${ outFile.getName } with ${ sortedModules.size } public modules"
     )
     Seq(outFile)
-  }
 
   /** Writes a `vite-inputs.json` file that maps each Scala.js public
     * module's moduleID to its absolute filesystem path. `vite.config.js`
@@ -480,7 +470,7 @@ object MeltkitPlugin extends AutoPlugin {
     report:  Report,
     distDir: File,
     outFile: File
-  ): File = {
+  ): File =
     val log           = streams.log
     val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
 
@@ -496,7 +486,6 @@ object MeltkitPlugin extends AutoPlugin {
       s"[sbt-meltkit] wrote ${ outFile.getName } with ${ sortedModules.size } entries"
     )
     outFile
-  }
 
   /** Writes a `generated.AssetManifest` Scala source that loads the
     * Vite-produced `manifest.json` at startup. Used in production mode
@@ -513,16 +502,15 @@ object MeltkitPlugin extends AutoPlugin {
     objectName:   String,
     manifestPath: File,
     distDir:      File
-  ): Seq[File] = {
+  ): Seq[File] =
     val log = streams.log
 
-    if (!manifestPath.exists()) {
+    if !manifestPath.exists() then
       log.error(
         s"[sbt-meltkit] Vite manifest not found at ${ manifestPath.getAbsolutePath }. " +
           "Run `npx vite build` in the example directory first."
       )
       return Seq.empty
-    }
 
     IO.createDirectory(outDir)
     val outFile = outDir / s"$objectName.scala"
@@ -562,5 +550,3 @@ object MeltkitPlugin extends AutoPlugin {
       s"[sbt-meltkit] regenerated ${ outFile.getName } (prod mode, Vite manifest)"
     )
     Seq(outFile)
-  }
-}
