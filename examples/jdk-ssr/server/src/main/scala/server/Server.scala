@@ -180,15 +180,19 @@ object Server:
 
   def main(args: Array[String]): Unit =
     val template = scala.io.Source.fromResource("index.html").mkString
-    JdkServer
+    UndertowServer
       .builder(app)
       .withPort(9092)
       .withTemplate(template)
       .withClientDistDir(generated.AssetManifest.clientDistDir)
       .withManifest(generated.AssetManifest.manifest)
       .start()
-      .foreach { server =>
-        println(s"JVM SSR server running at http://${ server.host }:${ server.port }")
+      .onComplete {
+        case scala.util.Success(server) =>
+          println(s"JVM SSR server running at http://${ server.host }:${ server.port }")
+        case scala.util.Failure(e) =>
+          System.err.println(s"[error] Failed to start server: ${ e.getMessage }")
+          sys.exit(1)
       }
     // Keep JVM alive
     Thread.currentThread().join()

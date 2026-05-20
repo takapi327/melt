@@ -190,6 +190,9 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
     scalaVersion                            := scala38,
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
+  .jvmSettings(
+    libraryDependencies += "io.undertow" % "undertow-core" % "2.3.18.Final"
+  )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
 
@@ -660,7 +663,7 @@ lazy val `jdk-ssr-server` = project
 // ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
 //
 // Shared:  .melt components + DocsApp routes
-// JVM:     JdkServer (SSR dev) + SsgGenerator (static build)
+// JVM:     UndertowServer (SSR dev) + SsgGenerator (static build)
 // JS:      meltkit-adapter-browser hydration (meltcHydration := true auto-generates entries)
 //
 //   sbt "docs/jvm/run server"   ← SSR dev server

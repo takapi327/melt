@@ -163,7 +163,7 @@ val app: MeltKit[Future] = createApp()
   SsgGenerator.run(app, config)
 
 @main def server(): Unit =
-  JdkServer
+  UndertowServer
     .builder(app)
     .withPort(3000)
     .withTemplate(scala.io.Source.fromResource("index.html").mkString)
@@ -171,7 +171,11 @@ val app: MeltKit[Future] = createApp()
     .withClientDistDir(generated.AssetManifest.clientDistDir)
     .withPublicDir("public")
     .start()
-    .foreach { server =>
-      println(s"Docs server running at http://${ server.host }:${ server.port }")
+    .onComplete {
+      case scala.util.Success(server) =>
+        println(s"Docs server running at http://${ server.host }:${ server.port }")
+      case scala.util.Failure(e) =>
+        System.err.println(s"[error] Failed to start server: ${ e.getMessage }")
+        sys.exit(1)
     }
   Thread.currentThread().join()

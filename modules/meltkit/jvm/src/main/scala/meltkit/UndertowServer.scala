@@ -8,13 +8,13 @@ package meltkit
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-/** User-facing builder API for starting a JDK HTTP server.
+/** User-facing builder API for starting an Undertow HTTP server.
   *
-  * Uses `com.sun.net.httpserver.HttpServer` — no external dependencies.
+  * Backed by Undertow — production-ready NIO server, no cats-effect dependency.
   * Fixed to `Future`. For `IO`-based servers, use `meltkit-adapter-http4s`.
   *
   * {{{
-  * JdkServer
+  * UndertowServer
   *   .builder(app)
   *   .withPort(9092)
   *   .withTemplate(template)
@@ -26,7 +26,7 @@ import scala.concurrent.{ ExecutionContext, Future }
   *   }
   * }}}
   */
-object JdkServer:
+object UndertowServer:
 
   def builder(app: ServerMeltKitPlatform[Future])(using ExecutionContext): Builder =
     Builder(app)
@@ -65,4 +65,4 @@ object JdkServer:
         clientDistDir = clientDistDir,
         publicDir     = publicDir
       )
-      JdkServerAdapter().start(app, config)
+      UndertowServerAdapter().start(app, config)

@@ -21,7 +21,7 @@ import meltkit.exceptions.BodyDecodeException
   * synchronous render.
   *
   * Body methods delegate to `runner.map(rawBody)(...)` so that the same class
-  * works for both `Future`-based SSR (via [[JdkHttpBinding]]) and identity-effect
+  * works for both `Future`-based SSR (via [[UndertowHttpBinding]]) and identity-effect
   * SSG (via [[meltkit.ssg.SsgGenerator]]) without requiring `ExecutionContext`
   * at the SSG call site.
   */
