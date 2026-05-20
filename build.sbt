@@ -167,8 +167,8 @@ lazy val codegen = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(meltc, runtime)
 
 // ── Test utilities (Scala.js) ──
-lazy val `melt-testkit` = project
-  .in(file("modules/melt-testkit"))
+lazy val testkit = project
+  .in(file("modules/testkit"))
   .settings(BuildSettings.commonSettings)
   .settings(
     name := "melt-testkit",
@@ -323,7 +323,7 @@ lazy val counter = project
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime.js, `melt-testkit` % Test)
+  .dependsOn(runtime.js, testkit % Test)
 
 // ── Example: SCSS Counter (SCSS support via meltc-sass) ──────────────────────
 lazy val `scss-counter` = project
@@ -481,7 +481,7 @@ lazy val `reactive-scope` = project
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(runtime.js, `melt-testkit` % Test)
+  .dependsOn(runtime.js, testkit % Test)
 
 // ── Example: TrustedHtml (raw HTML injection) ─────────────────────────────────
 lazy val `trusted-html` = project
@@ -704,7 +704,7 @@ lazy val root = project
     runtime.js,
     codegen.jvm,
     codegen.js,
-    `melt-testkit`,
+    testkit,
     meltkit.jvm,
     meltkit.js,
     `meltkit-browser`,
