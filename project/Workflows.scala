@@ -14,19 +14,20 @@ object Workflows {
 
   /** All target directories that must be archived for the publish job. */
   private val allTargetDirs: List[String] = List(
-    "modules/meltc/jvm/target",
-    "modules/meltc/js/target",
-    "modules/meltc/native/target",
-    "modules/sbt-meltc/target",
+    "modules/compiler/jvm/target",
+    "modules/compiler/js/target",
+    "modules/compiler/native/target",
+    "plugins/sbt-meltc/target",
+    "plugins/sbt-meltkit/target",
     "modules/runtime/target",
-    "modules/melt-testing/target",
+    "modules/testkit/target",
     "editors/language-server/target",
     "target",
     "project/target"
   )
 
   /** Projects included in the build matrix. */
-  private val matrixProjects: List[String] = List("meltcJVM", "meltcJS", "meltcNative")
+  private val matrixProjects: List[String] = List("compilerJVM", "compilerJS", "compilerNative")
 
   val installNativeDeps: WorkflowStep.Run = WorkflowStep.Run(
     commands = List(
@@ -34,7 +35,7 @@ object Workflows {
       "sudo apt-get install -y clang libstdc++-12-dev"
     ),
     name = Some("Install Scala Native dependencies"),
-    cond = Some("matrix.project == 'meltcNative'")
+    cond = Some("matrix.project == 'compilerNative'")
   )
 
   /** Upload steps matching ldbc's pattern:

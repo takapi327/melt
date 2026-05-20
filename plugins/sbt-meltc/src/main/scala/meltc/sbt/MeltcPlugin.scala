@@ -11,28 +11,6 @@ import java.util.Optional
 import sbt._
 import sbt.Keys._
 
-import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
-
-/** Target platform / rendering mode for a Meltkit project.
-  *
-  * Setting [[MeltcPlugin.autoImport.meltMode]] to one of these values causes
-  * the plugin to automatically add the corresponding runtime dependency and
-  * to select the appropriate codegen mode.
-  */
-sealed abstract class MeltMode
-object MeltMode {
-
-  /** Browser SPA — adds `meltkit-adapter-browser` (Scala.js). Codegen: `spa`. */
-  case object Browser extends MeltMode
-
-  /** Node.js SSR server — adds `meltkit-adapter-node` (Scala.js). Codegen: `ssr`. */
-  case object Node extends MeltMode
-
-  /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
-  case object Http4s extends MeltMode
-}
-
 /** sbt-meltc plugin
   *
   * Detects `.melt` files under `meltcSourceDirectory` and compiles each one
@@ -184,142 +162,17 @@ object MeltcPlugin extends AutoPlugin {
     val meltcGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
 
-    /** Client sub-project whose Scala.js `fastLinkJS` public modules
-      * drive the auto-generated `AssetManifest` object.
+    /** Codegen mode passed to `meltc.MeltcMain`.
       *
-      * Set this on the server project that serves the client's chunks.
-      * The plugin will add a `Compile / sourceGenerators` task that:
+      * Valid values: `"spa"`, `"ssr"`, `"auto"`.
       *
-      *   1. Takes a `.value` dependency on
-      *      `(clientProject / Compile / fastLinkJS)` so sbt rebuilds the
-      *      client whenever the server needs to be compiled.
-      *   2. Reads the resulting `Report.publicModules` and writes a
-      *      Scala source exposing both a `ViteManifest` and the
-      *      absolute `clientDistDir: fs2.io.file.Path` path.
+      * Default: `"auto"` — selects `"spa"` when `ScalaJSPlugin` is enabled,
+      * otherwise `"ssr"`.
       *
-      * Default: `None` — no manifest is generated, the project is
-      * treated as a regular Melt server with no hydration client.
-      *
-      * Typical setup:
-      * {{{
-      * lazy val `my-client` = project.enablePlugins(ScalaJSPlugin, MeltcPlugin)
-      * lazy val `my-server` = project
-      *   .enablePlugins(MeltcPlugin)
-      *   .settings(meltcAssetManifestClient := Some(`my-client`))
-      *   .dependsOn(`my-components`.jvm)
-      * }}}
+      * `MeltkitPlugin` overrides this based on `meltMode`.
       */
-    val meltcAssetManifestClient =
-      settingKey[Option[ProjectReference]](
-        "Client sub-project whose fastLinkJS output drives AssetManifest generation"
-      )
-
-    /** Package of the generated asset manifest object.
-      * Default: `"generated"`.
-      */
-    val meltcAssetManifestPackage =
-      settingKey[String]("Package for the auto-generated AssetManifest object")
-
-    /** Object name of the generated asset manifest.
-      * Default: `"AssetManifest"`.
-      */
-    val meltcAssetManifestObject =
-      settingKey[String]("Object name for the auto-generated AssetManifest")
-
-    /** The generator task itself — exposed so advanced users can
-      * customise invocation or inspect the output path.
-      */
-    val meltcAssetManifestGenerate =
-      taskKey[Seq[File]]("Generate AssetManifest.scala from the client's fastLinkJS Report")
-
-    /** When `true`, the asset manifest is generated from a real Vite
-      * `manifest.json` (produced by `vite build`) instead of being
-      * synthesised from `fastLinkJS` public modules. This switches the
-      * generated `AssetManifest` to use hashed filenames and changes
-      * `clientDistDir` to point at the Vite `dist/` directory.
-      *
-      * Default: `false` (reads `sys.env("MELT_PROD")` as a fallback).
-      */
-    val meltcProd =
-      settingKey[Boolean]("Enable production mode (Vite manifest)")
-
-    /** Filesystem path to the Vite `manifest.json` output. Only used
-      * when [[meltcProd]] is `true`.
-      *
-      * Default: `examples/http4s-ssr/dist/.vite/manifest.json` (relative
-      * to `baseDirectory`). Override for non-standard Vite `outDir`.
-      */
-    val meltcViteManifestPath =
-      settingKey[File]("Path to the Vite manifest.json file")
-
-    /** Filesystem path to the Vite `dist/` output directory. Only used
-      * when [[meltcProd]] is `true`. Becomes `clientDistDir` in the
-      * generated `AssetManifest`.
-      *
-      * Default: sibling of `meltcViteManifestPath` (`dist/`).
-      */
-    val meltcViteDistDir =
-      settingKey[File]("Path to the Vite dist directory")
-
-    /** Source `index.html` template to copy into `clientDistDir` at build time.
-      *
-      * [[meltkit.adapter.http4s.Http4sAdapter.spaRoutes]] reads
-      * `clientDistDir / "index.html"` via `fs2.io.file.Files` so that it
-      * works on both JVM and Node.js. Set this key to have sbt-meltc copy
-      * your template automatically on every compile.
-      *
-      * Default: auto-detected from `(Compile / resourceDirectory) / "index.html"`.
-      *
-      * {{{
-      * meltcIndexHtml := Some(baseDirectory.value / "index.html")
-      * }}}
-      */
-    val meltcIndexHtml =
-      settingKey[Option[File]]("Source index.html to copy into clientDistDir")
-
-    /** Generates a `vite-inputs.json` file from the client's
-      * `fullLinkJS` output. This JSON file is read by `vite.config.js`
-      * as `rollupOptions.input` so that adding or removing a `.melt`
-      * component automatically updates the Vite build without editing
-      * any config files.
-      */
-    val meltcViteInputGenerate =
-      taskKey[File]("Generate vite-inputs.json from the client's fullLinkJS Report")
-
-    /** Generates a `MeltKitConfig.scala` source for SSR projects.
-      *
-      * The generated object bundles the [[meltkit.ViteManifest]] reference,
-      * asset base path, and default language used by `ctx.melt()` to render
-      * SSR pages. The HTML template is read at startup via `fs2.io.file.Files`
-      * by the adapter, keeping the generated code platform-agnostic.
-      *
-      * Only generated when all of the following hold:
-      *   - [[meltcAssetManifestClient]] is set (a Scala.js client exists)
-      *   - the current project is a JVM project (no `ScalaJSPlugin`)
-      *
-      * The generated file lives alongside `AssetManifest.scala` in the
-      * same managed source directory and package.
-      */
-    val meltcMeltKitConfigGenerate =
-      taskKey[Seq[File]]("Generate MeltKitConfig.scala for SSR rendering via ctx.melt()")
-
-    /** Object name of the generated MeltKitConfig.
-      * Default: `"MeltKitConfig"`.
-      */
-    val meltcMeltKitConfigObject =
-      settingKey[String]("Object name for the auto-generated MeltKitConfig")
-
-    /** Default HTML `lang` attribute value for SSR pages.
-      * Default: `"en"`.
-      */
-    val meltcMeltKitConfigLang =
-      settingKey[String]("Default HTML lang attribute for SSR pages")
-
-    /** Asset base path used in [[meltkit.Template.render]] for SSR.
-      * Default: `"/assets"`.
-      */
-    val meltcMeltKitConfigBasePath =
-      settingKey[String]("Asset base path used in Template.render for SSR")
+    val meltcCodegenMode =
+      settingKey[String]("Codegen mode: spa, ssr, or auto (default)")
 
     /** Class name of the [[meltc.css.StylePreprocessor]] implementation to use
       * for stylesheet preprocessing in `.melt` files.
@@ -402,38 +255,6 @@ object MeltcPlugin extends AutoPlugin {
         "When true, automatically resolve preprocessor JARs via Ivy. Set false when providing meltcCompilerClasspath manually."
       )
 
-    // ── meltMode / runtime dependency management ──────────────────────────
-
-    /** Target platform mode.
-      *
-      * Setting this key causes the plugin to:
-      *   - automatically add the appropriate runtime `libraryDependency`
-      *     (when [[meltcManageRuntimeDeps]] is `true`)
-      *   - select the correct codegen mode (`spa` for [[Browser]], `ssr` otherwise)
-      *
-      * {{{
-      * meltMode := Browser  // → meltkit-adapter-browser (Scala.js SPA)
-      * meltMode := Node     // → meltkit-adapter-node (Node.js SSR)
-      * meltMode := Http4s   // → meltkit-adapter-http4s (http4s SSR)
-      * }}}
-      *
-      * Default: `None` — no runtime dependency is added automatically.
-      */
-    val meltMode = settingKey[Option[MeltMode]]("Target platform / rendering mode")
-
-    /** When `true` (the default), the plugin automatically adds the runtime
-      * library corresponding to [[meltMode]] to `libraryDependencies`.
-      *
-      * Set to `false` to manage the runtime dependency manually.
-      */
-    val meltcManageRuntimeDeps =
-      settingKey[Boolean]("Auto-add meltkit runtime dependency based on meltMode")
-
-    // Convenience aliases so users can write `meltMode := Browser` without a prefix
-    val Browser: MeltMode = MeltMode.Browser
-    val Node:    MeltMode = MeltMode.Node
-    val Http4s:  MeltMode = MeltMode.Http4s
-
   }
 
   import autoImport._
@@ -454,8 +275,7 @@ object MeltcPlugin extends AutoPlugin {
     meltcStylePreprocessor      := None,
     meltcManageCompilerDeps     := true,
     meltcManagePreprocessorDeps := true,
-    meltMode                    := None,
-    meltcManageRuntimeDeps      := true,
+    meltcCodegenMode            := "auto",
     meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
     meltcSourceDirectories      := {
       val unmanaged = (Compile / unmanagedSourceDirectories).value
@@ -491,36 +311,15 @@ object MeltcPlugin extends AutoPlugin {
       configurationFilter(MeltcCompilerConfig.name)
     ),
 
-    // ── meltMode: auto-add runtime dependency ────────────────────────────
-    libraryDependencies ++= {
-      if (!meltcManageRuntimeDeps.value) Seq.empty
-      else {
-        val v    = meltcCompilerVersion.value
-        val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        meltMode.value match {
-          case Some(MeltMode.Browser) =>
-            // Scala.js artefact — name must be specified explicitly
-            Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
-          case Some(MeltMode.Node) =>
-            Seq("io.github.takapi327" % s"meltkit-adapter-node_sjs1_$binV" % v)
-          case Some(MeltMode.Http4s) =>
-            Seq("io.github.takapi327" %% "meltkit-adapter-http4s" % v)
-          case None =>
-            Seq.empty
-        }
-      }
-    },
-
     meltcGenerate := compileMeltFiles(
       streams = streams.value,
       srcDirs = meltcSourceDirectories.value,
       outDir  = meltcOutputDirectory.value,
       pkg     = meltcPackage.value,
-      mode    = meltMode.value match {
-        case Some(MeltMode.Browser) => "spa"
-        case Some(MeltMode.Node)    => "ssr"
-        case Some(MeltMode.Http4s)  => "ssr"
-        case None                   => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
+      mode    = meltcCodegenMode.value match {
+        case "spa" => "spa"
+        case "ssr" => "ssr"
+        case _     => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
       },
       hydration     = meltcHydration.value,
       hydrationRoot = meltcHydrationRoot.value,
@@ -535,96 +334,7 @@ object MeltcPlugin extends AutoPlugin {
     // original `.melt` source files using the `-- MELT GENERATED --` comment
     // block that meltc appends to every generated file.
     Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
-    Test / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
-
-    meltcAssetManifestClient  := None,
-    meltcAssetManifestPackage := "generated",
-    meltcAssetManifestObject  := "AssetManifest",
-
-    meltcProd             := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
-    meltcViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
-    meltcViteDistDir      := baseDirectory.value / ".." / "dist",
-    meltcIndexHtml        := {
-      val f = (Compile / resourceDirectory).value / "index.html"
-      if (f.exists()) Some(f) else None
-    },
-
-    meltcMeltKitConfigObject   := "MeltKitConfig",
-    meltcMeltKitConfigLang     := "en",
-    meltcMeltKitConfigBasePath := "/assets",
-
-    meltcMeltKitConfigGenerate := Def.taskDyn {
-      val client = meltcAssetManifestClient.value
-      val isNode = meltMode.value.contains(MeltMode.Node)
-      // Generate for JVM servers (no ScalaJSPlugin) OR Node.js servers (MeltMode.Node)
-      if (client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode))
-        Def.task {
-          generateMeltKitConfig(
-            streams        = streams.value,
-            outDir         = (Compile / sourceManaged).value / "generated",
-            pkgName        = meltcAssetManifestPackage.value,
-            objectName     = meltcMeltKitConfigObject.value,
-            manifestObject = meltcAssetManifestObject.value,
-            lang           = meltcMeltKitConfigLang.value,
-            basePath       = meltcMeltKitConfigBasePath.value
-          )
-        }
-      else
-        Def.task(Seq.empty[File])
-    }.value,
-    Compile / sourceGenerators += meltcMeltKitConfigGenerate.taskValue,
-
-    meltcViteInputGenerate := Def.taskDyn {
-      meltcAssetManifestClient.value match {
-        case Some(clientProject) =>
-          Def.task {
-            generateViteInputs(
-              streams = streams.value,
-              report  = (clientProject / Compile / fullLinkJS).value.data,
-              distDir = (clientProject / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value,
-              outFile = (clientProject / baseDirectory).value / "target" / "vite-inputs.json"
-            )
-          }
-        case None =>
-          Def.task(file(""))
-      }
-    }.value,
-
-    meltcAssetManifestGenerate := Def.taskDyn {
-      meltcAssetManifestClient.value match {
-        case Some(clientProject) if meltcProd.value =>
-          Def.task {
-            val distDir = meltcViteDistDir.value
-            meltcIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
-            generateAssetManifestFromVite(
-              streams      = streams.value,
-              outDir       = (Compile / sourceManaged).value / "generated",
-              pkgName      = meltcAssetManifestPackage.value,
-              objectName   = meltcAssetManifestObject.value,
-              manifestPath = meltcViteManifestPath.value,
-              distDir      = distDir
-            )
-          }
-        case Some(clientProject) =>
-          Def.task {
-            val distDir = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
-            meltcIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
-            val isNode = meltMode.value.contains(MeltMode.Node)
-            generateAssetManifest(
-              streams      = streams.value,
-              outDir       = (Compile / sourceManaged).value / "generated",
-              pkgName      = meltcAssetManifestPackage.value,
-              objectName   = meltcAssetManifestObject.value,
-              report       = (clientProject / Compile / fastLinkJS).value.data,
-              distDir      = distDir,
-              isNodeServer = isNode
-            )
-          }
-        case None =>
-          Def.task(Seq.empty[File])
-      }
-    }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
+    Test / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) }
   )
 
   private def compileMeltFiles(
@@ -828,211 +538,4 @@ object MeltcPlugin extends AutoPlugin {
       override def message():  String         = msg
       override def position(): xsbti.Position = mkPosition(absPath, lineNum)
     }
-
-  /** Writes a `MeltKitConfig` Scala source that bundles the [[meltkit.Template]],
-    * manifest reference, asset base path, and default language for SSR rendering.
-    *
-    * The generated object is placed in the same package as `AssetManifest` and
-    * references `AssetManifest.manifest` by name so that both objects are always
-    * in sync.
-    */
-  private def generateMeltKitConfig(
-    streams:        TaskStreams,
-    outDir:         File,
-    pkgName:        String,
-    objectName:     String,
-    manifestObject: String,
-    lang:           String,
-    basePath:       String
-  ): Seq[File] = {
-    val log = streams.log
-    IO.createDirectory(outDir)
-    val outFile = outDir / s"$objectName.scala"
-
-    val code =
-      s"""package $pkgName
-         |
-         |/** Auto-generated by sbt-meltc — do not edit.
-         |  *
-         |  * Bundles the [[meltkit.ViteManifest]] reference, asset base path,
-         |  * and default language used by `ctx.melt()` for SSR rendering.
-         |  *
-         |  * The HTML template (`index.html`) is intentionally excluded: it is
-         |  * read at server startup via `fs2.io.file.Files` so that the adapter
-         |  * works on both JVM and Node.js. To customise other values, override
-         |  * the `meltcMeltKitConfig*` settings in `build.sbt`.
-         |  */
-         |object $objectName {
-         |  val manifest: meltkit.ViteManifest = $manifestObject.manifest
-         |  val basePath: String               = "$basePath"
-         |  val lang:     String               = "$lang"
-         |}
-         |""".stripMargin
-
-    IO.write(outFile, code)
-    log.info(s"[sbt-meltc] generated ${ outFile.getName }")
-    Seq(outFile)
-  }
-
-  /** Writes a `generated.AssetManifest` Scala source that exposes the
-    * client project's Scala.js `fastLinkJS` output as a
-    * [[meltkit.ViteManifest]] plus the absolute filesystem
-    * path of the fastopt output directory as a [[fs2.io.file.Path]].
-    * Regenerated on every compile so adding or removing a `.melt`
-    * component requires zero edits to this file.
-    */
-  private def generateAssetManifest(
-    streams:      TaskStreams,
-    outDir:       File,
-    pkgName:      String,
-    objectName:   String,
-    report:       Report,
-    distDir:      File,
-    isNodeServer: Boolean = false // unused, kept for binary compat
-  ): Seq[File] = {
-    val log = streams.log
-    IO.createDirectory(outDir)
-    val outFile = outDir / s"$objectName.scala"
-
-    val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
-
-    val entriesSrc = sortedModules
-      .map { m =>
-        s"""    "scalajs:${ m.moduleID }.js" -> ViteManifest.Entry(file = "${ m.jsFileName }")"""
-      }
-      .mkString(",\n")
-
-    val distPathLit = distDir.getAbsolutePath.replace("\\", "\\\\")
-
-    // Always use String for clientDistDir — no fs2 dependency required.
-    // http4s users can convert via Path(AssetManifest.clientDistDir).
-    val code =
-      s"""package $pkgName
-         |
-         |import meltkit.ViteManifest
-         |
-         |/** Auto-generated by sbt-meltc — do not edit.
-         |  *
-         |  * Maps every `@JSExportTopLevel("hydrate", moduleID = ...)` from
-         |  * the client project's Scala.js `fastLinkJS` output to its
-         |  * emitted chunk file name. `clientDistDir` is the absolute path
-         |  * of the fastopt directory.
-         |  *
-         |  * For http4s `fileService`, convert to `Path` via
-         |  * `fs2.io.file.Path(AssetManifest.clientDistDir)`.
-         |  */
-         |object $objectName {
-         |  val manifest: ViteManifest = ViteManifest.fromEntries(Map(
-         |$entriesSrc
-         |  ))
-         |
-         |  val clientDistDir: String = "$distPathLit"
-         |}
-         |""".stripMargin
-
-    IO.write(outFile, code)
-    log.info(
-      s"[sbt-meltc] regenerated ${ outFile.getName } with ${ sortedModules.size } public modules"
-    )
-    Seq(outFile)
-  }
-
-  /** Writes a `vite-inputs.json` file that maps each Scala.js public
-    * module's moduleID to its absolute filesystem path. `vite.config.js`
-    * reads this as `rollupOptions.input` so adding or removing a `.melt`
-    * component automatically updates the Vite build.
-    *
-    * Keys are plain moduleIDs (e.g. `"home"`, `"todos"`). Colons are
-    * NOT used because Rollup treats colon-containing keys as non-entry
-    * chunks and strips their exports — causing `hydrate is not a
-    * function` errors in the browser.
-    */
-  private def generateViteInputs(
-    streams: TaskStreams,
-    report:  Report,
-    distDir: File,
-    outFile: File
-  ): File = {
-    val log           = streams.log
-    val sortedModules = report.publicModules.toList.sortBy(_.moduleID)
-
-    val entries = sortedModules.map { m =>
-      val absPath = (distDir / m.jsFileName).getAbsolutePath
-        .replace("\\", "/")
-      s"""  "${ m.moduleID }": "$absPath""""
-    }
-    val json = entries.mkString("{\n", ",\n", "\n}\n")
-
-    IO.write(outFile, json)
-    log.info(
-      s"[sbt-meltc] wrote ${ outFile.getName } with ${ sortedModules.size } entries"
-    )
-    outFile
-  }
-
-  /** Writes a `generated.AssetManifest` Scala source that loads the
-    * Vite-produced `manifest.json` at startup. Used in production mode
-    * when `meltcProd := true` (or `MELT_PROD=true`).
-    *
-    * Unlike the dev-mode generator which embeds entries inline, this
-    * version calls `ViteManifest.load(path)` so the Scala source stays
-    * tiny and the hashed filenames come from the actual Vite output.
-    */
-  private def generateAssetManifestFromVite(
-    streams:      TaskStreams,
-    outDir:       File,
-    pkgName:      String,
-    objectName:   String,
-    manifestPath: File,
-    distDir:      File
-  ): Seq[File] = {
-    val log = streams.log
-
-    if (!manifestPath.exists()) {
-      log.error(
-        s"[sbt-meltc] Vite manifest not found at ${ manifestPath.getAbsolutePath }. " +
-          "Run `npx vite build` in the example directory first."
-      )
-      return Seq.empty
-    }
-
-    IO.createDirectory(outDir)
-    val outFile = outDir / s"$objectName.scala"
-
-    val manifestPathLit = manifestPath.getAbsolutePath.replace("\\", "\\\\")
-    val distPathLit     = distDir.getAbsolutePath.replace("\\", "\\\\")
-
-    // Read manifest JSON at sbt compile time and embed it as a string literal.
-    // This avoids java.nio.file at runtime, making it compatible with Scala.js.
-    val manifestContent = IO.read(manifestPath).replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-
-    val code =
-      s"""package $pkgName
-         |
-         |import meltkit.ViteManifest
-         |
-         |/** Auto-generated by sbt-meltc (prod mode) — do not edit.
-         |  *
-         |  * Embeds the Vite-produced `manifest.json` at compile time.
-         |  * All chunk filenames are content-hashed by Vite, enabling
-         |  * `Cache-Control: immutable` on production deployments.
-         |  *
-         |  * For http4s `fileService`, convert to `Path` via
-         |  * `fs2.io.file.Path(AssetManifest.clientDistDir)`.
-         |  */
-         |object $objectName {
-         |  val manifest: ViteManifest = ViteManifest.fromString(
-         |    "$manifestContent"
-         |  )
-         |
-         |  val clientDistDir: String = "$distPathLit"
-         |}
-         |""".stripMargin
-
-    IO.write(outFile, code)
-    log.info(
-      s"[sbt-meltc] regenerated ${ outFile.getName } (prod mode, Vite manifest)"
-    )
-    Seq(outFile)
-  }
 }
