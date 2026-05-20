@@ -16,9 +16,9 @@ ThisBuild / githubWorkflowJavaVersions := Seq(
 )
 ThisBuild / githubWorkflowBuildMatrixAdditions +=
   "project" -> List(
-    "meltcJVM",
-    "meltcJS",
-    "meltcNative",
+    "compilerJVM",
+    "compilerJS",
+    "compilerNative",
     "codegenJVM",
     "codegenJS",
     "meltkitJVM",
@@ -30,10 +30,10 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
   )
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   // JS / Native run on Java 17 only
-  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltcJS", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltcNative", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "compilerNative", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "compilerNative", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java21")),
@@ -66,13 +66,13 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
     cond = Some(
-      "contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
+      "contains('compilerJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
     )
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "Test/nativeLink"),
     name = Some("nativeLink"),
-    cond = Some("matrix.project == 'meltcNative'")
+    cond = Some("matrix.project == 'compilerNative'")
   ),
   WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "test"),
@@ -91,32 +91,31 @@ ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
 // ── CSS preprocessor API (no external dependencies, cross-compiled) ──
-lazy val `meltc-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
-  .in(file("modules/meltc-css"))
+  .in(file("modules/compiler-css"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name := "meltc-css"
+    name := "melt-compiler-css"
   )
   .enablePlugins(AutomateHeaderPlugin)
 
 // ── SCSS support via Dart Sass (optional, JVM only) ──
-lazy val `meltc-sass` = project
-  .in(file("modules/meltc-sass"))
+lazy val `compiler-sass` = project
+  .in(file("modules/compiler-sass"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                       := "meltc-sass",
+    name                                       := "melt-compiler-sass",
     libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
   )
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(`meltc-css`.jvm)
+  .dependsOn(`compiler-css`.jvm)
 
 // ── Core compiler (JVM + JS + Native) ──
-lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val compiler = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Full)
-  .module("meltc", "Core compiler: .melt → .scala")
+  .module("compiler", "Core compiler: .melt → .scala")
   .settings(
-    name := "meltc", // override "melt-meltc" → "meltc"
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % "1.3.0" % Test
     )
@@ -127,7 +126,7 @@ lazy val meltc = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeSettings(
     // Reserved for future Native CLI configuration
   )
-  .dependsOn(`meltc-css`)
+  .dependsOn(`compiler-css`)
 
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
@@ -150,10 +149,10 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
-// ── Code generator (JVM + JS): depends on meltc (AST/parser) + runtime ──
-// This is the only module that knows about both the meltc AST and the
+// ── Code generator (JVM + JS): depends on compiler (AST/parser) + runtime ──
+// This is the only module that knows about both the compiler AST and the
 // melt-runtime API that the generated code will import. Moving SsrCodeGen /
-// SpaCodeGen / MeltCompiler here makes the meltc ↔ runtime coupling explicit
+// SpaCodeGen / MeltCompiler here makes the compiler ↔ runtime coupling explicit
 // in build.sbt instead of being an invisible contract buried in string literals.
 lazy val codegen = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
@@ -164,7 +163,7 @@ lazy val codegen = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(meltc, runtime)
+  .dependsOn(compiler, runtime)
 
 // ── Test utilities (Scala.js) ──
 lazy val testkit = project
@@ -325,7 +324,7 @@ lazy val counter = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, testkit % Test)
 
-// ── Example: SCSS Counter (SCSS support via meltc-sass) ──────────────────────
+// ── Example: SCSS Counter (SCSS support via compiler-sass) ──────────────────────
 lazy val `scss-counter` = project
   .in(file("examples/scss-counter"))
   .settings(BuildSettings.commonSettings)
@@ -337,7 +336,7 @@ lazy val `scss-counter` = project
     meltcManagePreprocessorDeps     := false,
     meltcStylePreprocessor          := Some(SassPreprocessor),
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files ++
-      (`meltc-sass` / Compile / fullClasspath).value.files
+      (`compiler-sass` / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
@@ -693,13 +692,13 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
 lazy val root = project
   .in(file("."))
   .aggregate(
-    `meltc-css`.jvm,
-    `meltc-css`.js,
-    `meltc-css`.native,
-    `meltc-sass`,
-    meltc.jvm,
-    meltc.js,
-    meltc.native,
+    `compiler-css`.jvm,
+    `compiler-css`.js,
+    `compiler-css`.native,
+    `compiler-sass`,
+    compiler.jvm,
+    compiler.js,
+    compiler.native,
     runtime.jvm,
     runtime.js,
     codegen.jvm,

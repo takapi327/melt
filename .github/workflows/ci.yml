@@ -25,15 +25,15 @@ jobs:
         os: [ubuntu-latest]
         scala: [3.3.7, 3.8.3]
         java: [corretto@17, corretto@21, corretto@25]
-        project: [meltcJVM, meltcJS, meltcNative, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-browser, meltkit-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
+        project: [compilerJVM, compilerJS, compilerNative, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-browser, meltkit-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
         exclude:
-          - project: meltcJS
+          - project: compilerJS
             java: corretto@21
-          - project: meltcJS
+          - project: compilerJS
             java: corretto@25
-          - project: meltcNative
+          - project: compilerNative
             java: corretto@21
-          - project: meltcNative
+          - project: compilerNative
             java: corretto@25
           - project: codegenJS
             java: corretto@21
@@ -107,11 +107,11 @@ jobs:
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' headerCheckAll scalafmtCheckAll 'project /' scalafmtSbtCheck
 
       - name: scalaJSLink
-        if: contains('meltcJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)
+        if: contains('compilerJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/scalaJSLinkerResult
 
       - name: nativeLink
-        if: matrix.project == 'meltcNative'
+        if: matrix.project == 'compilerNative'
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/nativeLink
 
       - name: Test
