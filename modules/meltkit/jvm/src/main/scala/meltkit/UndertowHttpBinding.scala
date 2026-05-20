@@ -7,8 +7,8 @@
 package meltkit
 
 import java.io.InputStream
-import java.nio.ByteBuffer
 import java.nio.file.{ Files, Paths }
+import java.nio.ByteBuffer
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.jdk.CollectionConverters.*

@@ -8,8 +8,8 @@ package meltkit
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-import io.undertow.Undertow
 import io.undertow.server.HttpHandler
+import io.undertow.Undertow
 
 /** A [[ServerAdapter]] backed by Undertow.
   *
@@ -23,9 +23,9 @@ class UndertowServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Fu
       val binding = new UndertowHttpBinding(app, config)
       val handler: HttpHandler = exchange =>
         exchange.dispatch(new Runnable:
-          def run(): Unit = binding.handleExchange(exchange)
-        )
-      val server = Undertow.builder()
+          def run(): Unit = binding.handleExchange(exchange))
+      val server = Undertow
+        .builder()
         .addHttpListener(config.port, config.host)
         .setHandler(handler)
         .build()

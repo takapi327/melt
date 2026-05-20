@@ -230,8 +230,9 @@ object MeltkitPlugin extends AutoPlugin {
 
   }
 
-  import autoImport._
   import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcCompilerVersion }
+
+  import autoImport._
 
   override def projectSettings: Seq[Setting[_]] = Seq(
     meltMode                 := None,
