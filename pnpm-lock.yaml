@@ -12,6 +12,15 @@ importers:
         specifier: ^16.7.0
         version: 16.7.0
 
+  docs:
+    devDependencies:
+      '@melt/vite-plugin':
+        specifier: workspace:*
+        version: link:../packages/vite-plugin
+      vite:
+        specifier: ^6.3.0
+        version: 6.4.2(@types/node@25.6.2)
+
   examples/http4s-spa:
     devDependencies:
       '@melt/vite-plugin':

@@ -213,7 +213,7 @@ object MeltcPlugin extends AutoPlugin {
       * }}}
       */
     val meltcAssetManifestClient =
-      settingKey[Option[Project]](
+      settingKey[Option[ProjectReference]](
         "Client sub-project whose fastLinkJS output drives AssetManifest generation"
       )
 
@@ -632,7 +632,8 @@ object MeltcPlugin extends AutoPlugin {
           Def.task(Seq.empty[File])
       }
     }.value,
-    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue
+    Compile / sourceGenerators += meltcAssetManifestGenerate.taskValue,
+
   )
 
   private def compileMeltFiles(

@@ -41,7 +41,7 @@ case class ResolveOptions(
   filterSerializedResponseHeaders: Option[String => Boolean] = None
 )
 
-/** A bundle of hooks registered via [[MeltApp.hooks]]. */
+/** A bundle of hooks registered via [[ServerMeltKitPlatform.use]]. */
 case class ServerHooks[F[_]](
   handle:      Seq[ServerHook[F]]      = Nil,
   handleError: Option[ErrorHandler[F]] = None

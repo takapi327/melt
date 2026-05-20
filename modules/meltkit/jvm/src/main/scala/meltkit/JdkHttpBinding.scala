@@ -19,12 +19,12 @@ import com.sun.net.httpserver.HttpExchange
 import meltkit.codec.BodyDecoder
 import meltkit.exceptions.BodyDecodeException
 
-/** Bridges JDK `HttpExchange` to the [[MeltApp]] routing pipeline.
+/** Bridges JDK `HttpExchange` to the [[MeltKit]] routing pipeline.
   *
   * Fixed to `Future`. For `IO`-based JVM servers, use `meltkit-adapter-http4s`.
   */
 private[meltkit] class JdkHttpBinding(
-  app:    MeltApp[Future],
+  app:    ServerMeltKitPlatform[Future],
   config: ServerConfig
 )(using ec: ExecutionContext):
 
@@ -177,41 +177,41 @@ private[meltkit] class JdkHttpBinding(
     builder.result()
 
   private def tryServeStaticFile(pathname: String, exchange: HttpExchange, isHead: Boolean): Boolean =
-    config.clientDistDir match
-      case None          => false
-      case Some(distDir) =>
-        if pathname == "/" || pathname == "/index.html" then return false
-        if pathname.contains("..") then return false
+    if pathname == "/" || pathname == "/index.html" then return false
+    if pathname.contains("..") then return false
+    val dirs = List(config.clientDistDir, config.publicDir).flatten
+    dirs.exists(dir => tryServeFromDir(pathname, dir, exchange, isHead))
 
-        val normalized = pathname.stripPrefix("/")
-        val filePath   = Paths.get(distDir, normalized).normalize()
-        val distPath   = Paths.get(distDir).normalize()
+  private def tryServeFromDir(pathname: String, dir: String, exchange: HttpExchange, isHead: Boolean): Boolean =
+    val normalized = pathname.stripPrefix("/")
+    val filePath   = Paths.get(dir, normalized).normalize()
+    val basePath   = Paths.get(dir).normalize()
 
-        if !filePath.startsWith(distPath) then return false
-        if !Files.exists(filePath) || !Files.isRegularFile(filePath) then return false
-        if Files.isSymbolicLink(filePath) then return false
+    if !filePath.startsWith(basePath) then return false
+    if !Files.exists(filePath) || !Files.isRegularFile(filePath) then return false
+    if Files.isSymbolicLink(filePath) then return false
 
-        val ext = Option(filePath.getFileName.toString)
-          .flatMap(n => Option(n.lastIndexOf('.')).filter(_ >= 0).map(i => n.substring(i)))
-          .getOrElse("")
-        val contentType = mimeType(ext.toLowerCase)
-        val isHashed    = pathname.matches(".*-[a-f0-9]{8,}\\.[a-z]+$") ||
-          pathname.matches(".*\\.[a-f0-9]{8,}\\.[a-z]+$")
-        val cacheControl =
-          if isHashed then "public, max-age=31536000, immutable"
-          else "no-cache"
+    val ext = Option(filePath.getFileName.toString)
+      .flatMap(n => Option(n.lastIndexOf('.')).filter(_ >= 0).map(i => n.substring(i)))
+      .getOrElse("")
+    val contentType = mimeType(ext.toLowerCase)
+    val isHashed    = pathname.matches(".*-[a-f0-9]{8,}\\.[a-z]+$") ||
+      pathname.matches(".*\\.[a-f0-9]{8,}\\.[a-z]+$")
+    val cacheControl =
+      if isHashed then "public, max-age=31536000, immutable"
+      else "no-cache"
 
-        val bytes = Files.readAllBytes(filePath)
-        exchange.getResponseHeaders.set("Content-Type", contentType)
-        exchange.getResponseHeaders.set("Cache-Control", cacheControl)
-        if isHead then exchange.sendResponseHeaders(200, -1)
-        else
-          exchange.sendResponseHeaders(200, bytes.length.toLong)
-          val os = exchange.getResponseBody
-          os.write(bytes)
-          os.close()
-        exchange.close()
-        true
+    val bytes = Files.readAllBytes(filePath)
+    exchange.getResponseHeaders.set("Content-Type", contentType)
+    exchange.getResponseHeaders.set("Cache-Control", cacheControl)
+    if isHead then exchange.sendResponseHeaders(200, -1)
+    else
+      exchange.sendResponseHeaders(200, bytes.length.toLong)
+      val os = exchange.getResponseBody
+      os.write(bytes)
+      os.close()
+    exchange.close()
+    true
 
   private def mimeType(ext: String): String = ext match
     case ".html"          => "text/html; charset=utf-8"

@@ -16,14 +16,14 @@ import melt.runtime.render.RenderResult
 import meltkit.codec.BodyDecoder
 import meltkit.exceptions.BodyDecodeException
 
-/** Bridges node:http requests to the [[MeltApp]] routing pipeline.
+/** Bridges node:http requests to the [[MeltKit]] routing pipeline.
   *
   * Fixed to `Future` — all body reading and response writing use `Future`
   * directly, with no `asInstanceOf` casts. For `IO`-based Node.js servers,
   * use `meltkit-adapter-http4s` instead.
   */
 private[meltkit] class NodeHttpBinding(
-  app:    MeltApp[Future],
+  app:    ServerMeltKitPlatform[Future],
   config: ServerConfig
 )(using ec: ExecutionContext):
 

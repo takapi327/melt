@@ -19,7 +19,7 @@ import com.sun.net.httpserver.HttpServer as JdkHttpServer
   */
 class JdkServerAdapter(using ec: ExecutionContext) extends ServerAdapter[Future]:
 
-  def start(app: MeltApp[Future], config: ServerConfig): Future[RunningServer[Future]] =
+  def start(app: ServerMeltKitPlatform[Future], config: ServerConfig): Future[RunningServer[Future]] =
     Future {
       val binding = new JdkHttpBinding(app, config)
       val server  = JdkHttpServer.create(InetSocketAddress(config.host, config.port), 0)
