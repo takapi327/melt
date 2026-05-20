@@ -91,12 +91,12 @@ ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
 // ── CSS preprocessor API (no external dependencies, cross-compiled) ──
-lazy val `meltc-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
-  .in(file("modules/meltc-css"))
+  .in(file("modules/compiler-css"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name := "meltc-css"
+    name := "melt-compiler-css"
   )
   .enablePlugins(AutomateHeaderPlugin)
 
@@ -109,7 +109,7 @@ lazy val `meltc-sass` = project
     libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
   )
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(`meltc-css`.jvm)
+  .dependsOn(`compiler-css`.jvm)
 
 // ── Core compiler (JVM + JS + Native) ──
 lazy val compiler = crossProject(JVMPlatform, JSPlatform, NativePlatform)
@@ -126,7 +126,7 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeSettings(
     // Reserved for future Native CLI configuration
   )
-  .dependsOn(`meltc-css`)
+  .dependsOn(`compiler-css`)
 
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
@@ -692,9 +692,9 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
 lazy val root = project
   .in(file("."))
   .aggregate(
-    `meltc-css`.jvm,
-    `meltc-css`.js,
-    `meltc-css`.native,
+    `compiler-css`.jvm,
+    `compiler-css`.js,
+    `compiler-css`.native,
     `meltc-sass`,
     compiler.jvm,
     compiler.js,
