@@ -23,7 +23,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "codegenJS",
     "meltkitJVM",
     "meltkitJS",
-    "meltkit-browser",
+    "meltkit-adapter-browser",
     "meltkit-node",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS"
@@ -38,8 +38,8 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltkit-browser", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-browser", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "meltkit-adapter-browser", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
@@ -66,7 +66,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
     cond = Some(
-      "contains('compilerJS codegenJS meltkitJS meltkit-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
+      "contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-node meltkit-adapter-http4sJS', matrix.project)"
     )
   ),
   WorkflowStep.Sbt(
@@ -194,12 +194,12 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(runtime)
 
 // ── MeltKit: browser adapter (Scala.js only, Scala 3.8+) ─────────────────────
-lazy val `meltkit-browser` = project
-  .in(file("modules/meltkit-browser"))
+lazy val `meltkit-adapter-browser` = project
+  .in(file("modules/meltkit-adapter-browser"))
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .settings(BuildSettings.commonSettings)
   .settings(
-    name         := "meltkit-browser",
+    name         := "meltkit-adapter-browser",
     scalaVersion := scala38,
     libraryDependencies ++= Seq(
       "org.scalameta" %%% "munit" % "1.3.0" % Test
@@ -518,7 +518,7 @@ lazy val `http4s-spa-client` = project
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
-  .dependsOn(`meltkit-browser`)
+  .dependsOn(`meltkit-adapter-browser`)
 
 lazy val `http4s-spa-server` = project
   .in(file("examples/http4s-spa/server"))
@@ -559,7 +559,7 @@ lazy val `ssr-client` = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(meltkit)
-  .jsConfigure(_.dependsOn(`meltkit-browser`))
+  .jsConfigure(_.dependsOn(`meltkit-adapter-browser`))
   .jsSettings(
     meltcHydration                  := true,
     scalaJSUseMainModuleInitializer := false,
@@ -656,7 +656,7 @@ lazy val `jdk-ssr-server` = project
 //
 // Shared:  .melt components + DocsApp routes
 // JVM:     JdkServer (SSR dev) + SsgGenerator (static build)
-// JS:      meltkit-browser hydration (meltcHydration := true auto-generates entries)
+// JS:      meltkit-adapter-browser hydration (meltcHydration := true auto-generates entries)
 //
 //   sbt "docs/jvm/run server"   ← SSR dev server
 //   sbt "docs/jvm/run generate" ← static site generation
@@ -673,7 +673,7 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(meltkit)
-  .jsConfigure(_.dependsOn(`meltkit-browser`))
+  .jsConfigure(_.dependsOn(`meltkit-adapter-browser`))
   .jsSettings(
     meltcHydration                  := true,
     scalaJSUseMainModuleInitializer := false,
@@ -706,7 +706,7 @@ lazy val root = project
     testkit,
     meltkit.jvm,
     meltkit.js,
-    `meltkit-browser`,
+    `meltkit-adapter-browser`,
     `meltkit-node`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
