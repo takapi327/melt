@@ -101,11 +101,11 @@ lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .enablePlugins(AutomateHeaderPlugin)
 
 // ── SCSS support via Dart Sass (optional, JVM only) ──
-lazy val `meltc-sass` = project
-  .in(file("modules/meltc-sass"))
+lazy val `compiler-sass` = project
+  .in(file("modules/compiler-sass"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                       := "meltc-sass",
+    name                                       := "melt-compiler-sass",
     libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
   )
   .enablePlugins(AutomateHeaderPlugin)
@@ -324,7 +324,7 @@ lazy val counter = project
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js, testkit % Test)
 
-// ── Example: SCSS Counter (SCSS support via meltc-sass) ──────────────────────
+// ── Example: SCSS Counter (SCSS support via compiler-sass) ──────────────────────
 lazy val `scss-counter` = project
   .in(file("examples/scss-counter"))
   .settings(BuildSettings.commonSettings)
@@ -336,7 +336,7 @@ lazy val `scss-counter` = project
     meltcManagePreprocessorDeps     := false,
     meltcStylePreprocessor          := Some(SassPreprocessor),
     meltcCompilerClasspath          := (codegen.jvm / Compile / fullClasspath).value.files ++
-      (`meltc-sass` / Compile / fullClasspath).value.files
+      (`compiler-sass` / Compile / fullClasspath).value.files
   )
   .enablePlugins(ScalaJSPlugin, MeltcPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
@@ -695,7 +695,7 @@ lazy val root = project
     `compiler-css`.jvm,
     `compiler-css`.js,
     `compiler-css`.native,
-    `meltc-sass`,
+    `compiler-sass`,
     compiler.jvm,
     compiler.js,
     compiler.native,
