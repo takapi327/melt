@@ -12,10 +12,10 @@ package melt.runtime
   */
 object Document:
   def title(t:                  Signal[String]):                                  Unit = ()
-  def title(t:                  State[String]):                                     Unit = ()
+  def title(t:                  State[String]):                                   Unit = ()
   def title(t:                  String):                                          Unit = ()
   def on(event:                 String)(handler: melt.runtime.dom.Event => Unit): Unit = ()
-  def bindVisibilityState(v:    State[String]):                                     Unit = ()
-  def bindFullscreenElement(v:  State[Option[melt.runtime.dom.Element]]):           Unit = ()
-  def bindPointerLockElement(v: State[Option[melt.runtime.dom.Element]]):           Unit = ()
-  def bindActiveElement(v:      State[Option[melt.runtime.dom.Element]]):           Unit = ()
+  def bindVisibilityState(v:    State[String]):                                   Unit = ()
+  def bindFullscreenElement(v:  State[Option[melt.runtime.dom.Element]]):         Unit = ()
+  def bindPointerLockElement(v: State[Option[melt.runtime.dom.Element]]):         Unit = ()
+  def bindActiveElement(v:      State[Option[melt.runtime.dom.Element]]):         Unit = ()
