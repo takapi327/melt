@@ -35,21 +35,21 @@ button { font-size: 1.5rem; cursor: pointer; }
 
 ## モジュール
 
-| モジュール | JVM | JS | Native | 説明 |
-|---|:---:|:---:|:---:|---|
-| `melt-compiler-css` | ✅ | ✅ | ✅ | CSS プリプロセッサ API |
-| `melt-compiler-sass` | ✅ | ❌ | ❌ | Dart Sass (SCSS) サポート |
-| `melt-compiler` | ✅ | ✅ | ✅ | コアコンパイラ（`.melt` → `.scala`） |
-| `melt-runtime` | ✅ | ✅ | ❌ | リアクティブランタイム |
-| `melt-codegen` | ✅ | ✅ | ❌ | コードジェネレータ |
-| `melt-testkit` | ❌ | ✅ | ❌ | コンポーネントテストユーティリティ |
-| `meltkit` | ✅ | ✅ | ❌ | ルーティング DSL |
-| `meltkit-adapter-browser` | ❌ | ✅ | ❌ | ブラウザアダプタ |
-| `meltkit-adapter-node` | ❌ | ✅ | ❌ | Node.js サーバアダプタ |
-| `meltkit-adapter-http4s` | ✅ | ✅ | ❌ | http4s アダプタ |
-| `sbt-meltc` | ✅ | ❌ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
-| `sbt-meltkit` | ✅ | ❌ | ❌ | sbt meltkit 統合プラグイン（Scala 2.12） |
-| `melt-language-server` | ✅ | ❌ | ❌ | LSP サーバ |
+| モジュール | JVM | JS | 説明 |
+|---|:---:|:---:|---|
+| `melt-compiler-css` | ✅ | ✅ | CSS プリプロセッサ API |
+| `melt-compiler-sass` | ✅ | ❌ | Dart Sass (SCSS) サポート |
+| `melt-compiler` | ✅ | ✅ | コアコンパイラ（`.melt` → `.scala`） |
+| `melt-runtime` | ✅ | ✅ | リアクティブランタイム |
+| `melt-codegen` | ✅ | ✅ | コードジェネレータ |
+| `melt-testkit` | ❌ | ✅ | コンポーネントテストユーティリティ |
+| `meltkit` | ✅ | ✅ | ルーティング DSL |
+| `meltkit-adapter-browser` | ❌ | ✅ | ブラウザアダプタ |
+| `meltkit-adapter-node` | ❌ | ✅ | Node.js サーバアダプタ |
+| `meltkit-adapter-http4s` | ✅ | ✅ | http4s アダプタ |
+| `sbt-meltc` | ✅ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
+| `sbt-meltkit` | ✅ | ❌ | sbt meltkit 統合プラグイン（Scala 2.12） |
+| `melt-language-server` | ✅ | ❌ | LSP サーバ |
 
 ---
 

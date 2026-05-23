@@ -18,7 +18,6 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
   "project" -> List(
     "compilerJVM",
     "compilerJS",
-    "compilerNative",
     "codegenJVM",
     "codegenJS",
     "meltkitJVM",
@@ -29,11 +28,9 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "meltkit-adapter-http4sJS"
   )
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
-  // JS / Native run on Java 17 only
+  // JS runs on Java 17 only
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("project" -> "compilerNative", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "compilerNative", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java21")),
@@ -48,7 +45,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
   MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
 )
-ThisBuild / githubWorkflowBuildPreamble += Workflows.installNativeDeps
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(
     // The plugin prepends '++ ${{ matrix.scala }}' automatically; only project switching is needed here
@@ -70,11 +66,6 @@ ThisBuild / githubWorkflowBuild := Seq(
     )
   ),
   WorkflowStep.Sbt(
-    List("project ${{ matrix.project }}", "Test/nativeLink"),
-    name = Some("nativeLink"),
-    cond = Some("matrix.project == 'compilerNative'")
-  ),
-  WorkflowStep.Sbt(
     List("project ${{ matrix.project }}", "test"),
     name = Some("Test")
   )
@@ -91,7 +82,7 @@ ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
 // ── CSS preprocessor API (no external dependencies, cross-compiled) ──
-lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
   .in(file("modules/compiler-css"))
   .settings(BuildSettings.commonSettings)
@@ -106,13 +97,13 @@ lazy val `compiler-sass` = project
   .settings(BuildSettings.commonSettings)
   .settings(
     name                                       := "melt-compiler-sass",
-    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
+    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.4.0"
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(`compiler-css`.jvm)
 
 // ── Core compiler (JVM + JS + Native) ──
-lazy val compiler = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val compiler = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
   .module("compiler", "Core compiler: .melt → .scala")
   .settings(
@@ -122,9 +113,6 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jsSettings(
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
-  )
-  .nativeSettings(
-    // Reserved for future Native CLI configuration
   )
   .dependsOn(`compiler-css`)
 
@@ -702,11 +690,9 @@ lazy val root = project
   .aggregate(
     `compiler-css`.jvm,
     `compiler-css`.js,
-    `compiler-css`.native,
     `compiler-sass`,
     compiler.jvm,
     compiler.js,
-    compiler.native,
     runtime.jvm,
     runtime.js,
     codegen.jvm,
