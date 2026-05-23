@@ -29,15 +29,6 @@ object Workflows {
   /** Projects included in the build matrix. */
   private val matrixProjects: List[String] = List("compilerJVM", "compilerJS", "compilerNative")
 
-  val installNativeDeps: WorkflowStep.Run = WorkflowStep.Run(
-    commands = List(
-      "sudo apt-get update",
-      "sudo apt-get install -y clang libstdc++-12-dev"
-    ),
-    name = Some("Install Scala Native dependencies"),
-    cond = Some("matrix.project == 'compilerNative'")
-  )
-
   /** Upload steps matching ldbc's pattern:
     *   1. mkdir -p  (ensure all target dirs exist)
     *   2. tar       (compress)
