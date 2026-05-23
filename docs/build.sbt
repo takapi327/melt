@@ -1,10 +1,8 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 
-import meltkit.sbt.MeltkitPlugin.autoImport._
-
 val meltVersion = "0.1.0-SNAPSHOT"
 
-ThisBuild / scalaVersion  := "3.8.3"
+ThisBuild / scalaVersion   := "3.8.3"
 ThisBuild / publish / skip := true
 
 // ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
