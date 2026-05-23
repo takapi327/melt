@@ -219,7 +219,7 @@ object MeltcPlugin extends AutoPlugin {
       meltcStylePreprocessor.value match {
         case Some(cls) if cls == SassPreprocessor =>
           Seq(
-            ("io.github.takapi327" % "melt-compiler-css_3"  % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
+            ("io.github.takapi327" % "melt-compiler-css_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
             ("io.github.takapi327" % "melt-compiler-sass_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig
           )
         case _ => Seq.empty
