@@ -2,7 +2,14 @@
 
 > Scala を溶かして JS にするコンパイラ
 
+[![Continuous Integration](https://github.com/takapi327/melt/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/takapi327/melt/actions/workflows/ci.yml)
+[![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Scala Version](https://img.shields.io/badge/scala-v3.8.x-red)](https://github.com/scala/scala3)
+
 Melt は Scala.js 向けのシングルファイルコンポーネント（SFC）フレームワークです。Svelte にインスパイアされた `.melt` ファイルに Scala・HTML・CSS を1ファイルで記述し、コンパイラが素の DOM 操作コードへ変換します。
+
+> [!NOTE]
+> **Melt** は現在活発に開発中です。1.0 リリース前は API の破壊的変更が発生する可能性があります。
 
 ```html
 <!-- Counter.melt -->
@@ -26,35 +33,23 @@ button { font-size: 1.5rem; cursor: pointer; }
 - **ランタイムは最小限** — `Var` / `Signal` / `Bind` を提供する小さなランタイムのみ
 - **SSR 対応** — 同じ `.melt` ファイルを JVM 側で HTML 文字列として出力可能（`CompileMode.SSR`）
 
-## Status
+## モジュール
 
-| フェーズ | 内容 | 状態 |
-|---------|------|------|
-| Phase 0 | モノレポスケルトン | ✅ 完了 |
-| Phase 1 | `melt-runtime` コア（`Var` / `Signal`） | ✅ 完了 |
-| Phase 2 | `meltc` パーサー | ✅ 完了 |
-| Phase 3 | コード生成 + sbt プラグイン | ✅ 完了 |
-| Phase 4 | リアクティブバインディング | ✅ 完了 |
-| Phase 5 | コンポーネントシステム + CSS スコーピング | ✅ 完了 |
-| Phase 6 | テンプレート完全対応 | ✅ 完了 |
-| Phase 7 | ライフサイクル & 状態管理 | ✅ 完了 |
-| Phase 8 | 高度な機能 | ✅ 完了 |
-| Phase 9 | トランジション & アニメーション | ✅ 完了 |
-| Phase 10 | テストキット（`melt-testkit`） | 🚧 開発中 |
-| Phase 11 | IDE サポート / LSP | 🚧 開発中 |
-| Phase 12+ | フォームライブラリ・ドキュメント・リリース | 📋 予定 |
-
----
-
-## モジュール構成
-
-| モジュール | 説明 | プラットフォーム |
-|-----------|------|----------------|
-| `meltc` | `.melt` → `.scala` コンパイラ | JVM / JS / Native |
-| `sbt-meltc` | sbt プラグイン（`.melt` 自動コンパイル） | JVM (Scala 2.12) |
-| `melt-runtime` | リアクティブランタイム（`Var` / `Signal` / `Bind`） | JVM / JS |
-| `melt-testkit` | コンポーネントテストユーティリティ | JS |
-| `melt-language-server` | LSP サーバー（IDE 統合） | JVM |
+| モジュール | JVM | JS | Native | 説明 |
+|---|:---:|:---:|:---:|---|
+| `melt-compiler-css` | ✅ | ✅ | ✅ | CSS プリプロセッサ API |
+| `melt-compiler-sass` | ✅ | ❌ | ❌ | Dart Sass (SCSS) サポート |
+| `melt-compiler` | ✅ | ✅ | ✅ | コアコンパイラ（`.melt` → `.scala`） |
+| `melt-runtime` | ✅ | ✅ | ❌ | リアクティブランタイム |
+| `melt-codegen` | ✅ | ✅ | ❌ | コードジェネレータ |
+| `melt-testkit` | ❌ | ✅ | ❌ | コンポーネントテストユーティリティ |
+| `meltkit` | ✅ | ✅ | ❌ | ルーティング DSL |
+| `meltkit-adapter-browser` | ❌ | ✅ | ❌ | ブラウザアダプタ |
+| `meltkit-adapter-node` | ❌ | ✅ | ❌ | Node.js サーバアダプタ |
+| `meltkit-adapter-http4s` | ✅ | ✅ | ❌ | http4s アダプタ |
+| `sbt-meltc` | ✅ | ❌ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
+| `sbt-meltkit` | ✅ | ❌ | ❌ | sbt meltkit 統合プラグイン（Scala 2.12） |
+| `melt-language-server` | ✅ | ❌ | ❌ | LSP サーバ |
 
 ---
 
@@ -391,31 +386,6 @@ val safe = TrustedHtml.unsafe("<strong>validated</strong>")
 
 ---
 
-## セキュリティ機能
-
-コンパイル時・ランタイムの2段階でセキュリティを担保します。
-
-### コンパイル時チェック（`SecurityChecker`）
-
-| パターン | 種別 | 説明 |
-|---------|------|------|
-| `<iframe srcdoc={...}>` | **エラー**（コンパイル失敗） | 任意 HTML の XSS 防止 |
-| `<iframe src={...}>` | 警告 | URL バリデーション推奨 |
-| `<object data={...}>` / `<embed src={...}>` | 警告 | プラグイン実行リスク |
-| `<form action={...}>` | 警告 | 動的フォームターゲット |
-| `<button formaction={...}>` | 警告 | 動的フォームターゲット |
-| `<meta http-equiv="refresh" content={...}>` | 警告 | オープンリダイレクト |
-| `<a target="_blank">` without `rel="noopener"` | 警告 | タブナッビング |
-
-### ランタイムエスケープ
-
-- `Escape.html` — `&`, `<`, `>` をエスケープ
-- `Escape.attr` — `&`, `<`, `>`, `"`, `\n`, `\r`, `\t` をエスケープ
-- `Escape.url` — `javascript:`, `vbscript:`, `file:` をブロック。`data:` URL は `data:image/*`（SVG 除く）のみ許可
-- `Escape.cssValue` — `expression(`, `@import`, `javascript:` 等をブロック
-
----
-
 ## 使い方
 
 ### 1. sbt セットアップ
@@ -533,6 +503,25 @@ sbt headerCheckAll
 ### Java バージョン
 
 Java 17 / 21 / 25（Corretto）で CI テストを実施しています。
+
+---
+
+## Contributing
+
+コントリビューション歓迎です！
+
+- [Issues](https://github.com/takapi327/melt/issues) から気になるものを選ぶか、新しい Issue を立ててください
+- 質問や議論も Issue / Discussion でお気軽にどうぞ
+
+### ローカルでのテスト
+
+```bash
+# 全テスト
+sbt test
+
+# scripted テスト（sbt プラグイン）
+sbt scripted
+```
 
 ---
 
