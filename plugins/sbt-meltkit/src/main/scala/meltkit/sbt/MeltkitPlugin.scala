@@ -242,7 +242,7 @@ object MeltkitPlugin extends AutoPlugin {
     meltMode                 := { if (hasScalaJSPlugin(thisProject.value)) Some(MeltMode.Browser) else None },
     meltkitManageRuntimeDeps := true,
 
-    // Override meltcCodegenMode based on meltMode
+    // Override meltc settings based on meltMode
     meltcCodegenMode := {
       meltMode.value match {
         case Some(MeltMode.Browser) => "spa"
@@ -251,6 +251,8 @@ object MeltkitPlugin extends AutoPlugin {
         case None                   => "auto"
       }
     },
+    // Browser mode always needs hydration exports; other modes do not
+    meltcHydration := meltMode.value.contains(MeltMode.Browser),
 
     // ── Auto-add meltkit core + adapter ───────────────────────────────────
     libraryDependencies ++= {
