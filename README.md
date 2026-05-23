@@ -4,7 +4,7 @@
 
 [![Continuous Integration](https://github.com/takapi327/melt/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/takapi327/melt/actions/workflows/ci.yml)
 [![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Scala Version](https://img.shields.io/badge/scala-v3.8.x-red)](https://github.com/scala/scala3)
+[![Scala Version](https://img.shields.io/badge/scala-v3.3.x%20%2F%20v3.8.x-red)](https://github.com/scala/scala3)
 
 Melt は Scala.js 向けのシングルファイルコンポーネント（SFC）フレームワークです。Svelte にインスパイアされた `.melt` ファイルに Scala・HTML・CSS を1ファイルで記述し、コンパイラが素の DOM 操作コードへ変換します。
 
