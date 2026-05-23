@@ -14,7 +14,7 @@ import sbt.Keys._
 /** sbt-meltc plugin
   *
   * Detects `.melt` files under `meltcSourceDirectory` and compiles each one
-  * to a `.scala` file via a forked JVM process running `meltc.MeltcMain`.
+  * to a `.scala` file via a forked JVM process running `melt.MeltcMain`.
   *
   * == Setup ==
   *
@@ -162,7 +162,7 @@ object MeltcPlugin extends AutoPlugin {
     val meltcGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
 
-    /** Codegen mode passed to `meltc.MeltcMain`.
+    /** Codegen mode passed to `melt.MeltcMain`.
       *
       * Valid values: `"spa"`, `"ssr"`, `"auto"`.
       *
@@ -174,7 +174,7 @@ object MeltcPlugin extends AutoPlugin {
     val meltcCodegenMode =
       settingKey[String]("Codegen mode: spa, ssr, or auto (default)")
 
-    /** Class name of the [[meltc.css.StylePreprocessor]] implementation to use
+    /** Class name of the [[melt.css.StylePreprocessor]] implementation to use
       * for stylesheet preprocessing in `.melt` files.
       *
       * Default: `None` — plain CSS only. Setting `<style lang="scss">` will
@@ -189,7 +189,7 @@ object MeltcPlugin extends AutoPlugin {
       * }}}
       *
       * The implementation class must be a Scala `object` that extends
-      * [[meltc.css.StylePreprocessor]] and its JAR must be present on
+      * [[melt.css.StylePreprocessor]] and its JAR must be present on
       * [[meltcCompilerClasspath]]. For known preprocessors (e.g. [[SassPreprocessor]])
       * the plugin adds the required JAR automatically.
       *
@@ -216,7 +216,7 @@ object MeltcPlugin extends AutoPlugin {
       * meltcStylePreprocessor := Some(SassPreprocessor)
       * }}}
       */
-    val SassPreprocessor: String = "meltc.sass.SassPreprocessor"
+    val SassPreprocessor: String = "melt.sass.SassPreprocessor"
 
     /** When `true` (the default), the plugin automatically adds `melt-codegen_3`
       * to the `meltc-compiler` Ivy configuration so it is resolved and placed on
@@ -444,7 +444,7 @@ object MeltcPlugin extends AutoPlugin {
           val javaArgs = Seq(
             "-cp",
             cpStr,
-            "meltc.MeltcMain",
+            "melt.MeltcMain",
             meltFile.getAbsolutePath,
             outFile.getAbsolutePath,
             objectName,
