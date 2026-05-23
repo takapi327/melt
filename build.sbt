@@ -286,7 +286,7 @@ lazy val `language-server` = project
     ),
     // Fat JAR: java -jar melt-language-server.jar
     assembly / assemblyJarName       := "melt-language-server.jar",
-    assembly / mainClass             := Some("meltc.lsp.MeltLanguageServerLauncher"),
+    assembly / mainClass             := Some("melt.lsp.MeltLanguageServerLauncher"),
     assembly / assemblyMergeStrategy := {
       case PathList("META-INF", "MANIFEST.MF")   => MergeStrategy.discard
       case PathList("META-INF", "services", _*)  => MergeStrategy.concat

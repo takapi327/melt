@@ -1,0 +1,147 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package melt
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{ Files, Paths }
+import java.util.ArrayList as JArrayList
+
+import melt.css.StylePreprocessor
+
+/** CLI entry point for the meltc compiler (JVM platform only).
+  *
+  * Usage:
+  * {{{
+  *   java -cp <classpath> melt.MeltcMain \
+  *        <input.melt> <output.scala> <ObjectName> <package> [--mode spa|ssr]
+  * }}}
+  *
+  * `--mode` defaults to `spa` for backwards compatibility with existing
+  * sbt-meltc builds. Pass `--mode ssr` to produce JVM HTML-string-rendering
+  * code from the same `.melt` source.
+  *
+  * Exits with code 0 on success, 1 on error. Error messages are written
+  * to stderr.
+  */
+object MeltcMain:
+
+  /** Loads the [[StylePreprocessor]] for the given fully-qualified object name.
+    *
+    * The `$` suffix required for Scala objects is appended internally, so
+    * callers pass plain names like `"melt.sass.SassPreprocessor"`.
+    *
+    * Falls back to [[StylePreprocessor.cssOnly]] when `className` is `None`.
+    * Exits with an error when the requested class is not found on the classpath.
+    */
+  private def resolvePreprocessor(className: Option[String]): StylePreprocessor =
+    className match
+      case None      => StylePreprocessor.cssOnly
+      case Some(cls) =>
+        try Class.forName(cls + "$").getField("MODULE$").get(null).asInstanceOf[StylePreprocessor]
+        catch
+          case _: ClassNotFoundException =>
+            System.err.println(
+              s"meltc: preprocessor class '$cls' not found on classpath. " +
+                "Ensure the corresponding JAR is on meltcCompilerClasspath."
+            )
+            sys.exit(1)
+
+  private val Usage =
+    "Usage: MeltcMain <input.melt> <output.scala> <ObjectName> <package> " +
+      "[--mode spa|ssr] [--hydration]"
+
+  def main(args: Array[String]): Unit =
+    if args.length < 4 then
+      System.err.println(Usage)
+      sys.exit(1)
+
+    val inputPath  = Paths.get(args(0))
+    val outputPath = Paths.get(args(1))
+    val objectName = args(2)
+    val pkg        = args(3)
+
+    val (mode, hydration, preprocessorClass) = parseExtras(args.drop(4)) match
+      case Right(v)  => v
+      case Left(err) =>
+        System.err.println(s"meltc: $err")
+        System.err.println(Usage)
+        sys.exit(1)
+
+    val source =
+      try new String(Files.readAllBytes(inputPath), StandardCharsets.UTF_8)
+      catch
+        case e: Exception =>
+          System.err.println(s"meltc: cannot read ${ inputPath }: ${ e.getMessage }")
+          sys.exit(1)
+
+    val result = MeltCompiler.compile(
+      source,
+      inputPath.getFileName.toString,
+      objectName,
+      pkg,
+      mode,
+      hydration,
+      resolvePreprocessor(preprocessorClass),
+      sourcePath = inputPath.toAbsolutePath.toString
+    )
+
+    // ── Structured diagnostics file for sbt-meltc reporter integration ────
+    // Written alongside the output file so the plugin can read it after fork.
+    // Format: one line per diagnostic, tab-separated: severity\tpath\tline\tcol\tmessage
+    //   E = error, W = warning
+    val diagPath  = Paths.get(outputPath.toString + ".diag")
+    val absMelt   = inputPath.toAbsolutePath.toString
+    val diagLines = new JArrayList[String]()
+    result.errors.foreach(e => diagLines.add(s"E\t$absMelt\t${ e.line }\t${ e.column }\t${ e.message }"))
+    result.warnings.foreach(w => diagLines.add(s"W\t$absMelt\t${ w.line }\t${ w.column }\t${ w.message }"))
+    try Files.write(diagPath, diagLines, StandardCharsets.UTF_8)
+    catch case _: Exception => () // best-effort; don't fail compilation over this
+
+    if result.errors.nonEmpty then sys.exit(1)
+
+    result.scalaCode match
+      case None =>
+        System.err.println("meltc: code generation produced no output")
+        sys.exit(1)
+      case Some(code) =>
+        try
+          Option(outputPath.getParent).foreach(Files.createDirectories(_))
+          Files.write(outputPath, code.getBytes(StandardCharsets.UTF_8))
+        catch
+          case e: Exception =>
+            System.err.println(s"meltc: cannot write ${ outputPath }: ${ e.getMessage }")
+            sys.exit(1)
+
+  /** Parses optional trailing flags: `--mode spa|ssr`, `--hydration`, and
+    * `--preprocessor <className>`. Returns the resolved
+    * `(CompileMode, hydration, preprocessorClass)` triple or an error message.
+    */
+  private def parseExtras(extras: Array[String]): Either[String, (CompileMode, Boolean, Option[String])] =
+    var mode              = CompileMode.SPA
+    var hydration         = false
+    var preprocessorClass = Option.empty[String]
+    var i                 = 0
+    val args              = extras
+    while i < args.length do
+      args(i) match
+        case "--mode" =>
+          if i + 1 >= args.length then return Left("--mode requires a value ('spa' or 'ssr')")
+          args(i + 1).toLowerCase match
+            case "spa" => mode = CompileMode.SPA
+            case "ssr" => mode = CompileMode.SSR
+            case other => return Left(s"unknown --mode value '$other' (expected 'spa' or 'ssr')")
+          i += 2
+        case "--hydration" =>
+          hydration = true
+          i += 1
+        case "--preprocessor" =>
+          if i + 1 >= args.length then return Left("--preprocessor requires a class name")
+          preprocessorClass = Some(args(i + 1))
+          i += 2
+        case other =>
+          return Left(s"unrecognised argument: '$other'")
+    Right((mode, hydration, preprocessorClass))
