@@ -18,6 +18,7 @@ private final class JvmSignal[A](initial: A) extends Signal[A]:
   def subscribe(f:  A => Unit):      () => Unit = () => ()
   def map[B](f:     A => B):         Signal[B]  = SignalFactory.pure(f(initial))
   def flatMap[B](f: A => Signal[B]): Signal[B]  = f(initial)
+  def memo[B](f:    A => B):         Signal[B]  = SignalFactory.pure(f(initial))
 
   private[runtime] def emit(v:          A):         Unit       = ()
   private[runtime] def subscribePre(f:  A => Unit): () => Unit = () => ()

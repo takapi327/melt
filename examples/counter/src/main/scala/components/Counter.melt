@@ -4,7 +4,7 @@ val name = State("")
 val doubled = count.map(_ * 2)
 
 // Phase 7: memo — only propagates when parity changes
-val isEven = memo(count)(_ % 2 == 0)
+val isEven = count.memo(_ % 2 == 0)
 
 // Phase 7: effect — logs count changes
 effect(count) { n =>

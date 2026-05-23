@@ -75,6 +75,22 @@ trait State[A] extends ReactiveValue[A]:
     */
   def flatMap[B](f: A => Signal[B]): Signal[B]
 
+  /** Derives a memoized [[Signal]] that only propagates when the computed
+    * value actually changes (checked via `!=`).
+    *
+    * Unlike [[map]], which emits on every upstream change, `memo` suppresses
+    * redundant updates — useful for Boolean flags, enums, or any derived
+    * value whose change frequency is lower than the source.
+    *
+    * On JVM this computes `f` exactly once and returns a frozen signal.
+    *
+    * {{{
+    * val count  = State(0)
+    * val isEven = count.memo(_ % 2 == 0) // only emits when parity changes
+    * }}}
+    */
+  def memo[B](f: A => B): Signal[B]
+
   /** Returns a read-only view of this variable as a [[Signal]]. */
   def signal: Signal[A]
 

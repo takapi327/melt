@@ -30,6 +30,7 @@ private final class JvmState[A](initial: A) extends State[A]:
   def subscribe(f: A => Unit): () => Unit = () => ()
 
   def map[B](f:     A => B):         Signal[B] = Signal.pure(f(initial))
+  def memo[B](f:    A => B):         Signal[B] = Signal.pure(f(initial))
   def flatMap[B](f: A => Signal[B]): Signal[B] = f(initial)
 
   lazy val signal: Signal[A] = Signal.pure(initial)

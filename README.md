@@ -351,7 +351,7 @@ val label   = count.map(n => if n > 0 then "positive" else "zero or negative")
 再描画コストの高い値（真偽値・分類値など）の不要な更新を防ぎたいときに使います。
 
 ```scala
-val isEven = memo(count)(_ % 2 == 0)
+val isEven = count.memo(_ % 2 == 0)
 // count が 0→2 と変化しても isEven は true のまま → 再描画をスキップ
 ```
 

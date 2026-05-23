@@ -8,10 +8,10 @@ package melt.runtime
 
 class MemoSpec extends munit.FunSuite:
 
-  test("memo suppresses unchanged values") {
+  test("State.memo suppresses unchanged values") {
     Cleanup.pushScope()
     val v       = State(0)
-    val isEven  = memo(v)(_ % 2 == 0)
+    val isEven  = v.memo(_ % 2 == 0)
     var updates = 0
     isEven.subscribe(_ => updates += 1)
 
@@ -28,10 +28,10 @@ class MemoSpec extends munit.FunSuite:
     Cleanup.popScope()
   }
 
-  test("memo propagates when value changes") {
+  test("State.memo propagates when value changes") {
     Cleanup.pushScope()
     val v       = State(1)
-    val clamped = memo(v)(n => Math.min(n, 10))
+    val clamped = v.memo(n => Math.min(n, 10))
     assertEquals(clamped.value, 1)
     v.set(5)
     assertEquals(clamped.value, 5)
@@ -39,5 +39,20 @@ class MemoSpec extends munit.FunSuite:
     assertEquals(clamped.value, 10)
     v.set(20)
     assertEquals(clamped.value, 10) // unchanged — no downstream propagation
+    Cleanup.popScope()
+  }
+
+  test("Signal.memo suppresses unchanged values") {
+    Cleanup.pushScope()
+    val v       = State(0)
+    val isEven  = v.signal.memo(_ % 2 == 0)
+    var updates = 0
+    isEven.subscribe(_ => updates += 1)
+
+    v.set(2) // still even — no propagation
+    assertEquals(updates, 0)
+
+    v.set(3) // now odd — propagation
+    assertEquals(updates, 1)
     Cleanup.popScope()
   }
