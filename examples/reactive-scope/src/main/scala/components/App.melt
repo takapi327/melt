@@ -147,7 +147,7 @@ onMount { () =>
       <span class="count">{ticker3} s</span>
     </div>
     <ul class="key-log">
-      {keyLog.map((entry: String) => <li>{entry}</li>)}
+      {keyLog.map(entry => <li>{entry}</li>)}
     </ul>
   </section>
 

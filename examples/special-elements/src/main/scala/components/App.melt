@@ -147,7 +147,7 @@ effect(scrollY) { y =>
         else
           <span></span>}
         <ul>
-          {shortcutLog.map((entry: String) => <li>{entry}</li>)}
+          {shortcutLog.map(entry => <li>{entry}</li>)}
         </ul>
       </div>
       <div class="btn-row">
@@ -198,7 +198,7 @@ effect(scrollY) { y =>
         else
           <span></span>}
         <ul>
-          {visibilityLog.map((entry: String) => <li>{entry}</li>)}
+          {visibilityLog.map(entry => <li>{entry}</li>)}
         </ul>
       </div>
       <div class="btn-row">

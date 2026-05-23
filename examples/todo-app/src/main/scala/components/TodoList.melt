@@ -3,7 +3,7 @@ case class Props(items: State[List[models.Todo]], renderItem: Snippet[models.Tod
 </script>
 
 <ul class="todo-list">
-  {props.items.map((item: models.Todo) =>
+  {props.items.map(item =>
     <li class:done={item.done}>
       {@render props.renderItem(item)}
     </li>

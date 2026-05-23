@@ -73,7 +73,7 @@ val asyncKey = State(0) // increment to re-mount the async panel
         else
           <span></span>}
         <ul>
-          {errorLog.map((entry: String) => <li>{entry}</li>)}
+          {errorLog.map(entry => <li>{entry}</li>)}
         </ul>
       </div>
       <div class="btn-row">

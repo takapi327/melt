@@ -54,7 +54,7 @@ def onKey(e: dom.KeyboardEvent): Unit =
       </p>
 
       <div class="log" bind:this={logRef}>
-        {messages.map((msg: String) =>
+        {messages.map(msg =>
           <p class="msg">{msg}</p>
         )}
       </div>
@@ -90,7 +90,7 @@ def onKey(e: dom.KeyboardEvent): Unit =
         update) followed by one <code>[POST]</code> entry (after DOM update).
       </p>
       <div class="phase-log">
-        {phaseLog.map((entry: String) =>
+        {phaseLog.map(entry =>
           <p class:pre={entry.contains("[PRE")} class:post={entry.contains("[POST")}>{entry}</p>
         )}
       </div>

@@ -109,7 +109,7 @@ val readyStateLabel = readyState.map {
     <!-- Playback rate -->
     <div class="rate-row">
       <span class="rate-label">Speed:</span>
-      {List(0.5, 1.0, 1.5, 2.0).map((r: Double) =>
+      {List(0.5, 1.0, 1.5, 2.0).map(r =>
         <button
           class={rateClass(r)}
           onclick={_ => playbackRate.set(r)}

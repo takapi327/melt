@@ -53,7 +53,7 @@
   }
 
   <div class="user-grid">
-    {users.value.map((u: User) =>
+    {users.value.map(u =>
       <a class="user-card" href={s"/users/${u.id}"}>
         <div class="avatar">{u.name.take(1)}</div>
         <div class="info">
