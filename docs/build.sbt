@@ -13,11 +13,6 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
   .in(file("."))
   .enablePlugins(MeltkitPlugin)
-  .jsConfigure(
-    _.settings(
-      libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % meltVersion
-    )
-  )
   .jsSettings(
     meltcHydration                  := true,
     scalaJSUseMainModuleInitializer := false,
@@ -27,8 +22,5 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
     }
   )
   .jvmSettings(
-    run / fork                 := true,
-    meltkitAssetManifestClient := Some(LocalProject("docsJS")),
-    meltkitViteDistDir         := baseDirectory.value / ".." / "dist",
-    meltkitViteManifestPath    := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json"
+    run / fork := true
   )
