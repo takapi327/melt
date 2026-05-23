@@ -2,7 +2,7 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [feature/2026-05-docs-site]
+    branches: [refactor/2026-05-Split-examples]
   workflow_dispatch:
 
 permissions:
