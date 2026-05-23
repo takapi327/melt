@@ -73,7 +73,7 @@ val readyStateLabel = readyState.map {
     ></video>
 
     <!-- Progress bar: clicking seeks via currentTime State -->
-    <div class="progress-bar" bind:this={progressRef} onclick={(e: dom.Event) => {
+    <div class="progress-bar" bind:this={progressRef} onclick={e => {
       val me = e.asInstanceOf[org.scalajs.dom.MouseEvent]
       progressRef.foreach { el =>
         val rect = el.getBoundingClientRect()

@@ -65,7 +65,7 @@ effect(scrollY) { y =>
 
 <!-- ── melt:window — window events & property bindings ───────────────────── -->
 <melt:window
-  onkeydown={(e: Event) => handleKeydown(e)}
+  onkeydown={e => handleKeydown(e)}
   bind:innerWidth={windowWidth}
   bind:innerHeight={windowHeight}
   bind:scrollY={scrollY}
