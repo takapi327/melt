@@ -230,7 +230,9 @@ object MeltkitPlugin extends AutoPlugin {
 
   }
 
-  import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcCompilerVersion }
+  private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
+
+  import meltc.sbt.MeltcPlugin.autoImport.meltcCodegenMode
 
   import autoImport._
 
@@ -252,7 +254,7 @@ object MeltkitPlugin extends AutoPlugin {
     libraryDependencies ++= {
       if (!meltkitManageRuntimeDeps.value) Seq.empty
       else {
-        val v    = meltcCompilerVersion.value
+        val v    = pluginVersion
         val binV = scalaBinaryVersion.value // Scala 3 → "3"
         meltMode.value match {
           case Some(MeltMode.Browser) =>
