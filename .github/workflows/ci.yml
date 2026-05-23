@@ -25,15 +25,11 @@ jobs:
         os: [ubuntu-latest]
         scala: [3.3.7, 3.8.3]
         java: [corretto@17, corretto@21, corretto@25]
-        project: [compilerJVM, compilerJS, compilerNative, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
+        project: [compilerJVM, compilerJS, codegenJVM, codegenJS, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS]
         exclude:
           - project: compilerJS
             java: corretto@21
           - project: compilerJS
-            java: corretto@25
-          - project: compilerNative
-            java: corretto@21
-          - project: compilerNative
             java: corretto@25
           - project: codegenJS
             java: corretto@21
@@ -93,12 +89,6 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Install Scala Native dependencies
-        if: matrix.project == 'compilerNative'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang libstdc++-12-dev
-
       - name: Check that workflows are up to date
         run: sbt '++ ${{ matrix.scala }}' githubWorkflowCheck
 
@@ -109,10 +99,6 @@ jobs:
       - name: scalaJSLink
         if: contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/scalaJSLinkerResult
-
-      - name: nativeLink
-        if: matrix.project == 'compilerNative'
-        run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' Test/nativeLink
 
       - name: Test
         run: sbt '++ ${{ matrix.scala }}' 'project ${{ matrix.project }}' test
