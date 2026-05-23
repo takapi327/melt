@@ -93,14 +93,14 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
       val source =
         """|<script lang="scala">
-           |  val count = Var(0)
+           |  val count = State(0)
            |</script>""".stripMargin
 
       val uri     = "file:///tmp/Counter.melt"
       val docItem = TextDocumentItem(uri, "melt", 1, source)
       proxy.getTextDocumentService.didOpen(DidOpenTextDocumentParams(docItem))
 
-      // line 1 (0-based) = "  val count = Var(0)" — script body
+      // line 1 (0-based) = "  val count = State(0)" — script body
       val hoverParams = HoverParams(TextDocumentIdentifier(uri), Position(1, 5))
       val hover       = proxy.getTextDocumentService.hover(hoverParams).get(5, TimeUnit.SECONDS)
       assert(hover != null)
@@ -142,7 +142,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
       val source =
         """|<script lang="scala">
-           |  val count = Var(0)
+           |  val count = State(0)
            |</script>""".stripMargin
 
       val uri = "file:///tmp/CompCompl.melt"
@@ -155,7 +155,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
       val result = proxy.getTextDocumentService.completion(params).get(5, TimeUnit.SECONDS)
       assert(result != null)
       val items = result.getLeft.asScala
-      assert(items.exists(_.getLabel == "Var"), "Var should be in script completions")
+      assert(items.exists(_.getLabel == "State"), "State should be in script completions")
       assert(items.exists(_.getLabel == "Signal"), "Signal should be in script completions")
     }
   }
@@ -220,7 +220,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
       val source =
         """|<script lang="scala">
-           |  val count = Var(0)
+           |  val count = State(0)
            |</script>
            |<div>{count}</div>""".stripMargin
 
@@ -248,7 +248,7 @@ class MeltLanguageServerIntegrationSpec extends munit.FunSuite:
 
       val source =
         """|<script lang="scala">
-           |  val count = Var(0)
+           |  val count = State(0)
            |</script>""".stripMargin
 
       val uri = "file:///tmp/DefScript.melt"

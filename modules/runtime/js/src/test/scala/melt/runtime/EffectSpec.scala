@@ -10,7 +10,7 @@ class EffectSpec extends munit.FunSuite:
 
   test("effect runs immediately with current value") {
     Cleanup.pushScope()
-    val v      = Var(10)
+    val v      = State(10)
     var result = 0
     effect(v)(n => result = n)
     assertEquals(result, 10)
@@ -19,7 +19,7 @@ class EffectSpec extends munit.FunSuite:
 
   test("effect re-runs when dependency changes") {
     Cleanup.pushScope()
-    val v      = Var("hello")
+    val v      = State("hello")
     var result = ""
     effect(v)(s => result = s)
     assertEquals(result, "hello")
@@ -30,7 +30,7 @@ class EffectSpec extends munit.FunSuite:
 
   test("onCleanup inside effect runs before re-execution") {
     Cleanup.pushScope()
-    val v         = Var(0)
+    val v         = State(0)
     var cleanedUp = false
     effect(v) { _ =>
       onCleanup(() => cleanedUp = true)
@@ -43,7 +43,7 @@ class EffectSpec extends munit.FunSuite:
 
   test("effect with Signal dependency") {
     Cleanup.pushScope()
-    val v      = Var(0)
+    val v      = State(0)
     val sig    = v.map(_ + 100)
     var result = 0
     effect(sig)(n => result = n)
@@ -55,7 +55,7 @@ class EffectSpec extends munit.FunSuite:
 
   test("managed inside effect releases on re-execution") {
     Cleanup.pushScope()
-    val v        = Var(0)
+    val v        = State(0)
     var released = false
 
     effect(v) { _ =>

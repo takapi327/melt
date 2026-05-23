@@ -34,7 +34,7 @@ object Window:
 
   /** Reactive online status. */
   lazy val online: Signal[Boolean] =
-    val v = Var(dom.window.navigator.onLine)
+    val v = State(dom.window.navigator.onLine)
     val onlineListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val offlineListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
     dom.window.addEventListener("online", onlineListener)
@@ -49,12 +49,12 @@ object Window:
 
   /** Two-way binding for `window.scrollY`.
     *
-    * - `window → Var`: the Var is updated on every `scroll` event.
-    * - `Var → window`: calling `scrollTo` on every change, **skipping the
+    * - `window → State`: the State is updated on every `scroll` event.
+    * - `State → window`: calling `scrollTo` on every change, **skipping the
     *   initial value** to avoid unexpected scroll-to-top on mount
     *   (mirrors Svelte's accessibility-friendly behaviour).
     */
-  def bindScrollY(v: Var[Double]): Unit =
+  def bindScrollY(v: State[Double]): Unit =
     v.set(dom.window.scrollY)
     val scrollListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.scrollY)
     dom.window.addEventListener("scroll", scrollListener)
@@ -70,7 +70,7 @@ object Window:
     *
     * Same semantics as [[bindScrollY]] — initial value does not trigger scrolling.
     */
-  def bindScrollX(v: Var[Double]): Unit =
+  def bindScrollX(v: State[Double]): Unit =
     v.set(dom.window.scrollX)
     val scrollListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.scrollX)
     dom.window.addEventListener("scroll", scrollListener)
@@ -82,47 +82,47 @@ object Window:
     }
     Cleanup.register(cancel)
 
-  /** One-way binding: `window.innerWidth → Var` (read-only). */
-  def bindInnerWidth(v: Var[Double]): Unit =
+  /** One-way binding: `window.innerWidth → State` (read-only). */
+  def bindInnerWidth(v: State[Double]): Unit =
     v.set(dom.window.innerWidth.toDouble)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.innerWidth.toDouble)
     dom.window.addEventListener("resize", listener)
     Cleanup.register(() => dom.window.removeEventListener("resize", listener))
 
-  /** One-way binding: `window.innerHeight → Var` (read-only). */
-  def bindInnerHeight(v: Var[Double]): Unit =
+  /** One-way binding: `window.innerHeight → State` (read-only). */
+  def bindInnerHeight(v: State[Double]): Unit =
     v.set(dom.window.innerHeight.toDouble)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.innerHeight.toDouble)
     dom.window.addEventListener("resize", listener)
     Cleanup.register(() => dom.window.removeEventListener("resize", listener))
 
-  /** One-way binding: `window.outerWidth → Var` (read-only). */
-  def bindOuterWidth(v: Var[Double]): Unit =
+  /** One-way binding: `window.outerWidth → State` (read-only). */
+  def bindOuterWidth(v: State[Double]): Unit =
     v.set(dom.window.outerWidth.toDouble)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.outerWidth.toDouble)
     dom.window.addEventListener("resize", listener)
     Cleanup.register(() => dom.window.removeEventListener("resize", listener))
 
-  /** One-way binding: `window.outerHeight → Var` (read-only). */
-  def bindOuterHeight(v: Var[Double]): Unit =
+  /** One-way binding: `window.outerHeight → State` (read-only). */
+  def bindOuterHeight(v: State[Double]): Unit =
     v.set(dom.window.outerHeight.toDouble)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.outerHeight.toDouble)
     dom.window.addEventListener("resize", listener)
     Cleanup.register(() => dom.window.removeEventListener("resize", listener))
 
-  /** One-way binding: `window.devicePixelRatio → Var` (read-only).
+  /** One-way binding: `window.devicePixelRatio → State` (read-only).
     *
     * There is no dedicated event for DPR changes; `resize` is used as a proxy
     * since display changes (zoom, moving to another screen) typically also fire it.
     */
-  def bindDevicePixelRatio(v: Var[Double]): Unit =
+  def bindDevicePixelRatio(v: State[Double]): Unit =
     v.set(dom.window.devicePixelRatio)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(dom.window.devicePixelRatio)
     dom.window.addEventListener("resize", listener)
     Cleanup.register(() => dom.window.removeEventListener("resize", listener))
 
-  /** One-way binding: `navigator.onLine → Var[Boolean]` (read-only). */
-  def bindOnline(v: Var[Boolean]): Unit =
+  /** One-way binding: `navigator.onLine → State[Boolean]` (read-only). */
+  def bindOnline(v: State[Boolean]): Unit =
     v.set(dom.window.navigator.onLine)
     val onListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val offListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
@@ -136,7 +136,7 @@ object Window:
   // ── Internal ─────────────────────────────────────────────────────────────
 
   private def windowSignal[A](initial: A, event: String, update: dom.Event => A): Signal[A] =
-    val v = Var(initial)
+    val v = State(initial)
     val listener: scalajs.js.Function1[dom.Event, Unit] = e => v.set(update(e))
     dom.window.addEventListener(event, listener)
     Cleanup.register(() => dom.window.removeEventListener(event, listener))

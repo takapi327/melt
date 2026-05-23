@@ -17,7 +17,7 @@ import org.scalajs.dom
   * `reset` listener on the document and dispatches to per-element handlers.
   *
   * After the DOM has reset (one microtask via `Promise.resolve().then(...)`),
-  * each registered handler is called so the associated `Var` can be synced
+  * each registered handler is called so the associated `State` can be synced
   * back from the reset DOM state.
   *
   * Usage: called internally by `Bind.textareaValue`, `Bind.selectValue`, and

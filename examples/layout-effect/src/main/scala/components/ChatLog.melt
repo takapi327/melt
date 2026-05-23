@@ -1,8 +1,8 @@
 <script lang="scala">
 // ── State ──────────────────────────────────────────────────────────────────
-val messages = Var(List("👋 Welcome to the Melt layoutEffect demo!"))
-val input    = Var("")
-val phaseLog = Var(List.empty[String])
+val messages = State(List("👋 Welcome to the Melt layoutEffect demo!"))
+val input    = State("")
+val phaseLog = State(List.empty[String])
 
 // ── Auto-scroll via layoutEffect + effect ──────────────────────────────────
 //

@@ -28,15 +28,15 @@ class BindSelectSpec extends munit.FunSuite:
 
   // ── textareaValue ─────────────────────────────────────────────────────────
 
-  test("textareaValue — sets initial value from Var") {
-    val v        = Var("hello")
+  test("textareaValue — sets initial value from State") {
+    val v        = State("hello")
     val textarea = makeTextarea()
     withOwner { Bind.textareaValue(textarea, v) }
     assertEquals(textarea.value, "hello")
   }
 
-  test("textareaValue — input event updates Var") {
-    val v        = Var("")
+  test("textareaValue — input event updates State") {
+    val v        = State("")
     val textarea = makeTextarea()
     withOwner { Bind.textareaValue(textarea, v) }
     textarea.value = "typed"
@@ -44,8 +44,8 @@ class BindSelectSpec extends munit.FunSuite:
     assertEquals(v.value, "typed")
   }
 
-  test("textareaValue — Var change updates textarea") {
-    val v        = Var("initial")
+  test("textareaValue — State change updates textarea") {
+    val v        = State("initial")
     val textarea = makeTextarea()
     withOwner { Bind.textareaValue(textarea, v) }
     v.set("updated")
@@ -53,33 +53,33 @@ class BindSelectSpec extends munit.FunSuite:
   }
 
   test("textareaValue — no redundant DOM write when values match") {
-    val v        = Var("same")
+    val v        = State("same")
     val textarea = makeTextarea()
     withOwner { Bind.textareaValue(textarea, v) }
     textarea.value = "changed by user"
-    // Var is still "same" — should not overwrite the user's change
+    // State is still "same" — should not overwrite the user's change
     v.set("same")
     assertEquals(textarea.value, "changed by user")
   }
 
   // ── selectValue ───────────────────────────────────────────────────────────
 
-  test("selectValue — sets initial value from Var") {
-    val v      = Var("b")
+  test("selectValue — sets initial value from State") {
+    val v      = State("b")
     val select = makeSelect(Seq("a", "b", "c"))
     withOwner { Bind.selectValue(select, v) }
     assertEquals(select.value, "b")
   }
 
   test("selectValue — no matching option sets selectedIndex to -1") {
-    val v      = Var("z")
+    val v      = State("z")
     val select = makeSelect(Seq("a", "b", "c"))
     withOwner { Bind.selectValue(select, v) }
     assertEquals(select.selectedIndex, -1)
   }
 
-  test("selectValue — change event updates Var") {
-    val v      = Var("a")
+  test("selectValue — change event updates State") {
+    val v      = State("a")
     val select = makeSelect(Seq("a", "b", "c"))
     withOwner { Bind.selectValue(select, v) }
     select.value = "b"
@@ -87,16 +87,16 @@ class BindSelectSpec extends munit.FunSuite:
     assertEquals(v.value, "b")
   }
 
-  test("selectValue — Var change selects matching option") {
-    val v      = Var("a")
+  test("selectValue — State change selects matching option") {
+    val v      = State("a")
     val select = makeSelect(Seq("a", "b", "c"))
     withOwner { Bind.selectValue(select, v) }
     v.set("c")
     assertEquals(select.value, "c")
   }
 
-  test("selectValue — Var change to non-existing value sets selectedIndex to -1") {
-    val v      = Var("a")
+  test("selectValue — State change to non-existing value sets selectedIndex to -1") {
+    val v      = State("a")
     val select = makeSelect(Seq("a", "b", "c"))
     withOwner { Bind.selectValue(select, v) }
     v.set("z")
@@ -105,8 +105,8 @@ class BindSelectSpec extends munit.FunSuite:
 
   // ── selectMultipleValue ───────────────────────────────────────────────────
 
-  test("selectMultipleValue — sets initial selection from Var") {
-    val v      = Var(List("a", "c"))
+  test("selectMultipleValue — sets initial selection from State") {
+    val v      = State(List("a", "c"))
     val select = makeSelect(Seq("a", "b", "c"), multiple = true)
     withOwner { Bind.selectMultipleValue(select, v) }
     val selected =
@@ -118,8 +118,8 @@ class BindSelectSpec extends munit.FunSuite:
     assertEquals(selected, List("a", "c"))
   }
 
-  test("selectMultipleValue — change event updates Var") {
-    val v      = Var(List("a"))
+  test("selectMultipleValue — change event updates State") {
+    val v      = State(List("a"))
     val select = makeSelect(Seq("a", "b", "c"), multiple = true)
     withOwner { Bind.selectMultipleValue(select, v) }
     select.options(1).asInstanceOf[dom.html.Option].selected = true
@@ -128,8 +128,8 @@ class BindSelectSpec extends munit.FunSuite:
     assert(v.value.contains("b"), v.value.toString)
   }
 
-  test("selectMultipleValue — Var change updates selected options") {
-    val v      = Var(List("a"))
+  test("selectMultipleValue — State change updates selected options") {
+    val v      = State(List("a"))
     val select = makeSelect(Seq("a", "b", "c"), multiple = true)
     withOwner { Bind.selectMultipleValue(select, v) }
     v.set(List("b", "c"))
@@ -142,8 +142,8 @@ class BindSelectSpec extends munit.FunSuite:
     assertEquals(selected, List("b", "c"))
   }
 
-  test("selectMultipleValue — empty Var deselects all options") {
-    val v      = Var(List("a", "b"))
+  test("selectMultipleValue — empty State deselects all options") {
+    val v      = State(List("a", "b"))
     val select = makeSelect(Seq("a", "b", "c"), multiple = true)
     withOwner { Bind.selectMultipleValue(select, v) }
     v.set(Nil)

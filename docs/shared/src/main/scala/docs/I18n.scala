@@ -120,7 +120,7 @@ object I18n:
         HomeFeature(
           "03",
           "Tiny reactive runtime",
-          "Just Var, Signal and Bind. Fine-grained updates, no re-rendering trees, no diffing. Effects and memos compose naturally."
+          "Just State, Signal and Bind. Fine-grained updates, no re-rendering trees, no diffing. Effects and memos compose naturally."
         ),
         HomeFeature(
           "04",
@@ -205,7 +205,7 @@ object I18n:
           "Scala・HTML・スコープ付き CSS を 1 つの .melt ファイルに記述。コンパイラが直接 DOM コードを生成し、仮想 DOM もランタイムオーバーヘッドもありません。"
         ),
         HomeFeature("02", "完全に型付けされたテンプレート", "テンプレート内の式まで scalac が型チェック。リファクタリングは安全に伝播し、typo は本番ではなくコンパイル時に失敗します。"),
-        HomeFeature("03", "最小のリアクティブランタイム", "Var / Signal / Bind の 3 つだけ。木の再描画も diff もない、細粒度の更新。エフェクトとメモが自然に合成できます。"),
+        HomeFeature("03", "最小のリアクティブランタイム", "State / Signal / Bind の 3 つだけ。木の再描画も diff もない、細粒度の更新。エフェクトとメモが自然に合成できます。"),
         HomeFeature("04", "SPA・SSR・SSG をひとつのソースで", "同じコンポーネントが JVM では HTML 文字列、ブラウザでは生きた DOM になります。ハイドレーションはオプトイン。")
       ),
       demoLabel      = "試してみる",

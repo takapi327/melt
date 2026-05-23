@@ -8,17 +8,17 @@ package melt.runtime.impl
 
 import scala.collection.mutable
 
-import melt.runtime.{ Batch, Cleanup, Owner, Signal, Var }
+import melt.runtime.{ Batch, Cleanup, Owner, Signal, State }
 
-/** Scala.js factory referenced by the shared `object Var`. Produces a real
+/** Scala.js factory referenced by the shared `object State`. Produces a real
   * reactive cell with three-phase subscriber lanes (Pre → Bind → Post).
   */
-private[runtime] object VarFactory:
-  def create[A](initial: A): Var[A] = new JsVar[A](initial)
+private[runtime] object StateFactory:
+  def create[A](initial: A): State[A] = new JsState[A](initial)
 
-/** Scala.js implementation of [[Var]] — the original class that used to
+/** Scala.js implementation of [[State]] — the original class that used to
   * live directly under `melt.runtime`. Now hidden behind `impl` and exposed
-  * only through [[VarFactory]] so that the public type is the shared trait.
+  * only through [[StateFactory]] so that the public type is the shared trait.
   *
   * Calling [[set]] or [[update]] notifies all subscribers and propagates
   * changes through any derived [[Signal]] instances created via [[map]],
@@ -30,7 +30,7 @@ private[runtime] object VarFactory:
   *   2. '''Bind''' — `Bind` helpers and derived `Signal` subscriptions update the DOM.
   *   3. '''Post''' — `effect` callbacks run after all DOM mutations.
   */
-private final class JsVar[A](private var _current: A) extends Var[A]:
+private final class JsState[A](private var _current: A) extends State[A]:
 
   // ── Three-phase subscriber lanes ────────────────────────────────────────
   private val _pre  = mutable.ListBuffer.empty[A => Unit]

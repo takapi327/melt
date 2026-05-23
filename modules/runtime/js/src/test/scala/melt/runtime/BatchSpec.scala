@@ -9,8 +9,8 @@ package melt.runtime
 class BatchSpec extends munit.FunSuite:
 
   test("batch coalesces subscriber notifications") {
-    val a     = Var(1)
-    val b     = Var(2)
+    val a     = State(1)
+    val b     = State(2)
     var count = 0
     a.subscribe(_ => count += 1)
     b.subscribe(_ => count += 1)
@@ -24,7 +24,7 @@ class BatchSpec extends munit.FunSuite:
   }
 
   test("now() returns updated value inside batch") {
-    val v = Var(0)
+    val v = State(0)
     batch {
       v.set(42)
       assertEquals(v.value, 42)
@@ -32,8 +32,8 @@ class BatchSpec extends munit.FunSuite:
   }
 
   test("nested batch flushes at outermost level") {
-    val a      = Var(0)
-    val b      = Var(0)
+    val a      = State(0)
+    val b      = State(0)
     var countA = 0
     var countB = 0
     a.subscribe(_ => countA += 1)
@@ -47,13 +47,13 @@ class BatchSpec extends munit.FunSuite:
       assertEquals(countA, 0)
       b.set(2)
     }
-    // Outer batch flushes — each Var notifies once
+    // Outer batch flushes — each State notifies once
     assertEquals(countA, 1)
     assertEquals(countB, 1)
   }
 
-  test("same Var set multiple times in batch notifies only once with final value") {
-    val a       = Var(1)
+  test("same State set multiple times in batch notifies only once with final value") {
+    val a       = State(1)
     var updates = 0
     var lastVal = 0
     a.subscribe { v => updates += 1; lastVal = v }
@@ -69,7 +69,7 @@ class BatchSpec extends munit.FunSuite:
   }
 
   test("derived signal sees final value after batch") {
-    val a = Var(1)
+    val a = State(1)
     Cleanup.pushScope()
     val doubled = a.map(_ * 2)
     batch {

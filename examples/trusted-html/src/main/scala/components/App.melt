@@ -1,5 +1,5 @@
 <script lang="scala">
-val showExtra = Var(false)
+val showExtra = State(false)
 </script>
 
 <div class="app">

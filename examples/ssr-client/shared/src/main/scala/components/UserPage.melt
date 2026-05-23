@@ -1,12 +1,12 @@
 <script lang="scala" props="Props">
   case class Props(initialUsers: List[User] = Nil)
 
-  val users    = Var(props.initialUsers)
-  val loaded   = Var(props.initialUsers.nonEmpty)
-  val newName  = Var("")
-  val newEmail = Var("")
-  val newRole  = Var("Developer")
-  val showForm = Var(false)
+  val users    = State(props.initialUsers)
+  val loaded   = State(props.initialUsers.nonEmpty)
+  val newName  = State("")
+  val newEmail = State("")
+  val newRole  = State("Developer")
+  val showForm = State(false)
 
   if !loaded.value then Api.fetchUsers(users, loaded)
 </script>

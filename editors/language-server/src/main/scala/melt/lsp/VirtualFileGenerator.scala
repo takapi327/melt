@@ -30,7 +30,7 @@ case class VirtualFile(content: String, mapper: PositionMapper)
   * {{{
   * // Counter.melt (0-indexed lines)
   * 0: <script lang="scala">
-  * 1:   val count = Var(0)
+  * 1:   val count = State(0)
   * 2:   def increment() = count.update(_ + 1)
   * 3: </script>
   * 4:
@@ -38,7 +38,7 @@ case class VirtualFile(content: String, mapper: PositionMapper)
   *
   * // Virtual Counter.scala
   * 0:                                   ← blank (tag line)
-  * 1:   val count = Var(0)              ← verbatim
+  * 1:   val count = State(0)              ← verbatim
   * 2:   def increment() = count.update(_ + 1) ← verbatim
   * 3:                                   ← blank (tag line)
   * 4:                                   ← blank

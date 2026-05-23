@@ -16,7 +16,7 @@ import melt.ast.*
   * When a `{expr}` in a template is missing its closing `}`, the expression
   * extractor consumes subsequent HTML (e.g. `</span>`, `</div>`) as Scala
   * code. This produces confusing scalac errors like
-  * `value </ is not a member of Var[Int]`.
+  * `value </ is not a member of State[Int]`.
   *
   * This checker detects the pattern and emits a clear meltc error before
   * code generation runs.

@@ -8,8 +8,8 @@ package melt.runtime
 
 class KeyedListSpec extends munit.FunSuite:
 
-  test("keyed extension creates KeyedList from Var[List]") {
-    val items = Var(List(1, 2, 3))
+  test("keyed extension creates KeyedList from State[List]") {
+    val items = State(List(1, 2, 3))
     val kl    = items.keyed(identity)
     assertEquals(kl.source, items)
     assertEquals(kl.keyFn(42), 42)
@@ -17,7 +17,7 @@ class KeyedListSpec extends munit.FunSuite:
 
   test("keyed preserves key function") {
     case class Item(id: Int, name: String)
-    val items = Var(List(Item(1, "a"), Item(2, "b")))
+    val items = State(List(Item(1, "a"), Item(2, "b")))
     val kl    = items.keyed(_.id)
     assertEquals(kl.keyFn(Item(3, "c")), 3)
   }

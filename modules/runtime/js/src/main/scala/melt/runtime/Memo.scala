@@ -17,7 +17,7 @@ trait Memo[A] extends Signal[A]
   * equality (`!=`) and suppresses redundant updates.
   *
   * {{{
-  * val count  = Var(0)
+  * val count  = State(0)
   * val isEven = memo(count)(_ % 2 == 0) // only emits when parity changes
   * }}}
   */
@@ -30,5 +30,5 @@ def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] =
   Cleanup.register(cancel)
   derived
 
-def memo[A, B](dep: Var[A])(f: A => B): Signal[B] =
+def memo[A, B](dep: State[A])(f: A => B): Signal[B] =
   memo(dep.signal)(f)

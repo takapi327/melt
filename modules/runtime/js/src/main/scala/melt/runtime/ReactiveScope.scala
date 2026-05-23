@@ -201,7 +201,7 @@ object ReactiveScope:
 
   // ── Reactive helpers ────────────────────────────────────────────────────
 
-  /** Subscribes to a [[Var]] in the **Post** phase (after DOM updates).
+  /** Subscribes to a [[State]] in the **Post** phase (after DOM updates).
     *
     * The body `f` runs immediately with the current value, then re-runs
     * whenever `dep` changes. Any [[onCleanup]] call inside `f` registers a
@@ -215,7 +215,7 @@ object ReactiveScope:
     * }
     * }}}
     */
-  def effect[A](dep: Var[A])(f: A => Unit): ReactiveScope[Unit] =
+  def effect[A](dep: State[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>
       var innerNode: Option[OwnerNode] = None
 
@@ -235,7 +235,7 @@ object ReactiveScope:
 
   /** Subscribes to a [[Signal]] in the **Post** phase (after DOM updates).
     *
-    * Behaves identically to the [[Var]] overload.
+    * Behaves identically to the [[State]] overload.
     */
   def effect[A](dep: Signal[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>
@@ -255,12 +255,12 @@ object ReactiveScope:
       )
     }
 
-  /** Subscribes to a [[Var]] in the **Pre** phase (before DOM updates).
+  /** Subscribes to a [[State]] in the **Pre** phase (before DOM updates).
     *
     * Unlike [[effect]], `layoutEffect` does **not** run on initial creation;
     * it fires only on subsequent changes to `dep`. Unsubscribes on release.
     */
-  def layoutEffect[A](dep: Var[A])(f: A => Unit): ReactiveScope[Unit] =
+  def layoutEffect[A](dep: State[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>
       val cancel = dep.subscribePre(f)
       ((), cancel)
@@ -268,7 +268,7 @@ object ReactiveScope:
 
   /** Subscribes to a [[Signal]] in the **Pre** phase (before DOM updates).
     *
-    * Behaves identically to the [[Var]] overload.
+    * Behaves identically to the [[State]] overload.
     */
   def layoutEffect[A](dep: Signal[A])(f: A => Unit): ReactiveScope[Unit] =
     ReactiveScope { () =>

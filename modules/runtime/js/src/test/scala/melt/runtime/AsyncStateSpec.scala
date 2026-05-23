@@ -50,9 +50,9 @@ class AsyncStateSpec extends munit.FunSuite:
     assertEquals(state.error.value, Some(err))
   }
 
-  test("AsyncState.derived creates state from Var dependency") {
+  test("AsyncState.derived creates state from State dependency") {
     Cleanup.pushScope()
-    val userId = Var(1)
+    val userId = State(1)
     val user   = AsyncState.derived[Future, Int, String](userId)(id => Future.successful(s"User-$id"))
     val isLoading: Boolean = user.loading.value
     assert(isLoading, "should be loading initially")

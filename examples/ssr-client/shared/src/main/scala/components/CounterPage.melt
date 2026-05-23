@@ -1,5 +1,5 @@
 <script lang="scala">
-val count   = Var(0)
+val count   = State(0)
 val doubled = count.map(_ * 2)
 val isEven  = memo(count)(_ % 2 == 0)
 

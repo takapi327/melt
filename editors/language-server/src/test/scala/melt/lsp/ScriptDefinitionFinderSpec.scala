@@ -19,7 +19,7 @@ class ScriptDefinitionFinderSpec extends munit.FunSuite:
   test("finds val definition from template reference") {
     val source =
       """|<script lang="scala">
-         |  val count = Var(0)
+         |  val count = State(0)
          |</script>
          |<div>{count}</div>""".stripMargin
     // line 3, "count" starts at char 6
@@ -32,7 +32,7 @@ class ScriptDefinitionFinderSpec extends munit.FunSuite:
   test("definition location character points to the identifier start") {
     val source =
       """|<script lang="scala">
-         |  val count = Var(0)
+         |  val count = State(0)
          |</script>
          |<div>{count}</div>""".stripMargin
     val locs      = find(source, line = 3, char = 8)
@@ -69,7 +69,7 @@ class ScriptDefinitionFinderSpec extends munit.FunSuite:
   test("returns empty when cursor is not on an identifier") {
     val source =
       """|<script lang="scala">
-         |  val count = Var(0)
+         |  val count = State(0)
          |</script>
          |<div>{count}</div>""".stripMargin
     // cursor on '<' which is not an identifier char
@@ -106,7 +106,7 @@ class ScriptDefinitionFinderSpec extends munit.FunSuite:
   test("finds definition when cursor is at start of identifier") {
     val source =
       """|<script lang="scala">
-         |  val count = Var(0)
+         |  val count = State(0)
          |</script>
          |<div>{count}</div>""".stripMargin
     // cursor at first char of "count" (index 6 in line 3)
@@ -117,7 +117,7 @@ class ScriptDefinitionFinderSpec extends munit.FunSuite:
   test("finds definition when cursor is at end of identifier") {
     val source =
       """|<script lang="scala">
-         |  val count = Var(0)
+         |  val count = State(0)
          |</script>
          |<div>{count}</div>""".stripMargin
     // cursor at last char of "count" (index 10 in line 3)

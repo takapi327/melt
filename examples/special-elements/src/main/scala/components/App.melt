@@ -1,21 +1,21 @@
 <script lang="scala">
 // ── State ───────────────────────────────────────────────────────────────────
-val pageTitle   = Var("Special Elements Demo")
-val description = Var("Melt special elements: melt:head, melt:window, melt:body, melt:document")
+val pageTitle   = State("Special Elements Demo")
+val description = State("Melt special elements: melt:head, melt:window, melt:body, melt:document")
 
-val windowWidth  = Var(0.0)
-val windowHeight = Var(0.0)
-val scrollY      = Var(0.0)
-val isOnline     = Var(true)
+val windowWidth  = State(0.0)
+val windowHeight = State(0.0)
+val scrollY      = State(0.0)
+val isOnline     = State(true)
 
-val bodyHovered  = Var(false)
-val shortcutLog  = Var(List.empty[String])
+val bodyHovered  = State(false)
+val shortcutLog  = State(List.empty[String])
 
 // ── melt:document state ──────────────────────────────────────────────────────
-val visibilityState   = Var("visible")
-val activeElement     = Var(Option.empty[dom.Element])
-val visibilityLog     = Var(List.empty[String])
-val selectedText      = Var("")
+val visibilityState   = State("visible")
+val activeElement     = State(Option.empty[dom.Element])
+val visibilityLog     = State(List.empty[String])
+val selectedText      = State("")
 
 def activeElementLabel(el: Option[dom.Element]): String =
   el match

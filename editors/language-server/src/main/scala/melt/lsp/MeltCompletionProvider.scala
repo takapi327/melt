@@ -37,13 +37,13 @@ object MeltCompletionProvider:
       "Import melt runtime",
       CompletionItemKind.Module
     ),
-    typeItem("Var", "Reactive mutable variable — Var(initialValue)"),
+    typeItem("State", "Reactive mutable variable — State(initialValue)"),
     typeItem("Signal", "Read-only reactive signal derived from one or more Vars"),
     typeItem("Bind", "DOM binding utilities for reactive updates"),
     typeItem("TrustedHtml", "XSS-safe HTML wrapper — use TrustedHtml.unsafe(html)"),
     snippet(
       "var-decl",
-      "val ${1:name} = Var(${2:initialValue})",
+      "val ${1:name} = State(${2:initialValue})",
       "Reactive variable declaration",
       CompletionItemKind.Snippet
     ),

@@ -11,22 +11,22 @@ class LayoutEffectSpec extends munit.FunSuite:
   // ── layoutEffect basics ───────────────────────────────────────────────────
 
   test("layoutEffect does NOT run on initial creation") {
-    val count = Var(0)
+    val count = State(0)
     var ran   = false
     layoutEffect(count) { _ => ran = true }
     assert(!ran, "layoutEffect must not fire at registration time")
   }
 
   test("layoutEffect runs when dep changes") {
-    val count = Var(0)
+    val count = State(0)
     var last  = -1
     layoutEffect(count) { n => last = n }
     count.set(42)
     assertEquals(last, 42)
   }
 
-  test("layoutEffect fires before effect on the same Var") {
-    val count = Var(0)
+  test("layoutEffect fires before effect on the same State") {
+    val count = State(0)
     val order = scala.collection.mutable.ListBuffer.empty[String]
 
     layoutEffect(count) { _ => order += "pre" }
@@ -41,7 +41,7 @@ class LayoutEffectSpec extends munit.FunSuite:
   }
 
   test("layoutEffect fires before Bind-lane subscriber") {
-    val count = Var(0)
+    val count = State(0)
     val order = scala.collection.mutable.ListBuffer.empty[String]
 
     layoutEffect(count) { _ => order += "pre" }
@@ -54,7 +54,7 @@ class LayoutEffectSpec extends munit.FunSuite:
   }
 
   test("effect (Post lane) fires after Bind-lane subscriber") {
-    val count = Var(0)
+    val count = State(0)
     val order = scala.collection.mutable.ListBuffer.empty[String]
 
     val cancel = count.subscribe(_ => order += "bind")
@@ -70,7 +70,7 @@ class LayoutEffectSpec extends munit.FunSuite:
   }
 
   test("full order: layoutEffect → bind → effect") {
-    val count = Var(0)
+    val count = State(0)
     val order = scala.collection.mutable.ListBuffer.empty[String]
 
     layoutEffect(count) { _ => order += "pre" }
@@ -89,7 +89,7 @@ class LayoutEffectSpec extends munit.FunSuite:
   // ── Signal overload ───────────────────────────────────────────────────────
 
   test("layoutEffect works with Signal") {
-    val count   = Var(0)
+    val count   = State(0)
     val doubled = count.map(_ * 2)
     val order   = scala.collection.mutable.ListBuffer.empty[String]
 
@@ -108,8 +108,8 @@ class LayoutEffectSpec extends munit.FunSuite:
   // ── Two-dependency overload ───────────────────────────────────────────────
 
   test("two-dep layoutEffect fires before effect when both deps change via batch") {
-    val a     = Var(0)
-    val b     = Var(0)
+    val a     = State(0)
+    val b     = State(0)
     val order = scala.collection.mutable.ListBuffer.empty[String]
 
     layoutEffect(a, b) { (av, bv) => order += s"pre($av,$bv)" }
@@ -130,7 +130,7 @@ class LayoutEffectSpec extends munit.FunSuite:
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   test("layoutEffect is removed from Pre lane when cleanup runs") {
-    val count = Var(0)
+    val count = State(0)
     var calls = 0
 
     Cleanup.pushScope()

@@ -18,9 +18,9 @@ package melt.runtime
   * }}}
   */
 final class AsyncState[A]:
-  private val _loading = Var(false)
-  private val _value   = Var(Option.empty[A])
-  private val _error   = Var(Option.empty[Throwable])
+  private val _loading = State(false)
+  private val _value   = State(Option.empty[A])
+  private val _error   = State(Option.empty[Throwable])
 
   val loading: Signal[Boolean]           = _loading.signal
   val value:   Signal[Option[A]]         = _value.signal
@@ -52,7 +52,7 @@ object AsyncState:
     state
 
   /** Runs an async effect that re-executes whenever `dep` changes. */
-  def derived[F[_]: MeltEffect, A, B](dep: Var[A])(f: A => F[B]): AsyncState[B] =
+  def derived[F[_]: MeltEffect, A, B](dep: State[A])(f: A => F[B]): AsyncState[B] =
     val state = new AsyncState[B]
     var cancelPrev: () => Unit = () => ()
 

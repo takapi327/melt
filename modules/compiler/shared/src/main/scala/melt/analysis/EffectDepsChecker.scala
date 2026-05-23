@@ -25,7 +25,7 @@ import melt.CompileWarning
   *
   * === Algorithm ===
   *
-  *   1. Collect reactive variable names: `val x = Var(...)` or derived signals.
+  *   1. Collect reactive variable names: `val x = State(...)` or derived signals.
   *   2. Extract every `effect(...)` / `layoutEffect(...)` call: deps list + body.
   *   3. For each call, find reactive var names referenced in the body via `.value`,
   *      `.set`, `.update` or bare name usage, that are absent from the deps list.
@@ -34,7 +34,7 @@ import melt.CompileWarning
 object EffectDepsChecker:
 
   private val VarDeclPattern: Regex =
-    raw"""val\s+(\w+)\s*=\s*Var\s*\(""".r
+    raw"""val\s+(\w+)\s*=\s*State\s*\(""".r
 
   private val SignalDerivedPattern: Regex =
     raw"""val\s+(\w+)\s*=\s*\w+\.(map|flatMap|signal)\s*[({]""".r

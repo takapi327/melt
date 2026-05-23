@@ -33,28 +33,28 @@ class TypeSafetySpec extends MeltSuite:
     dom.document.body.appendChild(div)
     div
 
-  // ── SAFE: Bind.attr with Var[Boolean] / Signal[Boolean] ───────────────
+  // ── SAFE: Bind.attr with State[Boolean] / Signal[Boolean] ───────────────
 
-  /** SAFE: Bind.attr(el, name, Var[Boolean]) is now a compile-time error.
+  /** SAFE: Bind.attr(el, name, State[Boolean]) is now a compile-time error.
     *
-    * Previously, the Var[?] overload called .toString() which produced the
+    * Previously, the State[?] overload called .toString() which produced the
     * string "false" — HTML boolean attributes set to any non-empty value mean
     * the attribute is present, so disabled="false" kept the element disabled.
     *
-    * The inline overloads now reject Var[Boolean] and Signal[Boolean] at
+    * The inline overloads now reject State[Boolean] and Signal[Boolean] at
     * compile time with a descriptive message directing to Bind.booleanAttr.
     *
     * {{{
     * // Compile error — use Bind.booleanAttr instead:
-    * Bind.attr(button, "disabled", Var(false))
-    * Bind.attr(button, "disabled", Var(false).signal)
+    * Bind.attr(button, "disabled", State(false))
+    * Bind.attr(button, "disabled", State(false).signal)
     * }}}
     */
 
   /** SAFE: Bind.booleanAttr correctly removes the attribute when false. */
-  test("SAFE: Bind.booleanAttr removes attribute when Var[Boolean] is false") {
+  test("SAFE: Bind.booleanAttr removes attribute when State[Boolean] is false") {
     val button   = el("button")
-    val disabled = Var(false)
+    val disabled = State(false)
     Bind.booleanAttr(button, "disabled", disabled)
     assert(!button.hasAttribute("disabled"), "attribute should be absent when false")
 
@@ -73,9 +73,9 @@ class TypeSafetySpec extends MeltSuite:
     assert(button.hasAttribute("disabled"), "static true adds the attribute")
   }
 
-  // ── BUG: Var.map / Signal cleanup not called without Cleanup scope ──────
+  // ── BUG: State.map / Signal cleanup not called without Cleanup scope ──────
 
-  /** RISK: Var.map and Signal.map register cleanup handlers via Cleanup.register,
+  /** RISK: State.map and Signal.map register cleanup handlers via Cleanup.register,
     * but if called outside a component's create() scope (i.e. without
     * Cleanup.pushScope() / Cleanup.popScope()), the subscription is never
     * released and leaks indefinitely.
@@ -83,8 +83,8 @@ class TypeSafetySpec extends MeltSuite:
     * Users writing tests or utility code outside a component may unknowingly
     * create subscription leaks.
     */
-  test("RISK: Var.map outside Cleanup scope registers a cleanup that is never released") {
-    val count   = Var(0)
+  test("RISK: State.map outside Cleanup scope registers a cleanup that is never released") {
+    val count   = State(0)
     var derived = -1
     // Simulate calling map() outside a component create() scope.
     // Cleanup.register is called internally, but there is no active scope to
@@ -103,26 +103,26 @@ class TypeSafetySpec extends MeltSuite:
     assertEquals(doubled.value, 10, "after cleanup, derived signal should not update")
   }
 
-  // ── SAFE: Var[A] type safety ───────────────────────────────────────────
+  // ── SAFE: State[A] type safety ───────────────────────────────────────────
 
-  test("SAFE: Var[A].set only accepts values of type A") {
-    val count: Var[Int] = Var(0)
+  test("SAFE: State[A].set only accepts values of type A") {
+    val count: State[Int] = State(0)
     count.set(42)
     assertEquals(count.value, 42)
     // count.set("hello")   // compile error — correctly rejected
     // count.set(3.14)      // compile error — correctly rejected
   }
 
-  test("SAFE: Var[A].update preserves type") {
-    val name: Var[String] = Var("Alice")
+  test("SAFE: State[A].update preserves type") {
+    val name: State[String] = State("Alice")
     name.update(_.toUpperCase)
     assertEquals(name.value, "ALICE")
     // name.update(_ + 1)   // compile error — Int arithmetic on String
   }
 
-  test("SAFE: Var[A].map produces Signal[B] with correct type") {
+  test("SAFE: State[A].map produces Signal[B] with correct type") {
     Cleanup.pushScope()
-    val count   = Var(0)
+    val count   = State(0)
     val doubled = count.map(_ * 2) // Signal[Int]
     count.set(3)
     assertEquals(doubled.value, 6)
@@ -132,7 +132,7 @@ class TypeSafetySpec extends MeltSuite:
 
   test("SAFE: Signal[A].map produces Signal[B] with correct type") {
     Cleanup.pushScope()
-    val count = Var(0)
+    val count = State(0)
     val label: Signal[String] = count.signal.map(n => s"Count: $n")
     count.set(7)
     assertEquals(label.value, "Count: 7")
@@ -141,57 +141,57 @@ class TypeSafetySpec extends MeltSuite:
 
   // ── SAFE: Bind two-way binding type safety ─────────────────────────────
 
-  test("SAFE: Bind.inputValue requires Var[String]") {
+  test("SAFE: Bind.inputValue requires State[String]") {
     val input = inputEl()
-    val text  = Var("hello")
+    val text  = State("hello")
     Bind.inputValue(input, text)
     assertEquals(input.value, "hello")
     text.set("world")
     assertEquals(input.value, "world")
-    // Bind.inputValue(input, Var(42))    // compile error — Var[Int] not accepted
-    // Bind.inputValue(input, Var(true))  // compile error — Var[Boolean] not accepted
+    // Bind.inputValue(input, State(42))    // compile error — State[Int] not accepted
+    // Bind.inputValue(input, State(true))  // compile error — State[Boolean] not accepted
   }
 
-  test("SAFE: Bind.inputInt requires Var[Int]") {
+  test("SAFE: Bind.inputInt requires State[Int]") {
     val input = inputEl()
-    val count = Var(5)
+    val count = State(5)
     Bind.inputInt(input, count)
     assertEquals(input.value, "5")
     count.set(10)
     assertEquals(input.value, "10")
-    // Bind.inputInt(input, Var("5"))     // compile error — Var[String] not accepted
+    // Bind.inputInt(input, State("5"))     // compile error — State[String] not accepted
   }
 
-  test("SAFE: Bind.inputDouble requires Var[Double]") {
+  test("SAFE: Bind.inputDouble requires State[Double]") {
     val input = inputEl()
-    val ratio = Var(0.5)
+    val ratio = State(0.5)
     Bind.inputDouble(input, ratio)
     assertEquals(input.value, "0.5")
-    // Bind.inputDouble(input, Var(1))    // compile error — Var[Int] not accepted
+    // Bind.inputDouble(input, State(1))    // compile error — State[Int] not accepted
   }
 
-  test("SAFE: Bind.inputChecked requires Var[Boolean]") {
+  test("SAFE: Bind.inputChecked requires State[Boolean]") {
     val input = inputEl()
     input.setAttribute("type", "checkbox")
-    val checked = Var(false)
+    val checked = State(false)
     Bind.inputChecked(input, checked)
     assertEquals(input.checked, false)
     checked.set(true)
     assertEquals(input.checked, true)
-    // Bind.inputChecked(input, Var("true"))  // compile error — Var[String] not accepted
+    // Bind.inputChecked(input, State("true"))  // compile error — State[String] not accepted
   }
 
-  test("SAFE: Bind.classToggle requires Var[Boolean] — non-Boolean Var rejected at compile time") {
+  test("SAFE: Bind.classToggle requires State[Boolean] — non-Boolean State rejected at compile time") {
     val button = el("button")
-    val active = Var(false)
+    val active = State(false)
     Bind.classToggle(button, "active", active)
     assert(!button.classList.contains("active"))
     active.set(true)
     assert(button.classList.contains("active"))
     active.set(false)
     assert(!button.classList.contains("active"))
-    // Bind.classToggle(button, "active", Var("yes"))   // compile error
-    // Bind.classToggle(button, "active", Var(1))        // compile error
+    // Bind.classToggle(button, "active", State("yes"))   // compile error
+    // Bind.classToggle(button, "active", State(1))        // compile error
   }
 
   // ── SAFE: Action[P] parameter type enforcement ─────────────────────────
@@ -250,25 +250,25 @@ class TypeSafetySpec extends MeltSuite:
   /** SAFE: Bind.text(value: Any) is now Bind.text(value: String).
     *
     * Previously Any was accepted so Bind.text(count.value) where count is
-    * Var[Int] silently selected the static overload — the DOM never updated.
+    * State[Int] silently selected the static overload — the DOM never updated.
     * Now the static overload only accepts String, so non-String .value calls
     * are rejected at compile time.
     *
     * {{{
-    * val count = Var(0)
+    * val count = State(0)
     * Bind.text(count.value, parent)   // compile error — Int does not conform to String
     * }}}
     *
-    * RISK: Var[String].value still returns String, so Bind.text(label.value, parent)
+    * RISK: State[String].value still returns String, so Bind.text(label.value, parent)
     * compiles but is silently static. This is a residual risk for String Vars.
     */
   test("SAFE: Bind.text with non-String .value is now a compile error") {
     val parent = containerEl()
-    val count  = Var(0)
+    val count  = State(0)
 
-    // Correct: pass Var directly for reactive binding
+    // Correct: pass State directly for reactive binding
     Cleanup.pushScope()
-    Bind.text(count, parent) // Var[?] overload → reactive
+    Bind.text(count, parent) // State[?] overload → reactive
     Cleanup.popScope()
 
     count.set(99)
@@ -277,9 +277,9 @@ class TypeSafetySpec extends MeltSuite:
     // Bind.text(count.value, parent)   // compile error — Int does not conform to String
   }
 
-  test("RISK: Bind.text(String) with Var[String].value is silently static") {
+  test("RISK: Bind.text(String) with State[String].value is silently static") {
     val parent = containerEl()
-    val label  = Var("hello")
+    val label  = State("hello")
 
     Cleanup.pushScope()
     Bind.text(label.value, parent) // String overload — bound ONCE, never updates
@@ -289,32 +289,32 @@ class TypeSafetySpec extends MeltSuite:
     assertEquals(
       parent.textContent,
       "hello",
-      "RISK: Var[String].value returns String which satisfies static overload — binding is silently non-reactive"
+      "RISK: State[String].value returns String which satisfies static overload — binding is silently non-reactive"
     )
   }
 
   // ── SAFE: Bind.list requires Iterable ─────────────────────────────────
 
-  test("SAFE: Bind.list requires Var[? <: Iterable[A]]") {
+  test("SAFE: Bind.list requires State[? <: Iterable[A]]") {
     val parent = containerEl()
     val anchor = dom.document.createComment("anchor")
     parent.appendChild(anchor)
-    val items = Var(List("a", "b", "c"))
+    val items = State(List("a", "b", "c"))
     Cleanup.pushScope()
     Bind.list(items, (s: String) => dom.document.createTextNode(s), anchor)
     Cleanup.popScope()
     assertEquals(parent.textContent, "abc")
-    // Bind.list(Var(42), ..., anchor)         // compile error — Int not Iterable
-    // Bind.list(Var("hello"), ..., anchor)    // compile error — String not Iterable
+    // Bind.list(State(42), ..., anchor)         // compile error — Int not Iterable
+    // Bind.list(State("hello"), ..., anchor)    // compile error — String not Iterable
   }
 
-  test("SAFE: Bind.each requires Var[? <: Iterable[A]] and a key function") {
+  test("SAFE: Bind.each requires State[? <: Iterable[A]] and a key function") {
     val parent = containerEl()
     val anchor = dom.document.createComment("anchor")
     parent.appendChild(anchor)
     Cleanup.pushScope()
     Bind.each(
-      Var(List(1, 2, 3)),
+      State(List(1, 2, 3)),
       (n: Int) => n,
       (n: Int) => dom.document.createTextNode(n.toString),
       anchor
@@ -325,27 +325,27 @@ class TypeSafetySpec extends MeltSuite:
 
   // ── SAFE: Bind.html requires TrustedHtml ─────────────────────────────
 
-  /** SAFE: Bind.html now requires TrustedHtml instead of String/Var[String].
+  /** SAFE: Bind.html now requires TrustedHtml instead of String/State[String].
     *
-    * Previously Bind.html accepted Var[String] directly, making XSS-prone
+    * Previously Bind.html accepted State[String] directly, making XSS-prone
     * call sites invisible in code review. Now callers must explicitly wrap
     * their string with TrustedHtml.unsafe, making the acknowledgement visible.
     *
     * {{{
-    * // Compile error — plain Var[String] no longer accepted:
-    * Bind.html(el, Var("<b>user input</b>"))
+    * // Compile error — plain State[String] no longer accepted:
+    * Bind.html(el, State("<b>user input</b>"))
     *
     * // OK — explicit opt-in with TrustedHtml.unsafe:
-    * val safe = Var(TrustedHtml.unsafe("<b>static markup</b>"))
+    * val safe = State(TrustedHtml.unsafe("<b>static markup</b>"))
     * Bind.html(el, safe)
     * }}}
     */
-  test("SAFE: Bind.html requires TrustedHtml — plain Var[String] is rejected at compile time") {
+  test("SAFE: Bind.html requires TrustedHtml — plain State[String] is rejected at compile time") {
     val parent = el("div")
-    // Bind.html(parent, Var("<b>bold</b>"))  // compile error — Var[String] not accepted
+    // Bind.html(parent, State("<b>bold</b>"))  // compile error — State[String] not accepted
 
     // Must explicitly wrap with TrustedHtml.unsafe:
-    val content = Var(TrustedHtml.unsafe("<b>bold</b>"))
+    val content = State(TrustedHtml.unsafe("<b>bold</b>"))
     Cleanup.pushScope()
     Bind.html(parent, content)
     Cleanup.popScope()
@@ -361,10 +361,10 @@ class TypeSafetySpec extends MeltSuite:
     assertEquals(parent.querySelector("strong").textContent, "hello")
   }
 
-  // ── RISK: Var.subscribe leaks without calling the cancel function ──────
+  // ── RISK: State.subscribe leaks without calling the cancel function ──────
 
-  test("RISK: Var.subscribe without storing the cancel function leaks the subscription") {
-    val count = Var(0)
+  test("RISK: State.subscribe without storing the cancel function leaks the subscription") {
+    val count = State(0)
     var calls = 0
     // No cleanup: the cancel function returned by subscribe is discarded.
     // In a real component, Cleanup.register should hold this reference.
@@ -378,9 +378,9 @@ class TypeSafetySpec extends MeltSuite:
 
   // ── RISK: Bind.attr accepts wrong type for numeric attributes ──────────
 
-  test("RISK: Bind.attr with Var[String] for tabindex accepts non-numeric strings") {
+  test("RISK: Bind.attr with State[String] for tabindex accepts non-numeric strings") {
     val div    = el("div")
-    val tabIdx = Var("not-a-number")
+    val tabIdx = State("not-a-number")
     Bind.attr(div, "tabindex", tabIdx)
     // HTML spec requires tabindex to be a valid integer. Passing a non-numeric
     // string compiles fine and sets the attribute, but browsers/jsdom ignore it.

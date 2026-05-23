@@ -8,9 +8,9 @@ package melt.runtime
 
 import melt.runtime.impl.SignalFactory
 
-/** A read-only reactive value derived from one or more [[Var]] instances.
+/** A read-only reactive value derived from one or more [[State]] instances.
   *
-  * As with [[Var]], each platform provides its own implementation via
+  * As with [[State]], each platform provides its own implementation via
   * [[melt.runtime.impl.SignalFactory]]. On Scala.js this is a full three-phase
   * reactive cell; on the JVM it is a frozen wrapper that simply holds the
   * computed initial value (SSR never re-emits).
@@ -33,7 +33,7 @@ trait Signal[A] extends ReactiveValue[A]:
 
   // ── Runtime-internal hooks ─────────────────────────────────────────────────
 
-  /** Pushes a new value to subscribers. Package-private; called by [[Var]]
+  /** Pushes a new value to subscribers. Package-private; called by [[State]]
     * and derived Signals on Scala.js. No-op on JVM.
     */
   private[runtime] def emit(value: A): Unit

@@ -8,7 +8,7 @@ package components
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import melt.runtime.{ append, Var }
+import melt.runtime.{ append, State }
 
 import io.circe.parser
 import io.circe.Json
@@ -39,7 +39,7 @@ object Api:
 
   // ── Todo API ──────────────────────────────────────────────────────────────
 
-  def fetchTodos(todos: Var[List[Todo]], loaded: Var[Boolean]): Unit =
+  def fetchTodos(todos: State[List[Todo]], loaded: State[Boolean]): Unit =
     get("/api/todos").foreach { body =>
       parser.decode[List[Todo]](body).foreach { list =>
         todos.set(list)
@@ -47,7 +47,7 @@ object Api:
       }
     }
 
-  def addTodo(text: String, todos: Var[List[Todo]]): Unit =
+  def addTodo(text: String, todos: State[List[Todo]]): Unit =
     send("/api/todos", "POST", Json.obj("text" -> Json.fromString(text))).foreach { resp =>
       parser.decode[Todo](resp).foreach(todos.append)
     }
@@ -60,7 +60,7 @@ object Api:
 
   // ── User API ──────────────────────────────────────────────────────────────
 
-  def fetchUsers(users: Var[List[User]], loaded: Var[Boolean]): Unit =
+  def fetchUsers(users: State[List[User]], loaded: State[Boolean]): Unit =
     get("/api/users").foreach { body =>
       parser.decode[List[User]](body).foreach { list =>
         users.set(list)
@@ -68,7 +68,7 @@ object Api:
       }
     }
 
-  def fetchUser(id: Int, user: Var[Option[User]], loaded: Var[Boolean]): Unit =
+  def fetchUser(id: Int, user: State[Option[User]], loaded: State[Boolean]): Unit =
     get(s"/api/users/$id").foreach { body =>
       parser.decode[User](body).foreach { u =>
         user.set(Some(u))
@@ -76,7 +76,7 @@ object Api:
       }
     }
 
-  def addUser(name: String, email: String, role: String, users: Var[List[User]]): Unit =
+  def addUser(name: String, email: String, role: String, users: State[List[User]]): Unit =
     send(
       "/api/users",
       "POST",
@@ -90,7 +90,7 @@ object Api:
     name:  String,
     email: String,
     role:  String,
-    user:  Var[Option[User]]
+    user:  State[Option[User]]
   ): Unit =
     send(
       s"/api/users/$id",

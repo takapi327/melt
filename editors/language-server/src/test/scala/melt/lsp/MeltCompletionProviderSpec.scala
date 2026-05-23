@@ -10,9 +10,9 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
 
   // ── Script section ─────────────────────────────────────────────────────────
 
-  test("script completions include Var") {
+  test("script completions include State") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Script)
-    assert(items.exists(_.getLabel == "Var"), "Var should be present")
+    assert(items.exists(_.getLabel == "State"), "State should be present")
   }
 
   test("script completions include Signal") {
@@ -28,7 +28,7 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   test("script completions include var-decl snippet with insert text") {
     val items = MeltCompletionProvider.completionsFor(MeltSection.Script)
     val item  = items.find(_.getLabel == "var-decl").get
-    assert(item.getInsertText.contains("Var("), s"insert text: ${ item.getInsertText }")
+    assert(item.getInsertText.contains("State("), s"insert text: ${ item.getInsertText }")
   }
 
   test("script completions include TrustedHtml") {

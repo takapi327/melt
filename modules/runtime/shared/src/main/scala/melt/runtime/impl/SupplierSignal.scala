@@ -10,7 +10,7 @@ import melt.runtime.Signal
 
 /** A [[Signal]] backed by a `() => A` supplier function.
   *
-  * Unlike a reactive [[melt.runtime.Var]], `value` calls the supplier on every
+  * Unlike a reactive [[melt.runtime.State]], `value` calls the supplier on every
   * access so that the underlying source (e.g. a `ThreadLocal` on the JVM or an
   * `AsyncLocalStorage` on Node.js) can change between SSR renders.
   * All subscription / notification methods are no-ops — reactivity is not

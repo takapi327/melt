@@ -8,30 +8,30 @@ package melt.runtime
 
 // ── Numeric extensions ──────────────────────────────────────────────────────
 
-extension (v: Var[Int])
+extension (v: State[Int])
   def +=(n: Int): Unit = v.update(_ + n)
   def -=(n: Int): Unit = v.update(_ - n)
   def *=(n: Int): Unit = v.update(_ * n)
 
-extension (v: Var[Long])
+extension (v: State[Long])
   def +=(n: Long): Unit = v.update(_ + n)
   def -=(n: Long): Unit = v.update(_ - n)
 
-extension (v: Var[Double])
+extension (v: State[Double])
   def +=(n: Double): Unit = v.update(_ + n)
   def -=(n: Double): Unit = v.update(_ - n)
 
 // ── String extension ─────────────────────────────────────────────────────────
 
-extension (v: Var[String]) def +=(s: String): Unit = v.update(_ + s)
+extension (v: State[String]) def +=(s: String): Unit = v.update(_ + s)
 
 // ── Boolean extension ────────────────────────────────────────────────────────
 
-extension (v: Var[Boolean]) def toggle(): Unit = v.update(!_)
+extension (v: State[Boolean]) def toggle(): Unit = v.update(!_)
 
 // ── Collection extensions ────────────────────────────────────────────────────
 
-extension [A](v: Var[List[A]])
+extension [A](v: State[List[A]])
   def append(item:      A):                       Unit = v.update(_ :+ item)
   def prepend(item:     A):                       Unit = v.update(item :: _)
   def removeWhere(pred: A => Boolean):            Unit = v.update(_.filterNot(pred))

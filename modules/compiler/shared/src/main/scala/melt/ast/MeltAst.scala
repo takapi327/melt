@@ -90,7 +90,7 @@ enum TemplateNode:
   /** A `<melt:key this={keyExpr}>` block — destroys and re-creates content
     * whenever the key expression changes.
     *
-    * @param keyExpr  the raw Scala expression (a [[Var]] or [[Signal]]) whose changes trigger re-mounting
+    * @param keyExpr  the raw Scala expression (a [[State]] or [[Signal]]) whose changes trigger re-mounting
     * @param children the content nodes to be destroyed and re-created on each key change
     */
   case KeyBlock(keyExpr: String, children: List[TemplateNode])

@@ -19,10 +19,10 @@ package melt.runtime
   *
   * // OK — sanitised user input
   * val sanitised = sanitise(userInput)
-  * Bind.html(el, Var(TrustedHtml.unsafe(sanitised)))
+  * Bind.html(el, State(TrustedHtml.unsafe(sanitised)))
   *
-  * // Compile error — plain Var[String] no longer accepted
-  * Bind.html(el, Var(userInput))
+  * // Compile error — plain State[String] no longer accepted
+  * Bind.html(el, State(userInput))
   * }}}
   *
   * == Implementation note: why `AnyVal` instead of `opaque type` ==

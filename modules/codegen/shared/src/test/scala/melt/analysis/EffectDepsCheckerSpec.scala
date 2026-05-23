@@ -22,7 +22,7 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("effect with single dep: no warning when dep is in body via arg") {
     val w = effectWarnings("""
-      val count = Var(0)
+      val count = State(0)
       effect(count) { n => println(n) }
     """)
     assert(w.isEmpty, w.toString)
@@ -30,7 +30,7 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("effect with single dep: no warning when dep.value used and dep is listed") {
     val w = effectWarnings("""
-      val count = Var(0)
+      val count = State(0)
       effect(count) { _ => println(count.value) }
     """)
     assert(w.isEmpty, w.toString)
@@ -38,8 +38,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("effect with two deps: no warning when both deps are listed") {
     val w = effectWarnings("""
-      val count = Var(0)
-      val name  = Var("")
+      val count = State(0)
+      val name  = State("")
       effect(count, name) { (a, b) => println(s"$a $b") }
     """)
     assert(w.isEmpty, w.toString)
@@ -47,9 +47,9 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("3-dep effect: no warning when all deps are listed") {
     val w = effectWarnings("""
-      val count  = Var(0)
-      val name   = Var("")
-      val userId = Var("")
+      val count  = State(0)
+      val name   = State("")
+      val userId = State("")
       effect(count, name, userId) { (a, b, c) =>
         println(s"$a $b $c")
       }
@@ -60,17 +60,17 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
   test("no reactive vars: no effect warnings") {
     val w = effectWarnings("""
       val x = 42
-      effect(Var(x)) { _ => println("ok") }
+      effect(State(x)) { _ => println("ok") }
     """)
     assert(w.isEmpty, w.toString)
   }
 
   // ── Warning cases ─────────────────────────────────────────────────────────
 
-  test("effect with single dep: warns when another Var is used in body but not in deps") {
+  test("effect with single dep: warns when another State is used in body but not in deps") {
     val w = effectWarnings("""
-      val count  = Var(0)
-      val userId = Var("")
+      val count  = State(0)
+      val userId = State("")
       effect(count) { n =>
         fetchData(n, userId.value)
       }
@@ -81,12 +81,12 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
     assert(!w.exists(_.startsWith("'count'")), w.toString)
   }
 
-  test("3-dep effect: warns when a Var used in body is not in deps list") {
+  test("3-dep effect: warns when a State used in body is not in deps list") {
     val w = effectWarnings("""
-      val count  = Var(0)
-      val name   = Var("")
-      val userId = Var("")
-      val extra  = Var(false)
+      val count  = State(0)
+      val name   = State("")
+      val userId = State("")
+      val extra  = State(false)
       effect(count, name, userId) { (a, b, c) =>
         println(s"$a $b $c ${extra.value}")
       }
@@ -97,10 +97,10 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
     assert(!w.exists(_.startsWith("'userId'")), w.toString)
   }
 
-  test("layoutEffect: warns when a Var used in body is not in deps list") {
+  test("layoutEffect: warns when a State used in body is not in deps list") {
     val w = effectWarnings("""
-      val messages = Var(List.empty[String])
-      val scroll   = Var(0)
+      val messages = State(List.empty[String])
+      val scroll   = State(0)
       layoutEffect(messages) { _ =>
         println(scroll.value)
       }
@@ -111,8 +111,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("warns with hint containing the missing dep name") {
     val w = effectWarnings("""
-      val count  = Var(0)
-      val userId = Var("")
+      val count  = State(0)
+      val userId = State("")
       effect(count) { _ => println(userId.value) }
     """)
     val msg = w.find(_.startsWith("'userId'")).getOrElse(fail(s"no warning found: $w"))
@@ -122,18 +122,18 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   // ── False-positive suppression ────────────────────────────────────────────
 
-  test("no warning when Var name appears only in string literal") {
+  test("no warning when State name appears only in string literal") {
     val w = effectWarnings("""
-      val count = Var(0)
+      val count = State(0)
       effect(count) { _ => println("count is not reactive here") }
     """)
     assert(w.isEmpty, w.toString)
   }
 
-  test("no warning when Var name appears only in line comment") {
+  test("no warning when State name appears only in line comment") {
     val w = effectWarnings("""
-      val count = Var(0)
-      val name  = Var("")
+      val count = State(0)
+      val name  = State("")
       effect(count) { n =>
         // name is intentionally excluded
         println(n)
@@ -144,8 +144,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("no warning for local val that shadows reactive var name") {
     val w = effectWarnings("""
-      val count = Var(0)
-      val name  = Var("")
+      val count = State(0)
+      val name  = State("")
       effect(count) { _ =>
         val name = "local"
         println(name)
@@ -158,8 +158,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("melt-ignore: exhaustive-deps suppresses warning on that line") {
     val w = effectWarnings("""
-      val count  = Var(0)
-      val userId = Var("")
+      val count  = State(0)
+      val userId = State("")
       effect(count) { _ => println(userId.value) } // melt-ignore: exhaustive-deps
     """)
     assert(w.isEmpty, w.toString)
@@ -169,8 +169,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("direct access: warns when dep accessed as bare var inside body") {
     val w = effectWarnings("""
-      val user   = Var(Option.empty[String])
-      val loaded = Var(false)
+      val user   = State(Option.empty[String])
+      val loaded = State(false)
       effect(user, loaded) { (v1, v2) =>
         println(loaded)
         println(user)
@@ -182,8 +182,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("direct access: warns when dep accessed via .value instead of arg") {
     val w = effectWarnings("""
-      val count = Var(0)
-      val name  = Var("")
+      val count = State(0)
+      val name  = State("")
       effect(count, name) { (a, b) =>
         println(count.value)
         println(b)
@@ -195,7 +195,7 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("direct access: no warning when _ param (trigger pattern)") {
     val w = effectWarnings("""
-      val count = Var(0)
+      val count = State(0)
       effect(count) { _ => println(count.value) }
     """)
     assert(w.isEmpty, w.toString)
@@ -203,8 +203,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("direct access: no warning when args used correctly") {
     val w = effectWarnings("""
-      val user   = Var(Option.empty[String])
-      val loaded = Var(false)
+      val user   = State(Option.empty[String])
+      val loaded = State(false)
       effect(user, loaded) { (v1, v2) =>
         println(v1)
         println(v2)
@@ -217,8 +217,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: warns when dep listed but not referenced (dep.value used for other dep)") {
     val w = effectWarnings("""
-      val user   = Var(Option.empty[String])
-      val loaded = Var(false)
+      val user   = State(Option.empty[String])
+      val loaded = State(false)
       effect(user, loaded) { (v1, v2) =>
         println(user.value)
       }
@@ -231,8 +231,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: warns when dep listed but only other arg is used") {
     val w = effectWarnings("""
-      val user   = Var(Option.empty[String])
-      val loaded = Var(false)
+      val user   = State(Option.empty[String])
+      val loaded = State(false)
       effect(user, loaded) { (v1, v2) =>
         println(v1)
       }
@@ -243,8 +243,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: no warning when all deps accessed via positional args") {
     val w = effectWarnings("""
-      val count = Var(0)
-      val name  = Var("")
+      val count = State(0)
+      val name  = State("")
       effect(count, name) { (a, b) => println(s"$a $b") }
     """)
     assert(w.isEmpty, w.toString)
@@ -252,7 +252,7 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: no warning for single dep accessed via arg") {
     val w = effectWarnings("""
-      val count = Var(0)
+      val count = State(0)
       effect(count) { n => println(n) }
     """)
     assert(w.isEmpty, w.toString)
@@ -260,8 +260,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: no warning when _ param used (trigger pattern)") {
     val w = effectWarnings("""
-      val trigger = Var(0)
-      val data    = Var("")
+      val trigger = State(0)
+      val data    = State("")
       effect(trigger, data) { (_, d) => println(d) }
     """)
     assert(w.isEmpty, w.toString)
@@ -269,8 +269,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: melt-ignore suppresses unused dep warning") {
     val w = effectWarnings("""
-      val user   = Var(Option.empty[String])
-      val loaded = Var(false)
+      val user   = State(Option.empty[String])
+      val loaded = State(false)
       effect(user, loaded) { (v1, v2) => println(v1) } // melt-ignore: exhaustive-deps
     """)
     assert(w.isEmpty, w.toString)
@@ -278,8 +278,8 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("unused dep: warns for layoutEffect when dep not referenced via arg or .value") {
     val w = effectWarnings("""
-      val messages = Var(List.empty[String])
-      val scroll   = Var(0)
+      val messages = State(List.empty[String])
+      val scroll   = State(0)
       layoutEffect(messages, scroll) { (a, b) =>
         println(a)
       }
@@ -292,9 +292,9 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   test("warns when a derived Signal (.map) is used in body but not in deps") {
     val w = effectWarnings("""
-      val count   = Var(0)
+      val count   = State(0)
       val doubled = count.map(_ * 2)
-      val name    = Var("")
+      val name    = State("")
       effect(name) { _ => println(doubled.value) }
     """)
     assert(w.exists(_.startsWith("'doubled'")), w.toString)
@@ -302,7 +302,7 @@ class EffectDepsCheckerSpec extends munit.FunSuite:
 
   // ── No reactive vars case ─────────────────────────────────────────────────
 
-  test("no warnings when script has no Var declarations") {
+  test("no warnings when script has no State declarations") {
     val w = effectWarnings("""
       val x = 42
       println(x)

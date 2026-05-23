@@ -873,7 +873,7 @@ val x = 1"""
     val src =
       """<script lang="scala">
         |import "/styles/global.css"
-        |val count = Var(0)
+        |val count = State(0)
         |</script>
         |<div>{count}</div>""".stripMargin
     val sections = split(src).getOrElse(fail("unexpected error"))

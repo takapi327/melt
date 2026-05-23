@@ -1,13 +1,13 @@
 <script lang="scala">
 // ── Error log (shared across all panels) ─────────────────────────────────────
-val errorLog = Var(List.empty[String])
+val errorLog = State(List.empty[String])
 
 def logError(e: Throwable): Unit =
   val msg = s"[${new scala.scalajs.js.Date().toLocaleTimeString()}] ${e.getMessage}"
   errorLog.update(log => msg :: log.take(9))
 
 // ── Async panel state ─────────────────────────────────────────────────────────
-val asyncKey = Var(0) // increment to re-mount the async panel
+val asyncKey = State(0) // increment to re-mount the async panel
 </script>
 
 <div class="demo">

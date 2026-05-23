@@ -19,7 +19,7 @@ class MeltParserSpec extends munit.FunSuite:
       """<script lang="scala" props="Props">
         |  case class Props(label: String, count: Int = 0)
         |
-        |  val internal = Var(props.count)
+        |  val internal = State(props.count)
         |  val doubled = internal.map(_ * 2)
         |  def increment(): Unit = internal += 1
         |
@@ -45,7 +45,7 @@ class MeltParserSpec extends munit.FunSuite:
     val script = meltFile.script.getOrElse(fail("script section missing"))
     assertEquals(script.propsType, Some("Props"))
     assert(script.code.contains("case class Props(label: String, count: Int = 0)"))
-    assert(script.code.contains("val internal = Var(props.count)"))
+    assert(script.code.contains("val internal = State(props.count)"))
 
     // ── Template ──────────────────────────────────────────────────────────
     assertEquals(meltFile.template.size, 1)
@@ -372,7 +372,7 @@ class MeltParserSpec extends munit.FunSuite:
     val src =
       """<script lang="scala" props="Props">
         |  case class Props(label: String, count: Int = 0)
-        |  val internal = Var(props.count)
+        |  val internal = State(props.count)
         |  def badge(text: String): Html = {
         |    <span class="badge">{text}</span>
         |  }

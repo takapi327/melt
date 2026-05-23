@@ -1,7 +1,7 @@
 <script lang="scala">
-  val todos   = Var(List.empty[Todo])
-  val newText = Var("")
-  val loaded  = Var(false)
+  val todos   = State(List.empty[Todo])
+  val newText = State("")
+  val loaded  = State(false)
 
   val totalCount = todos.map(_.size)
   val doneCount  = todos.map(_.count(_.done))
