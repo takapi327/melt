@@ -2,7 +2,7 @@
 val count   = State(0)
 val name    = State("")
 val doubled = count.map(_ * 2)
-val isEven  = memo(count)(_ % 2 == 0)
+val isEven  = count.memo(_ % 2 == 0)
 
 effect(count) { n =>
   dom.console.log(s"Count changed to: $n")

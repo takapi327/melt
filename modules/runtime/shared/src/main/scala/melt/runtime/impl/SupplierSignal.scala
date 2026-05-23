@@ -23,6 +23,7 @@ final class SupplierSignal[A](supplier: () => A) extends Signal[A]:
   def value:                         A          = supplier()
   def subscribe(f:  A => Unit):      () => Unit = () => ()
   def map[B](f:     A => B):         Signal[B]  = new SupplierSignal(() => f(supplier()))
+  def memo[B](f:    A => B):         Signal[B]  = new SupplierSignal(() => f(supplier()))
   def flatMap[B](f: A => Signal[B]): Signal[B]  = f(supplier())
 
   private[runtime] def emit(v:          A):         Unit       = ()

@@ -23,13 +23,32 @@ trait Signal[A] extends ReactiveValue[A]:
   /** Subscribes to future value changes. Returns an unsubscribe function. */
   def subscribe(f: A => Unit): () => Unit
 
-  /** Derives a new [[Signal]] by transforming each emitted value. */
+  /** Derives a new [[Signal]] by transforming each emitted value.
+    *
+    * The downstream signal receives every emission from this signal,
+    * even if the computed value is the same as before.
+    * Use [[memo]] when you want to suppress redundant updates.
+    */
   def map[B](f: A => B): Signal[B]
 
   /** Derives a new [[Signal]] by flat-mapping, supporting dynamic source
     * switching.
     */
   def flatMap[B](f: A => Signal[B]): Signal[B]
+
+  /** Derives a memoized [[Signal]] that only propagates when the computed
+    * value actually changes (checked via `!=`).
+    *
+    * Unlike [[map]], which emits on every upstream change, `memo` suppresses
+    * redundant updates — useful for Boolean flags, enums, or any derived
+    * value whose change frequency is lower than the source.
+    *
+    * {{{
+    * val count  = State(0)
+    * val isEven = count.memo(_ % 2 == 0) // only emits when parity changes
+    * }}}
+    */
+  def memo[B](f: A => B): Signal[B]
 
   // ── Runtime-internal hooks ─────────────────────────────────────────────────
 

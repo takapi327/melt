@@ -83,6 +83,15 @@ private final class JsState[A](private var _current: A) extends State[A]:
     Cleanup.register(cancel)
     s
 
+  def memo[B](f: A => B): Signal[B] =
+    val s      = JsSignal.create[B](f(_current))
+    val cancel = subscribe { v =>
+      val newVal = f(v)
+      if newVal != s.value then s.emit(newVal)
+    }
+    Cleanup.register(cancel)
+    s
+
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner = f(_current)
     val s     = JsSignal.create[B](inner.value)

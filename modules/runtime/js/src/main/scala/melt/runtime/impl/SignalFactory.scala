@@ -53,6 +53,15 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
     Cleanup.register(cancel)
     derived
 
+  def memo[B](f: A => B): Signal[B] =
+    val derived = JsSignal.create[B](f(_current))
+    val cancel  = subscribe { a =>
+      val newVal = f(a)
+      if newVal != derived.value then derived.emit(newVal)
+    }
+    Cleanup.register(cancel)
+    derived
+
   def flatMap[B](f: A => Signal[B]): Signal[B] =
     var inner   = f(_current)
     val derived = JsSignal.create[B](inner.value)
