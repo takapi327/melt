@@ -1,5 +1,4 @@
-import org.scalajs.linker.interface.ModuleSplitStyle
-
+import BuildSettings._
 import Implicits._
 import JavaVersions._
 import ScalaVersions._
@@ -245,8 +244,7 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
 // incompatibility. In external projects the classpath is auto-resolved via the internal
 // `meltc-compiler` Ivy configuration after `publishLocal`. In this monorepo the
 // hello-world example wires codegen.jvm directly (see below).
-lazy val `sbt-meltc` = BuildSettings
-  .MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
+lazy val `sbt-meltc` = MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
   .settings(
     crossScalaVersions                     := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
@@ -255,11 +253,15 @@ lazy val `sbt-meltc` = BuildSettings
 // ── sbt plugin: meltkit integration ──
 // Adds runtime dependency management, asset manifest generation, and MeltKitConfig
 // generation on top of sbt-meltc. Requires sbt-meltc (enabled automatically via requires).
-lazy val `sbt-meltkit` = BuildSettings
-  .MeltSbtPluginProject("sbt-meltkit", "plugins/sbt-meltkit")
+lazy val `sbt-meltkit` = MeltSbtPluginProject("sbt-meltkit", "plugins/sbt-meltkit")
   .dependsOn(`sbt-meltc`)
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2) // sbt plugins require Scala 2.12
+    crossScalaVersions := Seq(ScalaVersions.scala2),
+    libraryDependencies += Defaults.sbtPluginExtra(
+      "org.scala-js" % "sbt-scalajs" % "1.21.0",
+      (pluginCrossBuild / sbtBinaryVersion).value,
+      (update / scalaBinaryVersion).value
+    )
   )
 
 // ── Language Server (LSP — shared across all editors) ──
@@ -287,42 +289,6 @@ lazy val `language-server` = project
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(codegen.jvm)
 
-// ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
-//
-// Shared:  .melt components + DocsApp routes
-// JVM:     UndertowServer (SSR dev) + SsgGenerator (static build)
-// JS:      meltkit-adapter-browser hydration (meltcHydration := true auto-generates entries)
-//
-//   sbt "docs/jvm/run server"   ← SSR dev server
-//   sbt "docs/jvm/run generate" ← static site generation
-lazy val docs = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Full)
-  .in(file("docs"))
-  .settings(BuildSettings.commonSettings)
-  .settings(
-    name                    := "melt-docs",
-    publish / skip          := true,
-    scalaVersion            := scala38,
-    meltcManageCompilerDeps := false,
-    meltcCompilerClasspath  := (codegen.jvm / Compile / fullClasspath).value.files
-  )
-  .enablePlugins(MeltkitPlugin, AutomateHeaderPlugin)
-  .dependsOn(meltkit)
-  .jsConfigure(_.dependsOn(`meltkit-adapter-browser`))
-  .jsSettings(
-    meltcHydration                  := true,
-    scalaJSUseMainModuleInitializer := false,
-    scalaJSLinkerConfig ~= {
-      _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
-    }
-  )
-  .jvmSettings(
-    meltkitAssetManifestClient := Some(LocalProject("docsJS")),
-    meltkitViteDistDir         := file("docs") / "dist",
-    meltkitViteManifestPath    := file("docs") / "dist" / ".vite" / "manifest.json"
-  )
-
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))
@@ -345,14 +311,10 @@ lazy val root = project
     `meltkit-adapter-http4s`.js,
     `sbt-meltc`,
     `sbt-meltkit`,
-    `language-server`,
-    docs.jvm,
-    docs.js
+    `language-server`
   )
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty, // root project does not cross-compile
-    // meltkitViteDistDir / meltkitViteManifestPath are used only when meltkitProd := true
-    Global / excludeLintKeys ++= Set(meltkitViteDistDir, meltkitViteManifestPath)
+    crossScalaVersions := Seq.empty // root project does not cross-compile
   )
