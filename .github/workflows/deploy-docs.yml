@@ -46,14 +46,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build optimized JS
-        run: sbt docsJS/fullLinkJS
-
-      - name: Generate Vite inputs
-        run: sbt docsJVM/meltcViteInputGenerate
+      - name: Publish monorepo modules locally
+        run: >-
+          sbt
+          "compiler-cssJVM/publishLocal; compiler-cssJS/publishLocal;
+          compilerJVM/publishLocal; compilerJS/publishLocal;
+          runtimeJVM/publishLocal; runtimeJS/publishLocal;
+          codegenJVM/publishLocal; codegenJS/publishLocal;
+          meltkitJVM/publishLocal; meltkitJS/publishLocal;
+          meltkit-adapter-browser/publishLocal;
+          sbt-meltc/publishLocal; sbt-meltkit/publishLocal"
 
       - name: Build vite-plugin
         run: pnpm --filter @melt/vite-plugin build
+
+      - name: Generate Vite inputs (includes fullLinkJS)
+        run: sbt "docsJVM/meltkitViteInputGenerate"
+        working-directory: docs
 
       - name: Vite build
         run: pnpm exec vite build
@@ -62,7 +71,8 @@ jobs:
           MELT_BASE_PATH: /melt/
 
       - name: SSG generate
-        run: sbt 'docsJVM/runMain docs.generate'
+        run: sbt "docsJVM/runMain docs.generate"
+        working-directory: docs
         env:
           MELT_BASE_PATH: /melt/
 
