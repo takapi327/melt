@@ -97,7 +97,7 @@ lazy val `compiler-sass` = project
   .settings(BuildSettings.commonSettings)
   .settings(
     name                                       := "melt-compiler-sass",
-    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.0.2"
+    libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.4.0"
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(`compiler-css`.jvm)
