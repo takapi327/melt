@@ -262,9 +262,6 @@ lazy val `jdk-ssr-server` = project
   .in(file("jdk-ssr/server"))
   .settings(
     run / fork := true,
-    libraryDependencies ++= Seq(
-      "io.github.takapi327" %% "meltkit" % meltVersion
-    ),
     meltkitAssetManifestClient := Some(`ssr-client`.js),
     meltkitViteDistDir         := ssrClientDir / "dist",
     meltkitViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json"

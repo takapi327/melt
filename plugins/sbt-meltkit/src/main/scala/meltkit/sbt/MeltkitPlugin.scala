@@ -78,13 +78,13 @@ object MeltkitPlugin extends AutoPlugin {
       */
     val meltMode = settingKey[Option[MeltMode]]("Target platform / rendering mode")
 
-    /** When `true` (the default), the plugin automatically adds the runtime
-      * library corresponding to [[meltMode]] to `libraryDependencies`.
+    /** When `true` (the default), the plugin automatically adds `meltkit` core
+      * and the adapter library corresponding to [[meltMode]] to `libraryDependencies`.
       *
-      * Set to `false` to manage the runtime dependency manually.
+      * Set to `false` to manage runtime dependencies manually.
       */
     val meltkitManageRuntimeDeps =
-      settingKey[Boolean]("Auto-add meltkit runtime dependency based on meltMode")
+      settingKey[Boolean]("Auto-add meltkit core and runtime adapter based on meltMode")
 
     // Convenience aliases so users can write `meltMode := Some(Browser)` without a prefix
     val Browser: MeltMode = MeltMode.Browser
@@ -250,15 +250,21 @@ object MeltkitPlugin extends AutoPlugin {
       }
     },
 
-    // ── meltMode: auto-add runtime dependency ─────────────────────────────
+    // ── Auto-add meltkit core + adapter ───────────────────────────────────
     libraryDependencies ++= {
       if (!meltkitManageRuntimeDeps.value) Seq.empty
       else {
         val v    = pluginVersion
         val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        meltMode.value match {
+        // Core meltkit library (always added)
+        val core =
+          if (hasScalaJSPlugin(thisProject.value))
+            "io.github.takapi327" % s"meltkit_sjs1_$binV" % v
+          else
+            "io.github.takapi327" %% "meltkit" % v
+        // Adapter determined by meltMode
+        val adapter = meltMode.value match {
           case Some(MeltMode.Browser) =>
-            // Scala.js artefact — name must be specified explicitly
             Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
           case Some(MeltMode.Node) =>
             Seq("io.github.takapi327" % s"meltkit-adapter-node_sjs1_$binV" % v)
@@ -267,6 +273,7 @@ object MeltkitPlugin extends AutoPlugin {
           case None =>
             Seq.empty
         }
+        core +: adapter
       }
     },
 

@@ -14,9 +14,6 @@ ThisBuild / publish / skip := true
 lazy val docs = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
   .in(file("."))
-  .settings(
-    libraryDependencies += "io.github.takapi327" %%% "meltkit" % meltVersion
-  )
   .enablePlugins(MeltkitPlugin)
   .jsConfigure(
     _.settings(
