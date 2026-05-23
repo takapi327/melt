@@ -729,7 +729,7 @@ class CounterSpec extends MeltSuite:
 
   test("DevTools.trackSignal registers signal descriptions") {
     DevTools.clearSignals()
-    DevTools.trackSignal("count", "Var[Int](0)")
+    DevTools.trackSignal("count", "State[Int](0)")
     DevTools.trackSignal("doubled", "Signal[Int](0)")
     DevTools.debugSignalGraph() // should not throw
     DevTools.clearSignals()

@@ -81,11 +81,11 @@ object Hydrating:
 
   // ── Reactive text binding ─────────────────────────────────────────────────
 
-  /** Claims/creates a text node for a `Var` and subscribes reactively.
+  /** Claims/creates a text node for a `State` and subscribes reactively.
     * When claiming, skips `parent.appendChild` (node is already in DOM).
     * When not active, delegates to [[Bind.text]].
     */
-  def text(v: Var[?], parent: dom.Node): dom.Text =
+  def text(v: State[?], parent: dom.Node): dom.Text =
     if isActive then
       val node = stack.top.nextText() match
         case null => dom.document.createTextNode(v.value.toString)

@@ -14,7 +14,7 @@ import melt.runtime.{ Batch, Cleanup, Signal }
 private[runtime] object SignalFactory:
   def pure[A](value: A): Signal[A] = JsSignal.create[A](value)
 
-/** Internal helper exposing [[JsSignal]] construction to [[VarFactory]]
+/** Internal helper exposing [[JsSignal]] construction to [[StateFactory]]
   * (which lives in the same `impl` package) without making the class itself
   * public.
   */
@@ -22,7 +22,7 @@ private[runtime] object JsSignal:
   def create[A](value: A): JsSignal[A] = new JsSignal[A](value)
 
 /** Scala.js implementation of [[Signal]]. Mirrors the three-phase subscriber
-  * model used by [[JsVar]].
+  * model used by [[JsState]].
   */
 private[runtime] final class JsSignal[A] private (private var _current: A) extends Signal[A]:
 

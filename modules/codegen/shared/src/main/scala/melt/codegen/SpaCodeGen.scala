@@ -59,7 +59,7 @@ object SpaCodeGen extends CodeGen:
       tracker ++= "import scala.scalajs.js.annotation.{ JSExportTopLevel, JSImport }\n"
     else tracker ++= "import scala.scalajs.js.annotation.JSExportTopLevel\n"
     tracker ++= "import org.scalajs.dom\n"
-    tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, Var, Signal }\n"
+    tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, State, Signal }\n"
     tracker ++= "import melt.runtime.*\n"
     if hydration && ast.script.flatMap(_.propsType).isDefined then
       tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
@@ -1322,7 +1322,7 @@ object SpaCodeGen extends CodeGen:
     else if returnsDomElementDirectly(trimmed) then ExprKind.DomResult
     else ExprKind.PlainText
 
-  /** Attempts to extract a reactive source (Var or Signal identifier) from a conditional
+  /** Attempts to extract a reactive source (State or Signal identifier) from a conditional
     * DOM expression so the reactive `Bind.show(source, render, anchor)` overload can be used.
     *
     * Recognized patterns:
@@ -1330,7 +1330,7 @@ object SpaCodeGen extends CodeGen:
     *   - `if !<ident> then ...`            → `Some("<ident>")`
     *   - `if <ident>.now() then ...`       → `Some("<ident>")` (legacy)
     *   - `if !<ident>.now() then ...`      → `Some("<ident>")` (legacy)
-    *   - `<ident> match { ... }` (match on a Var/Signal via .now()) → extracted identifier
+    *   - `<ident> match { ... }` (match on a State/Signal via .now()) → extracted identifier
     *
     * Returns `None` if the expression cannot be mapped to a single reactive source.
     */

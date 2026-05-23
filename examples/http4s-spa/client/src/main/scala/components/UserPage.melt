@@ -1,10 +1,10 @@
 <script lang="scala">
-  val users    = Var(List.empty[User])
-  val loaded   = Var(false)
-  val newName  = Var("")
-  val newEmail = Var("")
-  val newRole  = Var("Developer")
-  val showForm = Var(false)
+  val users    = State(List.empty[User])
+  val loaded   = State(false)
+  val newName  = State("")
+  val newEmail = State("")
+  val newRole  = State("Developer")
+  val showForm = State(false)
 
   Api.fetchUsers(users, loaded)
 </script>

@@ -12,12 +12,12 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
 
   test("script lines are preserved verbatim in the virtual file") {
     val source = """|<script lang="scala">
-                    |  val count = Var(0)
+                    |  val count = State(0)
                     |  def inc() = count.update(_ + 1)
                     |</script>""".stripMargin
     val vf    = VirtualFileGenerator.generate(source)
     val lines = vf.content.split("\n", -1).toVector
-    assertEquals(lines(1), "  val count = Var(0)")
+    assertEquals(lines(1), "  val count = State(0)")
     assertEquals(lines(2), "  def inc() = count.update(_ + 1)")
   }
 

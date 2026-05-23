@@ -76,7 +76,7 @@ def onCleanup(f: () => Unit): Unit = Cleanup.register(f)
   * {{{
   * <script lang="scala">
   *   val ref   = Ref[dom.Element]()
-  *   val width = Var(0)
+  *   val width = State(0)
   *
   *   onMount { () =>
   *     width.set(ref.value.getBoundingClientRect().width.toInt)

@@ -14,4 +14,4 @@ trait Memo[A] extends Signal[A]
   */
 def memo[A, B](dep: Signal[A])(f: A => B): Signal[B] = Signal.pure(f(dep.value))
 
-def memo[A, B](dep: Var[A])(f: A => B): Signal[B] = Signal.pure(f(dep.value))
+def memo[A, B](dep: State[A])(f: A => B): Signal[B] = Signal.pure(f(dep.value))

@@ -457,8 +457,8 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("Counter.melt completion criteria generates correct code") {
     val src =
       """<script lang="scala">
-        |val count = Var(0)
-        |val name = Var("")
+        |val count = State(0)
+        |val name = State("")
         |</script>
         |<div>
         |  <p>Count: {count}</p>
@@ -478,7 +478,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("createTextNode(\"Count: \")"), code)
     assert(code.contains("createTextNode(\"Hello, \")"), code)
     // Script code
-    assert(code.contains("val count = Var(0)"), code)
+    assert(code.contains("val count = State(0)"), code)
     // Owner-based lifecycle
     assert(code.contains("Owner.withNew"), code)
   }
@@ -757,7 +757,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Bind.html(_el0, content)"), code)
   }
 
-  test("bind:innerHTML works with a Var expression") {
+  test("bind:innerHTML works with a State expression") {
     val code = compile("""<div contenteditable bind:innerHTML={htmlVar}></div>""")
     assert(code.contains("Bind.html(_el0, htmlVar)"), code)
   }
@@ -1104,26 +1104,26 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── bind: directives — verify no asInstanceOf bypass ────────────────────
 
-  test("TYPE-SAFE: bind:value passes Var directly to Bind.inputValue — Var[String] enforced by Scala") {
-    // Bind.inputValue(input: dom.html.Input, v: Var[String]) requires Var[String].
-    // Passing Var[Int] causes a Scala compile error.  The generated code must not cast.
+  test("TYPE-SAFE: bind:value passes State directly to Bind.inputValue — State[String] enforced by Scala") {
+    // Bind.inputValue(input: dom.html.Input, v: State[String]) requires State[String].
+    // Passing State[Int] causes a Scala compile error.  The generated code must not cast.
     val src  = """<input bind:value={myInput} />"""
     val code = compile(src)
     assert(code.contains("Bind.inputValue("), code)
     assert(
       !code.contains("myInput.asInstanceOf"),
-      s"bind:value must not cast the Var argument:\n$code"
+      s"bind:value must not cast the State argument:\n$code"
     )
   }
 
-  test("TYPE-SAFE: bind:value-int passes Var directly to Bind.inputInt — Var[Int] enforced") {
+  test("TYPE-SAFE: bind:value-int passes State directly to Bind.inputInt — State[Int] enforced") {
     val src  = """<input bind:value-int={count} />"""
     val code = compile(src)
     assert(code.contains("Bind.inputInt("), code)
     assert(!code.contains("count.asInstanceOf"), s"bind:value-int must not cast:\n$code")
   }
 
-  test("TYPE-SAFE: bind:checked passes Var directly to Bind.inputChecked — Var[Boolean] enforced") {
+  test("TYPE-SAFE: bind:checked passes State directly to Bind.inputChecked — State[Boolean] enforced") {
     val src  = """<input type="checkbox" bind:checked={isOn} />"""
     val code = compile(src)
     assert(code.contains("Bind.inputChecked("), code)
@@ -1150,8 +1150,8 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── class: directive — verify no asInstanceOf bypass ─────────────────────
 
-  test("TYPE-SAFE: class: passes expression directly to Bind.classToggle — Boolean/Var[Boolean] enforced") {
-    // classToggle overloads accept Var[Boolean], Signal[Boolean], or Boolean only.
+  test("TYPE-SAFE: class: passes expression directly to Bind.classToggle — Boolean/State[Boolean] enforced") {
+    // classToggle overloads accept State[Boolean], Signal[Boolean], or Boolean only.
     // Passing a String or Int causes a Scala compile error.
     val src  = """<div class:active={isActive}></div>"""
     val code = compile(src)

@@ -9,7 +9,7 @@ package meltkit
 import org.scalajs.dom
 
 import melt.runtime.Signal
-import melt.runtime.Var
+import melt.runtime.State
 
 /** Client-side router backed by the browser History API.
   *
@@ -29,7 +29,7 @@ import melt.runtime.Var
   */
 object Router:
 
-  private val _path: Var[String] = Var(dom.window.location.pathname)
+  private val _path: State[String] = State(dom.window.location.pathname)
 
   private val _popStateListener: scalajs.js.Function1[dom.PopStateEvent, Unit] =
     _ => _path.set(dom.window.location.pathname)

@@ -1,16 +1,16 @@
 <script lang="scala">
 // ── textarea bind:value ────────────────────────────────────────────
-val message = Var("Hello, Melt!")
+val message = State("Hello, Melt!")
 
 // ── select bind:value (single) ────────────────────────────────────
-val language = Var("scala")
+val language = State("scala")
 
 // ── select multiple bind:value ────────────────────────────────────
-val features = Var(List("reactive", "typesafe"))
+val features = State(List("reactive", "typesafe"))
 
 // ── form reset demo ───────────────────────────────────────────────
-val resetNote = Var("")
-val resetLang = Var("scala")
+val resetNote = State("")
+val resetLang = State("scala")
 </script>
 
 <div class="app">
@@ -20,7 +20,7 @@ val resetLang = Var("scala")
   <section>
     <h2>textarea</h2>
     <textarea bind:value={message} rows="4" placeholder="Type something…"></textarea>
-    <p class="preview">Var value: <strong>{message}</strong></p>
+    <p class="preview">State value: <strong>{message}</strong></p>
   </section>
 
   <!-- ── select (single) ───────────────────────────────────────── -->
@@ -32,7 +32,7 @@ val resetLang = Var("scala")
       <option value="kotlin">Kotlin</option>
       <option value="typescript">TypeScript</option>
     </select>
-    <p class="preview">Var value: <strong>{language}</strong></p>
+    <p class="preview">State value: <strong>{language}</strong></p>
     <div class="buttons">
       <button onclick={_ => language.set("kotlin")}>Select Kotlin</button>
       <button onclick={_ => language.set("typescript")}>Select TypeScript</button>
@@ -50,7 +50,7 @@ val resetLang = Var("scala")
       <option value="transitions">Transitions</option>
       <option value="spa">SPA</option>
     </select>
-    <p class="preview">Var value: <strong>{features.map(_.mkString(", "))}</strong></p>
+    <p class="preview">State value: <strong>{features.map(_.mkString(", "))}</strong></p>
     <div class="buttons">
       <button onclick={_ => features.set(List("ssr", "spa"))}>Set SSR + SPA</button>
       <button onclick={_ => features.set(Nil)}>Clear all</button>
@@ -60,7 +60,7 @@ val resetLang = Var("scala")
   <!-- ── form reset ────────────────────────────────────────────── -->
   <section>
     <h2>form reset</h2>
-    <p class="hint">Click Reset to restore DOM defaults; Var values sync automatically.</p>
+    <p class="hint">Click Reset to restore DOM defaults; State values sync automatically.</p>
     <form>
       <div class="field">
         <label>Note</label>
@@ -76,8 +76,8 @@ val resetLang = Var("scala")
       </div>
       <button type="reset">Reset form</button>
     </form>
-    <p class="preview">note Var: <strong>{resetNote}</strong></p>
-    <p class="preview">language Var: <strong>{resetLang}</strong></p>
+    <p class="preview">note State: <strong>{resetNote}</strong></p>
+    <p class="preview">language State: <strong>{resetLang}</strong></p>
   </section>
 </div>
 

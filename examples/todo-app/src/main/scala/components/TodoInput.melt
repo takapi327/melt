@@ -1,6 +1,6 @@
 <script lang="scala" props="Props">
 case class Props(onAdd: String => Unit)
-val text = Var("")
+val text = State("")
 </script>
 
 <div class="todo-input">

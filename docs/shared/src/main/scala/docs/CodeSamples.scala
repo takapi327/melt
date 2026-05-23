@@ -11,7 +11,7 @@ object CodeSamples:
   val counterMelt: String =
     """|<!-- Counter.melt -->
        |<script lang="scala">
-       |  val count   = Var(0)
+       |  val count   = State(0)
        |  val doubled = count.map(_ * 2)
        |</script>
        |

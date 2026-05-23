@@ -26,7 +26,7 @@ object DevTools:
 
   /** Prints the reactive signal dependency graph to the browser / jsdom console.
     *
-    * In the current implementation this outputs a summary of all known `Var`
+    * In the current implementation this outputs a summary of all known `State`
     * and `Signal` instances that have been registered via [[trackSignal]].
     * For a richer graph, instrument your component scripts with [[trackSignal]].
     */
@@ -74,7 +74,7 @@ object DevTools:
   /** Registers a labelled signal description for [[debugSignalGraph]] output.
     *
     * {{{
-    * val count = Var(0)
+    * val count = State(0)
     * DevTools.trackSignal("count", count.value.toString)
     * }}}
     */

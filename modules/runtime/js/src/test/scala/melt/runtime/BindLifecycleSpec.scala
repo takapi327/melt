@@ -36,7 +36,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.show destroys old element subscriptions when swapping") {
     var cancelCalls = 0
-    val condition   = Var(true)
+    val condition   = State(true)
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
@@ -60,7 +60,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.show(Signal) destroys old element subscriptions when swapping") {
     var cancelCalls = 0
-    val v           = Var(true)
+    val v           = State(true)
     val condition   = v.signal
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
@@ -85,7 +85,7 @@ class BindLifecycleSpec extends munit.FunSuite:
     // but the render produces a NEW element each time (no caching). Here we verify
     // that two distinct swaps produce two distinct cancels.
     var cancelCalls = 0
-    val condition   = Var(true)
+    val condition   = State(true)
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
@@ -107,7 +107,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.list destroys all old nodes' subscriptions on full rebuild") {
     var cancelCalls = 0
-    val items       = Var(List("a", "b", "c"))
+    val items       = State(List("a", "b", "c"))
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
@@ -131,7 +131,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.list(Signal) destroys all old nodes' subscriptions on full rebuild") {
     var cancelCalls = 0
-    val v           = Var(List(1, 2))
+    val v           = State(List(1, 2))
     val source      = v.signal
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
@@ -157,7 +157,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.each destroys only removed keyed items' subscriptions") {
     var cancelCalls = 0
-    val items       = Var(List(1, 2, 3))
+    val items       = State(List(1, 2, 3))
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
     container.appendChild(anchor)
@@ -185,7 +185,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.each(Signal) destroys removed keyed items' subscriptions") {
     var cancelCalls = 0
-    val v           = Var(List("x", "y", "z"))
+    val v           = State(List("x", "y", "z"))
     val source      = v.signal
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
@@ -209,7 +209,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   test("Bind.each reused items are not destroyed when list is reordered") {
     var cancelCalls = 0
-    val items       = Var(List(1, 2, 3))
+    val items       = State(List(1, 2, 3))
     val container   = dom.document.createElement("div")
     val anchor      = dom.document.createComment("")
     container.appendChild(anchor)

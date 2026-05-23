@@ -174,7 +174,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   // ── ReactiveScope.effect ──────────────────────────────────────────────────
 
   test("effect runs immediately and re-runs on change") {
-    val v      = Var(0)
+    val v      = State(0)
     val log    = scala.collection.mutable.ListBuffer[Int]()
     val scope  = ReactiveScope.effect(v) { n => log += n }
     val cancel = scope.allocated
@@ -191,7 +191,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("effect with Signal dependency") {
-    val v      = Var(0)
+    val v      = State(0)
     val sig    = v.map(_ * 10)
     val log    = scala.collection.mutable.ListBuffer[Int]()
     val cancel = ReactiveScope.effect(sig)(n => log += n).allocated
@@ -203,7 +203,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("onCleanup inside ReactiveScope.effect runs before re-execution") {
-    val v      = Var(0)
+    val v      = State(0)
     val log    = scala.collection.mutable.ListBuffer[String]()
     val cancel = ReactiveScope
       .effect(v) { n =>
@@ -222,7 +222,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   // ── ReactiveScope.layoutEffect ────────────────────────────────────────────
 
   test("layoutEffect does not run on initial creation") {
-    val v      = Var(0)
+    val v      = State(0)
     val log    = scala.collection.mutable.ListBuffer[Int]()
     val cancel = ReactiveScope.layoutEffect(v)(n => log += n).allocated
 
@@ -235,7 +235,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   }
 
   test("layoutEffect with Signal dependency") {
-    val v      = Var(0)
+    val v      = State(0)
     val sig    = v.map(_ + 100)
     val log    = scala.collection.mutable.ListBuffer[Int]()
     val cancel = ReactiveScope.layoutEffect(sig)(n => log += n).allocated
@@ -249,7 +249,7 @@ class ReactiveScopeSpec extends munit.FunSuite:
   // ── Cleanup stack safety (Effect.scala try-finally fix) ───────────────────
 
   test("Cleanup stack remains balanced when effect body throws") {
-    val v = Var(0)
+    val v = State(0)
     Cleanup.pushScope()
     // Effect body that throws — Cleanup stack must remain balanced
     try

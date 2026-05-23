@@ -3,17 +3,17 @@
 val progressRef = Ref.empty[dom.Element]
 
 // ── Playback state ───────────────────────────────────────────────────────────
-val currentTime  = Var(0.0)
-val duration     = Var(0.0)
-val paused       = Var(true)
-val volume       = Var(1.0)
-val muted        = Var(false)
-val playbackRate = Var(1.0)
+val currentTime  = State(0.0)
+val duration     = State(0.0)
+val paused       = State(true)
+val volume       = State(1.0)
+val muted        = State(false)
+val playbackRate = State(1.0)
 
 // ── Read-only state ──────────────────────────────────────────────────────────
-val seeking    = Var(false)
-val ended      = Var(false)
-val readyState = Var(0)
+val seeking    = State(false)
+val ended      = State(false)
+val readyState = State(0)
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 def formatTime(secs: Double): String =
@@ -72,7 +72,7 @@ val readyStateLabel = readyState.map {
       bind:readyState={readyState}
     ></video>
 
-    <!-- Progress bar: clicking seeks via currentTime Var -->
+    <!-- Progress bar: clicking seeks via currentTime State -->
     <div class="progress-bar" bind:this={progressRef} onclick={(e: dom.Event) => {
       val me = e.asInstanceOf[org.scalajs.dom.MouseEvent]
       progressRef.foreach { el =>

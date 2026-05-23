@@ -15,14 +15,14 @@ import melt.runtime.animate.{ AnimateEngine, AnimateFn, AnimateInfo, AnimatePara
 /** DOM binding helpers for reactive values.
   *
   * Each method creates or updates a DOM node/attribute and subscribes to
-  * a reactive source (`Var` or `Signal`). Subscriptions are automatically
+  * a reactive source (`State` or `Signal`). Subscriptions are automatically
   * registered with [[Cleanup]] for disposal on component destruction.
   */
 object Bind:
 
   // ── Text bindings ──────────────────────────────────────────────────────
 
-  def text(v: Var[?], parent: dom.Node): dom.Text =
+  def text(v: State[?], parent: dom.Node): dom.Text =
     val node = dom.document.createTextNode(v.value.toString)
     parent.appendChild(node)
     val cancel = v.subscribe(a => node.textContent = a.toString)
@@ -48,7 +48,7 @@ object Bind:
 
   // ── Attribute bindings ─────────────────────────────────────────────────
 
-  /** Compile-time guard: Var[Boolean] must use booleanAttr, not attr.
+  /** Compile-time guard: State[Boolean] must use booleanAttr, not attr.
     *
     * `Bind.attr` calls `.toString` which produces `"false"` — an HTML boolean
     * attribute set to any non-empty string means the attribute is **present**,
@@ -56,9 +56,9 @@ object Bind:
     * Use `Bind.booleanAttr` instead, which removes the attribute when false.
     */
   @scala.annotation.targetName("attrBooleanVar")
-  inline def attr(el: dom.Element, name: String, v: Var[Boolean]): Unit =
+  inline def attr(el: dom.Element, name: String, v: State[Boolean]): Unit =
     scala.compiletime.error(
-      "Use Bind.booleanAttr instead of Bind.attr for Var[Boolean]. " +
+      "Use Bind.booleanAttr instead of Bind.attr for State[Boolean]. " +
         "Bind.attr calls .toString() which produces \"false\" — HTML boolean attributes " +
         "must be removed (not set to \"false\") to mean false."
     )
@@ -72,7 +72,7 @@ object Bind:
         "must be removed (not set to \"false\") to mean false."
     )
 
-  def attr(el: dom.Element, name: String, v: Var[?]): Unit =
+  def attr(el: dom.Element, name: String, v: State[?]): Unit =
     el.setAttribute(name, v.value.toString)
     val cancel = v.subscribe(a => el.setAttribute(name, a.toString))
     Cleanup.register(cancel)
@@ -97,11 +97,11 @@ object Bind:
 
   // ── Class attribute ────────────────────────────────────────────────────
 
-  /** Reactive `class` binding for `Var[String]`. Tracks previously-added
+  /** Reactive `class` binding for `State[String]`. Tracks previously-added
     * classes so scoped IDs and other classes set outside this binding are
     * preserved on each update.
     */
-  def cls(el: dom.Element, v: Var[String]): Unit =
+  def cls(el: dom.Element, v: State[String]): Unit =
     cls(el, v.signal)
 
   /** Reactive `class` binding for `Signal[String]`. */
@@ -122,7 +122,7 @@ object Bind:
 
   // ── Optional attribute ─────────────────────────────────────────────────
 
-  def optionalAttr[A](el: dom.Element, name: String, v: Var[Option[A]]): Unit =
+  def optionalAttr[A](el: dom.Element, name: String, v: State[Option[A]]): Unit =
     optionalAttr(el, name, v.signal)
 
   def optionalAttr[A](el: dom.Element, name: String, signal: Signal[Option[A]]): Unit =
@@ -135,7 +135,7 @@ object Bind:
 
   // ── Boolean attribute ──────────────────────────────────────────────────
 
-  def booleanAttr(el: dom.Element, name: String, v: Var[Boolean]): Unit =
+  def booleanAttr(el: dom.Element, name: String, v: State[Boolean]): Unit =
     booleanAttr(el, name, v.signal)
 
   def booleanAttr(el: dom.Element, name: String, signal: Signal[Boolean]): Unit =
@@ -152,7 +152,7 @@ object Bind:
   // ── Two-way bindings ───────────────────────────────────────────────────
 
   /** Two-way string binding for `<input>`. */
-  def inputValue(input: dom.html.Input, v: Var[String]): Unit =
+  def inputValue(input: dom.html.Input, v: State[String]): Unit =
     input.value = v.value
     val cancelSub = v.subscribe(s => if input.value != s then input.value = s)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(input.value)
@@ -161,7 +161,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("input", listener))
 
   /** Two-way Int binding for `<input type="number">`. */
-  def inputInt(input: dom.html.Input, v: Var[Int]): Unit =
+  def inputInt(input: dom.html.Input, v: State[Int]): Unit =
     input.value = v.value.toString
     val cancelSub = v.subscribe(n =>
       val s = n.toString; if input.value != s then input.value = s
@@ -172,7 +172,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("input", listener))
 
   /** Two-way Double binding for `<input type="number">`. */
-  def inputDouble(input: dom.html.Input, v: Var[Double]): Unit =
+  def inputDouble(input: dom.html.Input, v: State[Double]): Unit =
     input.value = v.value.toString
     val cancelSub = v.subscribe(n =>
       val s = n.toString; if input.value != s then input.value = s
@@ -183,7 +183,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("input", listener))
 
   /** Two-way checkbox binding. */
-  def inputChecked(input: dom.html.Input, v: Var[Boolean]): Unit =
+  def inputChecked(input: dom.html.Input, v: State[Boolean]): Unit =
     input.checked = v.value
     val cancelSub = v.subscribe(b => if input.checked != b then input.checked = b)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => v.set(input.checked)
@@ -192,7 +192,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("change", listener))
 
   /** Two-way radio group binding. */
-  def radioGroup(input: dom.html.Input, v: Var[String], value: String): Unit =
+  def radioGroup(input: dom.html.Input, v: State[String], value: String): Unit =
     input.checked = v.value == value
     val cancelSub = v.subscribe(s => input.checked = s == value)
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) => if input.checked then v.set(value)
@@ -201,7 +201,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("change", listener))
 
   /** Two-way checkbox group binding (list of selected values). */
-  def checkboxGroup(input: dom.html.Input, v: Var[List[String]], value: String): Unit =
+  def checkboxGroup(input: dom.html.Input, v: State[List[String]], value: String): Unit =
     input.checked = v.value.contains(value)
     val cancelSub = v.subscribe(list => input.checked = list.contains(value))
     val listener: scalajs.js.Function1[dom.Event, Unit] = (_: dom.Event) =>
@@ -213,7 +213,7 @@ object Bind:
     Cleanup.register(() => input.removeEventListener("change", listener))
 
   /** Two-way string binding for `<textarea>`. */
-  def textareaValue(textarea: dom.html.TextArea, v: Var[String]): Unit =
+  def textareaValue(textarea: dom.html.TextArea, v: State[String]): Unit =
     var lastVarValue = v.value
     textarea.value = lastVarValue
     val cancelSub = v.subscribe { s =>
@@ -237,7 +237,7 @@ object Bind:
     * Must be called *after* `<option>` children are appended to the DOM so that
     * the initial `select.value` assignment can find a matching option.
     */
-  def selectValue(select: dom.html.Select, v: Var[String]): Unit =
+  def selectValue(select: dom.html.Select, v: State[String]): Unit =
     def options: IndexedSeq[dom.html.Option] =
       (0 until select.options.length).map(i => select.options(i).asInstanceOf[dom.html.Option])
 
@@ -277,7 +277,7 @@ object Bind:
     *
     * Must be called *after* `<option>` children are appended to the DOM.
     */
-  def selectMultipleValue(select: dom.html.Select, v: Var[List[String]]): Unit =
+  def selectMultipleValue(select: dom.html.Select, v: State[List[String]]): Unit =
     def options: IndexedSeq[dom.html.Option] =
       (0 until select.options.length).map(i => select.options(i).asInstanceOf[dom.html.Option])
 
@@ -318,7 +318,7 @@ object Bind:
 
   // ── Class toggle (class:name={expr}) ───────────────────────────────────
 
-  def classToggle(el: dom.Element, className: String, v: Var[Boolean]): Unit =
+  def classToggle(el: dom.Element, className: String, v: State[Boolean]): Unit =
     classToggle(el, className, v.signal)
 
   def classToggle(el: dom.Element, className: String, signal: Signal[Boolean]): Unit =
@@ -333,7 +333,7 @@ object Bind:
 
   // ── Style binding (style:property={expr}) ──────────────────────────────
 
-  def style(el: dom.Element, property: String, v: Var[?]): Unit =
+  def style(el: dom.Element, property: String, v: State[?]): Unit =
     el.asInstanceOf[dom.html.Element].style.setProperty(property, v.value.toString)
     val cancel = v.subscribe(a => el.asInstanceOf[dom.html.Element].style.setProperty(property, a.toString))
     Cleanup.register(cancel)
@@ -349,46 +349,46 @@ object Bind:
 
   // ── Element dimension bindings (bind:clientWidth etc.) ─────────────────
 
-  /** One-way binding: `element.clientWidth → Var[Double]` (read-only).
+  /** One-way binding: `element.clientWidth → State[Double]` (read-only).
     *
-    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Updates the State whenever the element is resized via `ResizeObserver`.
     * Corresponds to `bind:clientWidth` in Svelte 5.
     */
-  def clientWidth(el: dom.Element, v: Var[Double]): Unit =
+  def clientWidth(el: dom.Element, v: State[Double]): Unit =
     v.set(el.clientWidth.toDouble)
     val observer = new dom.ResizeObserver((_, _) => v.set(el.clientWidth.toDouble))
     observer.observe(el)
     Cleanup.register(() => observer.disconnect())
 
-  /** One-way binding: `element.clientHeight → Var[Double]` (read-only).
+  /** One-way binding: `element.clientHeight → State[Double]` (read-only).
     *
-    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Updates the State whenever the element is resized via `ResizeObserver`.
     * Corresponds to `bind:clientHeight` in Svelte 5.
     */
-  def clientHeight(el: dom.Element, v: Var[Double]): Unit =
+  def clientHeight(el: dom.Element, v: State[Double]): Unit =
     v.set(el.clientHeight.toDouble)
     val observer = new dom.ResizeObserver((_, _) => v.set(el.clientHeight.toDouble))
     observer.observe(el)
     Cleanup.register(() => observer.disconnect())
 
-  /** One-way binding: `element.offsetWidth → Var[Double]` (read-only).
+  /** One-way binding: `element.offsetWidth → State[Double]` (read-only).
     *
-    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Updates the State whenever the element is resized via `ResizeObserver`.
     * Corresponds to `bind:offsetWidth` in Svelte 5.
     */
-  def offsetWidth(el: dom.Element, v: Var[Double]): Unit =
+  def offsetWidth(el: dom.Element, v: State[Double]): Unit =
     v.set(el.asInstanceOf[dom.html.Element].offsetWidth.toDouble)
     val observer =
       new dom.ResizeObserver((_, _) => v.set(el.asInstanceOf[dom.html.Element].offsetWidth.toDouble))
     observer.observe(el)
     Cleanup.register(() => observer.disconnect())
 
-  /** One-way binding: `element.offsetHeight → Var[Double]` (read-only).
+  /** One-way binding: `element.offsetHeight → State[Double]` (read-only).
     *
-    * Updates the Var whenever the element is resized via `ResizeObserver`.
+    * Updates the State whenever the element is resized via `ResizeObserver`.
     * Corresponds to `bind:offsetHeight` in Svelte 5.
     */
-  def offsetHeight(el: dom.Element, v: Var[Double]): Unit =
+  def offsetHeight(el: dom.Element, v: State[Double]): Unit =
     v.set(el.asInstanceOf[dom.html.Element].offsetHeight.toDouble)
     val observer =
       new dom.ResizeObserver((_, _) => v.set(el.asInstanceOf[dom.html.Element].offsetHeight.toDouble))
@@ -397,15 +397,15 @@ object Bind:
 
   // ── Media element bindings (bind:currentTime, bind:paused etc.) ───────
 
-  /** Two-way binding: `media.currentTime ↔ Var[Double]`.
+  /** Two-way binding: `media.currentTime ↔ State[Double]`.
     *
-    * - DOM → Var: updated on every `timeupdate` event.
-    * - Var → DOM: seeks to the new position, skipping the initial value
+    * - DOM → State: updated on every `timeupdate` event.
+    * - State → DOM: seeks to the new position, skipping the initial value
     *   to avoid an unexpected seek-to-zero on mount.
     *
     * Corresponds to `bind:currentTime` in Svelte 5.
     */
-  def mediaCurrentTime(el: dom.Element, v: Var[Double]): Unit =
+  def mediaCurrentTime(el: dom.Element, v: State[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.currentTime)
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
@@ -417,12 +417,12 @@ object Bind:
     }
     Cleanup.register(cancel)
 
-  /** One-way binding: `media.duration → Var[Double]` (read-only).
+  /** One-way binding: `media.duration → State[Double]` (read-only).
     *
     * Updated on `durationchange` and `loadedmetadata`.
     * Corresponds to `bind:duration` in Svelte 5.
     */
-  def mediaDuration(el: dom.Element, v: Var[Double]): Unit =
+  def mediaDuration(el: dom.Element, v: State[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.duration)
     media.addEventListener("durationchange", listener)
@@ -432,18 +432,18 @@ object Bind:
       media.removeEventListener("loadedmetadata", listener)
     )
 
-  /** Two-way binding: `media.paused ↔ Var[Boolean]`.
+  /** Two-way binding: `media.paused ↔ State[Boolean]`.
     *
-    * - DOM → Var: updated on `play` and `pause` events.
-    * - Var → DOM: calls `media.play()` or `media.pause()`, skipping the
+    * - DOM → State: updated on `play` and `pause` events.
+    * - State → DOM: calls `media.play()` or `media.pause()`, skipping the
     *   initial value to avoid auto-playing on mount.
     *
     * Corresponds to `bind:paused` in Svelte 5.
     */
-  def mediaPaused(el: dom.Element, v: Var[Boolean]): Unit =
+  def mediaPaused(el: dom.Element, v: State[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.paused)
-    // DOM → Var: only update if value changed to avoid feedback loops
+    // DOM → State: only update if value changed to avoid feedback loops
     val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => if v.value then v.set(false)
     val pauseListener: scalajs.js.Function1[dom.Event, Unit] = _ => if !v.value then v.set(true)
     media.addEventListener("play", playListener)
@@ -452,7 +452,7 @@ object Bind:
       media.removeEventListener("play", playListener)
       media.removeEventListener("pause", pauseListener)
     )
-    // Var → DOM: Signal.subscribe is lazy so no initialized guard needed;
+    // State → DOM: Signal.subscribe is lazy so no initialized guard needed;
     // equality check prevents feedback loops
     val cancel = v.signal.subscribe { paused =>
       if paused != media.paused then
@@ -462,17 +462,17 @@ object Bind:
     }
     Cleanup.register(cancel)
 
-  /** Two-way binding: `media.volume ↔ Var[Double]` (0.0–1.0).
+  /** Two-way binding: `media.volume ↔ State[Double]` (0.0–1.0).
     *
-    * - DOM → Var: updated on `volumechange`.
-    * - Var → DOM: sets `media.volume`, skipping the initial value.
+    * - DOM → State: updated on `volumechange`.
+    * - State → DOM: sets `media.volume`, skipping the initial value.
     *
     * Corresponds to `bind:volume` in Svelte 5.
     */
-  def mediaVolume(el: dom.Element, v: Var[Double]): Unit =
+  def mediaVolume(el: dom.Element, v: State[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.volume)
-    // DOM → Var: only update if value actually changed to avoid feedback loops
+    // DOM → State: only update if value actually changed to avoid feedback loops
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => if v.value != media.volume then v.set(media.volume)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
@@ -481,17 +481,17 @@ object Bind:
     }
     Cleanup.register(cancel)
 
-  /** Two-way binding: `media.muted ↔ Var[Boolean]`.
+  /** Two-way binding: `media.muted ↔ State[Boolean]`.
     *
-    * - DOM → Var: updated on `volumechange`.
-    * - Var → DOM: sets `media.muted`, skipping the initial value.
+    * - DOM → State: updated on `volumechange`.
+    * - State → DOM: sets `media.muted`, skipping the initial value.
     *
     * Corresponds to `bind:muted` in Svelte 5.
     */
-  def mediaMuted(el: dom.Element, v: Var[Boolean]): Unit =
+  def mediaMuted(el: dom.Element, v: State[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.muted)
-    // DOM → Var: only update if value actually changed to avoid feedback loops
+    // DOM → State: only update if value actually changed to avoid feedback loops
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => if v.value != media.muted then v.set(media.muted)
     media.addEventListener("volumechange", listener)
     Cleanup.register(() => media.removeEventListener("volumechange", listener))
@@ -500,17 +500,17 @@ object Bind:
     }
     Cleanup.register(cancel)
 
-  /** Two-way binding: `media.playbackRate ↔ Var[Double]`.
+  /** Two-way binding: `media.playbackRate ↔ State[Double]`.
     *
-    * - DOM → Var: updated on `ratechange`.
-    * - Var → DOM: sets `media.playbackRate`, skipping the initial value.
+    * - DOM → State: updated on `ratechange`.
+    * - State → DOM: sets `media.playbackRate`, skipping the initial value.
     *
     * Corresponds to `bind:playbackRate` in Svelte 5.
     */
-  def mediaPlaybackRate(el: dom.Element, v: Var[Double]): Unit =
+  def mediaPlaybackRate(el: dom.Element, v: State[Double]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     v.set(media.playbackRate)
-    // DOM → Var: only update if value actually changed to avoid feedback loops
+    // DOM → State: only update if value actually changed to avoid feedback loops
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ =>
       if v.value != media.playbackRate then v.set(media.playbackRate)
     media.addEventListener("ratechange", listener)
@@ -520,12 +520,12 @@ object Bind:
     }
     Cleanup.register(cancel)
 
-  /** One-way binding: `media.seeking → Var[Boolean]` (read-only).
+  /** One-way binding: `media.seeking → State[Boolean]` (read-only).
     *
     * `true` while the user is seeking; `false` once seeking completes.
     * Corresponds to `bind:seeking` in Svelte 5.
     */
-  def mediaSeeking(el: dom.Element, v: Var[Boolean]): Unit =
+  def mediaSeeking(el: dom.Element, v: State[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     val seekingListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val seekedListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
@@ -536,12 +536,12 @@ object Bind:
       media.removeEventListener("seeked", seekedListener)
     )
 
-  /** One-way binding: `media.ended → Var[Boolean]` (read-only).
+  /** One-way binding: `media.ended → State[Boolean]` (read-only).
     *
     * `true` when playback reaches the end; resets to `false` on `play`.
     * Corresponds to `bind:ended` in Svelte 5.
     */
-  def mediaEnded(el: dom.Element, v: Var[Boolean]): Unit =
+  def mediaEnded(el: dom.Element, v: State[Boolean]): Unit =
     val media = el.asInstanceOf[dom.html.Media]
     val endedListener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(true)
     val playListener:  scalajs.js.Function1[dom.Event, Unit] = _ => v.set(false)
@@ -552,36 +552,36 @@ object Bind:
       media.removeEventListener("play", playListener)
     )
 
-  /** One-way binding: `media.readyState → Var[Int]` (read-only, 0–4).
+  /** One-way binding: `media.readyState → State[Int]` (read-only, 0–4).
     *
     * 0=HAVE_NOTHING, 1=HAVE_METADATA, 2=HAVE_CURRENT_DATA,
     * 3=HAVE_FUTURE_DATA, 4=HAVE_ENOUGH_DATA.
     * Corresponds to `bind:readyState` in Svelte 5.
     */
-  def mediaReadyState(el: dom.Element, v: Var[Int]): Unit =
+  def mediaReadyState(el: dom.Element, v: State[Int]): Unit =
     val media  = el.asInstanceOf[dom.html.Media]
     val events = List("emptied", "loadedmetadata", "loadeddata", "canplay", "canplaythrough")
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(media.readyState.asInstanceOf[Int])
     events.foreach(media.addEventListener(_, listener))
     Cleanup.register(() => events.foreach(media.removeEventListener(_, listener)))
 
-  /** One-way binding: `video.videoWidth → Var[Int]` (read-only, `<video>` only).
+  /** One-way binding: `video.videoWidth → State[Int]` (read-only, `<video>` only).
     *
     * Intrinsic width of the video in CSS pixels. Updated on `loadedmetadata`.
     * Corresponds to `bind:videoWidth` in Svelte 5.
     */
-  def mediaVideoWidth(el: dom.Element, v: Var[Int]): Unit =
+  def mediaVideoWidth(el: dom.Element, v: State[Int]): Unit =
     val video = el.asInstanceOf[dom.html.Video]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoWidth)
     video.addEventListener("loadedmetadata", listener)
     Cleanup.register(() => video.removeEventListener("loadedmetadata", listener))
 
-  /** One-way binding: `video.videoHeight → Var[Int]` (read-only, `<video>` only).
+  /** One-way binding: `video.videoHeight → State[Int]` (read-only, `<video>` only).
     *
     * Intrinsic height of the video in CSS pixels. Updated on `loadedmetadata`.
     * Corresponds to `bind:videoHeight` in Svelte 5.
     */
-  def mediaVideoHeight(el: dom.Element, v: Var[Int]): Unit =
+  def mediaVideoHeight(el: dom.Element, v: State[Int]): Unit =
     val video = el.asInstanceOf[dom.html.Video]
     val listener: scalajs.js.Function1[dom.Event, Unit] = _ => v.set(video.videoHeight)
     video.addEventListener("loadedmetadata", listener)
@@ -601,10 +601,10 @@ object Bind:
       case el: dom.Element if TransitionBridge.hasIn(el) => TransitionBridge.playIn(el)
       case _                                             =>
 
-  /** Reactive conditional rendering for [[Var]]. Re-renders when `v` changes.
+  /** Reactive conditional rendering for [[State]]. Re-renders when `v` changes.
     * Plays intro on the entering element and outro on the leaving element.
     */
-  def show(v: Var[?], render: Any => dom.Node, anchor: dom.Node): Unit =
+  def show(v: State[?], render: Any => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
     var current: dom.Node = render(v.value)
     parent.insertBefore(current, anchor)
@@ -677,7 +677,7 @@ object Bind:
 
   // ── Key-block rendering (<melt:key this={expr}>) ─────────────────────
 
-  /** Reactive key-block rendering for [[Var]].
+  /** Reactive key-block rendering for [[State]].
     *
     * Destroys and re-creates the content block whenever the key value **changes**
     * (equality-guarded — prevents remounting on same-value writes).
@@ -692,7 +692,7 @@ object Bind:
     * animations complete so the leaving content stays reactive during CSS transitions.
     */
   def key(
-    source:      Var[?],
+    source:      State[?],
     render:      () => dom.DocumentFragment,
     startAnchor: dom.Comment,
     endAnchor:   dom.Comment
@@ -783,7 +783,7 @@ object Bind:
 
   /** Reactive key-block rendering for [[Signal]].
     *
-    * Identical to the [[Var]] overload but subscribes to a [[Signal]] source.
+    * Identical to the [[State]] overload but subscribes to a [[Signal]] source.
     */
   def key(
     source:      Signal[?],
@@ -874,16 +874,16 @@ object Bind:
     )
 
   /** Compile-time guard: the `this={...}` expression in `<melt:key>` must be
-    * a [[Var]][?] or [[Signal]][?].
+    * a [[State]][?] or [[Signal]][?].
     *
     * Fires when the key expression resolves to any other type (e.g. a plain
-    * `Int` field access like `user.id` where `user: Var[User]`).  Use `.map()`
+    * `Int` field access like `user.id` where `user: State[User]`).  Use `.map()`
     * to derive a [[Signal]] from the reactive container instead.
     */
   @scala.annotation.targetName("keyInvalidSource")
   inline def key(source: Any, render: Any, startAnchor: Any, endAnchor: Any): Unit =
     scala.compiletime.error(
-      "The `this={...}` expression in <melt:key> must be a Var[?] or Signal[?].\n" +
+      "The `this={...}` expression in <melt:key> must be a State[?] or Signal[?].\n" +
         "If your key is a field of a reactive object, use .map() to derive a Signal:\n" +
         "  Instead of:  <melt:key this={user.id}>\n" +
         "  Write:       <melt:key this={user.map(_.id)}>"
@@ -893,11 +893,11 @@ object Bind:
 
   /** Renders a plain (non-reactive) collection before `anchor`. Used
     * when a `.melt` template references `{items.map(renderFn)}` where
-    * `items` is a plain `List` / `Seq` / `Iterable`, not a `Var` /
+    * `items` is a plain `List` / `Seq` / `Iterable`, not a `State` /
     * `Signal`.
     *
     * This is a one-shot render: subsequent changes to `items` (if any)
-    * are not reflected. For reactive list rendering use `Var[List[A]]`
+    * are not reflected. For reactive list rendering use `State[List[A]]`
     * and the overload below.
     */
   def list[A](source: Iterable[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
@@ -910,7 +910,7 @@ object Bind:
   /** Renders a list of items before `anchor`. Rebuilds on each change.
     * Used for `{items.map(renderFn)}` in templates.
     */
-  def list[A](source: Var[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+  def list[A](source: State[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
     var nodes = mutable.ListBuffer.empty[dom.Node]
 
     def rebuild(items: Iterable[A]): Unit =
@@ -961,7 +961,7 @@ object Bind:
     * is called afterwards to produce the animation.
     */
   def each[A, K](
-    source:   Var[? <: Iterable[A]],
+    source:   State[? <: Iterable[A]],
     keyFn:    A => K,
     renderFn: A => dom.Node,
     anchor:   dom.Node
@@ -1098,7 +1098,7 @@ object Bind:
 
   /** Sets innerHTML reactively from a [[TrustedHtml]] value.
     *
-    * Requires [[TrustedHtml]] instead of a plain `String` or `Var[String]` to
+    * Requires [[TrustedHtml]] instead of a plain `String` or `State[String]` to
     * make XSS-prone call sites visible. Callers must opt in by wrapping their
     * string with [[TrustedHtml.unsafe]], signalling that the content is either
     * static or has already been sanitised.
@@ -1108,14 +1108,14 @@ object Bind:
     * Bind.html(el, TrustedHtml.unsafe("<strong>Hello</strong>"))
     *
     * // OK — sanitised reactive content
-    * val safeHtml: Var[TrustedHtml] = content.map(s => TrustedHtml.unsafe(sanitise(s)))
+    * val safeHtml: State[TrustedHtml] = content.map(s => TrustedHtml.unsafe(sanitise(s)))
     * Bind.html(el, safeHtml)
     *
-    * // Compile error — plain Var[String] no longer accepted
-    * Bind.html(el, Var("<b>user input</b>"))
+    * // Compile error — plain State[String] no longer accepted
+    * Bind.html(el, State("<b>user input</b>"))
     * }}}
     */
-  def html(el: dom.Element, content: Var[TrustedHtml]): Unit =
+  def html(el: dom.Element, content: State[TrustedHtml]): Unit =
     el.innerHTML = content.value.value
     val cancel = content.subscribe(s => el.innerHTML = s.value)
     Cleanup.register(cancel)
@@ -1156,8 +1156,8 @@ object Bind:
   def htmlAnchor(content: TrustedHtml, anchor: dom.Node): Unit =
     insertNodesBefore(parseHtmlNodes(content.value), anchor)
 
-  /** Reactive [[Var]] variant — re-parses and re-inserts when the source changes. */
-  def htmlAnchor(v: Var[?], render: Any => TrustedHtml, anchor: dom.Node): Unit =
+  /** Reactive [[State]] variant — re-parses and re-inserts when the source changes. */
+  def htmlAnchor(v: State[?], render: Any => TrustedHtml, anchor: dom.Node): Unit =
     var current = parseHtmlNodes(render(v.value).value)
     insertNodesBefore(current, anchor)
     val cancel = v.subscribe { a =>
@@ -1186,8 +1186,8 @@ object Bind:
     val cleanup = act(wrapped, param)
     Cleanup.register(cleanup)
 
-  /** Applies an action with a reactive Var parameter. Re-applies on change. */
-  def action[P](el: dom.Element, act: Action[P], param: Var[P]): Unit =
+  /** Applies an action with a reactive State parameter. Re-applies on change. */
+  def action[P](el: dom.Element, act: Action[P], param: State[P]): Unit =
     val wrapped = melt.runtime.dom.Conversions.wrapElement(el)
     var prevCleanup: () => Unit = act(wrapped, param.value)
     val cancel = param.subscribe { p =>
@@ -1274,7 +1274,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementVar")
   def dynamicElement(
-    tag:     Var[HtmlTag],
+    tag:     State[HtmlTag],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1283,7 +1283,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementVarNullable")
   def dynamicElement(
-    tag:     Var[HtmlTag | Null],
+    tag:     State[HtmlTag | Null],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1298,7 +1298,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementVarOption")
   def dynamicElement(
-    tag:     Var[Option[HtmlTag]],
+    tag:     State[Option[HtmlTag]],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1353,7 +1353,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementSvgVar")
   def dynamicElement(
-    tag:     Var[SvgTag],
+    tag:     State[SvgTag],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1362,7 +1362,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementSvgVarNullable")
   def dynamicElement(
-    tag:     Var[SvgTag | Null],
+    tag:     State[SvgTag | Null],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1371,7 +1371,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementSvgVarOption")
   def dynamicElement(
-    tag:     Var[Option[SvgTag]],
+    tag:     State[Option[SvgTag]],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1432,7 +1432,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementMathVar")
   def dynamicElement(
-    tag:     Var[MathTag],
+    tag:     State[MathTag],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1441,7 +1441,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementMathVarNullable")
   def dynamicElement(
-    tag:     Var[MathTag | Null],
+    tag:     State[MathTag | Null],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit
@@ -1456,7 +1456,7 @@ object Bind:
 
   @scala.annotation.targetName("dynamicElementMathVarOption")
   def dynamicElement(
-    tag:     Var[Option[MathTag]],
+    tag:     State[Option[MathTag]],
     anchor:  dom.Comment,
     scopeId: String,
     setup:   dom.Element => Unit

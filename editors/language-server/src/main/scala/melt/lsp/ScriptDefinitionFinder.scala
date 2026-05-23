@@ -21,7 +21,7 @@ import org.eclipse.lsp4j.*
   * {{{
   * // .melt source
   * <script lang="scala">
-  *   val count = Var(0)         // ← line 1
+  *   val count = State(0)         // ← line 1
   *   def increment() = ...     // ← line 2
   * </script>
   * <div>{count}</div>          // cursor on "count" → jumps to line 1

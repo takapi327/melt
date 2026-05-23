@@ -5,45 +5,45 @@ import melt.runtime.motion.Tween
 import melt.runtime.motion.Spring
 
 // ── Gap 01: Transition events ──────────────────────────────────────────────
-val showEvents  = Var(true)
-val eventStatus = Var("(waiting)")
+val showEvents  = State(true)
+val eventStatus = State("(waiting)")
 
 // ── Gap 02: |global modifier ───────────────────────────────────────────────
-val outerVisible = Var(true)
-val innerVisible = Var(true)
+val outerVisible = State(true)
+val innerVisible = State(true)
 
 // ── Basic visibility toggles ───────────────────────────────────────────────
-val showFade   = Var(true)
-val showFly    = Var(true)
-val showFlyOp  = Var(true)
-val showSlideY = Var(true)
-val showSlideX = Var(true)
-val showScale  = Var(true)
-val showBlur   = Var(true)
-val showMixed  = Var(true)
+val showFade   = State(true)
+val showFly    = State(true)
+val showFlyOp  = State(true)
+val showSlideY = State(true)
+val showSlideX = State(true)
+val showScale  = State(true)
+val showBlur   = State(true)
+val showMixed  = State(true)
 
 // ── Gap 05: Slide axis ─────────────────────────────────────────────────────
 
 // ── Gap 06: SVG draw ───────────────────────────────────────────────────────
-val showDraw      = Var(false)
-val showDrawSpeed = Var(false)
+val showDraw      = State(false)
+val showDrawSpeed = State(false)
 
 // ── Gap 07: mid-animation reversal ────────────────────────────────────────
-val showReversal = Var(true)
+val showReversal = State(true)
 
 // ── Gap 09: Tween ─────────────────────────────────────────────────────────
-val tweenVar = Var(0.0)
+val tweenVar = State(0.0)
 val tween    = Tween(0.0, duration = 800, easing = Easing.cubicOut)
 tween.subscribe(v => tweenVar.set(v))
 
-val tweenTarget = Var(0)
+val tweenTarget = State(0)
 
 def setTweenTarget(v: Int): Unit =
   tweenTarget.set(v)
   tween.set(v.toDouble)
 
 // ── Gap 09: Spring ─────────────────────────────────────────────────────────
-val springVar = Var(0.0)
+val springVar = State(0.0)
 val spring    = Spring(0.0, stiffness = 0.08, damping = 0.4)
 spring.subscribe(v => springVar.set(v))
 
@@ -53,7 +53,7 @@ def setSpringTarget(v: Int): Unit =
 // ── FLIP list demo ──────────────────────────────────────────────────────────
 case class Item(id: Int, label: String)
 
-val items = Var(List(
+val items = State(List(
   Item(1, "Alpha"),
   Item(2, "Beta"),
   Item(3, "Gamma"),
@@ -86,7 +86,7 @@ val Bounce: AnimateFn = (node, info, params) =>
     }
   )
 
-val items2 = Var(List(
+val items2 = State(List(
   Item(1, "One"),
   Item(2, "Two"),
   Item(3, "Three"),
@@ -98,10 +98,10 @@ def shuffle2(): Unit =
   items2.update(list => scala.util.Random.shuffle(list))
 
 // ── melt:key demos ──────────────────────────────────────────────────────────
-val keyValue = Var(0)
+val keyValue = State(0)
 val profiles = List("Alice 🐱", "Bob 🐶", "Charlie 🦊", "Diana 🐻", "Eve 🐼")
 
-val keyForReset = Var(0)
+val keyForReset = State(0)
 </script>
 
 <div class="page">
@@ -435,7 +435,7 @@ val keyForReset = Var(0)
       The inner counter (<code>innerCount</code>) increments independently.
       Clicking <b>Reset scope</b> changes <code>keyForReset</code>,
       which causes <code>melt:key</code> to destroy the old block and re-create it —
-      the inner counter resets to 0 because the <code>Var</code> subscription is re-registered.
+      the inner counter resets to 0 because the <code>State</code> subscription is re-registered.
     </p>
     <div class="controls">
       <button onclick={_ => keyForReset += 1}>Reset scope</button>

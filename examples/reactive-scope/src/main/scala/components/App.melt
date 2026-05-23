@@ -6,8 +6,8 @@ import scala.scalajs.js.timers.*
 // Typical example: pass the ID returned by setInterval to clearInterval.
 // "Start" calls allocated; "Stop" calls cancel().
 
-val ticker1   = Var(0)
-val running1  = Var(false)
+val ticker1   = State(0)
+val running1  = State(false)
 var cancel1: () => Unit = () => ()
 
 def start1(): Unit =
@@ -25,8 +25,8 @@ def stop1(): Unit =
 // Use when no value needs to be passed from acquire to release.
 // Manages a window keydown listener with resource.
 
-val lastKey   = Var("—")
-val running2  = Var(false)
+val lastKey   = State("—")
+val running2  = State(false)
 var cancel2: () => Unit = () => ()
 
 val onKeyDown: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
@@ -52,9 +52,9 @@ def stop2(): Unit =
 // Combine a timer, key log, and effect into one scope.
 // A single cancel() releases all of them in LIFO order.
 
-val ticker3  = Var(0)
-val keyLog   = Var(List.empty[String])
-val running3 = Var(false)
+val ticker3  = State(0)
+val keyLog   = State(List.empty[String])
+val running3 = State(false)
 var cancel3: () => Unit = () => ()
 
 val onKeyDown3: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
@@ -87,7 +87,7 @@ def stop3(): Unit =
 // Start a ReactiveScope when the component mounts and release it automatically
 // on unmount by returning the cancel function from onMount.
 
-val elapsed = Var(0)
+val elapsed = State(0)
 
 onMount { () =>
   val program =

@@ -8,15 +8,15 @@ package melt.runtime
 
 /** A list paired with a key function for efficient diffing in [[Bind.each]].
   *
-  * Created via the `keyed` extension method on `Var[List[A]]` or `Signal[Seq[A]]`.
+  * Created via the `keyed` extension method on `State[List[A]]` or `Signal[Seq[A]]`.
   *
   * {{{
-  * val items = Var(List(Todo(1, "a"), Todo(2, "b")))
+  * val items = State(List(Todo(1, "a"), Todo(2, "b")))
   * // In template: {items.keyed(_.id).map(item => <li>...</li>)}
   * }}}
   */
-case class KeyedList[A, K](source: Var[List[A]], keyFn: A => K)
+case class KeyedList[A, K](source: State[List[A]], keyFn: A => K)
 
-extension [A](v: Var[List[A]])
+extension [A](v: State[List[A]])
   /** Creates a [[KeyedList]] for keyed list rendering with `Bind.each`. */
   def keyed[K](f: A => K): KeyedList[A, K] = KeyedList(v, f)

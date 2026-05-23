@@ -36,7 +36,7 @@ import melt.NodePositions
   * List rendering (`InlineTemplate`) and conditional blocks are deferred
   * to Phase B.
   *
-  * Script sections are emitted verbatim — `Var` / `Signal` on the JVM are
+  * Script sections are emitted verbatim — `State` / `Signal` on the JVM are
   * no-op wrappers, so reactive code compiles and runs correctly against
   * the initial snapshot.
   */

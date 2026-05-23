@@ -1,6 +1,6 @@
 <script lang="scala">
-val count   = Var(0)
-val name    = Var("")
+val count   = State(0)
+val name    = State("")
 val doubled = count.map(_ * 2)
 val isEven  = memo(count)(_ % 2 == 0)
 
@@ -33,7 +33,7 @@ Document.title(name.map(n => if n.isEmpty then "Melt SCSS Counter" else s"Hello,
   <input use:autoFocus bind:value={name} placeholder="Your name" />
   <p>Hello, {name}!</p>
   <hr />
-  <p class="section-label">Var as props — bidirectional binding</p>
+  <p class="section-label">State as props — bidirectional binding</p>
   <div class="step-row">
     <StepControl count={count} step={1} />
     <StepControl count={count} step={5} />

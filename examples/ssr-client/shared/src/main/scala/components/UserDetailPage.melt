@@ -1,12 +1,12 @@
 <script lang="scala" props="Props">
   case class Props(userId: Int = 0, initialUser: Option[User] = None)
 
-  val user      = Var(props.initialUser)
-  val loaded    = Var(props.initialUser.isDefined)
-  val editing   = Var(false)
-  val editName  = Var("")
-  val editEmail = Var("")
-  val editRole  = Var("")
+  val user      = State(props.initialUser)
+  val loaded    = State(props.initialUser.isDefined)
+  val editing   = State(false)
+  val editName  = State("")
+  val editEmail = State("")
+  val editRole  = State("")
 
   val userName:  Signal[String]  = user.map(_.map(_.name).getOrElse(""))
   val userEmail: Signal[String]  = user.map(_.map(_.email).getOrElse(""))

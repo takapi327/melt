@@ -1,17 +1,17 @@
 <script lang="scala">
 // ── 1. Heading level switcher ─────────────────────────────────────────────────
 //    HtmlTag.trusted is safe here because we only ever produce h1..h6
-val level      = Var(2)
+val level      = State(2)
 val headingTag: Signal[HtmlTag] = level.map(n => HtmlTag.trusted(s"h$n"))
 
 // ── 2. Optional element (show / hide) ─────────────────────────────────────────
-val wrapperTag: Var[Option[HtmlTag]] = Var(Some[HtmlTag]("section"))
+val wrapperTag: State[Option[HtmlTag]] = State(Some[HtmlTag]("section"))
 
 // ── 3. CMS / external string ──────────────────────────────────────────────────
 //    HtmlTag.fromString converts an arbitrary String to Option[HtmlTag]:
 //      Some(tag) → valid HTML5 element name → element is rendered
 //      None      → unknown name             → nothing rendered
-val cmsInput = Var("article")
+val cmsInput = State("article")
 val cmsTag:    Signal[Option[HtmlTag]] = cmsInput.map(HtmlTag.fromString)
 val cmsStatus: Signal[String] = cmsInput.map { s =>
   if HtmlTag.fromString(s).isDefined then s"""✓ "$s" is a valid HTML5 tag"""
@@ -20,13 +20,13 @@ val cmsStatus: Signal[String] = cmsInput.map { s =>
 
 // ── 4. transition:fade ────────────────────────────────────────────────────────
 //    transition:, in:, out: fire on <melt:element> just like on static elements.
-val fadeTag: Var[Option[HtmlTag]] = Var(Some[HtmlTag]("div"))
+val fadeTag: State[Option[HtmlTag]] = State(Some[HtmlTag]("div"))
 
 // ── 5. SVG namespace ─────────────────────────────────────────────────────────
 //    SvgTag triggers createElementNS("http://www.w3.org/2000/svg", name),
 //    producing a proper SVG DOM node inside an <svg> context.
-val svgShape: Var[SvgTag] = Var[SvgTag]("circle")
-val svgFill:  Var[String] = Var("#ff3e00")
+val svgShape: State[SvgTag] = State[SvgTag]("circle")
+val svgFill:  State[String] = State("#ff3e00")
 </script>
 
 <div class="demo">
@@ -41,7 +41,7 @@ val svgFill:  Var[String] = Var("#ff3e00")
 
   <div class="panels">
 
-    <!-- ── Panel 1: Reactive tag via Var[HtmlTag] ─────────────────────────── -->
+    <!-- ── Panel 1: Reactive tag via State[HtmlTag] ─────────────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">Signal[HtmlTag]</span> Reactive Tag
@@ -200,7 +200,7 @@ val svgFill:  Var[String] = Var("#ff3e00")
       </div>
 
       <p class="code-note hint">
-        <code>val shape: Var[SvgTag] = Var("circle")</code>
+        <code>val shape: State[SvgTag] = State("circle")</code>
       </p>
     </section>
 

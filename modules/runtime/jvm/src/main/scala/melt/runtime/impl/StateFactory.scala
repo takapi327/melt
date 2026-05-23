@@ -6,16 +6,16 @@
 
 package melt.runtime.impl
 
-import melt.runtime.{ Signal, Var }
+import melt.runtime.{ Signal, State }
 
-/** JVM factory referenced by the shared `object Var`. Produces a no-op
+/** JVM factory referenced by the shared `object State`. Produces a no-op
   * wrapper suitable for SSR rendering, where event handlers are stripped
   * and only the initial value is ever observed.
   */
-private[runtime] object VarFactory:
-  def create[A](initial: A): Var[A] = new JvmVar[A](initial)
+private[runtime] object StateFactory:
+  def create[A](initial: A): State[A] = new JvmState[A](initial)
 
-/** JVM no-op implementation of [[Var]].
+/** JVM no-op implementation of [[State]].
   *
   * `set` / `update` do nothing and no subscribers are ever invoked.
   * `map` / `flatMap` compute exactly once against the initial value and
@@ -23,7 +23,7 @@ private[runtime] object VarFactory:
   * renders an initial snapshot and the generated code has no event handlers
   * that could ever mutate the value.
   */
-private final class JvmVar[A](initial: A) extends Var[A]:
+private final class JvmState[A](initial: A) extends State[A]:
   def value:                   A          = initial
   def set(value:   A):         Unit       = ()
   def update(f:    A => A):    Unit       = ()

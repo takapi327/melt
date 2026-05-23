@@ -10,7 +10,7 @@ class MemoSpec extends munit.FunSuite:
 
   test("memo suppresses unchanged values") {
     Cleanup.pushScope()
-    val v       = Var(0)
+    val v       = State(0)
     val isEven  = memo(v)(_ % 2 == 0)
     var updates = 0
     isEven.subscribe(_ => updates += 1)
@@ -30,7 +30,7 @@ class MemoSpec extends munit.FunSuite:
 
   test("memo propagates when value changes") {
     Cleanup.pushScope()
-    val v       = Var(1)
+    val v       = State(1)
     val clamped = memo(v)(n => Math.min(n, 10))
     assertEquals(clamped.value, 1)
     v.set(5)

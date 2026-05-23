@@ -11,7 +11,7 @@ class SignalSpec extends munit.FunSuite:
   // ── now ───────────────────────────────────────────────────────────────────
 
   test("now() returns the current value") {
-    val v = Var(7)
+    val v = State(7)
     val s = v.signal
     assertEquals(s.value, 7)
     v.set(99)
@@ -21,7 +21,7 @@ class SignalSpec extends munit.FunSuite:
   // ── subscribe ─────────────────────────────────────────────────────────────
 
   test("subscribe() is called on each emission") {
-    val v        = Var(0)
+    val v        = State(0)
     val s        = v.signal
     var received = List.empty[Int]
     s.subscribe(x => received = received :+ x)
@@ -31,7 +31,7 @@ class SignalSpec extends munit.FunSuite:
   }
 
   test("unsubscribe function stops notifications") {
-    val v      = Var(0)
+    val v      = State(0)
     val s      = v.signal
     var count  = 0
     val cancel = s.subscribe(_ => count += 1)
@@ -44,7 +44,7 @@ class SignalSpec extends munit.FunSuite:
   // ── map ───────────────────────────────────────────────────────────────────
 
   test("map() on Signal reflects source changes") {
-    val v       = Var(2)
+    val v       = State(2)
     val doubled = v.signal.map(_ * 2)
     assertEquals(doubled.value, 4)
     v.set(5)
@@ -52,7 +52,7 @@ class SignalSpec extends munit.FunSuite:
   }
 
   test("chained map() propagates through multiple layers") {
-    val v = Var(1)
+    val v = State(1)
     val s = v.signal.map(_ + 1).map(_ * 3)
     assertEquals(s.value, 6)
     v.set(2)
@@ -62,9 +62,9 @@ class SignalSpec extends munit.FunSuite:
   // ── flatMap / dynamic switching ───────────────────────────────────────────
 
   test("flatMap() switches the inner Signal when the outer changes") {
-    val selector = Var(0)
-    val a        = Var(100)
-    val b        = Var(200)
+    val selector = State(0)
+    val a        = State(100)
+    val b        = State(200)
     val sources  = List(a.signal, b.signal)
     val result   = selector.signal.flatMap(i => sources(i))
     assertEquals(result.value, 100)
@@ -75,9 +75,9 @@ class SignalSpec extends munit.FunSuite:
   }
 
   test("flatMap() unsubscribes from the previous inner Signal") {
-    val flag  = Var(true)
-    val a     = Var(1)
-    val b     = Var(2)
+    val flag  = State(true)
+    val a     = State(1)
+    val b     = State(2)
     var calls = 0
     // derived tracks changes; we count how many times the derived Signal emits
     val result = flag.signal.flatMap(f => if f then a.signal else b.signal)
@@ -95,9 +95,9 @@ class SignalSpec extends munit.FunSuite:
 
   // ── for comprehension ─────────────────────────────────────────────────────
 
-  test("for comprehension over Signal and Var") {
-    val x   = Var(3)
-    val y   = Var(4)
+  test("for comprehension over Signal and State") {
+    val x   = State(3)
+    val y   = State(4)
     val hyp = for
       a <- x.signal
       b <- y.signal

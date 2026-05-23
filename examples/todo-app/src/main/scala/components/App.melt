@@ -1,7 +1,7 @@
 <script lang="scala">
 import models.Todo
 
-val todos = Var(List(
+val todos = State(List(
   Todo(1, "Learn Melt", false),
   Todo(2, "Build a Todo app", false)
 ))
