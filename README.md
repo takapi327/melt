@@ -30,7 +30,9 @@ button { font-size: 1.5rem; cursor: pointer; }
 
 - **コンパイラがフレームワーク** — Svelte と同様、ランタイムフレームワーク不要。コンパイラが DOM 操作コードを直接生成
 - **Scala の型システムを完全保持** — テンプレート内の式も含め、型チェックはすべて scalac が行う
-- **ランタイムは最小限** — `Var` / `Signal` / `Bind` を提供する小さなランタイムのみ
+- **テンプレートに専用構文なし** — `{#if}` / `{#each}` のような独自構文は不要。`if`/`else`・`.map()` など素の Scala 式をそのまま使う
+- **明示的なリアクティビティ** — `effect` の依存値は必ず明示する。暗黙的トラッキングによる無限ループが発生しない
+- **ランタイムは最小限** — `Var` / `Signal` / `Memo` を提供する小さなランタイムのみ
 - **SSR 対応** — 同じ `.melt` ファイルを JVM 側で HTML 文字列として出力可能（`CompileMode.SSR`）
 
 ## モジュール
@@ -82,6 +84,42 @@ button { font-size: 1.5rem; cursor: pointer; }
 <p>{message}</p>
 <p>{count * 2}</p>
 <p>{if isActive then "active" else "inactive"}</p>
+```
+
+#### コントロールフロー
+
+Melt はテンプレート内で通常の Scala 式を使います。`{#if}` / `{#each}` のような専用構文は不要です。
+
+```html
+<!-- 条件分岐 -->
+{if count > 0 then
+  <p class="positive">Positive: {count}</p>
+else
+  <p class="zero">Zero or negative</p>
+}
+
+<!-- リスト描画 -->
+<ul>
+  {items.map { item =>
+    <li>{item.name}</li>
+  }}
+</ul>
+
+<!-- キー付きリスト（FLIP アニメーション・差分更新に対応） -->
+<ul>
+  {items.map { item =>
+    <melt:key this={item.id}>
+      <li>{item.name}</li>
+    </melt:key>
+  }}
+</ul>
+
+<!-- ネストしたコンテナなしの条件分岐 -->
+{if isLoggedIn then
+  <UserPanel />
+else
+  <LoginForm />
+}
 ```
 
 #### 生 HTML の挿入（XSS 注意）
@@ -297,7 +335,27 @@ doubled.value
 doubled.subscribe(n => println(n))
 ```
 
-### エフェクト・メモ化
+### 派生値
+
+#### `map` — 常に再計算される派生値
+
+```scala
+val count   = Var(0)
+val doubled = count.map(_ * 2)   // count が変化するたびに再計算
+val label   = count.map(n => if n > 0 then "positive" else "zero or negative")
+```
+
+#### `memo` — 結果が変化したときのみ伝播する派生値
+
+`map` と異なり、`memo` は計算結果が前回と等しい場合は下流への更新を抑制します。
+再描画コストの高い値（真偽値・分類値など）の不要な更新を防ぎたいときに使います。
+
+```scala
+val isEven = memo(count)(_ % 2 == 0)
+// count が 0→2 と変化しても isEven は true のまま → 再描画をスキップ
+```
+
+### エフェクト
 
 ```scala
 // エフェクト（依存値変化時に実行）
@@ -305,26 +363,39 @@ effect(count) { n =>
   dom.document.title = s"Count: $n"
 }
 
-// 2変数
-effect(a, b) { (va, vb) => ... }
+// 複数の依存値
+effect(a, b) { (va, vb) =>
+  println(s"a=$va, b=$vb")
+}
 
 // レイアウトエフェクト（DOM 更新前に実行）
 layoutEffect(count) { n =>
-  el.getBoundingClientRect().height
+  val height = el.getBoundingClientRect().height
+  containerHeight.set(height.toInt)
 }
-
-// メモ化（依存値が変化したときのみ再計算）
-val isEven = memo(count)(_ % 2 == 0)
 ```
+
+> [!NOTE]
+> Melt のエフェクトは**依存値を明示的に指定**します。
+> Svelte 5 の `$effect` のような暗黙的なトラッキングがないため、
+> 意図しない依存による無限ループが発生しません。
 
 ### ライフサイクル
 
 ```scala
+// DOM 挿入後に一度だけ実行
 onMount { () =>
   fetchData()
-  () => cleanup()  // アンマウント時のクリーンアップを返せる
 }
 
+// クリーンアップ関数を返すと、コンポーネント破棄時に呼ばれる
+onMount { () =>
+  val observer = new dom.IntersectionObserver(...)
+  observer.observe(myEl)
+  () => observer.disconnect()
+}
+
+// コンポーネント破棄時に実行（subscribe の解除など）
 onCleanup { () =>
   subscription.cancel()
 }
