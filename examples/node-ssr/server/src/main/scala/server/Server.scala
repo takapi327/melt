@@ -19,7 +19,7 @@ import meltkit.codec.BodyDecoder
   *
   * Same pages as http4s-ssr but runs entirely on Node.js with Future.
   *
-  * {{{ sbt "~node-ssr-server/reStart" }}}
+  * {{{ sbt "node-ssr-server/run" }}}
   */
 object Server:
 

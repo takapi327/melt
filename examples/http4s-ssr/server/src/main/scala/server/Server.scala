@@ -27,7 +27,7 @@ import org.http4s.ember.server.EmberServerBuilder
   * no shared SPA root required.  Navigation between pages is server-side
   * (full page reload via standard `<a href>` links).
   *
-  * {{{ sbt "~http4s-ssr-server/reStart" }}}
+  * {{{ sbt "http4s-ssr-server/run" }}}
   */
 object Server extends IOApp.Simple:
 

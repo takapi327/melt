@@ -28,7 +28,7 @@ import org.http4s.ember.server.EmberServerBuilder
   * [[Endpoint]] values, demonstrating the simplified S-14 API.
   * The SSR example (`http4s-ssr`) uses `Endpoint.on` for comparison.
   *
-  * {{{ sbt "~http4s-spa-server/reStart" }}}
+  * {{{ sbt "http4s-spa-server/run" }}}
   */
 object Server extends IOApp.Simple:
 

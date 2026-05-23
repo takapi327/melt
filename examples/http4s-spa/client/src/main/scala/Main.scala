@@ -16,7 +16,7 @@ import meltkit.{ *, given }
   * The shell (navigation bar) stays in the DOM across navigations — only
   * the `[data-melt-outlet]` element inside [[Layout]] is replaced.
   *
-  * {{{ sbt "~http4s-spa-server/reStart" }}}
+  * {{{ sbt "http4s-spa-server/run" }}}
   */
 object Main:
 

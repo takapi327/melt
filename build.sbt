@@ -506,7 +506,7 @@ lazy val `trusted-html` = project
 
 // ── Example: http4s SPA (pure client-side rendering) ────────────────────────
 //
-//   sbt "~http4s-spa-server/reStart"
+//   sbt "http4s-spa-server/run"
 
 lazy val `http4s-spa-client` = project
   .in(file("examples/http4s-spa/client"))
@@ -541,7 +541,7 @@ lazy val `http4s-spa-server` = project
     ),
     meltkitAssetManifestClient := Some(`http4s-spa-client`)
   )
-  .enablePlugins(MeltkitPlugin, AutomateHeaderPlugin, RevolverPlugin)
+  .enablePlugins(MeltkitPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.jvm, `meltkit-adapter-http4s`.jvm)
 
 // ── Shared SSR client (crossProject: JVM + JS) ─────────────────────────────
@@ -581,7 +581,7 @@ lazy val `ssr-client` = crossProject(JVMPlatform, JSPlatform)
 
 // ── Example: http4s SSR + Hydration ─────────────────────────────────────────
 //
-//   sbt "~http4s-ssr-server/reStart"
+//   sbt "http4s-ssr-server/run"
 
 lazy val ssrClientDir = file("examples/ssr-client")
 
@@ -603,7 +603,7 @@ lazy val `http4s-ssr-server` = project
     meltkitViteDistDir         := ssrClientDir / "dist",
     meltkitViteManifestPath    := ssrClientDir / "dist" / ".vite" / "manifest.json"
   )
-  .enablePlugins(MeltkitPlugin, AutomateHeaderPlugin, RevolverPlugin)
+  .enablePlugins(MeltkitPlugin, AutomateHeaderPlugin)
   .dependsOn(`ssr-client`.jvm, `meltkit-adapter-http4s`.jvm)
 
 // ── Example: Node.js SSR + Hydration (pure Scala, no cats-effect / http4s) ──
