@@ -119,8 +119,8 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform)
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
 // JVM side: no-op stubs + server-render helpers under melt.runtime.render.
-// Shared:   trait Var[A] / Signal[A] / Memo[A] API contract + TrustedHtml +
-//           VarExtensions.
+// Shared:   trait State[A] / Signal[A] / Memo[A] API contract + TrustedHtml +
+//           StateExtensions.
 lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
   .in(file("modules/runtime"))
