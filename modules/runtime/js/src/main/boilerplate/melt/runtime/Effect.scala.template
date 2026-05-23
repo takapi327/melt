@@ -16,13 +16,13 @@ package melt.runtime
   * body is executed before re-execution and on component destruction.
   *
   * {{{
-  * val count = Var(0)
+  * val count = State(0)
   * effect(count) { n =>
   *   dom.console.log(s"count is now: $$n")
   * }
   * }}}
   */
-def effect[A](dep: Var[A])(f: A => Unit): Unit =
+def effect[A](dep: State[A])(f: A => Unit): Unit =
   var innerNode: Option[OwnerNode] = None
 
   def run(value: A): Unit =
@@ -89,7 +89,7 @@ def effect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit
   * before the update is applied.  Unlike [[effect]], does **not** run on
   * initial creation; only fires on subsequent changes.
   */
-def layoutEffect[A](dep: Var[A])(f: A => Unit): Unit =
+def layoutEffect[A](dep: State[A])(f: A => Unit): Unit =
   val cancel = dep.subscribePre(f)
   Cleanup.register(cancel)
 

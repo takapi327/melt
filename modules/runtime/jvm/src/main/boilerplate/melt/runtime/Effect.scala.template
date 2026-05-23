@@ -11,7 +11,7 @@ package melt.runtime
   * SSR has no DOM lifecycle to run side-effects against, so these are all
   * no-ops. The effect body is never executed on JVM.
   */
-def effect[A](dep: Var[A])(f:    A => Unit): Unit = ()
+def effect[A](dep: State[A])(f:  A => Unit): Unit = ()
 def effect[A](dep: Signal[A])(f: A => Unit): Unit = ()
 
 // TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
@@ -22,7 +22,7 @@ def effect[A](dep: Signal[A])(f: A => Unit): Unit = ()
 [2..22#def effect[[#A1#, ]]([#dep1: ReactiveValue[A1]#, ])(f: ([#A1#, ]) => Unit): Unit = ()
 #
 ]
-def layoutEffect[A](dep: Var[A])(f:    A => Unit): Unit = ()
+def layoutEffect[A](dep: State[A])(f:  A => Unit): Unit = ()
 def layoutEffect[A](dep: Signal[A])(f: A => Unit): Unit = ()
 
 // TODO: Once scala.util.TupledFunction becomes stable in Scala 3 (marked @experimental
