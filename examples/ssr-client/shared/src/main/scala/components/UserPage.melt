@@ -1,8 +1,8 @@
 <script lang="scala" props="Props">
   case class Props(initialUsers: List[User] = Nil)
 
-  val users    = State(props.initialUsers)
-  val loaded   = State(props.initialUsers.nonEmpty)
+  val users    = State(initialUsers)
+  val loaded   = State(initialUsers.nonEmpty)
   val newName  = State("")
   val newEmail = State("")
   val newRole  = State("Developer")

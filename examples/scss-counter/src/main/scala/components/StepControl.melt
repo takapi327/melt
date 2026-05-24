@@ -3,9 +3,9 @@ case class Props(count: State[Int], step: Int)
 </script>
 
 <div class="step-control">
-  <button class="step-btn" onclick={_ => props.count.update(_ - props.step)}>−{props.step}</button>
-  <span class="step-value">{props.count}</span>
-  <button class="step-btn" onclick={_ => props.count.update(_ + props.step)}>+{props.step}</button>
+  <button class="step-btn" onclick={_ => count.update(_ - step)}>−{step}</button>
+  <span class="step-value">{count}</span>
+  <button class="step-btn" onclick={_ => count.update(_ + step)}>+{step}</button>
 </div>
 
 <style lang="scss">

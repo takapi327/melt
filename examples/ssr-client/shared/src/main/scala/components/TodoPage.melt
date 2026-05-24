@@ -1,9 +1,9 @@
 <script lang="scala" props="Props">
   case class Props(initialTodos: List[Todo] = Nil)
 
-  val todos   = State(props.initialTodos)
+  val todos   = State(initialTodos)
   val newText = State("")
-  val loaded  = State(props.initialTodos.nonEmpty)
+  val loaded  = State(initialTodos.nonEmpty)
 
   val totalCount = todos.map(_.size)
   val doneCount  = todos.map(_.count(_.done))

@@ -208,8 +208,8 @@ case class Props(items: State[List[Todo]], renderItem: Snippet[Todo])
 </script>
 
 <ul>
-  {props.items.map((item: Todo) =>
-    <li>{@render props.renderItem(item)}</li>
+  {items.map((item: Todo) =>
+    <li>{@render renderItem(item)}</li>
   )}
 </ul>
 ```

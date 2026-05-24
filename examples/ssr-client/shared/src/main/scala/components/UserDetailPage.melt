@@ -1,8 +1,8 @@
 <script lang="scala" props="Props">
   case class Props(userId: Int = 0, initialUser: Option[User] = None)
 
-  val user      = State(props.initialUser)
-  val loaded    = State(props.initialUser.isDefined)
+  val user      = State(initialUser)
+  val loaded    = State(initialUser.isDefined)
   val editing   = State(false)
   val editName  = State("")
   val editEmail = State("")
@@ -13,7 +13,7 @@
   val userRole:  Signal[String]  = user.map(_.map(_.role).getOrElse(""))
   val userExists: Signal[Boolean] = user.map(_.isDefined)
 
-  if !loaded.value then Api.fetchUser(props.userId, user, loaded)
+  if !loaded.value then Api.fetchUser(userId, user, loaded)
 
   def startEdit(): Unit =
     user.value.foreach { u =>
@@ -28,11 +28,11 @@
     val e = editEmail.value.trim
     val r = editRole.value
     if n.nonEmpty && e.nonEmpty then
-      Api.updateUser(props.userId, n, e, r, user)
+      Api.updateUser(userId, n, e, r, user)
       editing.set(false)
 
   def doDelete(): Unit =
-    Api.deleteUser(props.userId)
+    Api.deleteUser(userId)
     meltkit.Router.navigate("/users")
 </script>
 
@@ -68,7 +68,7 @@
         </div>
         <div class="field-row">
           <span class="field-label">ID</span>
-          <span>#{props.userId}</span>
+          <span>#{userId}</span>
         </div>
       </div>
       <div class="profile-actions">
