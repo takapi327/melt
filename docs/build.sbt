@@ -14,8 +14,6 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
   .in(file("."))
   .enablePlugins(MeltkitPlugin)
   .jsSettings(
-    meltcHydration                  := true,
-    scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
         .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
