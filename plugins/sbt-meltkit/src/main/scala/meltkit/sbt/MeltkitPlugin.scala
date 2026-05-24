@@ -9,8 +9,14 @@ package meltkit.sbt
 import sbt._
 import sbt.Keys._
 
-import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
+import org.scalajs.linker.interface.{ ModuleKind, Report, StandardConfig }
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{
+  fastLinkJS,
+  fullLinkJS,
+  scalaJSLinkerConfig,
+  scalaJSLinkerOutputDirectory,
+  scalaJSUseMainModuleInitializer
+}
 
 /** Target platform / rendering mode for a Meltkit project.
   *
@@ -78,13 +84,13 @@ object MeltkitPlugin extends AutoPlugin {
       */
     val meltMode = settingKey[Option[MeltMode]]("Target platform / rendering mode")
 
-    /** When `true` (the default), the plugin automatically adds the runtime
-      * library corresponding to [[meltMode]] to `libraryDependencies`.
+    /** When `true` (the default), the plugin automatically adds `meltkit` core
+      * and the adapter library corresponding to [[meltMode]] to `libraryDependencies`.
       *
-      * Set to `false` to manage the runtime dependency manually.
+      * Set to `false` to manage runtime dependencies manually.
       */
     val meltkitManageRuntimeDeps =
-      settingKey[Boolean]("Auto-add meltkit runtime dependency based on meltMode")
+      settingKey[Boolean]("Auto-add meltkit core and runtime adapter based on meltMode")
 
     // Convenience aliases so users can write `meltMode := Some(Browser)` without a prefix
     val Browser: MeltMode = MeltMode.Browser
@@ -230,15 +236,19 @@ object MeltkitPlugin extends AutoPlugin {
 
   }
 
-  import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcCompilerVersion }
+  private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
+
+  import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcHydration }
 
   import autoImport._
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    meltMode                 := None,
+    // JS projects default to Browser mode; JVM projects have no mode by default.
+    // Override explicitly for Node.js servers: meltMode := Some(Node)
+    meltMode                 := { if (hasScalaJSPlugin(thisProject.value)) Some(MeltMode.Browser) else None },
     meltkitManageRuntimeDeps := true,
 
-    // Override meltcCodegenMode based on meltMode
+    // Override meltc settings based on meltMode
     meltcCodegenMode := {
       meltMode.value match {
         case Some(MeltMode.Browser) => "spa"
@@ -247,16 +257,42 @@ object MeltkitPlugin extends AutoPlugin {
         case None                   => "auto"
       }
     },
+    // Browser mode always needs hydration exports; other modes do not
+    meltcHydration := meltMode.value.contains(MeltMode.Browser),
 
-    // ── meltMode: auto-add runtime dependency ─────────────────────────────
+    // Auto-configure Scala.js linker settings based on meltMode (JS projects only).
+    // Uses a fresh StandardConfig() to avoid referencing scalaJSLinkerConfig.value,
+    // which would be undefined for JVM projects in a crossProject setup.
+    // Users can further customize via ~= (applied at higher priority in build.sbt).
+    scalaJSUseMainModuleInitializer := {
+      meltMode.value match {
+        case Some(MeltMode.Node) => true  // Node.js server starts via main
+        case _                   => false // Browser hydration / JVM: no main initializer
+      }
+    },
+    scalaJSLinkerConfig := {
+      meltMode.value match {
+        case Some(MeltMode.Browser) => StandardConfig().withModuleKind(ModuleKind.ESModule)
+        case Some(MeltMode.Node)    => StandardConfig().withModuleKind(ModuleKind.CommonJSModule)
+        case _                      => StandardConfig()
+      }
+    },
+
+    // ── Auto-add meltkit core + adapter ───────────────────────────────────
     libraryDependencies ++= {
       if (!meltkitManageRuntimeDeps.value) Seq.empty
       else {
-        val v    = meltcCompilerVersion.value
+        val v    = pluginVersion
         val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        meltMode.value match {
+        // Core meltkit library (always added)
+        val core =
+          if (hasScalaJSPlugin(thisProject.value))
+            "io.github.takapi327" % s"meltkit_sjs1_$binV" % v
+          else
+            "io.github.takapi327" %% "meltkit" % v
+        // Adapter determined by meltMode
+        val adapter = meltMode.value match {
           case Some(MeltMode.Browser) =>
-            // Scala.js artefact — name must be specified explicitly
             Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
           case Some(MeltMode.Node) =>
             Seq("io.github.takapi327" % s"meltkit-adapter-node_sjs1_$binV" % v)
@@ -265,10 +301,21 @@ object MeltkitPlugin extends AutoPlugin {
           case None =>
             Seq.empty
         }
+        core +: adapter
       }
     },
 
-    meltkitAssetManifestClient  := None,
+    // For crossProject JVM side, auto-detect the JS counterpart via the
+    // "...JVM" → "...JS" naming convention generated by sbt-scalajs-crossproject.
+    // Non-crossProject JVM servers (e.g. "http4s-ssr-server") never end in "JVM"
+    // so they default to None and must set meltkitAssetManifestClient explicitly.
+    meltkitAssetManifestClient := {
+      val id = thisProject.value.id
+      if (!hasScalaJSPlugin(thisProject.value) && id.endsWith("JVM"))
+        Some(LocalProject(id.stripSuffix("JVM") + "JS"))
+      else
+        None
+    },
     meltkitAssetManifestPackage := "generated",
     meltkitAssetManifestObject  := "AssetManifest",
 

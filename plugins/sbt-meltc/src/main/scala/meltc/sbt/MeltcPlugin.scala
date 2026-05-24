@@ -13,8 +13,8 @@ import sbt.Keys._
 
 /** sbt-meltc plugin
   *
-  * Detects `.melt` files under `meltcSourceDirectory` and compiles each one
-  * to a `.scala` file via a forked JVM process running `melt.MeltcMain`.
+  * Detects `.melt` files under [[meltc.sbt.MeltcPlugin.autoImport.meltcSourceDirectories]] and
+  * compiles each one to a `.scala` file via a forked JVM process running `melt.MeltcMain`.
   *
   * == Setup ==
   *
@@ -34,9 +34,7 @@ import sbt.Keys._
   * `meltc`, `melt-runtime`, and `scala3-library`) using its own Ivy configuration
   * `meltc-compiler`, so you do not need to configure the classpath manually.
   *
-  * === Monorepo override ===
-  * When working inside the melt monorepo you can skip `publishLocal` by wiring
-  * the JVM full classpath directly:
+  * To skip `publishLocal` in a monorepo, override the compiler classpath directly:
   * {{{
   * meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
   * }}}
@@ -100,32 +98,12 @@ object MeltcPlugin extends AutoPlugin {
           "When set, only this component emits a @JSExportTopLevel hydration entry."
       )
 
-    /** Directory that contains `.melt` source files.
-      *
-      * Default: `src/main/scala`.
-      *
-      * In a `crossProject` layout this setting alone is insufficient because
-      * the platform-specific source directory does not contain `shared/` files.
-      * Use [[meltcSourceDirectories]] instead — it defaults to the union of
-      * all `Compile / unmanagedSourceDirectories`, which includes both the
-      * platform-specific and the shared source directory provided by
-      * sbt-crossproject.
-      *
-      * This key is kept for backwards compatibility; it seeds
-      * `meltcSourceDirectories` by default.
-      */
-    val meltcSourceDirectory =
-      settingKey[File]("Directory containing .melt source files (legacy single-dir form)")
-
     /** All directories to scan for `.melt` source files.
       *
       * Default: `Compile / unmanagedSourceDirectories` — this picks up both
       * the platform-specific source root (e.g. `jvm/src/main/scala`) and the
       * shared source root (e.g. `shared/src/main/scala`) automatically when
       * the project is a `crossProject` member.
-      *
-      * For single-platform projects this defaults to the single directory
-      * `Compile / sourceDirectory / "scala"`, preserving legacy behaviour.
       */
     val meltcSourceDirectories =
       settingKey[Seq[File]]("Directories containing .melt source files (crossProject-aware)")
@@ -142,16 +120,9 @@ object MeltcPlugin extends AutoPlugin {
     val meltcPackage =
       settingKey[String]("Package for generated Scala files")
 
-    /** Version of `meltc` to resolve as the compiler.
-      * Default: matches the sbt-meltc plugin version set via `-Dplugin.version`.
-      */
-    val meltcCompilerVersion =
-      settingKey[String]("Version of meltc to use as the compiler")
-
     /** Full classpath (jar files) used when forking the meltc JVM compiler.
       *
-      * By default this is resolved automatically from [[meltcCompilerVersion]]
-      * using the `meltc-compiler` Ivy configuration.
+      * By default this is resolved automatically using the `meltc-compiler` Ivy configuration.
       * Override to point at the meltc JVM output directly
       * (e.g. `(compilerJVM / Compile / fullClasspath).value.files`).
       */
@@ -208,9 +179,8 @@ object MeltcPlugin extends AutoPlugin {
     /** Preprocessor constant for SCSS support via Dart Sass.
       *
       * Requires the `melt-compiler-sass` artifact on the compiler classpath.
-      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)` and
-      * [[meltcManagePreprocessorDeps]] is `true` (the default), the plugin adds
-      * `melt-compiler-css` and `melt-compiler-sass` to the compiler classpath automatically.
+      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)`, the plugin
+      * adds `melt-compiler-css` and `melt-compiler-sass` to the compiler classpath automatically.
       *
       * {{{
       * meltcStylePreprocessor := Some(SassPreprocessor)
@@ -218,46 +188,11 @@ object MeltcPlugin extends AutoPlugin {
       */
     val SassPreprocessor: String = "melt.sass.SassPreprocessor"
 
-    /** When `true` (the default), the plugin automatically adds `melt-codegen_3`
-      * to the `meltc-compiler` Ivy configuration so it is resolved and placed on
-      * [[meltcCompilerClasspath]].
-      *
-      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
-      * for example, in a monorepo where you wire the classpath directly from
-      * source projects:
-      * {{{
-      * meltcManageCompilerDeps    := false,
-      * meltcCompilerClasspath     := (codegen.jvm / Compile / fullClasspath).value.files
-      * }}}
-      */
-    val meltcManageCompilerDeps =
-      settingKey[Boolean](
-        "When true, automatically resolve melt-codegen_3 via Ivy. Set false when providing meltcCompilerClasspath manually."
-      )
-
-    /** When `true` (the default), the plugin automatically adds the required
-      * preprocessor JARs (e.g. `melt-compiler-css_3`, `melt-compiler-sass_3`) to the
-      * `meltc-compiler` Ivy configuration so they are resolved and placed on
-      * [[meltcCompilerClasspath]].
-      *
-      * Set to `false` when you manage [[meltcCompilerClasspath]] manually —
-      * for example, in a monorepo where you wire the classpath directly from
-      * source projects:
-      * {{{
-      * meltcManagePreprocessorDeps := false,
-      * meltcStylePreprocessor      := Some(SassPreprocessor),
-      * meltcCompilerClasspath      := (compiler.jvm / Compile / fullClasspath).value.files ++
-      *                                (`compiler-sass` / Compile / fullClasspath).value.files
-      * }}}
-      */
-    val meltcManagePreprocessorDeps =
-      settingKey[Boolean](
-        "When true, automatically resolve preprocessor JARs via Ivy. Set false when providing meltcCompilerClasspath manually."
-      )
-
   }
 
   import autoImport._
+
+  private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
   /** Class name of Scala.js's sbt plugin. We check for this by string rather
     * than importing the class, so sbt-meltc does not need to declare a hard
@@ -270,42 +205,25 @@ object MeltcPlugin extends AutoPlugin {
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    meltcHydration              := false,
-    meltcHydrationRoot          := None,
-    meltcStylePreprocessor      := None,
-    meltcManageCompilerDeps     := true,
-    meltcManagePreprocessorDeps := true,
-    meltcCodegenMode            := "auto",
-    meltcSourceDirectory        := (Compile / sourceDirectory).value / "scala",
-    meltcSourceDirectories      := {
-      val unmanaged = (Compile / unmanagedSourceDirectories).value
-      val legacy    = meltcSourceDirectory.value
-      (unmanaged ++ (if (unmanaged.contains(legacy)) Nil else Seq(legacy))).distinct
-    },
-    meltcOutputDirectory := (Compile / sourceManaged).value / "meltc",
-    meltcPackage         := "",
-    meltcCompilerVersion := sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT"),
+    meltcHydration         := false,
+    meltcHydrationRoot     := None,
+    meltcStylePreprocessor := None,
+    meltcCodegenMode       := "auto",
+    meltcSourceDirectories := (Compile / unmanagedSourceDirectories).value,
+    meltcOutputDirectory   := (Compile / sourceManaged).value / "meltc",
+    meltcPackage           := "",
 
     ivyConfigurations += MeltcCompilerConfig,
+    libraryDependencies += ("io.github.takapi327" % "melt-codegen_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
     libraryDependencies ++= {
-      if (!meltcManageCompilerDeps.value) Seq.empty
-      else {
-        val v = meltcCompilerVersion.value
-        Seq(("io.github.takapi327" % "melt-codegen_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig)
+      meltcStylePreprocessor.value match {
+        case Some(cls) if cls == SassPreprocessor =>
+          Seq(
+            ("io.github.takapi327" % "melt-compiler-css_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
+            ("io.github.takapi327" % "melt-compiler-sass_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig
+          )
+        case _ => Seq.empty
       }
-    },
-    libraryDependencies ++= {
-      if (!meltcManagePreprocessorDeps.value) Seq.empty
-      else
-        meltcStylePreprocessor.value match {
-          case Some(cls) if cls == SassPreprocessor =>
-            val v = meltcCompilerVersion.value
-            Seq(
-              ("io.github.takapi327" % "melt-compiler-css_3"  % v cross CrossVersion.disabled) % MeltcCompilerConfig,
-              ("io.github.takapi327" % "melt-compiler-sass_3" % v cross CrossVersion.disabled) % MeltcCompilerConfig
-            )
-          case _ => Seq.empty
-        }
     },
     meltcCompilerClasspath := update.value.select(
       configurationFilter(MeltcCompilerConfig.name)
