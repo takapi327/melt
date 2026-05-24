@@ -14,9 +14,10 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
   .in(file("."))
   .enablePlugins(MeltkitPlugin)
   .jsSettings(
+    // MeltkitPlugin sets ModuleKind.ESModule for Browser mode automatically.
+    // Only SmallModulesFor needs to be specified here.
     scalaJSLinkerConfig ~= {
-      _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
+      _.withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
     }
   )
   .jvmSettings(

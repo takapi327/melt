@@ -9,8 +9,14 @@ package meltkit.sbt
 import sbt._
 import sbt.Keys._
 
-import org.scalajs.linker.interface.Report
-import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{ fastLinkJS, fullLinkJS, scalaJSLinkerOutputDirectory }
+import org.scalajs.linker.interface.{ ModuleKind, Report, StandardConfig }
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{
+  fastLinkJS,
+  fullLinkJS,
+  scalaJSLinkerConfig,
+  scalaJSLinkerOutputDirectory,
+  scalaJSUseMainModuleInitializer
+}
 
 /** Target platform / rendering mode for a Meltkit project.
   *
@@ -253,6 +259,24 @@ object MeltkitPlugin extends AutoPlugin {
     },
     // Browser mode always needs hydration exports; other modes do not
     meltcHydration := meltMode.value.contains(MeltMode.Browser),
+
+    // Auto-configure Scala.js linker settings based on meltMode (JS projects only).
+    // Uses a fresh StandardConfig() to avoid referencing scalaJSLinkerConfig.value,
+    // which would be undefined for JVM projects in a crossProject setup.
+    // Users can further customize via ~= (applied at higher priority in build.sbt).
+    scalaJSUseMainModuleInitializer := {
+      meltMode.value match {
+        case Some(MeltMode.Node) => true  // Node.js server starts via main
+        case _                   => false // Browser hydration / JVM: no main initializer
+      }
+    },
+    scalaJSLinkerConfig := {
+      meltMode.value match {
+        case Some(MeltMode.Browser) => StandardConfig().withModuleKind(ModuleKind.ESModule)
+        case Some(MeltMode.Node)    => StandardConfig().withModuleKind(ModuleKind.CommonJSModule)
+        case _                      => StandardConfig()
+      }
+    },
 
     // ── Auto-add meltkit core + adapter ───────────────────────────────────
     libraryDependencies ++= {

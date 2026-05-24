@@ -3,7 +3,6 @@ name         := "hello-meltkit"
 
 enablePlugins(ScalaJSPlugin, MeltkitPlugin)
 
-scalaJSUseMainModuleInitializer := true
 meltMode := Some(Browser)
 
 libraryDependencies += "io.github.takapi327" %%% "melt-runtime" %
