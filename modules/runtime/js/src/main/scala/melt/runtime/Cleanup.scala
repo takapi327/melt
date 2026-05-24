@@ -6,7 +6,6 @@
 
 package melt.runtime
 
-import scala.annotation.targetName
 import scala.collection.mutable
 
 /** Scoped cleanup mechanism for component subscription management.
@@ -78,32 +77,29 @@ def onCleanup(f: () => Unit): Unit = Cleanup.register(f)
   *   val ref   = Ref[dom.Element]()
   *   val width = State(0)
   *
-  *   onMount { () =>
+  *   onMount {
   *     width.set(ref.value.getBoundingClientRect().width.toInt)
   *   }
   * </script>
   * }}}
   */
-def onMount(fn: () => Unit): Unit =
-  OnMount.register(() =>
-    fn(); None
-  )
+def onMount(fn: => Unit): Unit =
+  OnMount.register { _ => fn }
 
 /** Registers [fn] to run after this component is first inserted into the DOM.
   *
-  * If [fn] returns a cleanup function, that function is registered as a
-  * component destructor — equivalent to calling [[onCleanup]] inside [fn].
+  * The [[MountContext]] passed to [fn] provides [[MountContext.onCleanup]] for
+  * registering cleanup code that runs when the component is destroyed.
   *
   * {{{
   * <script lang="scala">
-  *   onMount { () =>
+  *   onMount { ctx =>
   *     val observer = new dom.IntersectionObserver(...)
   *     observer.observe(myEl)
-  *     () => observer.disconnect()  // runs on component destroy
+  *     ctx.onCleanup(() => observer.disconnect())
   *   }
   * </script>
   * }}}
   */
-@targetName("onMountWithCleanup")
-def onMount(fn: () => (() => Unit)): Unit =
-  OnMount.register(() => Some(fn()))
+def onMount(fn: MountContext => Unit): Unit =
+  OnMount.register(fn)
