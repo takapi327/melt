@@ -28,23 +28,28 @@ import scala.collection.mutable
   * when the component is destroyed.  If the owner is already destroyed when
   * [[flush]] runs, the cleanup is invoked immediately by [[OwnerNode.addCleanup]].
   */
+private final class MountContextImpl(owner: Option[OwnerNode]) extends MountContext:
+  def onCleanup(f: () => Unit): Unit =
+    owner.foreach(_.addCleanup(f))
+
 private[runtime] object OnMount:
 
   /** Pairs a pending callback with the [[OwnerNode]] that was current when it was registered. */
-  private final case class PendingMount(owner: Option[OwnerNode], fn: () => Option[() => Unit])
+  private final case class PendingMount(owner: Option[OwnerNode], fn: MountContext => Unit)
 
   private val pending = mutable.Queue[PendingMount]()
 
   /** Enqueues [fn] to run after the next [[Mount.apply]] call (or [[flush]]).
     * Captures the current [[Owner]] node so cleanup can be attributed correctly.
     */
-  def register(fn: () => Option[() => Unit]): Unit =
+  def register(fn: MountContext => Unit): Unit =
     pending.enqueue(PendingMount(Owner.current, fn))
 
   /** Runs all pending callbacks in FIFO order.
     *
-    * Any cleanup functions returned by callbacks are registered with their
-    * captured [[OwnerNode]] so they execute on component destruction.
+    * A [[MountContextImpl]] backed by the captured [[OwnerNode]] is created for
+    * each callback and passed in, so that any [[MountContext.onCleanup]] calls
+    * inside the callback are registered on the correct owner.
     *
     * Each callback is wrapped in a try-catch so one failing mount hook does
     * not prevent the remaining hooks from running.
@@ -54,8 +59,6 @@ private[runtime] object OnMount:
   def flush(): Unit =
     while pending.nonEmpty do
       val PendingMount(owner, fn) = pending.dequeue()
-      try
-        fn().foreach { cleanup =>
-          owner.foreach(_.addCleanup(cleanup))
-        }
+      val ctx                     = new MountContextImpl(owner)
+      try fn(ctx)
       catch case _: Throwable => ()

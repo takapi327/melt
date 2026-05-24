@@ -384,21 +384,19 @@ layoutEffect(count) { n =>
 
 ```scala
 // DOM 挿入後に一度だけ実行
-onMount { () =>
+onMount {
   fetchData()
 }
 
-// クリーンアップ関数を返すと、コンポーネント破棄時に呼ばれる
-onMount { () =>
+// クリーンアップが必要な場合は ctx.onCleanup で登録
+onMount { ctx =>
   val observer = new dom.IntersectionObserver(...)
   observer.observe(myEl)
-  () => observer.disconnect()
+  ctx.onCleanup(() => observer.disconnect())
 }
 
 // コンポーネント破棄時に実行（subscribe の解除など）
-onCleanup { () =>
-  subscription.cancel()
-}
+onCleanup(() => subscription.cancel())
 
 // 次の DOM 更新を待つ
 tick().foreach { _ => ... }

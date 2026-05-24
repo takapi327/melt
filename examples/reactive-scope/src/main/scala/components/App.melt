@@ -85,11 +85,11 @@ def stop3(): Unit =
 
 // ── Panel 4: onMount integration ─────────────────────────────────────────────
 // Start a ReactiveScope when the component mounts and release it automatically
-// on unmount by returning the cancel function from onMount.
+// on unmount by registering the cancel function via ctx.onCleanup.
 
 val elapsed = State(0)
 
-onMount { () =>
+onMount { ctx =>
   val program =
     for
       _ <- ReactiveScope.make(setInterval(1000.0) { elapsed.update(_ + 1) })(clearInterval)
@@ -97,7 +97,7 @@ onMount { () =>
              org.scalajs.dom.console.log(s"[onMount scope] elapsed = $n s")
            }
     yield ()
-  program.allocated
+  ctx.onCleanup(program.allocated)
 }
 </script>
 

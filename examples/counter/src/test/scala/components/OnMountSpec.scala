@@ -16,7 +16,7 @@ import melt.runtime.*
   *   - NOT called before Mount.apply (i.e. during create())
   *   - Called synchronously after Mount.apply
   *   - Called in child-before-parent order for nested components
-  *   - Able to register cleanup functions that run on Lifecycle.destroyTree
+  *   - Able to register cleanup functions via ctx.onCleanup that run on Lifecycle.destroyTree
   */
 class OnMountSpec extends munit.FunSuite:
 
@@ -33,7 +33,7 @@ class OnMountSpec extends munit.FunSuite:
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
-    onMount(() => ran = true)
+    onMount { ran = true }
 
     assert(!ran, "onMount should not fire during create()")
 
@@ -47,7 +47,7 @@ class OnMountSpec extends munit.FunSuite:
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
-    onMount(() => ran = true)
+    onMount { ran = true }
     Mount(container, el)
 
     assert(ran, "onMount should fire after Mount.apply")
@@ -59,9 +59,9 @@ class OnMountSpec extends munit.FunSuite:
     val el        = dom.document.createElement("div")
     val container = makeContainer()
 
-    onMount(() => count += 1)
-    onMount(() => count += 1)
-    onMount(() => count += 1)
+    onMount { count += 1 }
+    onMount { count += 1 }
+    onMount { count += 1 }
     Mount(container, el)
 
     assertEquals(count, 3)
@@ -78,12 +78,8 @@ class OnMountSpec extends munit.FunSuite:
 
     // Simulate parent create() calling child create() first (recursive)
     // child registers first → dequeued first → child-before-parent
-    onMount(() =>
-      order += "child"; ()
-    )
-    onMount(() =>
-      order += "parent"; ()
-    )
+    onMount { order += "child"; () }
+    onMount { order += "parent"; () }
 
     parent.appendChild(child)
     Mount(container, parent)
@@ -92,9 +88,9 @@ class OnMountSpec extends munit.FunSuite:
     Lifecycle.destroyTree(container)
   }
 
-  // ── Cleanup returned from onMount ─────────────────────────────────────────
+  // ── ctx.onCleanup registration ────────────────────────────────────────────
 
-  test("cleanup returned from onMount runs on Lifecycle.destroyTree") {
+  test("cleanup registered via ctx.onCleanup runs on Lifecycle.destroyTree") {
     var mounted   = false
     var destroyed = false
     val container = makeContainer()
@@ -102,9 +98,9 @@ class OnMountSpec extends munit.FunSuite:
     // onMount must be called inside Owner.withNew so the cleanup owner is captured
     val (el, owner) = Owner.withNew {
       val el = dom.document.createElement("div")
-      onMount { () =>
-        mounted         = true
-        () => destroyed = true
+      onMount { ctx =>
+        mounted = true
+        ctx.onCleanup(() => { destroyed = true })
       }
       el
     }
@@ -116,17 +112,38 @@ class OnMountSpec extends munit.FunSuite:
 
     Lifecycle.destroyTree(container)
 
-    assert(destroyed, "cleanup returned from onMount should run on destroyTree")
+    assert(destroyed, "cleanup registered via ctx.onCleanup should run on destroyTree")
   }
 
-  test("void onMount does not register a cleanup") {
+  test("multiple ctx.onCleanup calls all run") {
+    val log       = scala.collection.mutable.ListBuffer.empty[String]
+    val container = makeContainer()
+
+    val (el, owner) = Owner.withNew {
+      val el = dom.document.createElement("div")
+      onMount { ctx =>
+        ctx.onCleanup(() => { log += "first" })
+        ctx.onCleanup(() => { log += "second" })
+        ctx.onCleanup(() => { log += "third" })
+      }
+      el
+    }
+    Lifecycle.register(el, owner)
+    Mount(container, el)
+
+    Lifecycle.destroyTree(container)
+
+    // All three cleanups should run (LIFO order per OwnerNode.destroy)
+    assertEquals(log.toSet, Set("first", "second", "third"))
+  }
+
+  test("onMount without ctx.onCleanup does not register a cleanup") {
     var ran       = false
     val container = makeContainer()
 
-    // void overload: onMount(() => Unit)
     val (el, owner) = Owner.withNew {
       val el = dom.document.createElement("div")
-      onMount(() => ran = true)
+      onMount { ran = true }
       el
     }
     Lifecycle.register(el, owner)

@@ -6,8 +6,6 @@
 
 package melt.runtime
 
-import scala.annotation.targetName
-
 /** JVM no-op implementations of `onMount`.
   *
   * SSR has no DOM lifecycle — the HTML string is generated once and sent to
@@ -16,7 +14,6 @@ import scala.annotation.targetName
   * wait for Phase D / MeltKit which introduces a dedicated `load()` hook.
   * See `docs/meltc-ssr-design.md` §10.1.
   */
-def onMount(fn: () => Unit): Unit = ()
+def onMount(fn: => Unit): Unit = ()
 
-@targetName("onMountWithCleanup")
-def onMount(fn: () => (() => Unit)): Unit = ()
+def onMount(fn: MountContext => Unit): Unit = ()
