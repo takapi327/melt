@@ -232,7 +232,7 @@ object MeltkitPlugin extends AutoPlugin {
 
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
-  import meltc.sbt.MeltcPlugin.autoImport.meltcCodegenMode
+  import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcHydration }
 
   import autoImport._
 
