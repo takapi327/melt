@@ -118,6 +118,7 @@ object SsrCodeGen extends CodeGen:
       tracker ++= s"""    renderer.addImport("${ escapeString(path) }")\n"""
     }
     tracker ++= "\n"
+    if propsType.isDefined then tracker ++= "    import props.*\n\n"
 
     // ── Script body section — mark source line for position mapping ─────────
     if scriptBodyRest.nonEmpty then

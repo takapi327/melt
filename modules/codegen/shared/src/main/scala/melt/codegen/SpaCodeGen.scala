@@ -127,6 +127,7 @@ object SpaCodeGen extends CodeGen:
     tracker ++= "    val (_result, _owner) = Owner.withNew {\n"
 
     if ast.style.isDefined then tracker ++= "    Style.inject(_scopeId, _css)\n"
+    if propsType.isDefined then tracker ++= "    import props.*\n"
 
     // ── Script body section — mark source line for position mapping ─────────
     ast.script.foreach { sc =>
