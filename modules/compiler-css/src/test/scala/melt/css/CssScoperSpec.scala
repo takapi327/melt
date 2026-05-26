@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.codegen
+package melt.css
 
 class CssScoperSpec extends munit.FunSuite:
 
@@ -160,8 +160,6 @@ class CssScoperSpec extends munit.FunSuite:
     assertEquals(scope("   "), "")
   }
 
-  // ── Real-world hello-world CSS ────────────────────────────────────────
-
   // ── @supports ────────────────────────────────────────────────────────
 
   test("@supports — selectors inside are scoped") {
@@ -179,8 +177,6 @@ class CssScoperSpec extends munit.FunSuite:
     assert(result.contains("@media (min-width: 600px)"), result)
     assert(result.contains(".nav.melt-abc123"), result)
   }
-
-  // ── Real-world hello-world CSS ────────────────────────────────────────
 
   // ── CSS custom properties transparency ──────────────────────────────
 
@@ -206,4 +202,99 @@ class CssScoperSpec extends munit.FunSuite:
     assert(result.contains("p.melt-abc123"), result)
     assert(result.contains("color: #ff3e00;"), result)
     assert(result.contains("color: #555;"), result)
+  }
+
+  // ── CSS Nesting ──────────────────────────────────────────────────────
+
+  test("CSS Nesting: & .title — last segment scoped") {
+    val result = scope(".card { color: red; & .title { font-size: 1em; } }")
+    assert(result.contains(".card.melt-abc123"), result)
+    assert(result.contains("& .title.melt-abc123"), result)
+  }
+
+  test("CSS Nesting: &:hover — pseudo-class before scope insertion") {
+    val result = scope(".btn { &:hover { opacity: 0.8; } }")
+    assert(result.contains("&.melt-abc123:hover") || result.contains("&:hover.melt-abc123"), result)
+  }
+
+  test("CSS Nesting: nested @media scopes inner rules") {
+    val result = scope(".card { color: red; @media (max-width: 600px) { display: none; } }")
+    assert(result.contains(".card.melt-abc123"), result)
+    assert(result.contains("@media (max-width: 600px)"), result)
+  }
+
+  // ── Block-less at-rules ───────────────────────────────────────────────
+
+  test("@layer declaration (bodyless) is preserved as-is") {
+    val result = scope("@layer base, components; h1 { color: red; }")
+    assert(result.contains("@layer base, components;"), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  test("@import is preserved as-is") {
+    val result = scope("""@import url("reset.css"); h1 { color: red; }""")
+    assert(result.contains("""@import url("reset.css");"""), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  test("@charset is preserved as-is") {
+    val result = scope("""@charset "UTF-8"; h1 { color: red; }""")
+    assert(result.contains("""@charset "UTF-8";"""), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  // ── @layer block ─────────────────────────────────────────────────────
+
+  test("@layer block — inner selectors are scoped") {
+    val result = scope("@layer base { h1 { color: red; } }")
+    assert(result.contains("@layer base"), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  // ── @container ────────────────────────────────────────────────────────
+
+  test("@container — inner selectors are scoped") {
+    val result = scope("@container sidebar (min-width: 700px) { .card { display: flex; } }")
+    assert(result.contains("@container sidebar (min-width: 700px)"), result)
+    assert(result.contains(".card.melt-abc123"), result)
+  }
+
+  // ── @starting-style ───────────────────────────────────────────────────
+
+  test("@starting-style — inner selectors are scoped") {
+    val result = scope("@starting-style { .dialog { opacity: 0; } }")
+    assert(result.contains("@starting-style"), result)
+    assert(result.contains(".dialog.melt-abc123"), result)
+  }
+
+  // ── PassthroughAtRules (full list) ────────────────────────────────────
+
+  test("@page — passthrough (body not scoped)") {
+    val result = scope("@page { margin: 1cm; } h1 { color: red; }")
+    assert(result.contains("@page"), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  test("@counter-style — passthrough") {
+    val result = scope(
+      "@counter-style thumbs { system: cyclic; symbols: '\\1F44D'; suffix: ' '; } h1 { color: red; }"
+    )
+    assert(result.contains("@counter-style thumbs"), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  test("@property — passthrough") {
+    val result = scope(
+      "@property --my-color { syntax: '<color>'; inherits: false; initial-value: red; } h1 { color: red; }"
+    )
+    assert(result.contains("@property --my-color"), result)
+    assert(result.contains("h1.melt-abc123"), result)
+  }
+
+  test("@font-face content is NOT scoped") {
+    val result =
+      scope("""@font-face { font-family: "MyFont"; src: url("myfont.woff2"); } h1 { color: red; }""")
+    assert(result.contains("@font-face"), result)
+    assert(!result.contains("font-family.melt-abc123"), result)
+    assert(result.contains("h1.melt-abc123"), result)
   }

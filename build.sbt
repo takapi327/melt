@@ -86,7 +86,8 @@ lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/compiler-css"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name := "melt-compiler-css"
+    name                                    := "melt-compiler-css",
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
 

@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.codegen
+package melt.css
 
 /** Rewrites CSS selectors to include a scope class for component isolation.
   *
@@ -23,10 +23,42 @@ package melt.codegen
   *   - Pseudo-elements (`::before`, `::after`): scope inserted before the pseudo
   *   - `:global(...)`: inner selector emitted without scoping
   *   - Group selectors (`,`-separated): each part scoped independently
-  *   - `@media` / `@supports`: selectors inside are scoped, condition is preserved
-  *   - `@keyframes` / `@font-face`: passed through without scoping
+  *   - `@media` / `@supports` / `@layer` / `@container`: selectors inside are scoped
+  *   - `@keyframes` / `@font-face` / `@page` etc.: passed through without scoping
+  *   - CSS Nesting (`& .child {}`, `&:hover {}`): nested rules scoped recursively
+  *   - Block-less at-rules (`@layer base;`, `@import`, `@charset`): preserved as-is
   */
 object CssScoper:
+
+  /** Takes a CSS string and returns a scoped CSS string.
+    * The public API is unchanged.
+    */
+  def scope(css: String, scopeId: String): String =
+    if css.trim.isEmpty then return ""
+    val ast    = CssParser.parse(css)
+    val scoped = ast.map(scopeNode(_, scopeId))
+    CssSerializer.serialize(scoped)
+
+  // ── AST transformer ───────────────────────────────────────────────────────
+
+  private def scopeNodes(nodes: List[CssNode], scopeId: String): List[CssNode] =
+    nodes.map(scopeNode(_, scopeId))
+
+  private def scopeNode(node: CssNode, scopeId: String): CssNode = node match
+    case CssNode.StyleRule(selector, body) =>
+      CssNode.StyleRule(
+        scopeGroupSelector(selector, scopeId),
+        scopeNodes(body, scopeId) // CSS Nesting: recursively scope nested rules
+      )
+
+    case CssNode.AtRule(name, prelude, Some(body)) if !CssNode.PassthroughAtRules.contains(name) =>
+      CssNode.AtRule(name, prelude, Some(scopeNodes(body, scopeId)))
+
+    case other => other // RawText, Comment, AtRule(passthrough or bodyless)
+
+  // PassthroughAtRules references CssNode.PassthroughAtRules (defined centrally in CssAst.scala)
+
+  // ── Selector scoping ──────────────────────────────────────────────────────
 
   /** Pseudo-elements that require the scope class to be inserted before them. */
   private val PseudoElements: Set[String] = Set(
@@ -41,133 +73,7 @@ object CssScoper:
     "::file-selector-button"
   )
 
-  /** At-rules whose body content should NOT be scoped (no selectors inside). */
-  private val PassthroughAtRules: Set[String] = Set("keyframes", "font-face")
-
-  def scope(css: String, scopeId: String): String =
-    val buf = new StringBuilder
-    var i   = 0
-
-    while i < css.length do
-      skipWhitespace(css, i) match
-        case j if j >= css.length => i = j
-        case j                    =>
-          i = j
-          if css(i) == '/' && i + 1 < css.length && css(i + 1) == '*' then
-            val end        = css.indexOf("*/", i + 2)
-            val commentEnd = if end < 0 then css.length else end + 2
-            buf ++= css.substring(i, commentEnd)
-            i = commentEnd
-          else if css(i) == '@' then i = processAtRule(css, i, scopeId, buf)
-          else if css(i) == '}' then
-            buf += '}'
-            i += 1
-          else i = processRule(css, i, scopeId, buf)
-
-    buf.toString
-
-  // ── At-rule processing ────────────────────────────────────────────────────
-
-  private def processAtRule(css: String, start: Int, scopeId: String, buf: StringBuilder): Int =
-    // Read the at-rule name (e.g. "media", "keyframes", "supports")
-    var i    = start + 1 // skip '@'
-    val name = new StringBuilder
-    while i < css.length && css(i).isLetterOrDigit || (i < css.length && css(i) == '-') do
-      name += css(i)
-      i += 1
-
-    val ruleName      = name.toString
-    val isPassthrough = PassthroughAtRules.exists(n => ruleName.endsWith(n))
-
-    // Read until '{' to capture the at-rule condition
-    val condStart = i
-    while i < css.length && css(i) != '{' do i += 1
-    val condition = css.substring(condStart, i).trim
-
-    if i >= css.length then
-      buf ++= css.substring(start, i)
-      return i
-
-    i += 1 // skip '{'
-
-    buf ++= s"@$ruleName"
-    if condition.nonEmpty then buf ++= s" $condition"
-    buf ++= " {\n"
-
-    if isPassthrough then
-      // Pass through the block content without scoping
-      var depth      = 1
-      val blockStart = i
-      while i < css.length && depth > 0 do
-        if css(i) == '{' then depth += 1
-        else if css(i) == '}' then depth -= 1
-        if depth > 0 then i += 1
-      buf ++= css.substring(blockStart, i)
-      buf += '}'
-      if i < css.length then i += 1
-    else
-      // Recursively scope the inner rules
-      var depth = 1
-      while i < css.length && depth > 0 do
-        val j = skipWhitespace(css, i)
-        i = j
-        if i >= css.length then ()
-        else if css(i) == '}' then
-          depth -= 1
-          if depth > 0 then
-            buf += '}'
-            i += 1
-          else
-            buf ++= "}\n"
-            i += 1
-        else if css(i) == '/' && i + 1 < css.length && css(i + 1) == '*' then
-          val end        = css.indexOf("*/", i + 2)
-          val commentEnd = if end < 0 then css.length else end + 2
-          buf ++= css.substring(i, commentEnd)
-          i = commentEnd
-        else if css(i) == '@' then i = processAtRule(css, i, scopeId, buf)
-        else i                       = processRule(css, i, scopeId, buf)
-
-    i
-
-  // ── Rule processing ──────────────────────────────────────────────────────
-
-  private def processRule(css: String, start: Int, scopeId: String, buf: StringBuilder): Int =
-    // Read selector(s) until '{'
-    var i      = start
-    val selBuf = new StringBuilder
-    while i < css.length && css(i) != '{' do
-      selBuf += css(i)
-      i += 1
-
-    if i >= css.length then
-      buf ++= css.substring(start, i)
-      return i
-
-    val rawSelector    = selBuf.toString.trim
-    val scopedSelector = scopeGroupSelector(rawSelector, scopeId)
-    buf ++= scopedSelector
-    buf ++= " {"
-
-    i += 1 // skip '{'
-
-    // Read block content until matching '}'
-    var depth = 1
-    while i < css.length && depth > 0 do
-      if css(i) == '{' then depth += 1
-      else if css(i) == '}' then depth -= 1
-      if depth > 0 then
-        buf += css(i)
-        i += 1
-
-    buf += '}'
-    if i < css.length then i += 1
-    buf += '\n'
-    i
-
-  // ── Selector scoping ────────────────────────────────────────────────────
-
-  /** Scopes a group selector (comma-separated). */
+  /** Scopes each part of a group selector (comma-separated). */
   private def scopeGroupSelector(selector: String, scopeId: String): String =
     splitGroupSelector(selector).map(s => scopeSingleSelector(s.trim, scopeId)).mkString(", ")
 
@@ -212,7 +118,9 @@ object CssScoper:
       case (seg, comb) =>
         result ++= seg
         result += ' '
-        if comb.nonEmpty then result ++= comb; result += ' '
+        if comb.nonEmpty then
+          result ++= comb
+          result += ' '
     }
     result ++= last
     result.toString
@@ -321,10 +229,3 @@ object CssScoper:
           selector.substring(0, lastColon) + scopeClass + selector.substring(lastColon)
         else selector + scopeClass
       }
-
-  // ── Helpers ─────────────────────────────────────────────────────────────
-
-  private def skipWhitespace(css: String, start: Int): Int =
-    var i = start
-    while i < css.length && css(i).isWhitespace do i += 1
-    i
