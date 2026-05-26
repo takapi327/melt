@@ -32,8 +32,7 @@ object CssParser:
         ctx.readComment() match
           case Some(c) => nodes += CssNode.Comment(c)
           case None    => ()
-      else if ctx.current == '@' then
-        nodes += parseAtRule(ctx)
+      else if ctx.current == '@' then nodes += parseAtRule(ctx)
       else
         // セレクターまたは宣言: { が出現すればルール、なければ宣言 (RawText)
         parseRuleOrRaw(ctx) match
@@ -49,8 +48,7 @@ object CssParser:
     ctx.skipWhitespace()
     // prelude = テキストを { または ; まで読む
     val prelude = ctx.readUntil(stopChars = Set('{', ';'))
-    if ctx.isEof then
-      CssNode.AtRule(name, prelude.trim, body = None)
+    if ctx.isEof then CssNode.AtRule(name, prelude.trim, body = None)
     else if ctx.current == ';' then
       ctx.advance() // skip ';'
       CssNode.AtRule(name, prelude.trim, body = None)
@@ -103,10 +101,8 @@ object CssParser:
     while !ctx.isEof && ctx.current != '}' do
       ctx.skipWhitespace()
       if ctx.isEof || ctx.current == '}' then ()
-      else if ctx.matchComment() then
-        ctx.readComment().foreach(c => nodes += CssNode.Comment(c))
-      else if ctx.current == '@' then
-        nodes += parseAtRule(ctx)
+      else if ctx.matchComment() then ctx.readComment().foreach(c => nodes += CssNode.Comment(c))
+      else if ctx.current == '@' then nodes += parseAtRule(ctx)
       else
         // { と ; のどちらが先に出現するかで分岐
         val peek = ctx.peekUntil(stopChars = Set('{', ';', '}'))
@@ -132,9 +128,9 @@ object CssParser:
 private class ParseContext(src: String):
   private var pos: Int = 0
 
-  def isEof: Boolean  = pos >= src.length
-  def current: Char   = src(pos)
-  def advance(): Unit = pos += 1
+  def isEof:     Boolean = pos >= src.length
+  def current:   Char    = src(pos)
+  def advance(): Unit    = pos += 1
 
   /** 空白をスキップ */
   def skipWhitespace(): Unit =
@@ -202,14 +198,14 @@ private class ParseContext(src: String):
     while i < src.length do
       src(i) match
         case c if depth == 0 && stopChars.contains(c) => return c
-        case '"' | '\'' =>
+        case '"' | '\''                               =>
           val q = src(i); i += 1
           while i < src.length && src(i) != q do
             if src(i) == '\\' then i += 1
             i += 1
           i += 1
-        case '(' | '[' => depth += 1; i += 1
-        case ')' | ']' => depth -= 1; i += 1
+        case '(' | '['                                      => depth += 1; i += 1
+        case ')' | ']'                                      => depth -= 1; i += 1
         case '/' if i + 1 < src.length && src(i + 1) == '*' =>
           val end = src.indexOf("*/", i + 2)
           i = if end < 0 then src.length else end + 2
@@ -242,8 +238,7 @@ private class ParseContext(src: String):
     if !isEof && src(pos) == ';' then
       pos += 1
       text + ";"
-    else
-      text
+    else text
 
   /** `}` が現れるまでを生テキストとして読む (パススルーブロック用)。
     *

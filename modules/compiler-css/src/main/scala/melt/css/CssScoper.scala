@@ -100,8 +100,7 @@ object CssScoper:
     if selector.isEmpty then return selector
 
     // Handle :global(...) — strip wrapper and emit unscoped
-    if selector.startsWith(":global(") && selector.endsWith(")") then
-      return selector.substring(8, selector.length - 1)
+    if selector.startsWith(":global(") && selector.endsWith(")") then return selector.substring(8, selector.length - 1)
 
     // Handle selectors that contain :global() as part of a compound selector
     val globalIdx = selector.indexOf(":global(")
