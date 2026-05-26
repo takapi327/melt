@@ -16,18 +16,18 @@ case class IrComponent(
   pkg:               String,
   scopeId:           String,
   propsType:         Option[IrPropsType],
-  scriptBody:        String,             // Scala code (verbatim, not parsed)
-  fileImports:       List[String],       // import "path/to/style.css"
-  typeDecls:         List[String],       // top-level type declarations (SSR: hoisted out of apply())
+  scriptBody:        String, // Scala code (verbatim, not parsed)
+  fileImports:       List[String], // import "path/to/style.css"
+  typeDecls:         List[String], // top-level type declarations (SSR: hoisted out of apply())
   style:             Option[IrStyle],
   template:          List[IrNode],
-  hoistedNodes:      List[IrHoistedNode] = Nil,  // populated by StaticHoistPass
+  hoistedNodes:      List[IrHoistedNode] = Nil,                  // populated by StaticHoistPass
   hydration:         Boolean,
   sourcePath:        String,
   sourceMap:         IrSourceMap,
-  scriptBodyLine:    Int = 1,            // 1-based line of script body start (for source-map)
-  templateStartLine: Int = 1,            // 1-based line of template start (for source-map)
-  nodePositions:     IrNodePositions = IrNodePositions.empty  // per-node source positions built by AstToIr
+  scriptBodyLine:    Int                 = 1,                    // 1-based line of script body start (for source-map)
+  templateStartLine: Int                 = 1,                    // 1-based line of template start (for source-map)
+  nodePositions:     IrNodePositions     = IrNodePositions.empty // per-node source positions built by AstToIr
 )
 
 /** Maps [[IrNode]] instances (by reference identity) to their source (line, col).
@@ -45,13 +45,13 @@ final class IrNodePositions(
     if pos == null then None else Some(pos)
 
 object IrNodePositions:
-  val empty: IrNodePositions = new IrNodePositions(new java.util.IdentityHashMap)
-  def builder(): Builder     = new Builder
+  val empty:     IrNodePositions = new IrNodePositions(new java.util.IdentityHashMap)
+  def builder(): Builder         = new Builder
 
   final class Builder:
     private val map = new java.util.IdentityHashMap[AnyRef, (Int, Int)]
-    def put(node: IrNode, line: Int, col: Int): Unit = map.put(node, (line, col))
-    def build(): IrNodePositions                     = new IrNodePositions(map)
+    def put(node: IrNode, line: Int, col: Int): Unit            = map.put(node, (line, col))
+    def build():                                IrNodePositions = new IrNodePositions(map)
 
 /** A static element that has been lifted to object level by [[melt.ir.opt.StaticHoistPass]].
   * The [[melt.emit.SpaEmitter]] emits:
@@ -64,14 +64,14 @@ case class IrHoistedNode(id: String, node: IrNode.IrStaticElement)
 
 case class IrPropsType(
   typeName:        String,
-  typeParams:      String,           // e.g. "[A]" or ""
-  baseName:        String,           // e.g. "Props" or "Config"
-  allHaveDefaults: Boolean,          // used for hydration fallback
-  scriptDecl:      String            // the case class declaration text
+  typeParams:      String,  // e.g. "[A]" or ""
+  baseName:        String,  // e.g. "Props" or "Config"
+  allHaveDefaults: Boolean, // used for hydration fallback
+  scriptDecl:      String   // the case class declaration text
 )
 
 case class IrStyle(
-  scopedCss: String,                  // already CSS-scoped via CssScoper
+  scopedCss: String, // already CSS-scoped via CssScoper
   scopeId:   String
 )
 

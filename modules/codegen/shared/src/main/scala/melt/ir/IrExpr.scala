@@ -19,5 +19,5 @@ package melt.ir
 opaque type ScalaExpr = String
 
 object ScalaExpr:
-  def apply(code: String): ScalaExpr = code
-  extension (e: ScalaExpr) def code: String = e
+  def apply(code: String):             ScalaExpr = code
+  extension (e:   ScalaExpr) def code: String    = e

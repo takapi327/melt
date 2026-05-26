@@ -14,7 +14,7 @@ import melt.ir.IrComponent
   * Each pass receives an [[IrComponent]] and returns a (possibly modified) one.
   */
 trait IrPass:
-  def name: String
+  def name:                 String
   def run(ir: IrComponent): IrComponent
 
 object IrOptimizer:

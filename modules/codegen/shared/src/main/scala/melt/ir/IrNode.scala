@@ -34,7 +34,7 @@ enum IrNode:
     */
   case IrStaticElement(
     tag:      String,
-    ns:       Option[String],         // "svg" | "math" | None
+    ns:       Option[String], // "svg" | "math" | None
     attrs:    List[IrAttr],
     children: List[IrNode],
     scopeId:  String
@@ -79,31 +79,31 @@ enum IrNode:
     props:        List[IrProp],
     children:     Option[IrChildrenSlot],
     spreadExpr:   Option[ScalaExpr] = None,
-    hasStyled:    Boolean           = false,  // `styled` BooleanAttr — add _scopeId class to root
-    bindThisExpr: Option[ScalaExpr] = None    // `bind:this={ref}` on a component
+    hasStyled:    Boolean           = false, // `styled` BooleanAttr — add _scopeId class to root
+    bindThisExpr: Option[ScalaExpr] = None   // `bind:this={ref}` on a component
   )
 
   // ── List rendering ────────────────────────────────────────────────────────
 
   /** `{items.value.map(item => <li>...</li>)}` — unkeyed list rendering (Bind.list) */
   case IrList(
-    source:   ScalaExpr,   // e.g. "todos"  (stripped of .value / .now())
-    renderFn: ScalaExpr    // e.g. "todo => { ... }" (the map lambda body)
+    source:   ScalaExpr, // e.g. "todos"  (stripped of .value / .now())
+    renderFn: ScalaExpr  // e.g. "todo => { ... }" (the map lambda body)
   )
 
   /** `{items.keyed(_.id).map(item => <li>...</li>)}` — keyed list rendering (Bind.each) */
   case IrKeyedList(
-    source:   ScalaExpr,   // e.g. "todos"
-    keyFn:    ScalaExpr,   // e.g. "_.id"
-    renderFn: ScalaExpr    // e.g. "todo => { ... }"
+    source:   ScalaExpr, // e.g. "todos"
+    keyFn:    ScalaExpr, // e.g. "_.id"
+    renderFn: ScalaExpr  // e.g. "todo => { ... }"
   )
 
   // ── Conditional rendering ─────────────────────────────────────────────────
 
   /** `{if cond then <A /> else <B />}` — conditional DOM rendering (Bind.show) */
   case IrConditional(
-    source:           Option[ScalaExpr],  // reactive source for Bind.show(v, render, anchor) overload; None = () overload
-    conditionAndBody: ScalaExpr           // the full `if/match` expression returning dom.Node
+    source: Option[ScalaExpr], // reactive source for Bind.show(v, render, anchor) overload; None = () overload
+    conditionAndBody: ScalaExpr // the full `if/match` expression returning dom.Node
     // ⚠ In Emitters, pattern variables are named (sourceOpt, condAndBody) to reflect that
     //   source is Option — do NOT call .code directly on source; always match on Some/None first.
   )
@@ -142,10 +142,10 @@ enum IrNode:
 
   /** `<melt:boundary onerror={h}> ... <melt:failed> ... </melt:boundary>` */
   case IrBoundary(
-    children:  List[IrNode],
-    pending:   Option[List[IrNode]],
-    failed:    Option[IrFailedBlock],
-    onError:   Option[ScalaExpr]
+    children: List[IrNode],
+    pending:  Option[List[IrNode]],
+    failed:   Option[IrFailedBlock],
+    onError:  Option[ScalaExpr]
   )
 
   /** `<melt:key this={keyExpr}>` — destroys and re-mounts on key change */
@@ -202,6 +202,7 @@ enum IrNode:
 enum IrInlineTemplatePart:
   /** A raw Scala code fragment (e.g. `items.map(item =>`) */
   case Code(code: String)
+
   /** An HTML fragment with children already lowered to [[IrNode]]. */
   case Html(nodes: List[IrNode])
 
@@ -222,9 +223,9 @@ extension (node: IrNode)
         pending  = e.pending.map(_.map(f)),
         failed   = e.failed.map(b => b.copy(children = b.children.map(f)))
       )
-    case e: IrNode.IrKeyBlock       => e.copy(children = e.children.map(f))
-    case e: IrNode.IrSnippetDef     => e.copy(children = e.children.map(f))
-    case leaf                       => leaf  // IrStaticText, IrDynamicText, IrHoistRef, etc.
+    case e: IrNode.IrKeyBlock   => e.copy(children = e.children.map(f))
+    case e: IrNode.IrSnippetDef => e.copy(children = e.children.map(f))
+    case leaf                   => leaf // IrStaticText, IrDynamicText, IrHoistRef, etc.
 
 /** Children slot passed to a component invocation.
   * Renamed from `IrChildren` to avoid ambiguity with the [[IrNode.IrChildren]]

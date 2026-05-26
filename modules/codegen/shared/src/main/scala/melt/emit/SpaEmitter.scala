@@ -28,7 +28,7 @@ object SpaEmitter:
     val ctr     = new Counter
 
     // ── package + imports ──────────────────────────────────────────────────
-    if ir.pkg.nonEmpty then tracker ++= s"package ${ir.pkg}\n\n"
+    if ir.pkg.nonEmpty then tracker ++= s"package ${ ir.pkg }\n\n"
 
     tracker ++= "import scala.language.implicitConversions\n"
     if ir.fileImports.nonEmpty then
@@ -38,20 +38,19 @@ object SpaEmitter:
     tracker ++= "import org.scalajs.dom\n"
     tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, State, Signal }\n"
     tracker ++= "import melt.runtime.*\n"
-    if ir.hydration && ir.propsType.isDefined then
-      tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
+    if ir.hydration && ir.propsType.isDefined then tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     tracker ++= "import melt.runtime.transition.*\n"
     tracker ++= "import melt.runtime.animate.*\n\n"
 
     // ── file-level JS imports ──────────────────────────────────────────────
     ir.fileImports.zipWithIndex.foreach { (path, idx) =>
-      tracker ++= s"""@js.native @JSImport("${escapeStr(path)}", JSImport.Namespace)\n"""
+      tracker ++= s"""@js.native @JSImport("${ escapeStr(path) }", JSImport.Namespace)\n"""
       tracker ++= s"private object _melt_import_$idx extends js.Object\n\n"
     }
 
     // ── object header ─────────────────────────────────────────────────────
-    tracker ++= s"object ${ir.objectName} {\n\n"
-    tracker ++= s"""  private val _scopeId = "${ir.scopeId}"\n\n"""
+    tracker ++= s"object ${ ir.objectName } {\n\n"
+    tracker ++= s"""  private val _scopeId = "${ ir.scopeId }"\n\n"""
 
     ir.style.foreach { s =>
       val css = escapeStr(s.scopedCss)
@@ -67,9 +66,9 @@ object SpaEmitter:
     // ── Props alias when baseName != "Props" ──────────────────────────────
     ir.propsType.foreach { pt =>
       if pt.baseName != "Props" then
-        tracker ++= s"  val Props = ${pt.baseName}\n"
-        if pt.typeParams.nonEmpty then tracker ++= s"  type Props${pt.typeParams} = ${pt.typeName}\n"
-        else tracker ++= s"  type Props = ${pt.baseName}\n"
+        tracker ++= s"  val Props = ${ pt.baseName }\n"
+        if pt.typeParams.nonEmpty then tracker ++= s"  type Props${ pt.typeParams } = ${ pt.typeName }\n"
+        else tracker ++= s"  type Props = ${ pt.baseName }\n"
         tracker += '\n'
     }
 
@@ -77,7 +76,7 @@ object SpaEmitter:
     if ir.hydration then
       ir.propsType.foreach { pt =>
         if pt.typeParams.isEmpty then
-          tracker ++= s"  private val _propsCodec: PropsCodec[${pt.typeName}] = PropsCodec.derived\n\n"
+          tracker ++= s"  private val _propsCodec: PropsCodec[${ pt.typeName }] = PropsCodec.derived\n\n"
       }
 
     // ── apply() signature ─────────────────────────────────────────────────
@@ -85,8 +84,8 @@ object SpaEmitter:
     ir.propsType match
       case Some(pt) =>
         if hasChildren then
-          tracker ++= s"  def apply${pt.typeParams}(props: ${pt.typeName}, children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
-        else tracker ++= s"  def apply${pt.typeParams}(props: ${pt.typeName}): dom.Element = {\n"
+          tracker ++= s"  def apply${ pt.typeParams }(props: ${ pt.typeName }, children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
+        else tracker ++= s"  def apply${ pt.typeParams }(props: ${ pt.typeName }): dom.Element = {\n"
       case None =>
         if hasChildren then
           tracker ++= "  def apply(children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
@@ -136,7 +135,7 @@ object SpaEmitter:
     // ── mount() ───────────────────────────────────────────────────────────
     ir.propsType match
       case Some(pt) =>
-        tracker ++= s"  def mount${pt.typeParams}(target: dom.Element, props: ${pt.typeName}): Unit = Mount(target, apply(props))\n\n"
+        tracker ++= s"  def mount${ pt.typeParams }(target: dom.Element, props: ${ pt.typeName }): Unit = Mount(target, apply(props))\n\n"
       case None =>
         tracker ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
@@ -178,297 +177,306 @@ object SpaEmitter:
     nodePos.get(node).foreach { case (l, c) => buf.markSourceLine(l, c) }
     node match
 
-    // ── Static text ──────────────────────────────────────────────────────
-    case IrNode.IrStaticText(content) =>
-      if content.isBlank then ""
-      else
-        val v       = ctr.nextTxt()
-        val escaped = escapeStr(content)
-        buf ++= s"""${indent}val $v = if Hydrating.isActive then Hydrating.textNode("$escaped") else dom.document.createTextNode("$escaped")\n"""
-        v
-
-    // ── Hoisted element reference ─────────────────────────────────────────
-    case IrNode.IrHoistRef(id) =>
-      val v = ctr.nextEl()
-      buf ++= s"${indent}val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
-      v
-
-    // ── Static element ────────────────────────────────────────────────────
-    case IrNode.IrStaticElement(tag, irNs, attrs, children, scopeId) =>
-      val childNs = resolveNs(tag, irNs, ns)
-      emitElementCore(tag, childNs, scopeId, attrs, children, buf, indent, ctr, isRoot, parentVar, nodePos)
-
-    // ── Dynamic element ───────────────────────────────────────────────────
-    case IrNode.IrElement(tag, irNs, attrs, children, scopeId) =>
-      val childNs = resolveNs(tag, irNs, ns)
-      emitElementCore(tag, childNs, scopeId, attrs, children, buf, indent, ctr, isRoot, parentVar, nodePos)
-
-    // ── Dynamic tag (<melt:element this={tagExpr}>) ───────────────────────
-    case IrNode.IrDynamicElement(tagExpr, attrs, children, _) =>
-      val anchor  = ctr.nextTxt()
-      val elVar   = "_dynEl"
-      val setupBuf = new LineTracker
-      attrs.foreach(emitAttr(_, elVar, setupBuf, s"$indent  ", ctr))
-      children.foreach { child =>
-        val cv = emitNode(child, setupBuf, s"$indent  ", ctr, isRoot = false, parentVar = Some(elVar), ns = ns, nodePos = nodePos)
-        if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
-      }
-      buf ++= s"""${indent}val $anchor = dom.document.createComment("")\n"""
-      parentVar.foreach(p => buf ++= s"${indent}if !Hydrating.isActive then $p.appendChild($anchor)\n")
-      buf ++= s"${indent}Bind.dynamicElement(${tagExpr.code}, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
-      buf ++= setupBuf.result()
-      buf ++= s"${indent}  ()\n"
-      buf ++= s"${indent}})\n"
-      ""
-
-    // ── Dynamic text ──────────────────────────────────────────────────────
-    case IrNode.IrDynamicText(expr) =>
-      parentVar match
-        case Some(parent) =>
-          buf ++= s"${indent}Hydrating.text(${expr.code}, $parent)\n"
-          ""
-        case None =>
-          val v = ctr.nextTxt()
-          buf ++= s"""${indent}val $v = if Hydrating.isActive then Hydrating.textNode((${expr.code}).toString) else dom.document.createTextNode((${expr.code}).toString)\n"""
+      // ── Static text ──────────────────────────────────────────────────────
+      case IrNode.IrStaticText(content) =>
+        if content.isBlank then ""
+        else
+          val v       = ctr.nextTxt()
+          val escaped = escapeStr(content)
+          buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.textNode("$escaped") else dom.document.createTextNode("$escaped")\n"""
           v
 
-    // ── List rendering ────────────────────────────────────────────────────
-    case IrNode.IrList(sourceExpr, renderFn) =>
-      val anchor = ctr.nextTxt()
-      parentVar match
-        case Some(p) => buf ++= s"${indent}val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
-        case None    => buf ++= s"""${indent}val $anchor = dom.document.createComment("melt")\n"""
-      buf ++= s"${indent}Hydrating.withCursor(new HydrationCursor(null)) {\n"
-      buf ++= s"${indent}  Bind.list(${sourceExpr.code}, ${renderFn.code}, $anchor)\n"
-      buf ++= s"${indent}}\n"
-      ""
+      // ── Hoisted element reference ─────────────────────────────────────────
+      case IrNode.IrHoistRef(id) =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
+        v
 
-    case IrNode.IrKeyedList(sourceExpr, keyFn, renderFn) =>
-      val anchor = ctr.nextTxt()
-      parentVar match
-        case Some(p) => buf ++= s"${indent}val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
-        case None    => buf ++= s"""${indent}val $anchor = dom.document.createComment("melt")\n"""
-      buf ++= s"${indent}Hydrating.withCursor(new HydrationCursor(null)) {\n"
-      buf ++= s"${indent}  Bind.each(${sourceExpr.code}, ${keyFn.code}, ${renderFn.code}, $anchor)\n"
-      buf ++= s"${indent}}\n"
-      ""
+      // ── Static element ────────────────────────────────────────────────────
+      case IrNode.IrStaticElement(tag, irNs, attrs, children, scopeId) =>
+        val childNs = resolveNs(tag, irNs, ns)
+        emitElementCore(tag, childNs, scopeId, attrs, children, buf, indent, ctr, isRoot, parentVar, nodePos)
 
-    // ── Conditional rendering ─────────────────────────────────────────────
-    case IrNode.IrConditional(sourceOpt, condAndBody) =>
-      val anchor = ctr.nextTxt()
-      parentVar match
-        case Some(p) => buf ++= s"${indent}val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
-        case None    => buf ++= s"""${indent}val $anchor = dom.document.createComment("melt")\n"""
-      buf ++= s"${indent}Hydrating.withCursor(new HydrationCursor(null)) {\n"
-      sourceOpt match
-        case Some(src) => buf ++= s"${indent}  Bind.show(${src.code}, _ => { ${condAndBody.code} }, $anchor)\n"
-        case None      => buf ++= s"${indent}  Bind.show(() => { ${condAndBody.code} }, $anchor)\n"
-      buf ++= s"${indent}}\n"
-      ""
+      // ── Dynamic element ───────────────────────────────────────────────────
+      case IrNode.IrElement(tag, irNs, attrs, children, scopeId) =>
+        val childNs = resolveNs(tag, irNs, ns)
+        emitElementCore(tag, childNs, scopeId, attrs, children, buf, indent, ctr, isRoot, parentVar, nodePos)
 
-    // ── Raw HTML ──────────────────────────────────────────────────────────
-    case IrNode.IrRawHtml(sourceOpt, expr) =>
-      val anchor = ctr.nextTxt()
-      buf ++= s"""${indent}val $anchor = dom.document.createComment("melt-html")\n"""
-      parentVar.foreach(p => buf ++= s"${indent}if !Hydrating.isActive then $p.appendChild($anchor)\n")
-      sourceOpt match
-        case Some(src) => buf ++= s"${indent}Bind.htmlAnchor(${src.code}, _ => { ${expr.code} }, $anchor)\n"
-        case None      => buf ++= s"${indent}Bind.htmlAnchor(${expr.code}, $anchor)\n"
-      ""
+      // ── Dynamic tag (<melt:element this={tagExpr}>) ───────────────────────
+      case IrNode.IrDynamicElement(tagExpr, attrs, children, _) =>
+        val anchor   = ctr.nextTxt()
+        val elVar    = "_dynEl"
+        val setupBuf = new LineTracker
+        attrs.foreach(emitAttr(_, elVar, setupBuf, s"$indent  ", ctr))
+        children.foreach { child =>
+          val cv = emitNode(
+            child,
+            setupBuf,
+            s"$indent  ",
+            ctr,
+            isRoot    = false,
+            parentVar = Some(elVar),
+            ns        = ns,
+            nodePos   = nodePos
+          )
+          if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
+        }
+        buf ++= s"""${ indent }val $anchor = dom.document.createComment("")\n"""
+        parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
+        buf ++= s"${ indent }Bind.dynamicElement(${ tagExpr.code }, $anchor, _scopeId, ($elVar: dom.Element) => {\n"
+        buf ++= setupBuf.result()
+        buf ++= s"${ indent }  ()\n"
+        buf ++= s"${ indent }})\n"
+        ""
 
-    // ── DOM-returning expressions ─────────────────────────────────────────
-    case IrNode.IrDomResult(expr) =>
-      val v = ctr.nextEl()
-      buf ++= s"${indent}val $v: dom.Element = {\n${indent}  ${expr.code}\n${indent}}\n"
-      v
+      // ── Dynamic text ──────────────────────────────────────────────────────
+      case IrNode.IrDynamicText(expr) =>
+        parentVar match
+          case Some(parent) =>
+            buf ++= s"${ indent }Hydrating.text(${ expr.code }, $parent)\n"
+            ""
+          case None =>
+            val v = ctr.nextTxt()
+            buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.textNode((${ expr.code }).toString) else dom.document.createTextNode((${ expr.code }).toString)\n"""
+            v
 
-    case IrNode.IrFragmentResult(expr) =>
-      val v = ctr.nextEl()
-      buf ++= s"${indent}val $v: dom.Node = {\n${indent}  ${expr.code}\n${indent}}\n"
-      v
+      // ── List rendering ────────────────────────────────────────────────────
+      case IrNode.IrList(sourceExpr, renderFn) =>
+        val anchor = ctr.nextTxt()
+        parentVar match
+          case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+          case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+        buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+        buf ++= s"${ indent }  Bind.list(${ sourceExpr.code }, ${ renderFn.code }, $anchor)\n"
+        buf ++= s"${ indent }}\n"
+        ""
 
-    // ── Component ─────────────────────────────────────────────────────────
-    case IrNode.IrComponent(name, props, children, spreadExpr, hasStyled, bindThisExpr) =>
-      val v = ctr.nextEl()
+      case IrNode.IrKeyedList(sourceExpr, keyFn, renderFn) =>
+        val anchor = ctr.nextTxt()
+        parentVar match
+          case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+          case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+        buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+        buf ++= s"${ indent }  Bind.each(${ sourceExpr.code }, ${ keyFn.code }, ${ renderFn.code }, $anchor)\n"
+        buf ++= s"${ indent }}\n"
+        ""
 
-      spreadExpr match
-        case Some(expr) =>
-          buf ++= s"${indent}val $v = $name(${expr.code})\n"
-        case None =>
-          // Emit snippet children separately (they become extra Props args)
-          val (snippetProps, regularChildren) = children match
-            case None       => (Nil, None)
-            case Some(slot) =>
-              val (snips, regs) = slot.nodes.partition { case IrNode.IrSnippetDef(_, _, _) => true; case _ => false }
-              val snippetArgs = snips.collect {
-                case IrNode.IrSnippetDef(snName, snParams, snChildren) =>
-                  val varName = s"_snippet_${snName}_${ctr.nextChildIdx()}"
-                  emitSnippetDef(buf, varName, snParams, snChildren, indent, ctr, nodePos)
-                  IrProp(snName, IrPropValue.Dynamic(ScalaExpr(varName)))
-              }
-              (snippetArgs, if regs.nonEmpty then Some(IrChildrenSlot(regs)) else None)
+      // ── Conditional rendering ─────────────────────────────────────────────
+      case IrNode.IrConditional(sourceOpt, condAndBody) =>
+        val anchor = ctr.nextTxt()
+        parentVar match
+          case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+          case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+        buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+        sourceOpt match
+          case Some(src) => buf ++= s"${ indent }  Bind.show(${ src.code }, _ => { ${ condAndBody.code } }, $anchor)\n"
+          case None      => buf ++= s"${ indent }  Bind.show(() => { ${ condAndBody.code } }, $anchor)\n"
+        buf ++= s"${ indent }}\n"
+        ""
 
-          val childrenVar: Option[String] = regularChildren.map { slot =>
-            emitChildrenLambda(slot.nodes, indent, ctr, buf, nodePos)
-          }
+      // ── Raw HTML ──────────────────────────────────────────────────────────
+      case IrNode.IrRawHtml(sourceOpt, expr) =>
+        val anchor = ctr.nextTxt()
+        buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt-html")\n"""
+        parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
+        sourceOpt match
+          case Some(src) => buf ++= s"${ indent }Bind.htmlAnchor(${ src.code }, _ => { ${ expr.code } }, $anchor)\n"
+          case None      => buf ++= s"${ indent }Bind.htmlAnchor(${ expr.code }, $anchor)\n"
+        ""
 
-          val allArgs = (props.map(p => s"${p.name} = ${emitPropValue(p.value)}") ++
-            snippetProps.map(p => s"${p.name} = ${emitPropValue(p.value)}")).mkString(", ")
+      // ── DOM-returning expressions ─────────────────────────────────────────
+      case IrNode.IrDomResult(expr) =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v: dom.Element = {\n${ indent }  ${ expr.code }\n${ indent }}\n"
+        v
 
-          (allArgs, childrenVar) match
-            case ("", None)        => buf ++= s"${indent}val $v = $name()\n"
-            case ("", Some(cv))    => buf ++= s"${indent}val $v = $name(children = $cv)\n"
-            case (pa, None)        => buf ++= s"${indent}val $v = $name($name.Props($pa))\n"
-            case (pa, Some(cv))    => buf ++= s"${indent}val $v = $name($name.Props($pa), children = $cv)\n"
+      case IrNode.IrFragmentResult(expr) =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v: dom.Node = {\n${ indent }  ${ expr.code }\n${ indent }}\n"
+        v
 
-      if hasStyled then buf ++= s"${indent}$v.classList.add(_scopeId)\n"
-      bindThisExpr.foreach { expr => buf ++= s"${indent}${expr.code}.set($v)\n" }
-      v
+      // ── Component ─────────────────────────────────────────────────────────
+      case IrNode.IrComponent(name, props, children, spreadExpr, hasStyled, bindThisExpr) =>
+        val v = ctr.nextEl()
 
-    // ── {children} expression ─────────────────────────────────────────────
-    case IrNode.IrChildren =>
-      val v = ctr.nextEl()
-      buf ++= s"${indent}val $v: dom.Node = children()\n"
-      v
+        spreadExpr match
+          case Some(expr) =>
+            buf ++= s"${ indent }val $v = $name(${ expr.code })\n"
+          case None =>
+            // Emit snippet children separately (they become extra Props args)
+            val (snippetProps, regularChildren) = children match
+              case None       => (Nil, None)
+              case Some(slot) =>
+                val (snips, regs) = slot.nodes.partition { case IrNode.IrSnippetDef(_, _, _) => true; case _ => false }
+                val snippetArgs   = snips.collect {
+                  case IrNode.IrSnippetDef(snName, snParams, snChildren) =>
+                    val varName = s"_snippet_${ snName }_${ ctr.nextChildIdx() }"
+                    emitSnippetDef(buf, varName, snParams, snChildren, indent, ctr, nodePos)
+                    IrProp(snName, IrPropValue.Dynamic(ScalaExpr(varName)))
+                }
+                (snippetArgs, if regs.nonEmpty then Some(IrChildrenSlot(regs)) else None)
 
-    // ── InlineTemplate bridge ─────────────────────────────────────────────
-    case IrNode.IrInlineTemplate(parts) =>
-      emitInlineTemplate(parts, buf, indent, ctr, isRoot, parentVar, ns, nodePos)
+            val childrenVar: Option[String] = regularChildren.map { slot =>
+              emitChildrenLambda(slot.nodes, indent, ctr, buf, nodePos)
+            }
 
-    // ── <melt:head> ───────────────────────────────────────────────────────
-    case IrNode.IrHead(children) =>
-      children.foreach { child =>
-        val cv = emitNode(child, buf, indent, ctr, isRoot = false, parentVar = None, ns = ns, nodePos = nodePos)
-        if cv.nonEmpty then buf ++= s"${indent}Head.appendChild($cv)\n"
-      }
-      ""
+            val allArgs = (props.map(p => s"${ p.name } = ${ emitPropValue(p.value) }") ++
+              snippetProps.map(p => s"${ p.name } = ${ emitPropValue(p.value) }")).mkString(", ")
 
-    // ── <melt:window> ─────────────────────────────────────────────────────
-    case IrNode.IrWindow(attrs) =>
-      attrs.foreach {
-        case IrAttr.EventHandler(event, handler) =>
-          buf ++= s"""${indent}Window.on("$event")(${handler.code})\n"""
-        case IrAttr.BindWindow(prop, expr) =>
-          val method = prop match
-            case "scrollY"          => "bindScrollY"
-            case "scrollX"          => "bindScrollX"
-            case "innerWidth"       => "bindInnerWidth"
-            case "innerHeight"      => "bindInnerHeight"
-            case "outerWidth"       => "bindOuterWidth"
-            case "outerHeight"      => "bindOuterHeight"
-            case "devicePixelRatio" => "bindDevicePixelRatio"
-            case "online"           => "bindOnline"
-            case other              => s"bind${other.capitalize}"
-          buf ++= s"${indent}Window.$method(${expr.code})\n"
-        case _ =>
-      }
-      ""
+            (allArgs, childrenVar) match
+              case ("", None)     => buf ++= s"${ indent }val $v = $name()\n"
+              case ("", Some(cv)) => buf ++= s"${ indent }val $v = $name(children = $cv)\n"
+              case (pa, None)     => buf ++= s"${ indent }val $v = $name($name.Props($pa))\n"
+              case (pa, Some(cv)) => buf ++= s"${ indent }val $v = $name($name.Props($pa), children = $cv)\n"
 
-    // ── <melt:body> ───────────────────────────────────────────────────────
-    case IrNode.IrBody(attrs) =>
-      attrs.foreach {
-        case IrAttr.EventHandler(event, handler) =>
-          buf ++= s"""${indent}Body.on("$event")(${handler.code})\n"""
-        case IrAttr.UseAction(actionName, Some(params)) =>
-          buf ++= s"${indent}Bind.action(dom.document.body, $actionName, ${params.code})\n"
-        case IrAttr.UseAction(actionName, None) =>
-          buf ++= s"${indent}Bind.action(dom.document.body, $actionName, ())\n"
-        case _ =>
-      }
-      ""
+        if hasStyled then buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
+        bindThisExpr.foreach { expr => buf ++= s"${ indent }${ expr.code }.set($v)\n" }
+        v
 
-    // ── <melt:document> ───────────────────────────────────────────────────
-    case IrNode.IrDocument(attrs) =>
-      attrs.foreach {
-        case IrAttr.EventHandler(event, handler) =>
-          buf ++= s"""${indent}Document.on("$event")(${handler.code})\n"""
-        case IrAttr.BindDocument(prop, expr) =>
-          val method = prop match
-            case "visibilityState"    => "bindVisibilityState"
-            case "fullscreenElement"  => "bindFullscreenElement"
-            case "pointerLockElement" => "bindPointerLockElement"
-            case "activeElement"      => "bindActiveElement"
-            case other                => s"bind${other.capitalize}"
-          buf ++= s"${indent}Document.$method(${expr.code})\n"
-        case _ =>
-      }
-      ""
+      // ── {children} expression ─────────────────────────────────────────────
+      case IrNode.IrChildren =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v: dom.Node = children()\n"
+        v
 
-    // ── <melt:boundary> ───────────────────────────────────────────────────
-    case IrNode.IrBoundary(children, pending, failed, onError) =>
-      val idx   = ctr.nextChildIdx()
-      val inner = indent + "  "
+      // ── InlineTemplate bridge ─────────────────────────────────────────────
+      case IrNode.IrInlineTemplate(parts) =>
+        emitInlineTemplate(parts, buf, indent, ctr, isRoot, parentVar, ns, nodePos)
 
-      val pendingProp: String = pending match
-        case None => ""
-        case Some(pChildren) =>
-          val pVar = s"_bPending$idx"
-          buf ++= s"${indent}val $pVar: (() => dom.Element) = () => {\n"
-          emitBoundaryBody(buf, pChildren, inner, ctr, nodePos)
-          buf ++= s"${indent}}\n"
-          s", pending = Some($pVar)"
+      // ── <melt:head> ───────────────────────────────────────────────────────
+      case IrNode.IrHead(children) =>
+        children.foreach { child =>
+          val cv = emitNode(child, buf, indent, ctr, isRoot = false, parentVar = None, ns = ns, nodePos = nodePos)
+          if cv.nonEmpty then buf ++= s"${ indent }Head.appendChild($cv)\n"
+        }
+        ""
 
-      val fallbackProp: String = failed match
-        case None => ""
-        case Some(fb) =>
-          val fVar = s"_bFallback$idx"
-          buf ++= s"${indent}val $fVar: (Throwable, () => Unit) => dom.Element = (${fb.errorVar}, ${fb.resetVar}) => {\n"
-          emitBoundaryBody(buf, fb.children, inner, ctr, nodePos)
-          buf ++= s"${indent}}\n"
-          s", fallback = $fVar"
+      // ── <melt:window> ─────────────────────────────────────────────────────
+      case IrNode.IrWindow(attrs) =>
+        attrs.foreach {
+          case IrAttr.EventHandler(event, handler) =>
+            buf ++= s"""${ indent }Window.on("$event")(${ handler.code })\n"""
+          case IrAttr.BindWindow(prop, expr) =>
+            val method = prop match
+              case "scrollY"          => "bindScrollY"
+              case "scrollX"          => "bindScrollX"
+              case "innerWidth"       => "bindInnerWidth"
+              case "innerHeight"      => "bindInnerHeight"
+              case "outerWidth"       => "bindOuterWidth"
+              case "outerHeight"      => "bindOuterHeight"
+              case "devicePixelRatio" => "bindDevicePixelRatio"
+              case "online"           => "bindOnline"
+              case other              => s"bind${ other.capitalize }"
+            buf ++= s"${ indent }Window.$method(${ expr.code })\n"
+          case _ =>
+        }
+        ""
 
-      val onErrorProp: String = onError.map(e => s", onError = ${e.code}").getOrElse("")
+      // ── <melt:body> ───────────────────────────────────────────────────────
+      case IrNode.IrBody(attrs) =>
+        attrs.foreach {
+          case IrAttr.EventHandler(event, handler) =>
+            buf ++= s"""${ indent }Body.on("$event")(${ handler.code })\n"""
+          case IrAttr.UseAction(actionName, Some(params)) =>
+            buf ++= s"${ indent }Bind.action(dom.document.body, $actionName, ${ params.code })\n"
+          case IrAttr.UseAction(actionName, None) =>
+            buf ++= s"${ indent }Bind.action(dom.document.body, $actionName, ())\n"
+          case _ =>
+        }
+        ""
 
-      val cVar = s"_bChildren$idx"
-      buf ++= s"${indent}val $cVar: (() => dom.Element) = () => {\n"
-      emitBoundaryBody(buf, children, inner, ctr, nodePos)
-      buf ++= s"${indent}}\n"
+      // ── <melt:document> ───────────────────────────────────────────────────
+      case IrNode.IrDocument(attrs) =>
+        attrs.foreach {
+          case IrAttr.EventHandler(event, handler) =>
+            buf ++= s"""${ indent }Document.on("$event")(${ handler.code })\n"""
+          case IrAttr.BindDocument(prop, expr) =>
+            val method = prop match
+              case "visibilityState"    => "bindVisibilityState"
+              case "fullscreenElement"  => "bindFullscreenElement"
+              case "pointerLockElement" => "bindPointerLockElement"
+              case "activeElement"      => "bindActiveElement"
+              case other                => s"bind${ other.capitalize }"
+            buf ++= s"${ indent }Document.$method(${ expr.code })\n"
+          case _ =>
+        }
+        ""
 
-      val fragVar = s"_bFrag$idx"
-      buf ++= s"${indent}val $fragVar = Boundary.create(Boundary.Props(children = $cVar$pendingProp$fallbackProp$onErrorProp))\n"
+      // ── <melt:boundary> ───────────────────────────────────────────────────
+      case IrNode.IrBoundary(children, pending, failed, onError) =>
+        val idx   = ctr.nextChildIdx()
+        val inner = indent + "  "
 
-      parentVar match
-        case Some(parent) =>
-          buf ++= s"${indent}if !Hydrating.isActive then $parent.appendChild($fragVar)\n"
-          ""
-        case None =>
-          val wVar = s"_bWrap$idx"
-          buf ++= s"${indent}val $wVar = dom.document.createElement(\"div\")\n"
-          buf ++= s"""${indent}$wVar.setAttribute("style", "display: contents")\n"""
-          buf ++= s"${indent}$wVar.appendChild($fragVar)\n"
-          wVar
+        val pendingProp: String = pending match
+          case None            => ""
+          case Some(pChildren) =>
+            val pVar = s"_bPending$idx"
+            buf ++= s"${ indent }val $pVar: (() => dom.Element) = () => {\n"
+            emitBoundaryBody(buf, pChildren, inner, ctr, nodePos)
+            buf ++= s"${ indent }}\n"
+            s", pending = Some($pVar)"
 
-    // ── <melt:key> ────────────────────────────────────────────────────────
-    case IrNode.IrKeyBlock(keyExpr, children) =>
-      val idx       = ctr.nextChildIdx()
-      val inner     = indent + "  "
-      val kVar      = s"_keyRender$idx"
-      val startAnch = ctr.nextTxt()
-      val endAnch   = ctr.nextTxt()
+        val fallbackProp: String = failed match
+          case None     => ""
+          case Some(fb) =>
+            val fVar = s"_bFallback$idx"
+            buf ++= s"${ indent }val $fVar: (Throwable, () => Unit) => dom.Element = (${ fb.errorVar }, ${ fb.resetVar }) => {\n"
+            emitBoundaryBody(buf, fb.children, inner, ctr, nodePos)
+            buf ++= s"${ indent }}\n"
+            s", fallback = $fVar"
 
-      buf ++= s"${indent}val $kVar: (() => dom.DocumentFragment) = () => {\n"
-      emitKeyBody(buf, children, inner, ctr, nodePos)
-      buf ++= s"${indent}}\n"
+        val onErrorProp: String = onError.map(e => s", onError = ${ e.code }").getOrElse("")
 
-      buf ++= s"""${indent}val $startAnch = dom.document.createComment("melt-key-start")\n"""
-      buf ++= s"""${indent}val $endAnch   = dom.document.createComment("melt-key-end")\n"""
-      parentVar.foreach { p =>
-        buf ++= s"${indent}if !Hydrating.isActive then $p.appendChild($startAnch)\n"
-        buf ++= s"${indent}if !Hydrating.isActive then $p.appendChild($endAnch)\n"
-      }
-      buf ++= s"${indent}Bind.key(${keyExpr.code}, $kVar, $startAnch, $endAnch)\n"
-      ""
+        val cVar = s"_bChildren$idx"
+        buf ++= s"${ indent }val $cVar: (() => dom.Element) = () => {\n"
+        emitBoundaryBody(buf, children, inner, ctr, nodePos)
+        buf ++= s"${ indent }}\n"
 
-    // ── {#snippet} ────────────────────────────────────────────────────────
-    case IrNode.IrSnippetDef(name, params, children) =>
-      emitSnippetDef(buf, name, params, children, indent, ctr, nodePos)
-      ""
+        val fragVar = s"_bFrag$idx"
+        buf ++= s"${ indent }val $fragVar = Boundary.create(Boundary.Props(children = $cVar$pendingProp$fallbackProp$onErrorProp))\n"
 
-    // ── {@render} ─────────────────────────────────────────────────────────
-    case IrNode.IrRenderCall(expr) =>
-      val v = ctr.nextEl()
-      buf ++= s"${indent}val $v = ${expr.code}\n"
-      v
+        parentVar match
+          case Some(parent) =>
+            buf ++= s"${ indent }if !Hydrating.isActive then $parent.appendChild($fragVar)\n"
+            ""
+          case None =>
+            val wVar = s"_bWrap$idx"
+            buf ++= s"${ indent }val $wVar = dom.document.createElement(\"div\")\n"
+            buf ++= s"""${ indent }$wVar.setAttribute("style", "display: contents")\n"""
+            buf ++= s"${ indent }$wVar.appendChild($fragVar)\n"
+            wVar
+
+      // ── <melt:key> ────────────────────────────────────────────────────────
+      case IrNode.IrKeyBlock(keyExpr, children) =>
+        val idx       = ctr.nextChildIdx()
+        val inner     = indent + "  "
+        val kVar      = s"_keyRender$idx"
+        val startAnch = ctr.nextTxt()
+        val endAnch   = ctr.nextTxt()
+
+        buf ++= s"${ indent }val $kVar: (() => dom.DocumentFragment) = () => {\n"
+        emitKeyBody(buf, children, inner, ctr, nodePos)
+        buf ++= s"${ indent }}\n"
+
+        buf ++= s"""${ indent }val $startAnch = dom.document.createComment("melt-key-start")\n"""
+        buf ++= s"""${ indent }val $endAnch   = dom.document.createComment("melt-key-end")\n"""
+        parentVar.foreach { p =>
+          buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($startAnch)\n"
+          buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($endAnch)\n"
+        }
+        buf ++= s"${ indent }Bind.key(${ keyExpr.code }, $kVar, $startAnch, $endAnch)\n"
+        ""
+
+      // ── {#snippet} ────────────────────────────────────────────────────────
+      case IrNode.IrSnippetDef(name, params, children) =>
+        emitSnippetDef(buf, name, params, children, indent, ctr, nodePos)
+        ""
+
+      // ── {@render} ─────────────────────────────────────────────────────────
+      case IrNode.IrRenderCall(expr) =>
+        val v = ctr.nextEl()
+        buf ++= s"${ indent }val $v = ${ expr.code }\n"
+        v
 
   // ── Element emission ───────────────────────────────────────────────────────
 
@@ -487,37 +495,37 @@ object SpaEmitter:
   ): String =
     val v = ctr.nextEl()
     if childNs == "svg" then
-      buf ++= s"""${indent}val $v = if Hydrating.isActive then Hydrating.elementNS("$SvgNs", "$tag") else dom.document.createElementNS("$SvgNs", "$tag")\n"""
+      buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.elementNS("$SvgNs", "$tag") else dom.document.createElementNS("$SvgNs", "$tag")\n"""
     else if childNs == "math" then
-      buf ++= s"""${indent}val $v = if Hydrating.isActive then Hydrating.elementNS("$MathNs", "$tag") else dom.document.createElementNS("$MathNs", "$tag")\n"""
+      buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.elementNS("$MathNs", "$tag") else dom.document.createElementNS("$MathNs", "$tag")\n"""
     else
-      buf ++= s"""${indent}val $v = if Hydrating.isActive then Hydrating.element("$tag") else dom.document.createElement("$tag")\n"""
-    buf ++= s"${indent}$v.classList.add(_scopeId)\n"
+      buf ++= s"""${ indent }val $v = if Hydrating.isActive then Hydrating.element("$tag") else dom.document.createElement("$tag")\n"""
+    buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
 
     // <select bind:value> must be emitted AFTER children so the initial value finds a matching <option>
     val deferredSelectBind: Option[IrAttr.BindSelectValue] =
-      if tag.equalsIgnoreCase("select") then
-        attrs.collectFirst { case bsv: IrAttr.BindSelectValue => bsv }
-      else None
+      if tag.equalsIgnoreCase("select") then attrs.collectFirst { case bsv: IrAttr.BindSelectValue => bsv } else None
 
     attrs.foreach { attr =>
       attr match
         case _: IrAttr.BindSelectValue if deferredSelectBind.isDefined => () // emitted after children
-        case _                                                          => emitAttr(attr, v, buf, indent, ctr)
+        case _                                                         => emitAttr(attr, v, buf, indent, ctr)
     }
 
     val hasChildren = children.nonEmpty
     val childIndent = if hasChildren then indent + "  " else indent
-    if hasChildren then buf ++= s"${indent}Hydrating.withChildren($v) {\n"
+    if hasChildren then buf ++= s"${ indent }Hydrating.withChildren($v) {\n"
     children.foreach { child =>
-      val cv = emitNode(child, buf, childIndent, ctr, isRoot = false, parentVar = Some(v), ns = childNs, nodePos = nodePos)
-      if cv.nonEmpty then buf ++= s"${childIndent}if !Hydrating.isActive then $v.appendChild($cv)\n"
+      val cv =
+        emitNode(child, buf, childIndent, ctr, isRoot = false, parentVar = Some(v), ns = childNs, nodePos = nodePos)
+      if cv.nonEmpty then buf ++= s"${ childIndent }if !Hydrating.isActive then $v.appendChild($cv)\n"
     }
-    if hasChildren then buf ++= s"${indent}}\n"
+    if hasChildren then buf ++= s"${ indent }}\n"
 
     deferredSelectBind.foreach { bsv =>
-      if bsv.multiple then buf ++= s"${indent}Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], ${bsv.expr.code})\n"
-      else buf ++= s"${indent}Bind.selectValue($v.asInstanceOf[dom.html.Select], ${bsv.expr.code})\n"
+      if bsv.multiple then
+        buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], ${ bsv.expr.code })\n"
+      else buf ++= s"${ indent }Bind.selectValue($v.asInstanceOf[dom.html.Select], ${ bsv.expr.code })\n"
     }
     v
 
@@ -527,55 +535,55 @@ object SpaEmitter:
     attr match
       case IrAttr.StaticAttr("class", value) =>
         value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
-          buf ++= s"""${indent}$v.classList.add("${escapeStr(cls)}")\n"""
+          buf ++= s"""${ indent }$v.classList.add("${ escapeStr(cls) }")\n"""
         }
       case IrAttr.StaticAttr(name, value) =>
-        buf ++= s"""${indent}$v.setAttribute("$name", "${escapeStr(value)}")\n"""
+        buf ++= s"""${ indent }$v.setAttribute("$name", "${ escapeStr(value) }")\n"""
       case IrAttr.BooleanAttr(name) =>
-        buf ++= s"""${indent}$v.setAttribute("$name", "")\n"""
+        buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
       case IrAttr.DynamicAttr(name, expr) =>
-        buf ++= s"""${indent}Bind.attr($v, "$name", ${expr.code})\n"""
+        buf ++= s"""${ indent }Bind.attr($v, "$name", ${ expr.code })\n"""
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        buf ++= s"""${indent}Bind.booleanAttr($v, "$name", ${expr.code})\n"""
+        buf ++= s"""${ indent }Bind.booleanAttr($v, "$name", ${ expr.code })\n"""
       case IrAttr.DynamicClass(expr) =>
-        buf ++= s"${indent}Bind.cls($v, ${expr.code})\n"
+        buf ++= s"${ indent }Bind.cls($v, ${ expr.code })\n"
       case IrAttr.Spread(expr) =>
-        buf ++= s"${indent}${expr.code}.apply($v)\n"
+        buf ++= s"${ indent }${ expr.code }.apply($v)\n"
 
       case IrAttr.EventHandler(event, handler) =>
-        buf ++= s"""${indent}$v.addEventListener("$event", ${handler.code})\n"""
+        buf ++= s"""${ indent }$v.addEventListener("$event", ${ handler.code })\n"""
       case IrAttr.EventHandlerWithModifier(event, handler, mods) =>
         if mods.contains("preventDefault") then
-          buf ++= s"""${indent}$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); (${handler.code}).asInstanceOf[Any] }))\n"""
+          buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); (${ handler.code }).asInstanceOf[Any] }))\n"""
         else
-          buf ++= s"""${indent}$v.addEventListener("$event", ((_: dom.Event) => (${handler.code}).asInstanceOf[Any]))\n"""
+          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => (${ handler.code }).asInstanceOf[Any]))\n"""
 
       case IrAttr.BindInputValue(expr) =>
-        buf ++= s"${indent}Bind.inputValue($v.asInstanceOf[dom.html.Input], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], ${ expr.code })\n"
       case IrAttr.BindTextareaValue(expr) =>
-        buf ++= s"${indent}Bind.textareaValue($v.asInstanceOf[dom.html.TextArea], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.textareaValue($v.asInstanceOf[dom.html.TextArea], ${ expr.code })\n"
       case IrAttr.BindSelectValue(expr, false) =>
-        buf ++= s"${indent}Bind.selectValue($v.asInstanceOf[dom.html.Select], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.selectValue($v.asInstanceOf[dom.html.Select], ${ expr.code })\n"
       case IrAttr.BindSelectValue(expr, true) =>
-        buf ++= s"${indent}Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.selectMultipleValue($v.asInstanceOf[dom.html.Select], ${ expr.code })\n"
       case IrAttr.BindInputValueInt(expr) =>
-        buf ++= s"${indent}Bind.inputInt($v.asInstanceOf[dom.html.Input], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.inputInt($v.asInstanceOf[dom.html.Input], ${ expr.code })\n"
       case IrAttr.BindInputValueDouble(expr) =>
-        buf ++= s"${indent}Bind.inputDouble($v.asInstanceOf[dom.html.Input], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.inputDouble($v.asInstanceOf[dom.html.Input], ${ expr.code })\n"
       case IrAttr.BindChecked(expr) =>
-        buf ++= s"${indent}Bind.inputChecked($v.asInstanceOf[dom.html.Input], ${expr.code})\n"
+        buf ++= s"${ indent }Bind.inputChecked($v.asInstanceOf[dom.html.Input], ${ expr.code })\n"
       case IrAttr.BindGroup(expr, false) =>
-        buf ++= s"${indent}Bind.radioGroup($v.asInstanceOf[dom.html.Input], ${expr.code}, $v.asInstanceOf[dom.html.Input].value)\n"
+        buf ++= s"${ indent }Bind.radioGroup($v.asInstanceOf[dom.html.Input], ${ expr.code }, $v.asInstanceOf[dom.html.Input].value)\n"
       case IrAttr.BindGroup(expr, true) =>
-        buf ++= s"${indent}Bind.checkboxGroup($v.asInstanceOf[dom.html.Input], ${expr.code}, $v.asInstanceOf[dom.html.Input].value)\n"
+        buf ++= s"${ indent }Bind.checkboxGroup($v.asInstanceOf[dom.html.Input], ${ expr.code }, $v.asInstanceOf[dom.html.Input].value)\n"
       case IrAttr.BindThis(expr) =>
-        buf ++= s"${indent}${expr.code}.set($v.asInstanceOf[dom.Element])\n"
+        buf ++= s"${ indent }${ expr.code }.set($v.asInstanceOf[dom.Element])\n"
       case IrAttr.BindDimension(property, expr) =>
-        buf ++= s"${indent}Bind.$property($v, ${expr.code})\n"
+        buf ++= s"${ indent }Bind.$property($v, ${ expr.code })\n"
       case IrAttr.BindInnerHtml(expr) =>
-        buf ++= s"${indent}Bind.html($v, ${expr.code})\n"
+        buf ++= s"${ indent }Bind.html($v, ${ expr.code })\n"
       case IrAttr.BindTextContent(expr) =>
-        buf ++= s"${indent}Bind.textContent($v, ${expr.code})\n"
+        buf ++= s"${ indent }Bind.textContent($v, ${ expr.code })\n"
       case IrAttr.BindMedia(property, expr) =>
         val method = property match
           case "currentTime"  => "mediaCurrentTime"
@@ -589,34 +597,34 @@ object SpaEmitter:
           case "readyState"   => "mediaReadyState"
           case "videoWidth"   => "mediaVideoWidth"
           case "videoHeight"  => "mediaVideoHeight"
-          case other          => s"media${other.capitalize}"
-        buf ++= s"${indent}Bind.$method($v, ${expr.code})\n"
+          case other          => s"media${ other.capitalize }"
+        buf ++= s"${ indent }Bind.$method($v, ${ expr.code })\n"
 
       case IrAttr.ClassToggle(name, expr) =>
-        buf ++= s"""${indent}Bind.classToggle($v, "$name", ${expr.code})\n"""
+        buf ++= s"""${ indent }Bind.classToggle($v, "$name", ${ expr.code })\n"""
       case IrAttr.StyleProp(property, expr) =>
-        buf ++= s"""${indent}Bind.style($v, "$property", ${expr.code})\n"""
+        buf ++= s"""${ indent }Bind.style($v, "$property", ${ expr.code })\n"""
 
       case IrAttr.UseAction(actionName, Some(params)) =>
-        buf ++= s"${indent}Bind.action($v, $actionName, ${params.code})\n"
+        buf ++= s"${ indent }Bind.action($v, $actionName, ${ params.code })\n"
       case IrAttr.UseAction(actionName, None) =>
-        buf ++= s"${indent}Bind.action($v, $actionName, ())\n"
+        buf ++= s"${ indent }Bind.action($v, $actionName, ())\n"
 
       case IrAttr.Transition(direction, name, paramsOpt, global) =>
         val params = paramsOpt.map(_.code).getOrElse("TransitionParams.default")
         val obj    = name.capitalize
         direction match
-          case TransitionDirection.Both => buf ++= s"${indent}TransitionBridge.setBoth($v, $obj, $params)\n"
-          case TransitionDirection.In   => buf ++= s"${indent}TransitionBridge.setIn($v, $obj, $params)\n"
-          case TransitionDirection.Out  => buf ++= s"${indent}TransitionBridge.setOut($v, $obj, $params)\n"
+          case TransitionDirection.Both => buf ++= s"${ indent }TransitionBridge.setBoth($v, $obj, $params)\n"
+          case TransitionDirection.In   => buf ++= s"${ indent }TransitionBridge.setIn($v, $obj, $params)\n"
+          case TransitionDirection.Out  => buf ++= s"${ indent }TransitionBridge.setOut($v, $obj, $params)\n"
         if global then
-          buf ++= s"""${indent}$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
+          buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltGlobal")(true)\n"""
 
       case IrAttr.Animate(name, paramsOpt) =>
         val fn     = name.capitalize
         val params = paramsOpt.map(_.code).getOrElse("AnimateParams()")
-        buf ++= s"""${indent}$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")(($fn: AnimateFn).asInstanceOf[scalajs.js.Any])\n"""
-        buf ++= s"""${indent}$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params: AnimateParams).asInstanceOf[scalajs.js.Any])\n"""
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateFn")(($fn: AnimateFn).asInstanceOf[scalajs.js.Any])\n"""
+        buf ++= s"""${ indent }$v.asInstanceOf[scalajs.js.Dynamic].updateDynamic("_meltAnimateParams")(($params: AnimateParams).asInstanceOf[scalajs.js.Any])\n"""
 
       case IrAttr.BindWindow(_, _) | IrAttr.BindDocument(_, _) =>
         () // handled by IrWindow / IrDocument emitNode cases
@@ -647,15 +655,33 @@ object SpaEmitter:
           case Nil =>
             exprBuf ++= "dom.document.createTextNode(\"\")"
           case single :: Nil =>
-            val v = emitNode(single, innerBuf, indent + "  ", innerCtr, isRoot = false, parentVar = None, ns = ns, nodePos = nodePos)
-            exprBuf ++= s"{\n${innerBuf.result()}${indent}  $v\n${indent}}"
+            val v = emitNode(
+              single,
+              innerBuf,
+              indent + "  ",
+              innerCtr,
+              isRoot    = false,
+              parentVar = None,
+              ns        = ns,
+              nodePos   = nodePos
+            )
+            exprBuf ++= s"{\n${ innerBuf.result() }${ indent }  $v\n${ indent }}"
           case multiple =>
-            innerBuf ++= s"${indent}  val _frag = dom.document.createDocumentFragment()\n"
+            innerBuf ++= s"${ indent }  val _frag = dom.document.createDocumentFragment()\n"
             multiple.foreach { n =>
-              val v = emitNode(n, innerBuf, indent + "  ", innerCtr, isRoot = false, parentVar = Some("_frag"), ns = ns, nodePos = nodePos)
-              if v.nonEmpty then innerBuf ++= s"${indent}  _frag.appendChild($v)\n"
+              val v = emitNode(
+                n,
+                innerBuf,
+                indent + "  ",
+                innerCtr,
+                isRoot    = false,
+                parentVar = Some("_frag"),
+                ns        = ns,
+                nodePos   = nodePos
+              )
+              if v.nonEmpty then innerBuf ++= s"${ indent }  _frag.appendChild($v)\n"
             }
-            exprBuf ++= s"{\n${innerBuf.result()}${indent}  _frag\n${indent}}"
+            exprBuf ++= s"{\n${ innerBuf.result() }${ indent }  _frag\n${ indent }}"
     }
     // Re-classify the reconstructed expression and emit it
     val irNode = AstToIr.lowerExpression(exprBuf.toString)
@@ -669,16 +695,16 @@ object SpaEmitter:
     buf:     LineTracker,
     nodePos: IrNodePositions = IrNodePositions.empty
   ): String =
-    val varName = s"_children${ctr.nextChildIdx()}"
+    val varName = s"_children${ ctr.nextChildIdx() }"
     val inner   = indent + "  "
-    buf ++= s"${indent}val $varName: (() => dom.Node) = () => {\n"
-    buf ++= s"${inner}val _frag = dom.document.createDocumentFragment()\n"
+    buf ++= s"${ indent }val $varName: (() => dom.Node) = () => {\n"
+    buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
     nodes.foreach { child =>
       val cv = emitNode(child, buf, inner, ctr, isRoot = false, parentVar = Some("_frag"), nodePos = nodePos)
-      if cv.nonEmpty then buf ++= s"${inner}if !Hydrating.isActive then _frag.appendChild($cv)\n"
+      if cv.nonEmpty then buf ++= s"${ inner }if !Hydrating.isActive then _frag.appendChild($cv)\n"
     }
-    buf ++= s"${inner}_frag\n"
-    buf ++= s"${indent}}\n"
+    buf ++= s"${ inner }_frag\n"
+    buf ++= s"${ indent }}\n"
     varName
 
   private def emitSnippetDef(
@@ -698,31 +724,31 @@ object SpaEmitter:
         ("() => dom.Node", "()")
       case List(p) =>
         val tpe   = p.typeAnnotation.getOrElse("Any")
-        val pDecl = p.typeAnnotation.map(t => s"${p.name}: $t").getOrElse(p.name)
+        val pDecl = p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)
         (s"($tpe) => dom.Node", s"($pDecl)")
       case ps =>
         val types = ps.map(_.typeAnnotation.getOrElse("Any")).mkString(", ")
-        val decls = ps.map(p => p.typeAnnotation.map(t => s"${p.name}: $t").getOrElse(p.name)).mkString(", ")
+        val decls = ps.map(p => p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)).mkString(", ")
         (s"(($types)) => dom.Node", s"(($decls))")
 
-    buf ++= s"${indent}val $name: $typeStr = $paramStr => {\n"
+    buf ++= s"${ indent }val $name: $typeStr = $paramStr => {\n"
 
     children match
       case Nil =>
-        buf ++= s"${inner}dom.document.createElement(\"span\")\n"
+        buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case single :: Nil =>
         val cv = emitNode(single, buf, inner, innerCtr, isRoot = false, parentVar = None, nodePos = nodePos)
-        if cv.nonEmpty then buf ++= s"${inner}$cv\n"
-        else buf ++= s"${inner}dom.document.createElement(\"span\")\n"
+        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
+        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
-        buf ++= s"${inner}val _frag = dom.document.createDocumentFragment()\n"
+        buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
         multiple.foreach { child =>
           val cv = emitNode(child, buf, inner, innerCtr, isRoot = false, parentVar = Some("_frag"), nodePos = nodePos)
-          if cv.nonEmpty then buf ++= s"${inner}_frag.appendChild($cv)\n"
+          if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
         }
-        buf ++= s"${inner}_frag\n"
+        buf ++= s"${ inner }_frag\n"
 
-    buf ++= s"${indent}}\n"
+    buf ++= s"${ indent }}\n"
 
   private def emitBoundaryBody(
     buf:      LineTracker,
@@ -733,32 +759,32 @@ object SpaEmitter:
   ): Unit =
     children match
       case Nil =>
-        buf ++= s"${inner}dom.document.createElement(\"span\")\n"
+        buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case single :: Nil =>
         val cv = emitNode(single, buf, inner, ctr, isRoot = false, parentVar = None, nodePos = nodePos)
-        if cv.nonEmpty then buf ++= s"${inner}$cv\n"
-        else buf ++= s"${inner}dom.document.createElement(\"span\")\n"
+        if cv.nonEmpty then buf ++= s"${ inner }$cv\n"
+        else buf ++= s"${ inner }dom.document.createElement(\"span\")\n"
       case multiple =>
-        buf ++= s"${inner}val _bFrag = dom.document.createElement(\"div\")\n"
+        buf ++= s"${ inner }val _bFrag = dom.document.createElement(\"div\")\n"
         multiple.foreach { child =>
           val cv = emitNode(child, buf, inner, ctr, isRoot = false, parentVar = Some("_bFrag"), nodePos = nodePos)
-          if cv.nonEmpty then buf ++= s"${inner}_bFrag.appendChild($cv)\n"
+          if cv.nonEmpty then buf ++= s"${ inner }_bFrag.appendChild($cv)\n"
         }
-        buf ++= s"${inner}_bFrag\n"
+        buf ++= s"${ inner }_bFrag\n"
 
   private def emitKeyBody(
-    buf:     LineTracker,
+    buf:      LineTracker,
     children: List[IrNode],
     inner:    String,
     ctr:      Counter,
     nodePos:  IrNodePositions = IrNodePositions.empty
   ): Unit =
-    buf ++= s"${inner}val _kFrag = dom.document.createDocumentFragment()\n"
+    buf ++= s"${ inner }val _kFrag = dom.document.createDocumentFragment()\n"
     children.foreach { child =>
       val cv = emitNode(child, buf, inner, ctr, isRoot = false, parentVar = Some("_kFrag"), nodePos = nodePos)
-      if cv.nonEmpty then buf ++= s"${inner}_kFrag.appendChild($cv)\n"
+      if cv.nonEmpty then buf ++= s"${ inner }_kFrag.appendChild($cv)\n"
     }
-    buf ++= s"${inner}_kFrag\n"
+    buf ++= s"${ inner }_kFrag\n"
 
   // ── Hydration entry ───────────────────────────────────────────────────────
 
@@ -771,18 +797,16 @@ object SpaEmitter:
       case Some(_) => "apply(_props)"
 
     val resolveProps: String = ir.propsType match
-      case None      => ""
-      case Some(pt)  =>
+      case None     => ""
+      case Some(pt) =>
         val tpe      = pt.typeName
         val fallback =
-          if propsDefaults then
-            s"""            dom.console.warn(
+          if propsDefaults then s"""            dom.console.warn(
                |              "[melt] hydrate($moduleId): no <script data-melt-props=\\"$moduleId\\"> " +
                |              "payload found, falling back to $tpe() defaults."
                |            )
                |            $tpe()""".stripMargin
-          else
-            s"""            dom.console.warn(
+          else s"""            dom.console.warn(
                |              "[melt] hydrate($moduleId) skipped: no <script data-melt-props=\\"$moduleId\\"> " +
                |              "payload found and $tpe has required fields."
                |            )
@@ -797,7 +821,7 @@ object SpaEmitter:
            |            dom.console.warn(
            |              "[melt] hydrate($moduleId): failed to decode Props payload (" + t.getMessage + ")"
            |            )
-           |            ${if propsDefaults then s"$tpe()" else "null"}
+           |            ${ if propsDefaults then s"$tpe()" else "null" }
            |      else
            |$fallback
            |""".stripMargin
@@ -809,13 +833,13 @@ object SpaEmitter:
     val loopIndent = if ir.propsType.isDefined && !propsDefaults then "      " else "    "
 
     val loopBody =
-      s"""${loopIndent}starts.zip(ends).foreach { case (startNode, endNode) =>
-         |${loopIndent}  val cursor = new HydrationCursor(startNode.nextSibling)
-         |${loopIndent}  Hydrating.withCursor(cursor) {
-         |${loopIndent}    $mountExpr
-         |${loopIndent}  }
-         |${loopIndent}  Hydrating.flush()
-         |${loopIndent}}""".stripMargin
+      s"""${ loopIndent }starts.zip(ends).foreach { case (startNode, endNode) =>
+         |${ loopIndent }  val cursor = new HydrationCursor(startNode.nextSibling)
+         |${ loopIndent }  Hydrating.withCursor(cursor) {
+         |${ loopIndent }    $mountExpr
+         |${ loopIndent }  }
+         |${ loopIndent }  Hydrating.flush()
+         |${ loopIndent }}""".stripMargin
 
     buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via the
                 |    * sbt/Scala.js asset pipeline.
@@ -845,10 +869,10 @@ object SpaEmitter:
   // ── Utilities ──────────────────────────────────────────────────────────────
 
   private def emitPropValue(v: IrPropValue): String = v match
-    case IrPropValue.Static(value)    => s""""${escapeStr(value)}""""
-    case IrPropValue.Dynamic(expr)    => expr.code
-    case IrPropValue.Shorthand(name)  => name
-    case IrPropValue.BooleanTrue      => "true"
+    case IrPropValue.Static(value)   => s""""${ escapeStr(value) }""""
+    case IrPropValue.Dynamic(expr)   => expr.code
+    case IrPropValue.Shorthand(name) => name
+    case IrPropValue.BooleanTrue     => "true"
 
   private def resolveNs(tag: String, irNs: Option[String], parentNs: String): String =
     irNs match
@@ -860,17 +884,17 @@ object SpaEmitter:
 
   private def templateHasChildrenRef(nodes: List[IrNode]): Boolean =
     nodes.exists {
-      case IrNode.IrChildren           => true
-      case IrNode.IrElement(_, _, _, c, _)        => templateHasChildrenRef(c)
-      case IrNode.IrStaticElement(_, _, _, c, _)  => templateHasChildrenRef(c)
-      case IrNode.IrHead(c)            => templateHasChildrenRef(c)
-      case IrNode.IrBoundary(c, p, f, _) =>
+      case IrNode.IrChildren                     => true
+      case IrNode.IrElement(_, _, _, c, _)       => templateHasChildrenRef(c)
+      case IrNode.IrStaticElement(_, _, _, c, _) => templateHasChildrenRef(c)
+      case IrNode.IrHead(c)                      => templateHasChildrenRef(c)
+      case IrNode.IrBoundary(c, p, f, _)         =>
         templateHasChildrenRef(c) ||
         p.exists(templateHasChildrenRef) ||
         f.exists(fb => templateHasChildrenRef(fb.children))
-      case IrNode.IrKeyBlock(_, c)     => templateHasChildrenRef(c)
+      case IrNode.IrKeyBlock(_, c)      => templateHasChildrenRef(c)
       case IrNode.IrSnippetDef(_, _, c) => templateHasChildrenRef(c)
-      case _                           => false
+      case _                            => false
     }
 
   private def escapeStr(s: String): String =
@@ -892,20 +916,85 @@ object SpaEmitter:
     buf.toString
 
   private val KnownSvgTags: Set[String] = Set(
-    "animate", "animateMotion", "animateTransform", "circle", "clipPath",
-    "defs", "desc", "ellipse", "feBlend", "feColorMatrix", "feComponentTransfer",
-    "feComposite", "feConvolveMatrix", "feDiffuseLighting", "feDisplacementMap",
-    "feFlood", "feGaussianBlur", "feImage", "feMerge", "feMorphology", "feOffset",
-    "feSpecularLighting", "feTile", "feTurbulence", "filter", "foreignObject",
-    "g", "image", "line", "linearGradient", "marker", "mask", "metadata", "mpath",
-    "path", "pattern", "polygon", "polyline", "radialGradient", "rect", "set",
-    "stop", "svg", "switch", "symbol", "text", "textPath", "title", "tspan",
-    "use", "view"
+    "animate",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "defs",
+    "desc",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feFlood",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMorphology",
+    "feOffset",
+    "feSpecularLighting",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "foreignObject",
+    "g",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "metadata",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "stop",
+    "svg",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "title",
+    "tspan",
+    "use",
+    "view"
   )
 
   private val KnownMathTags: Set[String] = Set(
-    "annotation", "annotation-xml", "math", "merror", "mfrac", "mi", "mn", "mo",
-    "mover", "mpadded", "mphantom", "mroot", "mrow", "ms", "msqrt", "mspace",
-    "mstyle", "msub", "msubsup", "msup", "mtable", "mtd", "mtext", "mtr",
-    "munder", "munderover", "semantics"
+    "annotation",
+    "annotation-xml",
+    "math",
+    "merror",
+    "mfrac",
+    "mi",
+    "mn",
+    "mo",
+    "mover",
+    "mpadded",
+    "mphantom",
+    "mroot",
+    "mrow",
+    "ms",
+    "msqrt",
+    "mspace",
+    "mstyle",
+    "msub",
+    "msubsup",
+    "msup",
+    "mtable",
+    "mtd",
+    "mtext",
+    "mtr",
+    "munder",
+    "munderover",
+    "semantics"
   )

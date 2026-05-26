@@ -7,8 +7,8 @@
 package melt.ir
 
 import melt.ast.*
-import melt.NodePositions
 import melt.codegen.{ CssScoper, SpaCodeGen }
+import melt.NodePositions
 
 /** Lowers a [[MeltFile]] AST into an [[IrComponent]].
   *
@@ -24,14 +24,14 @@ object AstToIr:
     objectName:        String,
     pkg:               String,
     scopeId:           String,
-    hydration:         Boolean       = false,
-    sourcePath:        String        = "",
-    scriptBodyLine:    Int           = 1,
-    templateStartLine: Int           = 1,
-    templateSource:    String        = "",
+    hydration:         Boolean = false,
+    sourcePath:        String = "",
+    scriptBodyLine:    Int = 1,
+    templateStartLine: Int = 1,
+    templateSource:    String = "",
     positions:         NodePositions = NodePositions.empty
   ): IrComponent =
-    val propsType               = ast.script.flatMap(_.propsType).map(buildPropsType(_, ast.script))
+    val propsType = ast.script.flatMap(_.propsType).map(buildPropsType(_, ast.script))
     // ⚠ Call splitTypeDecls once on the raw script code.
     // Calling extractScriptBody (which already strips typeDecls) and then
     // extractTypeDecls on the result would always yield an empty typeDecls list
@@ -40,7 +40,7 @@ object AstToIr:
     val (typeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
     val style                   = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
     val posBuilder              = IrNodePositions.builder()
-    val template                = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder))
+    val template = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder))
 
     IrComponent(
       objectName        = objectName,
@@ -54,7 +54,7 @@ object AstToIr:
       template          = template,
       hydration         = hydration,
       sourcePath        = sourcePath,
-      sourceMap         = IrSourceMap.empty,  // populated by Emitters during emit()
+      sourceMap         = IrSourceMap.empty, // populated by Emitters during emit()
       scriptBodyLine    = scriptBodyLine,
       templateStartLine = templateStartLine,
       nodePositions     = posBuilder.build()
@@ -93,10 +93,8 @@ object AstToIr:
         val irChildren = children.flatMap(lower)
         val ns         = namespaceFor(tag)
         val irElem     =
-          if isStatic(irAttrs, irChildren) then
-            IrNode.IrStaticElement(tag, ns, irAttrs, irChildren, scopeId)
-          else
-            IrNode.IrElement(tag, ns, irAttrs, irChildren, scopeId)
+          if isStatic(irAttrs, irChildren) then IrNode.IrStaticElement(tag, ns, irAttrs, irChildren, scopeId)
+          else IrNode.IrElement(tag, ns, irAttrs, irChildren, scopeId)
         Some(irElem)
 
       case TemplateNode.Component(name, attrs, children) =>
@@ -141,9 +139,7 @@ object AstToIr:
         val onError    = attrs.collectFirst { case Attr.EventHandler("error", e) => ScalaExpr(e) }
         val irChildren = children.flatMap(lower)
         val irPending  = pending.map(_.children.flatMap(lower))
-        val irFailed   = failed.map(f =>
-          IrFailedBlock(f.errorVar, f.resetVar, f.children.flatMap(lower))
-        )
+        val irFailed   = failed.map(f => IrFailedBlock(f.errorVar, f.resetVar, f.children.flatMap(lower)))
         Some(IrNode.IrBoundary(irChildren, irPending, irFailed, onError))
 
       case TemplateNode.KeyBlock(keyExpr, children) =>
@@ -170,29 +166,14 @@ object AstToIr:
   private[melt] def lowerExpression(code: String): IrNode =
     val trimmed = code.trim
 
-    if trimmed == "children" then
-      IrNode.IrChildren
-
-    else if isKeyedList(trimmed) then
-      buildKeyedList(trimmed)
-
-    else if isUnkeyedList(trimmed) then
-      buildUnkeyedList(trimmed)
-
-    else if trimmed.contains("TrustedHtml") then
-      IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
-
-    else if isConditionalDom(trimmed) then
-      IrNode.IrConditional(extractReactiveSource(trimmed), ScalaExpr(trimmed))
-
-    else if trimmed.contains("createDocumentFragment") then
-      IrNode.IrFragmentResult(ScalaExpr(trimmed))
-
-    else if returnsDomDirectly(trimmed) then
-      IrNode.IrDomResult(ScalaExpr(trimmed))
-
-    else
-      IrNode.IrDynamicText(ScalaExpr(trimmed))
+    if trimmed == "children" then IrNode.IrChildren
+    else if isKeyedList(trimmed) then buildKeyedList(trimmed)
+    else if isUnkeyedList(trimmed) then buildUnkeyedList(trimmed)
+    else if trimmed.contains("TrustedHtml") then IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
+    else if isConditionalDom(trimmed) then IrNode.IrConditional(extractReactiveSource(trimmed), ScalaExpr(trimmed))
+    else if trimmed.contains("createDocumentFragment") then IrNode.IrFragmentResult(ScalaExpr(trimmed))
+    else if returnsDomDirectly(trimmed) then IrNode.IrDomResult(ScalaExpr(trimmed))
+    else IrNode.IrDynamicText(ScalaExpr(trimmed))
 
   private def isKeyedList(code: String): Boolean =
     code.contains(".keyed(") && code.contains(".map(")
@@ -202,14 +183,14 @@ object AstToIr:
 
   private def isConditionalDom(code: String): Boolean =
     (code.startsWith("if ") || code.startsWith("if(") || code.contains(" match")) &&
-    containsDomConstruction(code)
+      containsDomConstruction(code)
 
   private def containsDomConstruction(code: String): Boolean =
     code.contains("createElement") ||
-    code.contains("dom.document") ||
-    code.contains(": dom.Node") ||
-    code.contains(": dom.Element") ||
-    code.count(_ == '\n') > 1
+      code.contains("dom.document") ||
+      code.contains(": dom.Node") ||
+      code.contains(": dom.Element") ||
+      code.count(_ == '\n') > 1
 
   private def returnsDomDirectly(code: String): Boolean =
     code.contains("createElement") || code.contains("createElementNS")
@@ -267,8 +248,8 @@ object AstToIr:
     */
   private def lowerAttr(attr: Attr, tag: String, allAttrs: List[Attr]): Option[IrAttr] = attr match
 
-    case Attr.Static(name, value)    => Some(IrAttr.StaticAttr(name, value))
-    case Attr.BooleanAttr(name)      => Some(IrAttr.BooleanAttr(name))
+    case Attr.Static(name, value) => Some(IrAttr.StaticAttr(name, value))
+    case Attr.BooleanAttr(name)   => Some(IrAttr.BooleanAttr(name))
 
     // class={dynamicExpr} — full class string expression passed to Bind.cls (SPA)
     // or injected into emitScopedClassAttr (SSR).
@@ -278,14 +259,14 @@ object AstToIr:
     // Bind.booleanAttr (adds/removes the attr) not Bind.attr (sets a string).
     case Attr.Dynamic(name, expr) if htmlBooleanAttrs.contains(name) =>
       Some(IrAttr.DynamicBooleanAttr(name, ScalaExpr(expr)))
-    case Attr.Dynamic(name, expr)    => Some(IrAttr.DynamicAttr(name, ScalaExpr(expr)))
+    case Attr.Dynamic(name, expr) => Some(IrAttr.DynamicAttr(name, ScalaExpr(expr)))
 
-    case Attr.Spread(expr)           => Some(IrAttr.Spread(ScalaExpr(expr)))
+    case Attr.Spread(expr) => Some(IrAttr.Spread(ScalaExpr(expr)))
 
     // Shorthand on an element: treated as a dynamic attr in both SPA and SSR.
     // NOTE: current SpaCodeGen silently drops Shorthand on elements (existing bug);
     // this IR mapping is the correct behaviour and fixes it in Phase 2.
-    case Attr.Shorthand(varName)     => Some(IrAttr.DynamicAttr(varName, ScalaExpr(varName)))
+    case Attr.Shorthand(varName) => Some(IrAttr.DynamicAttr(varName, ScalaExpr(varName)))
 
     case Attr.EventHandler(event, expr) =>
       Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
@@ -303,12 +284,12 @@ object AstToIr:
             case _                            => false
           }
           Some(IrAttr.BindSelectValue(ScalaExpr(expr), multiple))
-        case _          => Some(IrAttr.BindInputValue(ScalaExpr(expr)))
+        case _ => Some(IrAttr.BindInputValue(ScalaExpr(expr)))
 
     case Attr.Directive("bind", "value-int", Some(e), _)    => Some(IrAttr.BindInputValueInt(ScalaExpr(e)))
     case Attr.Directive("bind", "value-double", Some(e), _) => Some(IrAttr.BindInputValueDouble(ScalaExpr(e)))
     case Attr.Directive("bind", "checked", Some(e), _)      => Some(IrAttr.BindChecked(ScalaExpr(e)))
-    case Attr.Directive("bind", "group", Some(e), _) =>
+    case Attr.Directive("bind", "group", Some(e), _)        =>
       val isCheckbox = allAttrs.exists {
         case Attr.Static("type", "checkbox") => true
         case _                               => false
@@ -354,25 +335,32 @@ object AstToIr:
     case Attr.Static(name, value)       => Some(IrProp(name, IrPropValue.Static(value)))
     case Attr.Dynamic(name, expr)       => Some(IrProp(name, IrPropValue.Dynamic(ScalaExpr(expr))))
     case Attr.Shorthand(varName)        => Some(IrProp(varName, IrPropValue.Shorthand(varName)))
-    case Attr.EventHandler(event, expr) => Some(IrProp(s"on${event.capitalize}", IrPropValue.Dynamic(ScalaExpr(expr))))
-    case Attr.BooleanAttr("styled")     => None  // CSS scoping flag, not a Props field
-    case Attr.BooleanAttr(name)         => Some(IrProp(name, IrPropValue.BooleanTrue))
+    case Attr.EventHandler(event, expr) =>
+      Some(IrProp(s"on${ event.capitalize }", IrPropValue.Dynamic(ScalaExpr(expr))))
+    case Attr.BooleanAttr("styled")                 => None // CSS scoping flag, not a Props field
+    case Attr.BooleanAttr(name)                     => Some(IrProp(name, IrPropValue.BooleanTrue))
     case Attr.Directive("bind", "this", Some(_), _) =>
-      None  // bind:this on component handled separately in Emitter
-    case _                              => None
+      None // bind:this on component handled separately in Emitter
+    case _                                          => None
 
   // ── Window / Body / Document attr lowering ────────────────────────────────
 
   private val windowBindProps: Set[String] = Set(
-    "scrollY", "scrollX", "innerWidth", "innerHeight",
-    "outerWidth", "outerHeight", "devicePixelRatio", "online"
+    "scrollY",
+    "scrollX",
+    "innerWidth",
+    "innerHeight",
+    "outerWidth",
+    "outerHeight",
+    "devicePixelRatio",
+    "online"
   )
 
   private def lowerWindowAttr(attr: Attr): Option[IrAttr] = attr match
-    case Attr.EventHandler(event, expr)                              => Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
+    case Attr.EventHandler(event, expr) => Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
     case Attr.Directive("bind", prop, Some(e), _) if windowBindProps.contains(prop) =>
       Some(IrAttr.BindWindow(prop, ScalaExpr(e)))
-    case _                                                           => None
+    case _ => None
 
   private def lowerBodyAttr(attr: Attr): Option[IrAttr] = attr match
     case Attr.EventHandler(event, expr)          => Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
@@ -380,14 +368,17 @@ object AstToIr:
     case _                                       => None
 
   private val documentBindProps: Set[String] = Set(
-    "visibilityState", "fullscreenElement", "pointerLockElement", "activeElement"
+    "visibilityState",
+    "fullscreenElement",
+    "pointerLockElement",
+    "activeElement"
   )
 
   private def lowerDocumentAttr(attr: Attr): Option[IrAttr] = attr match
-    case Attr.EventHandler(event, expr)                                  => Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
+    case Attr.EventHandler(event, expr) => Some(IrAttr.EventHandler(event, ScalaExpr(expr)))
     case Attr.Directive("bind", prop, Some(e), _) if documentBindProps.contains(prop) =>
       Some(IrAttr.BindDocument(prop, ScalaExpr(e)))
-    case _                                                               => None
+    case _ => None
 
   // ── Script body helpers ───────────────────────────────────────────────────
 
@@ -425,10 +416,10 @@ object AstToIr:
 
   private def isTypeDeclStart(trimmed: String): Boolean =
     trimmed.startsWith("case class ") ||
-    trimmed.startsWith("type ") ||
-    trimmed.startsWith("sealed trait ") ||
-    trimmed.startsWith("sealed abstract class ") ||
-    trimmed.startsWith("enum ")
+      trimmed.startsWith("type ") ||
+      trimmed.startsWith("sealed trait ") ||
+      trimmed.startsWith("sealed abstract class ") ||
+      trimmed.startsWith("enum ")
 
   private def collectBalanced(lines: Vector[String], start: Int): (Int, Vector[String]) =
     var depth       = 0
@@ -502,13 +493,24 @@ object AstToIr:
     i
 
   private val mediaDimensions: Set[String] = Set(
-    "currentTime", "duration", "paused", "volume", "muted",
-    "playbackRate", "seeking", "ended", "readyState",
-    "videoWidth", "videoHeight"
+    "currentTime",
+    "duration",
+    "paused",
+    "volume",
+    "muted",
+    "playbackRate",
+    "seeking",
+    "ended",
+    "readyState",
+    "videoWidth",
+    "videoHeight"
   )
 
   private val elementDimensions: Set[String] = Set(
-    "clientWidth", "clientHeight", "offsetWidth", "offsetHeight"
+    "clientWidth",
+    "clientHeight",
+    "offsetWidth",
+    "offsetHeight"
   )
 
   // htmlBooleanAttrs is referenced from SpaCodeGen.htmlBooleanAttrs to avoid duplication.

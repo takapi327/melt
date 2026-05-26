@@ -6,7 +6,7 @@
 
 package melt.ir.opt
 
-import melt.ir.{ IrComponent, IrHoistedNode, IrNode, mapChildren }
+import melt.ir.{ mapChildren, IrComponent, IrHoistedNode, IrNode }
 
 /** Identifies [[IrNode.IrStaticElement]] nodes in the template and marks them
   * for hoisting to object-level `val`s in the emitted code.
@@ -36,9 +36,9 @@ object StaticHoistPass extends IrPass:
         val id = s"_hoist_$counter"
         counter += 1
         hoisted += IrHoistedNode(id, e)
-        IrNode.IrHoistRef(id)   // replace in-place with a reference
+        IrNode.IrHoistRef(id) // replace in-place with a reference
       case IrNode.IrInlineTemplate(_) =>
-        node                    // do not recurse into bridge nodes
+        node // do not recurse into bridge nodes
       case other =>
         other.mapChildren(processNode)
 

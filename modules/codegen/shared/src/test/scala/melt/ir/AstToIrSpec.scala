@@ -41,7 +41,7 @@ class AstToIrSpec extends munit.FunSuite:
     AstToIr.lowerExpression(code) match
       case IrNode.IrList(source, renderFn) =>
         assertEquals(source.code, "todos")
-        assert(renderFn.code.startsWith("t =>"), s"renderFn = ${renderFn.code}")
+        assert(renderFn.code.startsWith("t =>"), s"renderFn = ${ renderFn.code }")
       case other => fail(s"Unexpected: $other")
   }
 
@@ -58,7 +58,7 @@ class AstToIrSpec extends munit.FunSuite:
     val code = """TrustedHtml("<b>bold</b>")"""
     AstToIr.lowerExpression(code) match
       case IrNode.IrRawHtml(_, expr) => assertEquals(expr.code, code)
-      case other => fail(s"Unexpected: $other")
+      case other                     => fail(s"Unexpected: $other")
   }
 
   test("conditional DOM expression lowers to IrConditional") {
@@ -83,7 +83,7 @@ class AstToIrSpec extends munit.FunSuite:
     val ir = lower("""<div class={cls}>text</div>""")
     ir.template match
       case List(IrNode.IrElement("div", _, _, _, _)) => ()
-      case other => fail(s"Expected IrElement, got $other")
+      case other                                     => fail(s"Expected IrElement, got $other")
   }
 
   // ── Attr lowering ─────────────────────────────────────────────────────────
@@ -160,18 +160,22 @@ class AstToIrSpec extends munit.FunSuite:
     val ir = lower("""<svg><circle r="10" /></svg>""")
     ir.template match
       case List(IrNode.IrStaticElement("svg", Some("svg"), _, _, _)) => ()
-      case other => fail(s"Expected svg namespace, got $other")
+      case other                                                     => fail(s"Expected svg namespace, got $other")
   }
 
   // ── extractReactiveSource ──────────────────────────────────────────────────
 
   test("extractReactiveSource from `if flag.value then`") {
-    AstToIr.extractReactiveSource("if flag.value then dom.document.createElement(\"span\") else dom.document.createTextNode(\"\")") match
+    AstToIr.extractReactiveSource(
+      "if flag.value then dom.document.createElement(\"span\") else dom.document.createTextNode(\"\")"
+    ) match
       case Some(src) => assertEquals(src.code, "flag")
-      case None => fail("Expected Some")
+      case None      => fail("Expected Some")
   }
 
   test("extractReactiveSource returns None for plain if without reactive pattern") {
-    val result = AstToIr.extractReactiveSource("if x > 0 then dom.document.createElement(\"span\") else dom.document.createTextNode(\"\")")
+    val result = AstToIr.extractReactiveSource(
+      "if x > 0 then dom.document.createElement(\"span\") else dom.document.createTextNode(\"\")"
+    )
     assertEquals(result, None)
   }

@@ -23,18 +23,18 @@ object SsrEmitter:
   def emit(ir: IrComponent): String =
     val tracker = new LineTracker
 
-    if ir.pkg.nonEmpty then tracker ++= s"package ${ir.pkg}\n\n"
+    if ir.pkg.nonEmpty then tracker ++= s"package ${ ir.pkg }\n\n"
     tracker ++= "import scala.language.implicitConversions\n"
     tracker ++= "import melt.runtime.*\n"
     if ir.propsType.isDefined then tracker ++= "import melt.runtime.json.PropsCodec\n"
     tracker ++= "import melt.runtime.render.*\n\n"
 
-    tracker ++= s"object ${ir.objectName} {\n\n"
-    tracker ++= s"""  private val _scopeId = "${ir.scopeId}"\n\n"""
+    tracker ++= s"object ${ ir.objectName } {\n\n"
+    tracker ++= s"""  private val _scopeId = "${ ir.scopeId }"\n\n"""
 
     val hasCss = ir.style.isDefined
     ir.style.foreach { s =>
-      tracker ++= s"""  private val _css =\n    "${escapeStr(s.scopedCss)}"\n\n"""
+      tracker ++= s"""  private val _css =\n    "${ escapeStr(s.scopedCss) }"\n\n"""
     }
 
     ir.typeDecls.foreach { decl =>
@@ -44,20 +44,20 @@ object SsrEmitter:
 
     ir.propsType.foreach { pt =>
       if pt.baseName != "Props" then
-        tracker ++= s"  val Props = ${pt.baseName}\n"
-        if pt.typeParams.nonEmpty then tracker ++= s"  type Props${pt.typeParams} = ${pt.typeName}\n"
-        else tracker ++= s"  type Props = ${pt.baseName}\n"
+        tracker ++= s"  val Props = ${ pt.baseName }\n"
+        if pt.typeParams.nonEmpty then tracker ++= s"  type Props${ pt.typeParams } = ${ pt.typeName }\n"
+        else tracker ++= s"  type Props = ${ pt.baseName }\n"
         tracker += '\n'
     }
 
     ir.propsType.foreach { pt =>
       if pt.typeParams.isEmpty then
-        tracker ++= s"  private val _propsCodec: PropsCodec[${pt.typeName}] = PropsCodec.derived\n\n"
+        tracker ++= s"  private val _propsCodec: PropsCodec[${ pt.typeName }] = PropsCodec.derived\n\n"
     }
 
     val hasChildren = templateHasChildrenRef(ir.template)
     val _tp         = ir.propsType.map(_.typeParams).getOrElse("")
-    tracker ++= s"  def apply$_tp(${renderParams(ir.propsType, hasChildren)}): RenderResult = {\n"
+    tracker ++= s"  def apply$_tp(${ renderParams(ir.propsType, hasChildren) }): RenderResult = {\n"
     tracker ++= "    val renderer = ServerRenderer()\n"
     val moduleId = kebabCase(ir.objectName)
     tracker ++= s"""    renderer.trackComponent("$moduleId")\n"""
@@ -67,7 +67,7 @@ object SsrEmitter:
     }
     if hasCss then tracker ++= "    renderer.css.add(_scopeId, _css)\n"
     ir.fileImports.foreach { path =>
-      tracker ++= s"""    renderer.addImport("${escapeStr(path)}")\n"""
+      tracker ++= s"""    renderer.addImport("${ escapeStr(path) }")\n"""
     }
     tracker ++= "\n"
 
@@ -94,7 +94,7 @@ object SsrEmitter:
 
     val linesStr       = tracker.linesMetadata()
     val safeSourcePath = ir.sourcePath.replace("\n", "").replace("\r", "").replace("*/", "*\\/").replace("/*", "/\\*")
-    val meta =
+    val meta           =
       if ir.sourcePath.nonEmpty && linesStr.nonEmpty then
         s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
       else ""
@@ -108,9 +108,9 @@ object SsrEmitter:
     buf:            LineTracker,
     indent:         Int,
     scopeId:        String,
-    nodePos:        IrNodePositions                     = IrNodePositions.empty,
+    nodePos:        IrNodePositions = IrNodePositions.empty,
     hoistedMap:     Map[String, IrNode.IrStaticElement] = Map.empty,
-    selectBindExpr: Option[String]                      = None
+    selectBindExpr: Option[String] = None
   ): Unit =
     nodePos.get(node).foreach { case (l, c) => buf.markSourceLine(l, c) }
     val pad = " " * indent
@@ -118,10 +118,10 @@ object SsrEmitter:
     node match
       case IrNode.IrStaticText(content) =>
         val escaped = htmlEscapeLiteral(content)
-        buf ++= s"""${pad}renderer.push("${escapeStr(escaped)}")\n"""
+        buf ++= s"""${ pad }renderer.push("${ escapeStr(escaped) }")\n"""
 
       case IrNode.IrDynamicText(expr) =>
-        buf ++= s"""${pad}renderer.push(Escape.html(${expr.code}))\n"""
+        buf ++= s"""${ pad }renderer.push(Escape.html(${ expr.code }))\n"""
 
       case IrNode.IrStaticElement(tag, _, attrs, children, _) =>
         emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
@@ -133,48 +133,43 @@ object SsrEmitter:
         val hasBindInnerHtml   = attrs.exists { case IrAttr.BindInnerHtml(_) => true; case _ => false }
         val hasBindTextContent = attrs.exists { case IrAttr.BindTextContent(_) => true; case _ => false }
 
-        if hasBindTextarea then
-          emitTextareaBindValue(attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-        else if hasBindSelect then
-          emitSelectBindValue(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-        else if hasBindGrp then
-          emitInputBindGroup(tag, attrs, buf, indent, scopeId)
-        else if hasBindInnerHtml || hasBindTextContent then
-          emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
-        else
-          emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
+        if hasBindTextarea then emitTextareaBindValue(attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
+        else if hasBindSelect then emitSelectBindValue(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
+        else if hasBindGrp then emitInputBindGroup(tag, attrs, buf, indent, scopeId)
+        else if hasBindInnerHtml || hasBindTextContent then emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
+        else emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
 
       case IrNode.IrComponent(name, props, childrenSlot, spreadExpr, _, _) =>
         emitComponentSSR(name, props, childrenSlot, spreadExpr, buf, indent, scopeId, nodePos, hoistedMap)
 
       case IrNode.IrChildren =>
-        buf ++= s"${pad}renderer.merge(children())\n"
+        buf ++= s"${ pad }renderer.merge(children())\n"
 
       case IrNode.IrRawHtml(_, expr) =>
-        buf ++= s"${pad}renderer.push((${expr.code}).value)\n"
+        buf ++= s"${ pad }renderer.push((${ expr.code }).value)\n"
 
       case IrNode.IrList(source, renderFn) =>
-        val expr = s"${source.code}.value.map(${renderFn.code})"
-        buf ++= s"""${pad}renderer.push("<!--[melt:dyn-->")\n"""
-        buf ++= s"${pad}$expr.foreach(renderer.push)\n"
-        buf ++= s"""${pad}renderer.push("<!--]melt:dyn-->")\n"""
+        val expr = s"${ source.code }.value.map(${ renderFn.code })"
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
+        buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
       case IrNode.IrKeyedList(source, keyFn, renderFn) =>
-        val expr = s"${source.code}.keyed(${keyFn.code}).map(${renderFn.code})"
-        buf ++= s"""${pad}renderer.push("<!--[melt:dyn-->")\n"""
-        buf ++= s"${pad}$expr.foreach(renderer.push)\n"
-        buf ++= s"""${pad}renderer.push("<!--]melt:dyn-->")\n"""
+        val expr = s"${ source.code }.keyed(${ keyFn.code }).map(${ renderFn.code })"
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
+        buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
       case IrNode.IrConditional(_, condAndBody) =>
-        buf ++= s"""${pad}renderer.push("<!--[melt:dyn-->")\n"""
-        buf ++= s"${pad}renderer.push(${condAndBody.code})\n"
-        buf ++= s"""${pad}renderer.push("<!--]melt:dyn-->")\n"""
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
+        buf ++= s"${ pad }renderer.push(${ condAndBody.code })\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
       case IrNode.IrDomResult(expr) =>
-        buf ++= s"${pad}renderer.push(${expr.code})\n"
+        buf ++= s"${ pad }renderer.push(${ expr.code })\n"
 
       case IrNode.IrFragmentResult(expr) =>
-        buf ++= s"${pad}renderer.push(${expr.code})\n"
+        buf ++= s"${ pad }renderer.push(${ expr.code })\n"
 
       case IrNode.IrHead(children) =>
         children.foreach(c => emitHeadNodeSSR(c, buf, indent, scopeId, nodePos, hoistedMap))
@@ -186,7 +181,7 @@ object SsrEmitter:
         emitInlineTemplateSSR(parts, buf, indent, scopeId, nodePos, hoistedMap)
 
       case IrNode.IrDynamicElement(_, _, _, _) =>
-        buf ++= s"${pad}// TODO(SSR Phase C): DynamicElement\n"
+        buf ++= s"${ pad }// TODO(SSR Phase C): DynamicElement\n"
 
       case IrNode.IrBoundary(children, _, _, _) =>
         children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap))
@@ -198,12 +193,22 @@ object SsrEmitter:
         ()
 
       case IrNode.IrRenderCall(expr) =>
-        buf ++= s"${pad}renderer.push(${expr.code})\n"
+        buf ++= s"${ pad }renderer.push(${ expr.code })\n"
 
       case IrNode.IrHoistRef(id) =>
         hoistedMap.get(id) match
           case Some(elem) =>
-            emitElementSSR(elem.tag, elem.attrs, elem.children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
+            emitElementSSR(
+              elem.tag,
+              elem.attrs,
+              elem.children,
+              buf,
+              indent,
+              scopeId,
+              nodePos,
+              hoistedMap,
+              selectBindExpr
+            )
           case None => ()
 
   // ── Generic element emission ───────────────────────────────────────────────
@@ -227,13 +232,13 @@ object SsrEmitter:
       for
         bindExpr  <- selectBindExpr
         valueExpr <- optionValueExprIR(attrs)
-      do buf ++= s"${pad}if ($bindExpr == $valueExpr) renderer.push(\" selected\")\n"
+      do buf ++= s"${ pad }if ($bindExpr == $valueExpr) renderer.push(\" selected\")\n"
 
-    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}renderer.push(">")\n"""
+    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
-      buf ++= s"""${pad}renderer.push(">")\n"""
+      buf ++= s"""${ pad }renderer.push(">")\n"""
       children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr))
-      buf ++= s"""${pad}renderer.push("</$tag>")\n"""
+      buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   private def emitElementStart(
     tag:     String,
@@ -243,7 +248,7 @@ object SsrEmitter:
     scopeId: String
   ): Unit =
     val pad = " " * indent
-    buf ++= s"""${pad}renderer.push("<$tag")\n"""
+    buf ++= s"""${ pad }renderer.push("<$tag")\n"""
     emitScopedClassAttr(tag, attrs, buf, indent, scopeId)
     attrs.foreach(attr => emitAttrSSR(tag, attr, buf, indent))
 
@@ -268,10 +273,10 @@ object SsrEmitter:
 
     if condParts.isEmpty && dynPart.isEmpty then
       val combined = escapeStr(s""" class="$baseClass"""")
-      buf ++= s"""${pad}renderer.push("$combined")\n"""
+      buf ++= s"""${ pad }renderer.push("$combined")\n"""
     else
       val allParts = (dynPart.toList ++ condParts).mkString(" + ")
-      buf ++= s"""${pad}renderer.push(" class=\\"${escapeStr(baseClass)}" + $allParts + "\\"")\n"""
+      buf ++= s"""${ pad }renderer.push(" class=\\"${ escapeStr(baseClass) }" + $allParts + "\\"")\n"""
 
   /** Emits one non-`class`-static attribute. */
   private def emitAttrSSR(
@@ -283,61 +288,60 @@ object SsrEmitter:
     val pad = " " * indent
     attr match
       case IrAttr.StaticAttr("class", _) => ()
-      case IrAttr.DynamicClass(_)         => () // handled in emitScopedClassAttr
-      case IrAttr.ClassToggle(_, _)       => () // handled in emitScopedClassAttr
+      case IrAttr.DynamicClass(_)        => () // handled in emitScopedClassAttr
+      case IrAttr.ClassToggle(_, _)      => () // handled in emitScopedClassAttr
 
       case IrAttr.StaticAttr(name, value) =>
-        val combined = escapeStr(s""" $name="${htmlAttrEscapeLiteral(value)}"""")
-        buf ++= s"""${pad}renderer.push("$combined")\n"""
+        val combined = escapeStr(s""" $name="${ htmlAttrEscapeLiteral(value) }"""")
+        buf ++= s"""${ pad }renderer.push("$combined")\n"""
 
       case IrAttr.BooleanAttr(name) =>
         val lit = escapeStr(s" $name")
-        buf ++= s"""${pad}renderer.push("$lit")\n"""
+        buf ++= s"""${ pad }renderer.push("$lit")\n"""
 
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        buf ++= s"""${pad}renderer.push(s" $name=\\"" + Escape.attr(${expr.code}) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.DynamicAttr(name, expr) =>
         if isUrlAttr(tag, name) then
-          buf ++= s"""${pad}renderer.push(s" $name=\\"" + Escape.url(${expr.code}) + "\\"")\n"""
-        else
-          buf ++= s"""${pad}renderer.push(s" $name=\\"" + Escape.attr(${expr.code}) + "\\"")\n"""
+          buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.url(${ expr.code }) + "\\"")\n"""
+        else buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.Spread(expr) =>
-        buf ++= s"""${pad}renderer.spreadAttrs("$tag", ${expr.code})\n"""
+        buf ++= s"""${ pad }renderer.spreadAttrs("$tag", ${ expr.code })\n"""
 
       case IrAttr.BindInputValue(expr) =>
-        buf ++= s"""${pad}renderer.push(s" value=\\"" + Escape.attr(${expr.code}) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" value=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.BindInputValueInt(expr) =>
-        buf ++= s"""${pad}renderer.push(s" value=\\"" + ${expr.code}.toString + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" value=\\"" + ${ expr.code }.toString + "\\"")\n"""
 
       case IrAttr.BindInputValueDouble(expr) =>
-        buf ++= s"""${pad}renderer.push(s" value=\\"" + ${expr.code}.toString + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" value=\\"" + ${ expr.code }.toString + "\\"")\n"""
 
       case IrAttr.BindChecked(expr) =>
-        buf ++= s"""${pad}renderer.push(s" checked=\\"" + Escape.attr(${expr.code}) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" checked=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.StyleProp(prop, expr) =>
-        buf ++= s"""${pad}renderer.push(s" style=\\"$prop:" + Escape.cssValue(${expr.code}) + ";\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\"")\n"""
 
       // Handled at element level — not emitted as individual attributes
-      case IrAttr.BindTextareaValue(_)            => ()
-      case IrAttr.BindSelectValue(_, _)           => ()
-      case IrAttr.BindGroup(_, _)                 => ()
-      case IrAttr.BindInnerHtml(_)                => ()
-      case IrAttr.BindTextContent(_)              => ()
+      case IrAttr.BindTextareaValue(_)  => ()
+      case IrAttr.BindSelectValue(_, _) => ()
+      case IrAttr.BindGroup(_, _)       => ()
+      case IrAttr.BindInnerHtml(_)      => ()
+      case IrAttr.BindTextContent(_)    => ()
 
       // No SSR meaning
-      case IrAttr.BindThis(_)                     => ()
-      case IrAttr.BindDimension(_, _)             => ()
-      case IrAttr.BindMedia(_, _)                 => ()
-      case IrAttr.BindWindow(_, _)                => ()
-      case IrAttr.BindDocument(_, _)              => ()
-      case IrAttr.UseAction(_, _)                 => ()
-      case IrAttr.Transition(_, _, _, _)          => ()
-      case IrAttr.Animate(_, _)                   => ()
-      case IrAttr.EventHandler(_, _)              => ()
+      case IrAttr.BindThis(_)                       => ()
+      case IrAttr.BindDimension(_, _)               => ()
+      case IrAttr.BindMedia(_, _)                   => ()
+      case IrAttr.BindWindow(_, _)                  => ()
+      case IrAttr.BindDocument(_, _)                => ()
+      case IrAttr.UseAction(_, _)                   => ()
+      case IrAttr.Transition(_, _, _, _)            => ()
+      case IrAttr.Animate(_, _)                     => ()
+      case IrAttr.EventHandler(_, _)                => ()
       case IrAttr.EventHandlerWithModifier(_, _, _) => ()
 
   // ── Special element handlers ───────────────────────────────────────────────
@@ -359,10 +363,10 @@ object SsrEmitter:
     val restAttrs = attrs.filterNot { case IrAttr.BindTextareaValue(_) => true; case _ => false }
 
     emitElementStart("textarea", restAttrs, buf, indent, scopeId)
-    buf ++= s"""${pad}renderer.push(">")\n"""
+    buf ++= s"""${ pad }renderer.push(">")\n"""
     children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap))
-    buf ++= s"${pad}renderer.push(Escape.html($bindExpr))\n"
-    buf ++= s"""${pad}renderer.push("</textarea>")\n"""
+    buf ++= s"${ pad }renderer.push(Escape.html($bindExpr))\n"
+    buf ++= s"""${ pad }renderer.push("</textarea>")\n"""
 
   /** `<select bind:value={v}>` — passes bind expression to option children as `selectBindExpr`. */
   private def emitSelectBindValue(
@@ -382,9 +386,9 @@ object SsrEmitter:
     val restAttrs = attrs.filterNot { case IrAttr.BindSelectValue(_, _) => true; case _ => false }
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
-    buf ++= s"""${pad}renderer.push(">")\n"""
+    buf ++= s"""${ pad }renderer.push(">")\n"""
     children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr = Some(bindExpr)))
-    buf ++= s"""${pad}renderer.push("</$tag>")\n"""
+    buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   /** `<input bind:group={arr}>` — emits `checked` conditionally based on radio/checkbox type. */
   private def emitInputBindGroup(
@@ -400,7 +404,7 @@ object SsrEmitter:
       .getOrElse(sys.error("emitInputBindGroup called without BindGroup — compiler bug"))
 
     val valueExpr = attrs.collectFirst {
-      case IrAttr.StaticAttr("value", v)  => s""""${escapeStr(v)}""""
+      case IrAttr.StaticAttr("value", v)  => s""""${ escapeStr(v) }""""
       case IrAttr.DynamicAttr("value", e) => e.code
     }
 
@@ -410,12 +414,12 @@ object SsrEmitter:
 
     (isCheckbox, valueExpr) match
       case (true, Some(v)) =>
-        buf ++= s"${pad}if ($bindExpr.contains($v)) renderer.push(\" checked\")\n"
+        buf ++= s"${ pad }if ($bindExpr.contains($v)) renderer.push(\" checked\")\n"
       case (_, Some(v)) =>
-        buf ++= s"${pad}if ($bindExpr == $v) renderer.push(\" checked\")\n"
+        buf ++= s"${ pad }if ($bindExpr == $v) renderer.push(\" checked\")\n"
       case _ => ()
 
-    buf ++= s"""${pad}renderer.push(">")\n"""
+    buf ++= s"""${ pad }renderer.push(">")\n"""
 
   /** Any element with `bind:innerHTML={v}` or `bind:textContent={v}`. */
   private def emitElementWithBindContent(
@@ -439,13 +443,13 @@ object SsrEmitter:
     }
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
-    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}renderer.push(">")\n"""
+    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.push(">")\n"""
     else
-      buf ++= s"""${pad}renderer.push(">")\n"""
+      buf ++= s"""${ pad }renderer.push(">")\n"""
       innerHtmlExpr match
-        case Some(e) => buf ++= s"${pad}renderer.push($e.value)\n"
-        case None    => textContentExpr.foreach { e => buf ++= s"${pad}renderer.push(Escape.html($e))\n" }
-      buf ++= s"""${pad}renderer.push("</$tag>")\n"""
+        case Some(e) => buf ++= s"${ pad }renderer.push($e.value)\n"
+        case None    => textContentExpr.foreach { e => buf ++= s"${ pad }renderer.push(Escape.html($e))\n" }
+      buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   // ── Component emission ─────────────────────────────────────────────────────
 
@@ -461,30 +465,30 @@ object SsrEmitter:
     hoistedMap:   Map[String, IrNode.IrStaticElement]
   ): Unit =
     val pad  = " " * indent
-    val args = props.map(p => s"${p.name} = ${emitPropValue(p.value)}")
+    val args = props.map(p => s"${ p.name } = ${ emitPropValue(p.value) }")
 
     val propsStr = spreadExpr match
       case Some(e) => e.code
-      case None    => if args.isEmpty then "" else s"$name.Props(${args.mkString(", ")})"
+      case None    => if args.isEmpty then "" else s"$name.Props(${ args.mkString(", ") })"
 
     childrenSlot match
       case None =>
-        if propsStr.isEmpty then buf ++= s"${pad}renderer.merge($name())\n"
-        else buf ++= s"${pad}renderer.merge($name($propsStr))\n"
+        if propsStr.isEmpty then buf ++= s"${ pad }renderer.merge($name())\n"
+        else buf ++= s"${ pad }renderer.merge($name($propsStr))\n"
 
       case Some(slot) =>
         if propsStr.isEmpty then
-          buf ++= s"${pad}renderer.merge($name(children = () => {\n"
-          buf ++= s"${pad}  val _sb = new StringBuilder\n"
+          buf ++= s"${ pad }renderer.merge($name(children = () => {\n"
+          buf ++= s"${ pad }  val _sb = new StringBuilder\n"
           slot.nodes.foreach(c => emitNodeToSb(c, buf, s"$pad  ", scopeId, nodePos, hoistedMap))
-          buf ++= s"${pad}  RenderResult(_sb.toString, \"\")\n"
-          buf ++= s"${pad}}))\n"
+          buf ++= s"${ pad }  RenderResult(_sb.toString, \"\")\n"
+          buf ++= s"${ pad }}))\n"
         else
-          buf ++= s"${pad}renderer.merge($name($propsStr, children = () => {\n"
-          buf ++= s"${pad}  val _sb = new StringBuilder\n"
+          buf ++= s"${ pad }renderer.merge($name($propsStr, children = () => {\n"
+          buf ++= s"${ pad }  val _sb = new StringBuilder\n"
           slot.nodes.foreach(c => emitNodeToSb(c, buf, s"$pad  ", scopeId, nodePos, hoistedMap))
-          buf ++= s"${pad}  RenderResult(_sb.toString, \"\")\n"
-          buf ++= s"${pad}}))\n"
+          buf ++= s"${ pad }  RenderResult(_sb.toString, \"\")\n"
+          buf ++= s"${ pad }}))\n"
 
   // ── InlineTemplate emission ────────────────────────────────────────────────
 
@@ -500,7 +504,7 @@ object SsrEmitter:
 
     val exprBuf = new StringBuilder
     parts.foreach {
-      case IrInlineTemplatePart.Code(code) => exprBuf ++= code
+      case IrInlineTemplatePart.Code(code)  => exprBuf ++= code
       case IrInlineTemplatePart.Html(nodes) =>
         exprBuf ++= irNodesToStringExpr(nodes, scopeId, hoistedMap)
     }
@@ -510,13 +514,13 @@ object SsrEmitter:
 
     kind match
       case InlineKind.Iterable =>
-        buf ++= s"""${pad}renderer.push("<!--[melt:dyn-->")\n"""
-        buf ++= s"${pad}$expr.foreach(renderer.push)\n"
-        buf ++= s"""${pad}renderer.push("<!--]melt:dyn-->")\n"""
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
+        buf ++= s"${ pad }$expr.foreach(renderer.push)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
       case InlineKind.SingleString =>
-        buf ++= s"""${pad}renderer.push("<!--[melt:dyn-->")\n"""
-        buf ++= s"${pad}renderer.push($expr)\n"
-        buf ++= s"""${pad}renderer.push("<!--]melt:dyn-->")\n"""
+        buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
+        buf ++= s"${ pad }renderer.push($expr)\n"
+        buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
 
   // ── Head emission ──────────────────────────────────────────────────────────
 
@@ -542,10 +546,10 @@ object SsrEmitter:
         emitHeadElementNode(tag, attrs, children, buf, pad, indent, scopeId, nodePos, hoistedMap)
 
       case IrNode.IrStaticText(content) =>
-        buf ++= s"""${pad}renderer.head.push("${escapeStr(htmlEscapeLiteral(content))}")\n"""
+        buf ++= s"""${ pad }renderer.head.push("${ escapeStr(htmlEscapeLiteral(content)) }")\n"""
 
       case IrNode.IrDynamicText(expr) =>
-        buf ++= s"${pad}renderer.head.push(Escape.html(${expr.code}))\n"
+        buf ++= s"${ pad }renderer.head.push(Escape.html(${ expr.code }))\n"
 
       case _ => ()
 
@@ -560,10 +564,10 @@ object SsrEmitter:
   ): Unit =
     titleChildren match
       case IrNode.IrDynamicText(expr) :: Nil =>
-        buf ++= s"${pad}renderer.head.title(${expr.code})\n"
+        buf ++= s"${ pad }renderer.head.title(${ expr.code })\n"
       case _ =>
         val staticText = titleChildren.collect { case IrNode.IrStaticText(t) => t }.mkString
-        buf ++= s"""${pad}renderer.head.push("<title>${escapeStr(htmlEscapeLiteral(staticText))}</title>")\n"""
+        buf ++= s"""${ pad }renderer.head.push("<title>${ escapeStr(htmlEscapeLiteral(staticText)) }</title>")\n"""
 
   private def emitHeadElementNode(
     tag:        String,
@@ -576,20 +580,20 @@ object SsrEmitter:
     nodePos:    IrNodePositions,
     hoistedMap: Map[String, IrNode.IrStaticElement]
   ): Unit =
-    buf ++= s"""${pad}renderer.head.push("<$tag")\n"""
+    buf ++= s"""${ pad }renderer.head.push("<$tag")\n"""
     attrs.foreach {
       case IrAttr.StaticAttr(n, v) =>
-        val lit = escapeStr(s""" $n="${htmlAttrEscapeLiteral(v)}"""")
-        buf ++= s"""${pad}renderer.head.push("$lit")\n"""
+        val lit = escapeStr(s""" $n="${ htmlAttrEscapeLiteral(v) }"""")
+        buf ++= s"""${ pad }renderer.head.push("$lit")\n"""
       case IrAttr.DynamicAttr(n, e) =>
-        buf ++= s"""${pad}renderer.head.push(s" $n=\\"" + Escape.attr(${e.code}) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.head.push(s" $n=\\"" + Escape.attr(${ e.code }) + "\\"")\n"""
       case _ => ()
     }
-    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}renderer.head.push(">")\n"""
+    if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.head.push(">")\n"""
     else
-      buf ++= s"""${pad}renderer.head.push(">")\n"""
+      buf ++= s"""${ pad }renderer.head.push(">")\n"""
       children.foreach(c => emitHeadNodeSSR(c, buf, indent, scopeId, nodePos, hoistedMap))
-      buf ++= s"""${pad}renderer.head.push("</$tag>")\n"""
+      buf ++= s"""${ pad }renderer.head.push("</$tag>")\n"""
 
   // ── StringBuilder helpers (for component children and InlineTemplate) ──────
 
@@ -622,35 +626,35 @@ object SsrEmitter:
     node match
       case IrNode.IrStaticText(content) =>
         val escaped = escapeStr(htmlEscapeLiteral(content))
-        if escaped.nonEmpty then buf ++= s"""${pad}_sb ++= "$escaped"\n"""
+        if escaped.nonEmpty then buf ++= s"""${ pad }_sb ++= "$escaped"\n"""
 
       case IrNode.IrDynamicText(expr) =>
-        buf ++= s"${pad}_sb ++= Escape.html(${expr.code})\n"
+        buf ++= s"${ pad }_sb ++= Escape.html(${ expr.code })\n"
 
       case IrNode.IrChildren =>
-        buf ++= s"${pad}{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"
+        buf ++= s"${ pad }{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"
 
       case IrNode.IrRawHtml(_, expr) =>
-        buf ++= s"${pad}_sb ++= (${expr.code}).value\n"
+        buf ++= s"${ pad }_sb ++= (${ expr.code }).value\n"
 
       case IrNode.IrStaticElement(tag, _, attrs, children, _) =>
         val stmts = buildElementSbStmts(tag, attrs, scopeId)
-        buf ++= s"$pad${stmts.mkString("; ")}\n"
+        buf ++= s"$pad${ stmts.mkString("; ") }\n"
         children.foreach(c => emitNodeToSb(c, buf, pad, scopeId, nodePos, hoistedMap))
-        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}_sb ++= "</$tag>"\n"""
+        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }_sb ++= "</$tag>"\n"""
 
       case IrNode.IrElement(tag, _, attrs, children, _) =>
         val stmts = buildElementSbStmts(tag, attrs, scopeId)
-        buf ++= s"$pad${stmts.mkString("; ")}\n"
+        buf ++= s"$pad${ stmts.mkString("; ") }\n"
         children.foreach(c => emitNodeToSb(c, buf, pad, scopeId, nodePos, hoistedMap))
-        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${pad}_sb ++= "</$tag>"\n"""
+        if !HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }_sb ++= "</$tag>"\n"""
 
       case _ =>
         // Fall back to inline style for Component, InlineTemplate, etc.
         val nodeSb = new StringBuilder
         appendIrNodeToSb(node, nodeSb, scopeId, hoistedMap)
         val inline = nodeSb.toString
-        if inline.nonEmpty then buf ++= s"$pad${inline.stripSuffix("; ")}\n"
+        if inline.nonEmpty then buf ++= s"$pad${ inline.stripSuffix("; ") }\n"
 
   /** Appends inline `_sb ++=` code for a single IR node into `sb` (no line breaks). */
   private def appendIrNodeToSb(
@@ -664,13 +668,13 @@ object SsrEmitter:
       sb ++= s"""_sb ++= "$escaped"; """
 
     case IrNode.IrDynamicText(expr) =>
-      sb ++= s"""_sb ++= Escape.html(${expr.code}); """
+      sb ++= s"""_sb ++= Escape.html(${ expr.code }); """
 
     case IrNode.IrChildren =>
       sb ++= """{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }; """
 
     case IrNode.IrRawHtml(_, expr) =>
-      sb ++= s"""_sb ++= (${expr.code}).value; """
+      sb ++= s"""_sb ++= (${ expr.code }).value; """
 
     case IrNode.IrStaticElement(tag, _, attrs, children, _) =>
       appendIrElementToSb(tag, attrs, children, sb, scopeId, hoistedMap)
@@ -679,18 +683,18 @@ object SsrEmitter:
       appendIrElementToSb(tag, attrs, children, sb, scopeId, hoistedMap)
 
     case IrNode.IrComponent(name, props, childrenSlot, spreadExpr, _, _) =>
-      val args = props.map(p => s"${p.name} = ${emitPropValue(p.value)}")
+      val args = props.map(p => s"${ p.name } = ${ emitPropValue(p.value) }")
       val childrenArg: Option[String] = childrenSlot.map { slot =>
-        s"children = ${buildSsrChildrenLambdaInline(slot.nodes, scopeId, hoistedMap)}"
+        s"children = ${ buildSsrChildrenLambdaInline(slot.nodes, scopeId, hoistedMap) }"
       }
       val propsStr = spreadExpr match
         case Some(e) => e.code
-        case None    => if args.isEmpty then "" else s"$name.Props(${args.mkString(", ")})"
+        case None    => if args.isEmpty then "" else s"$name.Props(${ args.mkString(", ") })"
       val call = (propsStr, childrenArg) match
         case ("", None)    => s"$name()"
-        case (p,  None)    => s"$name($p)"
+        case (p, None)     => s"$name($p)"
         case ("", Some(c)) => s"$name($c)"
-        case (p,  Some(c)) => s"$name($p, $c)"
+        case (p, Some(c))  => s"$name($p, $c)"
       sb ++= s"""{ val _r = $call; renderer.mergeMeta(_r); _sb ++= _r.body }; """
 
     case IrNode.IrInlineTemplate(parts) =>
@@ -744,39 +748,36 @@ object SsrEmitter:
 
     val condParts = classToggles.map { case (name, expr) => s"""(if ($expr) " $name" else "")""" }
     val dynPart   = dynamicClass.map(d => s""" " " + ($d)""")
-    if condParts.isEmpty && dynPart.isEmpty then
-      stmts += s"""_sb ++= " class=\\"${escapeStr(baseClass)}\\"""""
+    if condParts.isEmpty && dynPart.isEmpty then stmts += s"""_sb ++= " class=\\"${ escapeStr(baseClass) }\\"""""
     else
       val allParts = (dynPart.toList ++ condParts).mkString(" + ")
-      stmts += s"""_sb ++= " class=\\"${escapeStr(baseClass)}" + $allParts + "\\"""""
+      stmts += s"""_sb ++= " class=\\"${ escapeStr(baseClass) }" + $allParts + "\\"""""
 
     attrs.foreach {
       case IrAttr.StaticAttr("class", _)  => ()
-      case IrAttr.DynamicClass(_)          => ()
-      case IrAttr.ClassToggle(_, _)        => ()
+      case IrAttr.DynamicClass(_)         => ()
+      case IrAttr.ClassToggle(_, _)       => ()
       case IrAttr.StaticAttr(name, value) =>
-        val lit = escapeStr(s""" $name="${htmlAttrEscapeLiteral(value)}"""")
+        val lit = escapeStr(s""" $name="${ htmlAttrEscapeLiteral(value) }"""")
         stmts += s"""_sb ++= "$lit""""
       case IrAttr.BooleanAttr(name) =>
         val lit = escapeStr(s" $name")
         stmts += s"""_sb ++= "$lit""""
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${expr.code}) + "\\""""
+        stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\""""
       case IrAttr.DynamicAttr(name, expr) =>
-        if isUrlAttr(tag, name) then
-          stmts += s"""_sb ++= s" $name=\\"" + Escape.url(${expr.code}) + "\\""""
-        else
-          stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${expr.code}) + "\\""""
+        if isUrlAttr(tag, name) then stmts += s"""_sb ++= s" $name=\\"" + Escape.url(${ expr.code }) + "\\""""
+        else stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\""""
       case IrAttr.BindInputValue(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + Escape.attr(${expr.code}) + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + Escape.attr(${ expr.code }) + "\\""""
       case IrAttr.BindInputValueInt(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + ${expr.code}.toString + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\""""
       case IrAttr.BindInputValueDouble(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + ${expr.code}.toString + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\""""
       case IrAttr.BindChecked(expr) =>
-        stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${expr.code}) + "\\""""
+        stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${ expr.code }) + "\\""""
       case IrAttr.StyleProp(prop, expr) =>
-        stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${expr.code}) + ";\\""""
+        stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\""""
       case _ => ()
     }
 
@@ -811,25 +812,25 @@ object SsrEmitter:
 
   private def templateHasChildrenRef(nodes: List[IrNode]): Boolean =
     nodes.exists {
-      case IrNode.IrChildren                       => true
-      case IrNode.IrElement(_, _, _, c, _)         => templateHasChildrenRef(c)
-      case IrNode.IrStaticElement(_, _, _, c, _)   => templateHasChildrenRef(c)
-      case IrNode.IrHead(c)                        => templateHasChildrenRef(c)
-      case IrNode.IrBoundary(c, p, f, _)           =>
+      case IrNode.IrChildren                     => true
+      case IrNode.IrElement(_, _, _, c, _)       => templateHasChildrenRef(c)
+      case IrNode.IrStaticElement(_, _, _, c, _) => templateHasChildrenRef(c)
+      case IrNode.IrHead(c)                      => templateHasChildrenRef(c)
+      case IrNode.IrBoundary(c, p, f, _)         =>
         templateHasChildrenRef(c) ||
         p.exists(templateHasChildrenRef) ||
         f.exists(fb => templateHasChildrenRef(fb.children))
-      case IrNode.IrKeyBlock(_, c)                 => templateHasChildrenRef(c)
-      case IrNode.IrSnippetDef(_, _, c)            => templateHasChildrenRef(c)
-      case _                                       => false
+      case IrNode.IrKeyBlock(_, c)      => templateHasChildrenRef(c)
+      case IrNode.IrSnippetDef(_, _, c) => templateHasChildrenRef(c)
+      case _                            => false
     }
 
   // ── Props helpers ──────────────────────────────────────────────────────────
 
   private def renderParams(propsType: Option[IrPropsType], hasChildren: Boolean): String =
     val propsPart = propsType match
-      case Some(pt) if pt.typeParams.nonEmpty => s"props: ${pt.typeName}"
-      case Some(pt)                           => s"props: ${pt.typeName} = ${pt.typeName}()"
+      case Some(pt) if pt.typeParams.nonEmpty => s"props: ${ pt.typeName }"
+      case Some(pt)                           => s"props: ${ pt.typeName } = ${ pt.typeName }()"
       case None                               => ""
     val childrenPart =
       if hasChildren then "children: () => RenderResult = () => RenderResult.empty"
@@ -837,14 +838,14 @@ object SsrEmitter:
     List(propsPart, childrenPart).filter(_.nonEmpty).mkString(", ")
 
   private def emitPropValue(v: IrPropValue): String = v match
-    case IrPropValue.Static(value)   => s""""${escapeStr(value)}""""
+    case IrPropValue.Static(value)   => s""""${ escapeStr(value) }""""
     case IrPropValue.Dynamic(expr)   => expr.code
     case IrPropValue.Shorthand(name) => name
     case IrPropValue.BooleanTrue     => "true"
 
   private def optionValueExprIR(attrs: List[IrAttr]): Option[String] =
     attrs.collectFirst {
-      case IrAttr.StaticAttr("value", v)  => s""""${escapeStr(v)}""""
+      case IrAttr.StaticAttr("value", v)  => s""""${ escapeStr(v) }""""
       case IrAttr.DynamicAttr("value", e) => e.code
     }
 

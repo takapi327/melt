@@ -47,8 +47,16 @@ object SpaCodeGen extends CodeGen:
     positions:         NodePositions = NodePositions.empty
   ): String =
     val ir = melt.ir.AstToIr.lower(
-      ast, objectName, pkg, scopeId, hydration, sourcePath,
-      scriptBodyLine, templateStartLine, templateSource, positions
+      ast,
+      objectName,
+      pkg,
+      scopeId,
+      hydration,
+      sourcePath,
+      scriptBodyLine,
+      templateStartLine,
+      templateSource,
+      positions
     )
     melt.emit.SpaEmitter.emit(ir)
 
