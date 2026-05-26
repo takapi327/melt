@@ -92,11 +92,12 @@ object SsrEmitter:
     tracker ++= "  }\n"
     tracker ++= "}\n"
 
-    val linesStr       = tracker.linesMetadata()
+    val entries        = tracker.mappings()
     val safeSourcePath = ir.sourcePath.replace("\n", "").replace("\r", "").replace("*/", "*\\/").replace("/*", "/\\*")
     val meta           =
-      if ir.sourcePath.nonEmpty && linesStr.nonEmpty then
-        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    LINES: $linesStr\n    -- MELT GENERATED --\n*/\n"
+      if ir.sourcePath.nonEmpty && entries.nonEmpty then
+        val v3 = melt.codegen.SourceMapV3.generateBase64(ir.sourcePath, entries)
+        s"\n/*\n    -- MELT GENERATED --\n    SOURCE: $safeSourcePath\n    V3: $v3\n    -- MELT GENERATED --\n*/\n"
       else ""
 
     tracker.result() + meta

@@ -59,9 +59,3 @@ final class LineTracker:
 
   /** Returns the recorded `(generatedLine, sourceLine, sourceColumn)` triples in order. */
   def mappings(): Seq[(Int, Int, Int)] = entries.toSeq
-
-  /** Serialises the LINES metadata as `"g1->s1:c1|g2->s2:c2|..."`.
-    * Returns an empty string when no source lines have been marked.
-    */
-  def linesMetadata(): String =
-    entries.map { case (gen, src, col) => s"$gen->$src:$col" }.mkString("|")
