@@ -23,6 +23,7 @@ Thumbs.db
 
 # Logs
 *.log
+memo/
 
 # Scalafmt
 .scalafmt-cache
@@ -34,10 +35,11 @@ yarn-error.log
 package-lock.json
 
 # Internal design documents
-docs/meltc-*.md
+docs/melt-*.md
 
 # Generated
 out/
 *.jar
 dist/
 .scala-build
+docs-dist/

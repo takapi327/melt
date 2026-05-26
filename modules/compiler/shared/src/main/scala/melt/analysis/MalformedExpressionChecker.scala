@@ -18,7 +18,7 @@ import melt.ast.*
   * code. This produces confusing scalac errors like
   * `value </ is not a member of State[Int]`.
   *
-  * This checker detects the pattern and emits a clear meltc error before
+  * This checker detects the pattern and emits a clear melt error before
   * code generation runs.
   */
 object MalformedExpressionChecker:

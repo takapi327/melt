@@ -501,7 +501,7 @@ private[parser] final class TemplateParser(
             _warnings += (("<melt:element> requires a `this={expr}` attribute", pos))
             "\"div\""
           }
-        // Validate string literals at meltc phase
+        // Validate string literals at melt phase
         val StringLiteral = """^"([^"]*)"$""".r
         tagExpr match
           case StringLiteral(name) if KnownHtmlTags.contains(name) =>

@@ -14,7 +14,7 @@ lazy val `hello-world` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Counter (reactive bindings) ─────────────────────────────────────
 lazy val counter = project
@@ -27,17 +27,17 @@ lazy val counter = project
       "io.github.takapi327" %%% "melt-testkit" % meltVersion % Test
     )
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: SCSS Counter (SCSS support via compiler-sass) ────────────────────
 lazy val `scss-counter` = project
   .in(file("scss-counter"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    meltcStylePreprocessor          := Some(SassPreprocessor),
+    meltStylePreprocessor          := Some(SassPreprocessor),
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Todo App (multi-component) ──────────────────────────────────────
 lazy val `todo-app` = project
@@ -46,7 +46,7 @@ lazy val `todo-app` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Transitions (transitions & animations) ───────────────────────────
 lazy val transitions = project
@@ -55,7 +55,7 @@ lazy val transitions = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Special Elements (melt:head / melt:window / melt:body) ───────────
 lazy val `special-elements` = project
@@ -64,7 +64,7 @@ lazy val `special-elements` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Media Binding (bind:currentTime / paused / volume etc.) ──────────
 lazy val `media-binding` = project
@@ -73,7 +73,7 @@ lazy val `media-binding` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Dimension Binding (bind:clientWidth / offsetWidth etc.) ───────────
 lazy val `dimension-binding` = project
@@ -82,7 +82,7 @@ lazy val `dimension-binding` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Dynamic Element (melt:element) ───────────────────────────────────
 lazy val `dynamic-element` = project
@@ -91,7 +91,7 @@ lazy val `dynamic-element` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Layout Effect (pre/post subscriber lanes) ────────────────────────
 lazy val `layout-effect` = project
@@ -100,7 +100,7 @@ lazy val `layout-effect` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Select / Textarea bind:value ────────────────────────────────────
 lazy val `select-textarea-bind` = project
@@ -109,7 +109,7 @@ lazy val `select-textarea-bind` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: Boundary (melt:boundary / melt:pending / melt:failed / Await) ────
 lazy val boundary = project
@@ -118,7 +118,7 @@ lazy val boundary = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: ReactiveScope (resource management) ─────────────────────────────
 lazy val `reactive-scope` = project
@@ -131,7 +131,7 @@ lazy val `reactive-scope` = project
       "io.github.takapi327" %%% "melt-testkit" % meltVersion % Test
     )
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: TrustedHtml (raw HTML injection) ─────────────────────────────────
 lazy val `trusted-html` = project
@@ -140,7 +140,7 @@ lazy val `trusted-html` = project
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 // ── Example: http4s SPA (pure client-side rendering) ─────────────────────────
 //
@@ -158,7 +158,7 @@ lazy val `http4s-spa-client` = project
       "io.circe"            %%% "circe-parser"            % "0.14.9"
     )
   )
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 lazy val `http4s-spa-server` = project
   .in(file("http4s-spa/server"))
@@ -189,14 +189,14 @@ lazy val `ssr-client` = crossProject(JVMPlatform, JSPlatform)
       "io.circe"            %%% "circe-parser"  % "0.14.9"
     )
   )
-  .enablePlugins(MeltcPlugin)
+  .enablePlugins(MeltPlugin)
   .jsConfigure(
     _.settings(
       libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % meltVersion
     )
   )
   .jsSettings(
-    meltcHydration                  := true,
+    meltHydration                  := true,
     scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)

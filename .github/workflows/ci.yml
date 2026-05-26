@@ -105,11 +105,11 @@ jobs:
 
       - name: Make target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        run: mkdir -p modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-meltc/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
+        run: mkdir -p modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-melt/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
 
       - name: Compress target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        run: tar cf targets.tar modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-meltc/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
+        run: tar cf targets.tar modules/compiler/jvm/target modules/compiler/js/target modules/compiler/native/target plugins/sbt-melt/target plugins/sbt-meltkit/target modules/runtime/target modules/testkit/target editors/language-server/target target project/target
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))

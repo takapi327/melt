@@ -11,8 +11,8 @@ package melt.css
   * Implementations compile source languages (e.g. SCSS) to plain CSS.
   * The resulting CSS is then passed to the CSS scoper.
   *
-  * To add SCSS support, set `meltcSassEnabled := true` in `build.sbt`.
-  * The `sbt-meltc` plugin will automatically add `meltc-sass` to the
+  * To add SCSS support, set `meltStylePreprocessor := true` in `build.sbt`.
+  * The `sbt-melt` plugin will automatically add `melt-sass` to the
   * compiler classpath and enable [[melt.sass.SassPreprocessor]].
   */
 trait StylePreprocessor:
@@ -30,7 +30,7 @@ object StylePreprocessor:
   /** Pass-through implementation that accepts only plain CSS.
     *
     * SCSS (or any non-CSS lang) input results in a Left with a helpful
-    * error message pointing to `meltcSassEnabled`.
+    * error message pointing to `meltStylePreprocessor`.
     * This is the default used when no preprocessor plugin is available.
     */
   val cssOnly: StylePreprocessor = new StylePreprocessor:
@@ -40,5 +40,5 @@ object StylePreprocessor:
         case StyleLang.Scss =>
           Left(
             "SCSS is not supported. " +
-              "Add `meltcSassEnabled := true` to build.sbt to enable SCSS support."
+              "Add `meltStylePreprocessor := true` to build.sbt to enable SCSS support."
           )

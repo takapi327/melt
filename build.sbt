@@ -241,11 +241,11 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
   )
 
 // ── sbt plugin: core compiler ──
-// The plugin forks a JVM process to run meltc.MeltcMain, avoiding Scala 2.12/3 binary
+// The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 2.12/3 binary
 // incompatibility. In external projects the classpath is auto-resolved via the internal
-// `meltc-compiler` Ivy configuration after `publishLocal`. In this monorepo the
+// `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo the
 // hello-world example wires codegen.jvm directly (see below).
-lazy val `sbt-meltc` = MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
+lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
   .settings(
     crossScalaVersions                     := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
@@ -253,9 +253,9 @@ lazy val `sbt-meltc` = MeltSbtPluginProject("sbt-meltc", "plugins/sbt-meltc")
 
 // ── sbt plugin: meltkit integration ──
 // Adds runtime dependency management, asset manifest generation, and MeltKitConfig
-// generation on top of sbt-meltc. Requires sbt-meltc (enabled automatically via requires).
+// generation on top of sbt-melt. Requires sbt-melt (enabled automatically via requires).
 lazy val `sbt-meltkit` = MeltSbtPluginProject("sbt-meltkit", "plugins/sbt-meltkit")
-  .dependsOn(`sbt-meltc`)
+  .dependsOn(`sbt-melt`)
   .settings(
     crossScalaVersions := Seq(ScalaVersions.scala2),
     libraryDependencies += Defaults.sbtPluginExtra(
@@ -310,7 +310,7 @@ lazy val root = project
     `meltkit-adapter-node`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
-    `sbt-meltc`,
+    `sbt-melt`,
     `sbt-meltkit`,
     `language-server`
   )

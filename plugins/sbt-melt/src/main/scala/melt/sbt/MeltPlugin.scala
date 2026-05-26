@@ -4,50 +4,50 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package meltc.sbt
+package melt.sbt
 
 import java.util.Optional
 
 import sbt._
 import sbt.Keys._
 
-/** sbt-meltc plugin
+/** sbt-melt plugin
   *
-  * Detects `.melt` files under [[meltc.sbt.MeltcPlugin.autoImport.meltcSourceDirectories]] and
-  * compiles each one to a `.scala` file via a forked JVM process running `melt.MeltcMain`.
+  * Detects `.melt` files under [[melt.sbt.MeltPlugin.autoImport.meltSourceDirectories]] and
+  * compiles each one to a `.scala` file via a forked JVM process running `melt.MeltMain`.
   *
   * == Setup ==
   *
-  * Enable the plugin and publish `meltc` locally first:
+  * Enable the plugin and publish `sbt-melt` locally first:
   * {{{
   * // In your build.sbt:
-  * enablePlugins(MeltcPlugin)
-  * meltcPackage := "components"
+  * enablePlugins(MeltPlugin)
+  * meltPackage := "components"
   * }}}
   *
   * {{{
   * // One-time in the melt monorepo:
-  * sbt compilerJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-meltc/publishLocal
+  * sbt compilerJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-melt/publishLocal
   * }}}
   *
   * The plugin resolves `melt-codegen` (including all transitive deps such as
-  * `meltc`, `melt-runtime`, and `scala3-library`) using its own Ivy configuration
-  * `meltc-compiler`, so you do not need to configure the classpath manually.
+  * `melt-compiler`, `melt-runtime`, and `scala3-library`) using its own Ivy configuration
+  * `melt-compiler`, so you do not need to configure the classpath manually.
   *
   * To skip `publishLocal` in a monorepo, override the compiler classpath directly:
   * {{{
-  * meltcCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
+  * meltCompilerClasspath := (codegen.jvm / Compile / fullClasspath).value.files
   * }}}
   */
-object MeltcPlugin extends AutoPlugin {
+object MeltPlugin extends AutoPlugin {
 
   override def trigger  = noTrigger
   override def requires = plugins.JvmPlugin
 
-  /** Internal Ivy configuration used to resolve the meltc compiler and its
+  /** Internal Ivy configuration used to resolve the melt compiler and its
     * transitive runtime dependencies (including `scala3-library`).
     */
-  private val MeltcCompilerConfig = config("meltc-compiler").hide
+  private val MeltCompilerConfig = config("melt-compiler").hide
 
   object autoImport {
 
@@ -65,10 +65,10 @@ object MeltcPlugin extends AutoPlugin {
       * component ends up in its own public chunk.
       *
       * For full-page hydration (Approach A), use
-      * [[meltcHydrationRoot]] instead. The two settings are mutually
-      * exclusive: `meltcHydrationRoot` takes precedence when set.
+      * [[meltHydrationRoot]] instead. The two settings are mutually
+      * exclusive: `meltHydrationRoot` takes precedence when set.
       */
-    val meltcHydration =
+    val meltHydration =
       settingKey[Boolean]("Emit @JSExportTopLevel hydration entries in SPA codegen")
 
     /** Root component name for full-page hydration (Approach A).
@@ -81,18 +81,18 @@ object MeltcPlugin extends AutoPlugin {
       * One bootstrap `<script>` mounts the entire component tree from
       * the server-rendered HTML markers.
       *
-      * Default: `None` — falls back to [[meltcHydration]] behaviour.
+      * Default: `None` — falls back to [[meltHydration]] behaviour.
       *
       * {{{
       * // build.sbt (JS platform of a crossProject):
-      * meltcHydrationRoot := Some("App"),
+      * meltHydrationRoot := Some("App"),
       * scalaJSLinkerConfig ~= {
       *   _.withModuleKind(ModuleKind.ESModule)
       *     .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
       * }
       * }}}
       */
-    val meltcHydrationRoot =
+    val meltHydrationRoot =
       settingKey[Option[String]](
         "Root component name for full-page hydration (Approach A). " +
           "When set, only this component emits a @JSExportTopLevel hydration entry."
@@ -105,35 +105,35 @@ object MeltcPlugin extends AutoPlugin {
       * shared source root (e.g. `shared/src/main/scala`) automatically when
       * the project is a `crossProject` member.
       */
-    val meltcSourceDirectories =
+    val meltSourceDirectories =
       settingKey[Seq[File]]("Directories containing .melt source files (crossProject-aware)")
 
     /** Directory where generated `.scala` files are written.
-      * Default: `target/scala-x.y/src_managed/meltc`
+      * Default: `target/scala-x.y/src_managed/melt`
       */
-    val meltcOutputDirectory =
+    val meltOutputDirectory =
       settingKey[File]("Directory for generated .scala files")
 
     /** Scala package placed at the top of every generated file.
       * Default: `"components"`
       */
-    val meltcPackage =
+    val meltPackage =
       settingKey[String]("Package for generated Scala files")
 
-    /** Full classpath (jar files) used when forking the meltc JVM compiler.
+    /** Full classpath (jar files) used when forking the melt JVM compiler.
       *
-      * By default this is resolved automatically using the `meltc-compiler` Ivy configuration.
-      * Override to point at the meltc JVM output directly
+      * By default this is resolved automatically using the `melt-compiler` Ivy configuration.
+      * Override to point at the melt JVM output directly
       * (e.g. `(compilerJVM / Compile / fullClasspath).value.files`).
       */
-    val meltcCompilerClasspath =
-      taskKey[Seq[File]]("Classpath for the meltc compiler JVM process")
+    val meltCompilerClasspath =
+      taskKey[Seq[File]]("Classpath for the melt compiler JVM process")
 
     /** Compiles all `.melt` files and returns the generated `.scala` files. */
-    val meltcGenerate =
+    val meltGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
 
-    /** Codegen mode passed to `melt.MeltcMain`.
+    /** Codegen mode passed to `melt.MeltMain`.
       *
       * Valid values: `"spa"`, `"ssr"`, `"auto"`.
       *
@@ -142,7 +142,7 @@ object MeltcPlugin extends AutoPlugin {
       *
       * `MeltkitPlugin` overrides this based on `meltMode`.
       */
-    val meltcCodegenMode =
+    val meltCodegenMode =
       settingKey[String]("Codegen mode: spa, ssr, or auto (default)")
 
     /** Class name of the [[melt.css.StylePreprocessor]] implementation to use
@@ -156,21 +156,21 @@ object MeltcPlugin extends AutoPlugin {
       *
       * {{{
       * // SCSS via Dart Sass:
-      * meltcStylePreprocessor := Some(SassPreprocessor)
+      * meltStylePreprocessor := Some(SassPreprocessor)
       * }}}
       *
       * The implementation class must be a Scala `object` that extends
       * [[melt.css.StylePreprocessor]] and its JAR must be present on
-      * [[meltcCompilerClasspath]]. For known preprocessors (e.g. [[SassPreprocessor]])
+      * [[meltCompilerClasspath]]. For known preprocessors (e.g. [[SassPreprocessor]])
       * the plugin adds the required JAR automatically.
       *
-      * For a custom preprocessor, add the JAR to [[meltcCompilerClasspath]]
+      * For a custom preprocessor, add the JAR to [[meltCompilerClasspath]]
       * manually and pass the fully-qualified object name:
       * {{{
-      * meltcStylePreprocessor := Some("com.example.MyPreprocessor")
+      * meltStylePreprocessor := Some("com.example.MyPreprocessor")
       * }}}
       */
-    val meltcStylePreprocessor =
+    val meltStylePreprocessor =
       settingKey[Option[String]](
         "Fully-qualified object name of the StylePreprocessor to use. " +
           "Known values: SassPreprocessor."
@@ -179,11 +179,11 @@ object MeltcPlugin extends AutoPlugin {
     /** Preprocessor constant for SCSS support via Dart Sass.
       *
       * Requires the `melt-compiler-sass` artifact on the compiler classpath.
-      * When [[meltcStylePreprocessor]] is set to `Some(SassPreprocessor)`, the plugin
+      * When [[meltStylePreprocessor]] is set to `Some(SassPreprocessor)`, the plugin
       * adds `melt-compiler-css` and `melt-compiler-sass` to the compiler classpath automatically.
       *
       * {{{
-      * meltcStylePreprocessor := Some(SassPreprocessor)
+      * meltStylePreprocessor := Some(SassPreprocessor)
       * }}}
       */
     val SassPreprocessor: String = "melt.sass.SassPreprocessor"
@@ -195,7 +195,7 @@ object MeltcPlugin extends AutoPlugin {
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
   /** Class name of Scala.js's sbt plugin. We check for this by string rather
-    * than importing the class, so sbt-meltc does not need to declare a hard
+    * than importing the class, so sbt-melt does not need to declare a hard
     * dependency on sbt-scalajs.
     */
   private val ScalaJSPluginClassName = "org.scalajs.sbtplugin.ScalaJSPlugin$"
@@ -205,52 +205,52 @@ object MeltcPlugin extends AutoPlugin {
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
   override def projectSettings: Seq[Setting[_]] = Seq(
-    meltcHydration         := false,
-    meltcHydrationRoot     := None,
-    meltcStylePreprocessor := None,
-    meltcCodegenMode       := "auto",
-    meltcSourceDirectories := (Compile / unmanagedSourceDirectories).value,
-    meltcOutputDirectory   := (Compile / sourceManaged).value / "meltc",
-    meltcPackage           := "",
+    meltHydration         := false,
+    meltHydrationRoot     := None,
+    meltStylePreprocessor := None,
+    meltCodegenMode       := "auto",
+    meltSourceDirectories := (Compile / unmanagedSourceDirectories).value,
+    meltOutputDirectory   := (Compile / sourceManaged).value / "melt",
+    meltPackage           := "",
 
-    ivyConfigurations += MeltcCompilerConfig,
-    libraryDependencies += ("io.github.takapi327" % "melt-codegen_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
+    ivyConfigurations += MeltCompilerConfig,
+    libraryDependencies += ("io.github.takapi327" % "melt-codegen_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig,
     libraryDependencies ++= {
-      meltcStylePreprocessor.value match {
+      meltStylePreprocessor.value match {
         case Some(cls) if cls == SassPreprocessor =>
           Seq(
-            ("io.github.takapi327" % "melt-compiler-css_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig,
-            ("io.github.takapi327" % "melt-compiler-sass_3" % pluginVersion cross CrossVersion.disabled) % MeltcCompilerConfig
+            ("io.github.takapi327" % "melt-compiler-css_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig,
+            ("io.github.takapi327" % "melt-compiler-sass_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig
           )
         case _ => Seq.empty
       }
     },
-    meltcCompilerClasspath := update.value.select(
-      configurationFilter(MeltcCompilerConfig.name)
+    meltCompilerClasspath := update.value.select(
+      configurationFilter(MeltCompilerConfig.name)
     ),
 
-    meltcGenerate := compileMeltFiles(
+    meltGenerate := compileMeltFiles(
       streams = streams.value,
-      srcDirs = meltcSourceDirectories.value,
-      outDir  = meltcOutputDirectory.value,
-      pkg     = meltcPackage.value,
-      mode    = meltcCodegenMode.value match {
+      srcDirs = meltSourceDirectories.value,
+      outDir  = meltOutputDirectory.value,
+      pkg     = meltPackage.value,
+      mode    = meltCodegenMode.value match {
         case "spa" => "spa"
         case "ssr" => "ssr"
         case _     => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
       },
-      hydration     = meltcHydration.value,
-      hydrationRoot = meltcHydrationRoot.value,
-      preprocessor  = meltcStylePreprocessor.value,
-      compilerCp    = meltcCompilerClasspath.value,
+      hydration     = meltHydration.value,
+      hydrationRoot = meltHydrationRoot.value,
+      preprocessor  = meltStylePreprocessor.value,
+      compilerCp    = meltCompilerClasspath.value,
       reporter      = (Compile / compile / bspReporter).value
     ),
-    Compile / sourceGenerators += meltcGenerate.taskValue,
+    Compile / sourceGenerators += meltGenerate.taskValue,
 
     // ── Source position mapping ───────────────────────────────────────────────
     // Remaps scalac error positions from generated `.scala` files back to the
     // original `.melt` source files using the `-- MELT GENERATED --` comment
-    // block that meltc appends to every generated file.
+    // block that melt appends to every generated file.
     Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
     Test / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) }
   )
@@ -271,7 +271,7 @@ object MeltcPlugin extends AutoPlugin {
 
     if (compilerCp.isEmpty) {
       log.warn(
-        "[sbt-meltc] meltcCompilerClasspath is empty — no .melt files will be compiled.\n" +
+        "[sbt-melt] meltCompilerClasspath is empty — no .melt files will be compiled.\n" +
           "  Run `sbt compilerJVM/publishLocal` in the melt monorepo first."
       )
       return Seq.empty
@@ -285,7 +285,7 @@ object MeltcPlugin extends AutoPlugin {
       }
 
     if (meltFilesWithRoot.isEmpty) {
-      log.debug(s"[sbt-meltc] No .melt files found under ${ srcDirs.mkString(", ") }")
+      log.debug(s"[sbt-melt] No .melt files found under ${ srcDirs.mkString(", ") }")
       return Seq.empty
     }
 
@@ -321,7 +321,7 @@ object MeltcPlugin extends AutoPlugin {
         // sub-packages each get an independent cache entry.
         //
         // A compiler fingerprint is also included in the directory name so
-        // that updating meltc (either via publishLocal or by recompiling in
+        // that updating melt (either via publishLocal or by recompiling in
         // the monorepo) automatically invalidates all cached generated files.
         // For class directories the newest direct-child modification time is
         // used as a proxy for "has the compiler changed?".
@@ -346,14 +346,14 @@ object MeltcPlugin extends AutoPlugin {
             .map(b => "%02x".format(b & 0xff))
             .mkString
         }
-        val cacheDir = streams.cacheDirectory / "meltc" / safeKey / cpFingerprint
+        val cacheDir = streams.cacheDirectory / "melt" / safeKey / cpFingerprint
 
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
-          log.info(s"[sbt-meltc] Compiling ${ meltFile.getName } → ${ outFile.getName }")
+          log.info(s"[sbt-melt] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
           // Determine whether this component gets a hydration entry:
-          //   - Approach A (meltcHydrationRoot set): only the named root component
-          //   - Approach B (meltcHydration := true): all components
+          //   - Approach A (meltHydrationRoot set): only the named root component
+          //   - Approach B (meltHydration := true): all components
           val emitHydration = hydrationRoot match {
             case Some(root) => objectName == root
             case None       => hydration
@@ -362,7 +362,7 @@ object MeltcPlugin extends AutoPlugin {
           val javaArgs = Seq(
             "-cp",
             cpStr,
-            "melt.MeltcMain",
+            "melt.MeltMain",
             meltFile.getAbsolutePath,
             outFile.getAbsolutePath,
             objectName,
@@ -382,21 +382,21 @@ object MeltcPlugin extends AutoPlugin {
           warnings.foreach {
             case (path, lineNum, col, msg) =>
               try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Warn))
-              catch { case _: Throwable => log.warn(s"meltc warning: ${ new File(path).getName }:$lineNum: $msg") }
+              catch { case _: Throwable => log.warn(s"melt warning: ${ new File(path).getName }:$lineNum: $msg") }
           }
 
           if (exitCode != 0) {
             errors.foreach {
               case (path, lineNum, col, msg) =>
                 try reporter.log(mkProblem(path, lineNum, col, msg, xsbti.Severity.Error))
-                catch { case _: Throwable => log.error(s"meltc error: ${ new File(path).getName }:$lineNum: $msg") }
+                catch { case _: Throwable => log.error(s"melt error: ${ new File(path).getName }:$lineNum: $msg") }
             }
             throw new MessageOnlyException(
-              s"[sbt-meltc] ${ meltFile.getName } failed to compile — see errors above"
+              s"[sbt-melt] ${ meltFile.getName } failed to compile — see errors above"
             )
           }
 
-          log.info(s"[sbt-meltc] Generated ${ outFile.getAbsolutePath }")
+          log.info(s"[sbt-melt] Generated ${ outFile.getAbsolutePath }")
           Set(outFile)
         }
 
@@ -451,7 +451,7 @@ object MeltcPlugin extends AutoPlugin {
     sev:     xsbti.Severity
   ): xsbti.Problem =
     new xsbti.Problem {
-      override def category(): String         = "meltc"
+      override def category(): String         = "melt"
       override def severity(): xsbti.Severity = sev
       override def message():  String         = msg
       override def position(): xsbti.Position = mkPosition(absPath, lineNum)

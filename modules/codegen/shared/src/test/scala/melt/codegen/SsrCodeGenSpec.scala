@@ -192,7 +192,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   test("custom Props type name (not literally 'Props') is supported") {
     // `props="HomeProps"` — the user can name their type whatever
-    // they want. meltc only knows the name, and the Scala inliner
+    // they want. melt only knows the name, and the Scala inliner
     // takes care of the rest.
     val src =
       """<script lang="scala" props="HomeProps">

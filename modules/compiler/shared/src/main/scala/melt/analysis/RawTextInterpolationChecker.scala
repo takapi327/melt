@@ -13,7 +13,7 @@ import melt.ast.*
 
 /** Compile-time check for `{expr}` interpolation inside HTML raw-text
   * elements (`<script>`, `<style>`, `<textarea>`, `<title>`) — see
-  * `docs/meltc-ssr-design.md` §12.1.6.
+  * `docs/melt-ssr-design.md` §12.1.6.
   *
   * Inside raw-text elements the HTML parser does not recognise child
   * tags or entity references, which means any form of escaping is

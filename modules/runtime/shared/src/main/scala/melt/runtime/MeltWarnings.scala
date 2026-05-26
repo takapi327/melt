@@ -18,7 +18,7 @@ package melt.runtime
   * `setHandler` is intended to be called '''exactly once at application
   * startup''', before any render. Dynamic per-request swapping is not
   * supported — the underlying `@volatile var` provides memory visibility
-  * but no synchronisation. See `docs/meltc-ssr-design.md` §12.3.3.
+  * but no synchronisation. See `docs/melt-ssr-design.md` §12.3.3.
   */
 object MeltWarnings:
 

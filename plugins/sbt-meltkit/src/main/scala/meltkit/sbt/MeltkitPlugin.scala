@@ -39,7 +39,7 @@ object MeltMode {
 
 /** sbt-meltkit plugin
   *
-  * Integrates the Meltkit runtime into sbt projects. Requires [[meltc.sbt.MeltcPlugin]]
+  * Integrates the Meltkit runtime into sbt projects. Requires [[melt.sbt.MeltPlugin]]
   * (enabled automatically). Adds runtime library dependencies, asset manifest generation,
   * and MeltKitConfig source generation based on [[meltMode]].
   *
@@ -48,16 +48,16 @@ object MeltMode {
   * {{{
   * enablePlugins(MeltkitPlugin)
   * meltMode    := Some(Browser)
-  * meltcPackage := "components"
+  * meltPackage := "components"
   * }}}
   */
 object MeltkitPlugin extends AutoPlugin {
 
   override def trigger  = noTrigger
-  override def requires = meltc.sbt.MeltcPlugin
+  override def requires = melt.sbt.MeltPlugin
 
   /** Class name of Scala.js's sbt plugin — checked by string to avoid a hard
-    * compile-time dependency on sbt-scalajs in sbt-meltc.
+    * compile-time dependency on sbt-scalajs in sbt-melt.
     */
   private val ScalaJSPluginClassName = "org.scalajs.sbtplugin.ScalaJSPlugin$"
 
@@ -238,7 +238,7 @@ object MeltkitPlugin extends AutoPlugin {
 
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
-  import meltc.sbt.MeltcPlugin.autoImport.{ meltcCodegenMode, meltcHydration }
+  import melt.sbt.MeltPlugin.autoImport.{ meltCodegenMode, meltHydration }
 
   import autoImport._
 
@@ -248,8 +248,8 @@ object MeltkitPlugin extends AutoPlugin {
     meltMode                 := { if (hasScalaJSPlugin(thisProject.value)) Some(MeltMode.Browser) else None },
     meltkitManageRuntimeDeps := true,
 
-    // Override meltc settings based on meltMode
-    meltcCodegenMode := {
+    // Override melt settings based on meltMode
+    meltCodegenMode := {
       meltMode.value match {
         case Some(MeltMode.Browser) => "spa"
         case Some(MeltMode.Node)    => "ssr"
@@ -258,7 +258,7 @@ object MeltkitPlugin extends AutoPlugin {
       }
     },
     // Browser mode always needs hydration exports; other modes do not
-    meltcHydration := meltMode.value.contains(MeltMode.Browser),
+    meltHydration := meltMode.value.contains(MeltMode.Browser),
 
     // Auto-configure Scala.js linker settings based on meltMode (JS projects only).
     // Uses a fresh StandardConfig() to avoid referencing scalaJSLinkerConfig.value,

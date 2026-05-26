@@ -12,22 +12,22 @@ import java.util.ArrayList as JArrayList
 
 import melt.css.StylePreprocessor
 
-/** CLI entry point for the meltc compiler (JVM platform only).
+/** CLI entry point for the melt compiler (JVM platform only).
   *
   * Usage:
   * {{{
-  *   java -cp <classpath> melt.MeltcMain \
+  *   java -cp <classpath> melt.MeltMain \
   *        <input.melt> <output.scala> <ObjectName> <package> [--mode spa|ssr]
   * }}}
   *
   * `--mode` defaults to `spa` for backwards compatibility with existing
-  * sbt-meltc builds. Pass `--mode ssr` to produce JVM HTML-string-rendering
+  * sbt-melt builds. Pass `--mode ssr` to produce JVM HTML-string-rendering
   * code from the same `.melt` source.
   *
   * Exits with code 0 on success, 1 on error. Error messages are written
   * to stderr.
   */
-object MeltcMain:
+object MeltMain:
 
   /** Loads the [[StylePreprocessor]] for the given fully-qualified object name.
     *
@@ -45,13 +45,13 @@ object MeltcMain:
         catch
           case _: ClassNotFoundException =>
             System.err.println(
-              s"meltc: preprocessor class '$cls' not found on classpath. " +
-                "Ensure the corresponding JAR is on meltcCompilerClasspath."
+              s"melt: preprocessor class '$cls' not found on classpath. " +
+                "Ensure the corresponding JAR is on meltCompilerClasspath."
             )
             sys.exit(1)
 
   private val Usage =
-    "Usage: MeltcMain <input.melt> <output.scala> <ObjectName> <package> " +
+    "Usage: MeltMain <input.melt> <output.scala> <ObjectName> <package> " +
       "[--mode spa|ssr] [--hydration]"
 
   def main(args: Array[String]): Unit =
@@ -67,7 +67,7 @@ object MeltcMain:
     val (mode, hydration, preprocessorClass) = parseExtras(args.drop(4)) match
       case Right(v)  => v
       case Left(err) =>
-        System.err.println(s"meltc: $err")
+        System.err.println(s"melt: $err")
         System.err.println(Usage)
         sys.exit(1)
 
@@ -75,7 +75,7 @@ object MeltcMain:
       try new String(Files.readAllBytes(inputPath), StandardCharsets.UTF_8)
       catch
         case e: Exception =>
-          System.err.println(s"meltc: cannot read ${ inputPath }: ${ e.getMessage }")
+          System.err.println(s"melt: cannot read ${ inputPath }: ${ e.getMessage }")
           sys.exit(1)
 
     val result = MeltCompiler.compile(
@@ -89,7 +89,7 @@ object MeltcMain:
       sourcePath = inputPath.toAbsolutePath.toString
     )
 
-    // ── Structured diagnostics file for sbt-meltc reporter integration ────
+    // ── Structured diagnostics file for sbt-melt reporter integration ────
     // Written alongside the output file so the plugin can read it after fork.
     // Format: one line per diagnostic, tab-separated: severity\tpath\tline\tcol\tmessage
     //   E = error, W = warning
@@ -105,7 +105,7 @@ object MeltcMain:
 
     result.scalaCode match
       case None =>
-        System.err.println("meltc: code generation produced no output")
+        System.err.println("melt: code generation produced no output")
         sys.exit(1)
       case Some(code) =>
         try
@@ -113,7 +113,7 @@ object MeltcMain:
           Files.write(outputPath, code.getBytes(StandardCharsets.UTF_8))
         catch
           case e: Exception =>
-            System.err.println(s"meltc: cannot write ${ outputPath }: ${ e.getMessage }")
+            System.err.println(s"melt: cannot write ${ outputPath }: ${ e.getMessage }")
             sys.exit(1)
 
   /** Parses optional trailing flags: `--mode spa|ssr`, `--hydration`, and

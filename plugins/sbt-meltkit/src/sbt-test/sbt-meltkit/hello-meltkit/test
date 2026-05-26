@@ -1,7 +1,7 @@
-# Verify that meltMode := Some(Browser) sets meltcCodegenMode to "spa"
-# and meltcGenerate produces the expected Scala file from App.melt
-> meltcGenerate
-$ exists target/scala-3.8.3/src_managed/main/meltc/components/App.scala
+# Verify that meltMode := Some(Browser) sets meltCodegenMode to "spa"
+# and meltGenerate produces the expected Scala file from App.melt
+> meltGenerate
+$ exists target/scala-3.8.3/src_managed/main/melt/components/App.scala
 # Verify the full project compiles (includes the generated App.scala + Main.scala)
 > compile
 

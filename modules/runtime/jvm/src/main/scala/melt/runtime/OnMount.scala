@@ -12,7 +12,7 @@ package melt.runtime
   * the client. Any `onMount` body is silently dropped on the JVM. If server-
   * side initialisation is needed, pass the data through `Props` instead, or
   * wait for Phase D / MeltKit which introduces a dedicated `load()` hook.
-  * See `docs/meltc-ssr-design.md` §10.1.
+  * See `docs/melt-ssr-design.md` §10.1.
   */
 def onMount(fn: => Unit): Unit = ()
 

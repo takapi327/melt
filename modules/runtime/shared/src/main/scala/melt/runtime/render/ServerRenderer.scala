@@ -10,10 +10,10 @@ import scala.collection.mutable
 
 import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, UrlAttributes }
 
-/** SSR rendering engine used by `meltc`-generated code.
+/** SSR rendering engine used by `melt`-generated code.
   *
   * @note '''Internal API.''' This class is part of the protocol between
-  *       `meltc`-generated components and the melt runtime. Do not
+  *       `melt`-generated components and the melt runtime. Do not
   *       instantiate or call its methods from hand-written user code.
   *
   *       User code should only interact with:
@@ -26,7 +26,7 @@ import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, UrlAttributes }
   *       Methods on `ServerRenderer` may change without notice between
   *       versions.
   *
-  * @note Not thread-safe. `meltc`-generated code creates a fresh instance
+  * @note Not thread-safe. `melt`-generated code creates a fresh instance
   *       per `render()` call; never share an instance across requests.
   */
 final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Config.default):
@@ -115,7 +115,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     usedComponents += name
 
   /** Records the JSON-encoded Props for a component instance. Called
-    * by `meltc`-generated SSR code immediately after `trackComponent`
+    * by `melt`-generated SSR code immediately after `trackComponent`
     * when the component declares a `props="..."` attribute.
     *
     * The last call wins if the same `moduleID` is tracked more than

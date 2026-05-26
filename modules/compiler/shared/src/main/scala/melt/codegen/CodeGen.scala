@@ -9,7 +9,7 @@ package melt.codegen
 import melt.ast.MeltFile
 import melt.NodePositions
 
-/** Common contract for all `meltc` code generators.
+/** Common contract for all `melt` code generators.
   *
   * Two implementations exist:
   *
