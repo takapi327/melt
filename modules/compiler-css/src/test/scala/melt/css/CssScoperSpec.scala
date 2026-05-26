@@ -267,7 +267,7 @@ class CssScoperSpec extends munit.FunSuite:
     assert(result.contains(".dialog.melt-abc123"), result)
   }
 
-  // ── PassthroughAtRules (完全リスト) ───────────────────────────────────
+  // ── PassthroughAtRules (full list) ────────────────────────────────────
 
   test("@page — passthrough (body not scoped)") {
     val result = scope("@page { margin: 1cm; } h1 { color: red; }")
