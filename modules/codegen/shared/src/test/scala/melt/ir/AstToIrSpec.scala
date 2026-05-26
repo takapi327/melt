@@ -141,7 +141,7 @@ class AstToIrSpec extends munit.FunSuite:
   test("component invocation lowers to IrNode.IrComponent") {
     val ir = lower("""<Counter count={n} />""")
     ir.template match
-      case List(IrNode.IrComponent("Counter", props, None, None)) =>
+      case List(IrNode.IrComponent("Counter", props, None, None, false, None)) =>
         assert(props.exists(_.name == "count"))
       case other => fail(s"Unexpected: $other")
   }
@@ -149,7 +149,7 @@ class AstToIrSpec extends munit.FunSuite:
   test("component with children lowers to IrNode.IrComponent with IrChildrenSlot") {
     val ir = lower("""<Layout><p>body</p></Layout>""")
     ir.template match
-      case List(IrNode.IrComponent("Layout", _, Some(IrChildrenSlot(nodes)), None)) =>
+      case List(IrNode.IrComponent("Layout", _, Some(IrChildrenSlot(nodes)), None, false, None)) =>
         assert(nodes.nonEmpty)
       case other => fail(s"Unexpected: $other")
   }

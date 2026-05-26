@@ -12,20 +12,46 @@ package melt.ir
   * Consumed by [[melt.emit.SpaEmitter]] and [[melt.emit.SsrEmitter]].
   */
 case class IrComponent(
-  objectName:   String,
-  pkg:          String,
-  scopeId:      String,
-  propsType:    Option[IrPropsType],
-  scriptBody:   String,             // Scala code (verbatim, not parsed)
-  fileImports:  List[String],       // import "path/to/style.css"
-  typeDecls:    List[String],       // top-level type declarations (SSR: hoisted out of apply())
-  style:        Option[IrStyle],
-  template:     List[IrNode],
-  hoistedNodes: List[IrHoistedNode] = Nil,  // populated by StaticHoistPass
-  hydration:    Boolean,
-  sourcePath:   String,
-  sourceMap:    IrSourceMap
+  objectName:        String,
+  pkg:               String,
+  scopeId:           String,
+  propsType:         Option[IrPropsType],
+  scriptBody:        String,             // Scala code (verbatim, not parsed)
+  fileImports:       List[String],       // import "path/to/style.css"
+  typeDecls:         List[String],       // top-level type declarations (SSR: hoisted out of apply())
+  style:             Option[IrStyle],
+  template:          List[IrNode],
+  hoistedNodes:      List[IrHoistedNode] = Nil,  // populated by StaticHoistPass
+  hydration:         Boolean,
+  sourcePath:        String,
+  sourceMap:         IrSourceMap,
+  scriptBodyLine:    Int = 1,            // 1-based line of script body start (for source-map)
+  templateStartLine: Int = 1,            // 1-based line of template start (for source-map)
+  nodePositions:     IrNodePositions = IrNodePositions.empty  // per-node source positions built by AstToIr
 )
+
+/** Maps [[IrNode]] instances (by reference identity) to their source (line, col).
+  * Built by [[AstToIr.lower]] and consumed by [[melt.emit.SpaEmitter]].
+  *
+  * Reference-identity semantics (via [[java.util.IdentityHashMap]]) mean that
+  * two structurally equal IrNodes created at different positions are tracked
+  * separately, just like [[melt.NodePositions]] does for [[melt.ast.TemplateNode]].
+  */
+final class IrNodePositions(
+  private val underlying: java.util.IdentityHashMap[AnyRef, (Int, Int)]
+):
+  def get(node: IrNode): Option[(Int, Int)] =
+    val pos = underlying.get(node)
+    if pos == null then None else Some(pos)
+
+object IrNodePositions:
+  val empty: IrNodePositions = new IrNodePositions(new java.util.IdentityHashMap)
+  def builder(): Builder     = new Builder
+
+  final class Builder:
+    private val map = new java.util.IdentityHashMap[AnyRef, (Int, Int)]
+    def put(node: IrNode, line: Int, col: Int): Unit = map.put(node, (line, col))
+    def build(): IrNodePositions                     = new IrNodePositions(map)
 
 /** A static element that has been lifted to object level by [[melt.ir.opt.StaticHoistPass]].
   * The [[melt.emit.SpaEmitter]] emits:

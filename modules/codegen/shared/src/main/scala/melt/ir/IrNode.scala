@@ -75,10 +75,12 @@ enum IrNode:
     * children are still supported alongside it.
     */
   case IrComponent(
-    name:       String,
-    props:      List[IrProp],
-    children:   Option[IrChildrenSlot],
-    spreadExpr: Option[ScalaExpr] = None
+    name:         String,
+    props:        List[IrProp],
+    children:     Option[IrChildrenSlot],
+    spreadExpr:   Option[ScalaExpr] = None,
+    hasStyled:    Boolean           = false,  // `styled` BooleanAttr — add _scopeId class to root
+    bindThisExpr: Option[ScalaExpr] = None    // `bind:this={ref}` on a component
   )
 
   // ── List rendering ────────────────────────────────────────────────────────

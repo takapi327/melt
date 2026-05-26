@@ -39,21 +39,25 @@ object AstToIr:
     val rawCode                 = ast.script.map(_.code.trim).getOrElse("")
     val (typeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
     val style                   = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
-    val template                = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
+    val posBuilder              = IrNodePositions.builder()
+    val template                = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder))
 
     IrComponent(
-      objectName  = objectName,
-      pkg         = pkg,
-      scopeId     = scopeId,
-      propsType   = propsType,
-      scriptBody  = scriptBody,
-      fileImports = ast.script.toList.flatMap(_.imports),
-      typeDecls   = typeDecls,
-      style       = style,
-      template    = template,
-      hydration   = hydration,
-      sourcePath  = sourcePath,
-      sourceMap   = IrSourceMap.empty   // populated by Emitters during emit()
+      objectName        = objectName,
+      pkg               = pkg,
+      scopeId           = scopeId,
+      propsType         = propsType,
+      scriptBody        = scriptBody,
+      fileImports       = ast.script.toList.flatMap(_.imports),
+      typeDecls         = typeDecls,
+      style             = style,
+      template          = template,
+      hydration         = hydration,
+      sourcePath        = sourcePath,
+      sourceMap         = IrSourceMap.empty,  // populated by Emitters during emit()
+      scriptBodyLine    = scriptBodyLine,
+      templateStartLine = templateStartLine,
+      nodePositions     = posBuilder.build()
     )
 
   // ── Node lowering ─────────────────────────────────────────────────────────
@@ -63,89 +67,97 @@ object AstToIr:
     scopeId:           String,
     positions:         NodePositions,
     templateSource:    String,
-    templateStartLine: Int
-  ): Option[IrNode] = node match
+    templateStartLine: Int,
+    posBuilder:        IrNodePositions.Builder
+  ): Option[IrNode] =
+    val span = positions.spanOf(node)
+    val line = span.absoluteLine(templateSource, templateStartLine)
+    val col  = span.column(templateSource)
 
-    case TemplateNode.Text(content) if content.isBlank =>
-      None
+    // Helper to recurse children, threading posBuilder through.
+    def lower(n: TemplateNode) = lowerNode(n, scopeId, positions, templateSource, templateStartLine, posBuilder)
 
-    case TemplateNode.Text(content) =>
-      Some(IrNode.IrStaticText(content))
+    val result = node match
 
-    case TemplateNode.Expression(code) =>
-      Some(lowerExpression(code))
+      case TemplateNode.Text(content) if content.isBlank =>
+        None
 
-    case TemplateNode.Element(tag, attrs, children) =>
-      val irAttrs    = attrs.flatMap(lowerAttr(_, tag, attrs))
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      val ns         = namespaceFor(tag)
-      val irElem     =
-        if isStatic(irAttrs, irChildren) then
-          IrNode.IrStaticElement(tag, ns, irAttrs, irChildren, scopeId)
-        else
-          IrNode.IrElement(tag, ns, irAttrs, irChildren, scopeId)
-      Some(irElem)
+      case TemplateNode.Text(content) =>
+        Some(IrNode.IrStaticText(content))
 
-    case TemplateNode.Component(name, attrs, children) =>
-      // `Attr.Spread` on a component bypasses the Props constructor entirely.
-      // Record it in spreadExpr; lowerProp drops Spread via the catch-all `case _ => None`.
-      val spreadExpr = attrs.collectFirst { case Attr.Spread(expr) => ScalaExpr(expr) }
-      val props      = attrs.flatMap(lowerProp)
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      val childSlot  = if irChildren.nonEmpty then Some(IrChildrenSlot(irChildren)) else None
-      Some(IrNode.IrComponent(name, props, childSlot, spreadExpr))
+      case TemplateNode.Expression(code) =>
+        Some(lowerExpression(code))
 
-    case TemplateNode.InlineTemplate(parts) =>
-      // Phase 1–3: keep as IrInlineTemplate so Emitters can delegate to
-      // the proven existing bridge logic.
-      // HTML parts are lowered recursively so Emitters can use emitNode().
-      // Phase 4: expand to IrList / IrConditional instead.
-      val irParts = parts.map:
-        case melt.ast.InlineTemplatePart.Code(code) =>
-          IrInlineTemplatePart.Code(code)
-        case melt.ast.InlineTemplatePart.Html(nodes) =>
-          IrInlineTemplatePart.Html(
-            nodes.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-          )
-      Some(IrNode.IrInlineTemplate(irParts))
+      case TemplateNode.Element(tag, attrs, children) =>
+        val irAttrs    = attrs.flatMap(lowerAttr(_, tag, attrs))
+        val irChildren = children.flatMap(lower)
+        val ns         = namespaceFor(tag)
+        val irElem     =
+          if isStatic(irAttrs, irChildren) then
+            IrNode.IrStaticElement(tag, ns, irAttrs, irChildren, scopeId)
+          else
+            IrNode.IrElement(tag, ns, irAttrs, irChildren, scopeId)
+        Some(irElem)
 
-    case TemplateNode.Head(children) =>
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      Some(IrNode.IrHead(irChildren))
+      case TemplateNode.Component(name, attrs, children) =>
+        // `Attr.Spread` on a component bypasses the Props constructor entirely.
+        // Record it in spreadExpr; lowerProp drops Spread via the catch-all `case _ => None`.
+        val spreadExpr   = attrs.collectFirst { case Attr.Spread(expr) => ScalaExpr(expr) }
+        val hasStyled    = attrs.exists { case Attr.BooleanAttr("styled") => true; case _ => false }
+        val bindThisExpr = attrs.collectFirst { case Attr.Directive("bind", "this", Some(expr), _) => ScalaExpr(expr) }
+        val props        = attrs.flatMap(lowerProp)
+        val irChildren   = children.flatMap(lower)
+        val childSlot    = if irChildren.nonEmpty then Some(IrChildrenSlot(irChildren)) else None
+        Some(IrNode.IrComponent(name, props, childSlot, spreadExpr, hasStyled, bindThisExpr))
 
-    // Window/Body/Document: use lowerWindowAttr / lowerDocumentAttr because
-    // their bind: directives (scrollY, visibilityState, …) are NOT in the
-    // element-level IrAttr cases and would silently vanish via lowerAttr's catch-all.
-    case TemplateNode.Window(attrs)   => Some(IrNode.IrWindow(attrs.flatMap(lowerWindowAttr)))
-    case TemplateNode.Body(attrs)     => Some(IrNode.IrBody(attrs.flatMap(lowerBodyAttr)))
-    case TemplateNode.Document(attrs) => Some(IrNode.IrDocument(attrs.flatMap(lowerDocumentAttr)))
+      case TemplateNode.InlineTemplate(parts) =>
+        // Phase 1–3: keep as IrInlineTemplate so Emitters can delegate to
+        // the proven existing bridge logic.
+        // HTML parts are lowered recursively so Emitters can use emitNode().
+        // Phase 4: expand to IrList / IrConditional instead.
+        val irParts = parts.map:
+          case melt.ast.InlineTemplatePart.Code(code) =>
+            IrInlineTemplatePart.Code(code)
+          case melt.ast.InlineTemplatePart.Html(nodes) =>
+            IrInlineTemplatePart.Html(nodes.flatMap(lower))
+        Some(IrNode.IrInlineTemplate(irParts))
 
-    case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
-      val irAttrs    = attrs.flatMap(lowerAttr(_, "", attrs))
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      Some(IrNode.IrDynamicElement(ScalaExpr(tagExpr), irAttrs, irChildren, scopeId))
+      case TemplateNode.Head(children) =>
+        Some(IrNode.IrHead(children.flatMap(lower)))
 
-    case TemplateNode.Boundary(attrs, children, pending, failed) =>
-      val onError    = attrs.collectFirst { case Attr.EventHandler("error", e) => ScalaExpr(e) }
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      val irPending  = pending.map(_.children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine)))
-      val irFailed   = failed.map(f =>
-        IrFailedBlock(f.errorVar, f.resetVar,
-          f.children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine)))
-      )
-      Some(IrNode.IrBoundary(irChildren, irPending, irFailed, onError))
+      // Window/Body/Document: use lowerWindowAttr / lowerDocumentAttr because
+      // their bind: directives (scrollY, visibilityState, …) are NOT in the
+      // element-level IrAttr cases and would silently vanish via lowerAttr's catch-all.
+      case TemplateNode.Window(attrs)   => Some(IrNode.IrWindow(attrs.flatMap(lowerWindowAttr)))
+      case TemplateNode.Body(attrs)     => Some(IrNode.IrBody(attrs.flatMap(lowerBodyAttr)))
+      case TemplateNode.Document(attrs) => Some(IrNode.IrDocument(attrs.flatMap(lowerDocumentAttr)))
 
-    case TemplateNode.KeyBlock(keyExpr, children) =>
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      Some(IrNode.IrKeyBlock(ScalaExpr(keyExpr), irChildren))
+      case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
+        val irAttrs    = attrs.flatMap(lowerAttr(_, "", attrs))
+        val irChildren = children.flatMap(lower)
+        Some(IrNode.IrDynamicElement(ScalaExpr(tagExpr), irAttrs, irChildren, scopeId))
 
-    case TemplateNode.SnippetDef(name, params, children) =>
-      val irChildren = children.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine))
-      val irParams   = params.map(p => IrSnippetParam(p.name, p.typeAnnotation))
-      Some(IrNode.IrSnippetDef(name, irParams, irChildren))
+      case TemplateNode.Boundary(attrs, children, pending, failed) =>
+        val onError    = attrs.collectFirst { case Attr.EventHandler("error", e) => ScalaExpr(e) }
+        val irChildren = children.flatMap(lower)
+        val irPending  = pending.map(_.children.flatMap(lower))
+        val irFailed   = failed.map(f =>
+          IrFailedBlock(f.errorVar, f.resetVar, f.children.flatMap(lower))
+        )
+        Some(IrNode.IrBoundary(irChildren, irPending, irFailed, onError))
 
-    case TemplateNode.RenderCall(expr) =>
-      Some(IrNode.IrRenderCall(ScalaExpr(expr)))
+      case TemplateNode.KeyBlock(keyExpr, children) =>
+        Some(IrNode.IrKeyBlock(ScalaExpr(keyExpr), children.flatMap(lower)))
+
+      case TemplateNode.SnippetDef(name, params, children) =>
+        val irParams = params.map(p => IrSnippetParam(p.name, p.typeAnnotation))
+        Some(IrNode.IrSnippetDef(name, irParams, children.flatMap(lower)))
+
+      case TemplateNode.RenderCall(expr) =>
+        Some(IrNode.IrRenderCall(ScalaExpr(expr)))
+
+    result.foreach(posBuilder.put(_, line, col))
+    result
 
   // ── Expression classification (moved from SpaCodeGen.classifyExpr) ────────
 
@@ -155,7 +167,7 @@ object AstToIr:
     * previously duplicated across SpaCodeGen and SsrCodeGen. Running it once at
     * IR construction time means the Emitters receive unambiguous IR node types.
     */
-  private[ir] def lowerExpression(code: String): IrNode =
+  private[melt] def lowerExpression(code: String): IrNode =
     val trimmed = code.trim
 
     if trimmed == "children" then
@@ -230,7 +242,7 @@ object AstToIr:
     else code
 
   /** Extracts a reactive source identifier (for Bind.show overload selection). */
-  private[ir] def extractReactiveSource(code: String): Option[ScalaExpr] =
+  private[melt] def extractReactiveSource(code: String): Option[ScalaExpr] =
     val trimmed   = code.trim
     val ifValueRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.(?:value|now\(\))""".r
     val ifBareRe  = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\s+then\b""".r
