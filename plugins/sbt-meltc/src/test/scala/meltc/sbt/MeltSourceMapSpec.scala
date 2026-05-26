@@ -53,16 +53,60 @@ class MeltSourceMapSpec extends munit.FunSuite {
     f
   }
 
-  /** Builds a generated `.scala` file content with a MELT GENERATED block. */
-  private def scalaContent(meltPath: String, lines: String): String =
+  // ── Test-local V3 helpers ─────────────────────────────────────────────────
+
+  private val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+  private def encodeVlq(n: Int): String = {
+    val sb      = new StringBuilder
+    var encoded = if (n < 0) ((-n) << 1) | 1 else n << 1
+    while ({
+      val digit = encoded & 0x1f
+      encoded >>>= 5
+      sb += B64(if (encoded > 0) digit | 0x20 else digit)
+      encoded > 0
+    }) ()
+    sb.toString
+  }
+
+  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String = {
+    if (entries.isEmpty) return ""
+    val sb          = new StringBuilder
+    val lastGenLine = entries.last._1
+    val byLine      = entries.map(e => e._1 -> e).toMap
+    var prevSrcLine = 0
+    var prevSrcCol  = 0
+    (1 to lastGenLine).foreach { genLine =>
+      if (genLine > 1) sb += ';'
+      byLine.get(genLine).foreach { case (_, srcLine, srcCol) =>
+        val sl = srcLine - 1
+        val sc = srcCol  - 1
+        sb ++= encodeVlq(0)
+        sb ++= encodeVlq(0)
+        sb ++= encodeVlq(sl - prevSrcLine)
+        sb ++= encodeVlq(sc - prevSrcCol)
+        prevSrcLine = sl
+        prevSrcCol  = sc
+      }
+    }
+    sb.toString
+  }
+
+  /** Builds a generated `.scala` file content with a V3 source-map block. */
+  private def scalaContent(meltPath: String, entries: (Int, Int, Int)*): String = {
+    val mappings = encodeMappings(entries)
+    val escaped  = meltPath.replace("\\", "\\\\").replace("\"", "\\\"")
+    val json     = s"""{"version":3,"sources":["$escaped"],"names":[],"mappings":"$mappings"}"""
+    val b64      = java.util.Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
     s"""|object App {}
         |/*
         |    -- MELT GENERATED --
         |    SOURCE: $meltPath
-        |    LINES: $lines
+        |    V3: $b64
         |    -- MELT GENERATED --
         |*/
         |""".stripMargin
+  }
 
   // ── positionMapper ────────────────────────────────────────────────────────
 
@@ -87,7 +131,7 @@ class MeltSourceMapSpec extends munit.FunSuite {
 
   test("positionMapper remaps generated line to .melt source line and column") {
     val meltFile  = tempFile(".melt", "<script lang=\"scala\">val x = 1\n</script>\n<div></div>")
-    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, "5->3:1|10->7:4"))
+    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, (5, 3, 1), (10, 7, 4)))
 
     val pos    = makePosition(scalaFile, 10)
     val result = MeltSourceMap.positionMapper(pos)
@@ -102,7 +146,7 @@ class MeltSourceMapSpec extends munit.FunSuite {
 
   test("positionMapper uses nearest-predecessor entry for between-mapped lines") {
     val meltFile  = tempFile(".melt", "")
-    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, "5->3:1|15->8:2|25->12:5"))
+    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, (5, 3, 1), (15, 8, 2), (25, 12, 5)))
 
     // Line 18 is between entries 15 and 25 → should map to entry 15's source (8, col 2)
     val pos    = makePosition(scalaFile, 18)
@@ -112,18 +156,18 @@ class MeltSourceMapSpec extends munit.FunSuite {
     assertEquals(result.get.pointer().get().intValue(), 1) // col 2 → pointer 1
   }
 
-  test("positionMapper returns None when generated line is before first LINES entry") {
+  test("positionMapper returns None when generated line is before first entry") {
     val meltFile  = tempFile(".melt", "")
-    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, "10->5:1"))
+    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, (10, 5, 1)))
 
     val pos    = makePosition(scalaFile, 3) // line 3 < first entry line 10
     val result = MeltSourceMap.positionMapper(pos)
-    assert(result.isEmpty, "expected None when line is before the first LINES entry")
+    assert(result.isEmpty, "expected None when line is before the first entry")
   }
 
   test("positionMapper returns None when .melt source file does not exist") {
     val scalaFile =
-      tempFile(".scala", scalaContent("/nonexistent/path/Missing.melt", "5->3:1"))
+      tempFile(".scala", scalaContent("/nonexistent/path/Missing.melt", (5, 3, 1)))
 
     val pos    = makePosition(scalaFile, 5)
     val result = MeltSourceMap.positionMapper(pos)
@@ -132,7 +176,7 @@ class MeltSourceMapSpec extends munit.FunSuite {
 
   test("positionMapper returns None when generated position has no line number") {
     val meltFile  = tempFile(".melt", "")
-    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, "5->3:2"))
+    val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, (5, 3, 2)))
 
     val pos = new Position {
       override def line():         Optional[Integer] = Optional.empty() // no line

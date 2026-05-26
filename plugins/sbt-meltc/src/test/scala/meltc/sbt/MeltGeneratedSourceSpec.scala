@@ -11,17 +11,64 @@ package meltc.sbt
   */
 class MeltGeneratedSourceSpec extends munit.FunSuite {
 
+  // ── Test-local V3 helpers ──────────────────────────────────────────────────
+
+  private val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+  private def encodeVlq(n: Int): String = {
+    val sb      = new StringBuilder
+    var encoded = if (n < 0) ((-n) << 1) | 1 else n << 1
+    while ({
+      val digit = encoded & 0x1f
+      encoded >>>= 5
+      sb += B64(if (encoded > 0) digit | 0x20 else digit)
+      encoded > 0
+    }) ()
+    sb.toString
+  }
+
+  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String = {
+    if (entries.isEmpty) return ""
+    val sb          = new StringBuilder
+    val lastGenLine = entries.last._1
+    val byLine      = entries.map(e => e._1 -> e).toMap
+    var prevSrcLine = 0
+    var prevSrcCol  = 0
+    (1 to lastGenLine).foreach { genLine =>
+      if (genLine > 1) sb += ';'
+      byLine.get(genLine).foreach { case (_, srcLine, srcCol) =>
+        val sl = srcLine - 1
+        val sc = srcCol  - 1
+        sb ++= encodeVlq(0)
+        sb ++= encodeVlq(0)
+        sb ++= encodeVlq(sl - prevSrcLine)
+        sb ++= encodeVlq(sc - prevSrcCol)
+        prevSrcLine = sl
+        prevSrcCol  = sc
+      }
+    }
+    sb.toString
+  }
+
+  /** Builds a `-- MELT GENERATED --` block with a V3 source map. */
+  private def makeBlock(sourcePath: String, entries: (Int, Int, Int)*): String = {
+    val mappings = encodeMappings(entries)
+    val escaped  = sourcePath.replace("\\", "\\\\").replace("\"", "\\\"")
+    val json     = s"""{"version":3,"sources":["$escaped"],"names":[],"mappings":"$mappings"}"""
+    val b64      = java.util.Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
+    s"""|object App { val x = 1 }
+        |/*
+        |    -- MELT GENERATED --
+        |    SOURCE: $sourcePath
+        |    V3: $b64
+        |    -- MELT GENERATED --
+        |*/
+        |""".stripMargin
+  }
+
   // ── parse ─────────────────────────────────────────────────────────────────
 
-  private val sampleBlock =
-    """|object App { val x = 1 }
-       |/*
-       |    -- MELT GENERATED --
-       |    SOURCE: /home/user/project/App.melt
-       |    LINES: 10->5:3|15->8:1|20->12:7
-       |    -- MELT GENERATED --
-       |*/
-       |""".stripMargin
+  private val sampleBlock = makeBlock("/home/user/project/App.melt", (10, 5, 3), (15, 8, 1), (20, 12, 7))
 
   test("parse extracts sourcePath correctly") {
     val meta = MeltGeneratedSource.parse(sampleBlock)
@@ -29,23 +76,9 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
     assertEquals(meta.get.sourcePath, "/home/user/project/App.melt")
   }
 
-  test("parse extracts LINES entries with column correctly") {
+  test("parse extracts V3 entries correctly") {
     val meta = MeltGeneratedSource.parse(sampleBlock).get
     assertEquals(meta.lines.toList, List((10, 5, 3), (15, 8, 1), (20, 12, 7)))
-  }
-
-  test("parse falls back to column 1 when no colon in entry") {
-    val block =
-      """|object App {}
-         |/*
-         |    -- MELT GENERATED --
-         |    SOURCE: /tmp/App.melt
-         |    LINES: 10->5|15->8
-         |    -- MELT GENERATED --
-         |*/
-         |""".stripMargin
-    val meta = MeltGeneratedSource.parse(block).get
-    assertEquals(meta.lines.toList, List((10, 5, 1), (15, 8, 1)))
   }
 
   test("parse returns None when no block is present") {
@@ -59,32 +92,25 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
   }
 
   test("parse uses last occurrence when sentinel appears in user code") {
+    val block = makeBlock("/tmp/Real.melt", (5, 3, 2))
     val withUserLiteral =
-      """|val s = "-- MELT GENERATED --"
-         |object App {}
-         |/*
-         |    -- MELT GENERATED --
-         |    SOURCE: /tmp/Real.melt
-         |    LINES: 5->3:2
-         |    -- MELT GENERATED --
-         |*/
-         |""".stripMargin
+      s"""|val s = "-- MELT GENERATED --"
+          |$block""".stripMargin
     val meta = MeltGeneratedSource.parse(withUserLiteral)
     assert(meta.isDefined, "should still find the real block")
     assertEquals(meta.get.sourcePath, "/tmp/Real.melt")
   }
 
-  test("parse handles empty LINES gracefully") {
-    val noLines =
+  test("parse returns empty lines when V3 key is absent") {
+    val noV3 =
       """|object App {}
          |/*
          |    -- MELT GENERATED --
          |    SOURCE: /tmp/App.melt
-         |    LINES:
          |    -- MELT GENERATED --
          |*/
          |""".stripMargin
-    val meta = MeltGeneratedSource.parse(noLines).get
+    val meta = MeltGeneratedSource.parse(noV3).get
     assert(meta.lines.isEmpty)
   }
 
