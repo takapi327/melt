@@ -37,16 +37,18 @@ object SsrCodeGen extends CodeGen:
     templateSource:    String = "",
     positions:         NodePositions = NodePositions.empty
   ): String =
-    val ir = melt.ir.AstToIr.lower(
-      ast,
-      objectName,
-      pkg,
-      scopeId,
-      hydration,
-      sourcePath,
-      scriptBodyLine,
-      templateStartLine,
-      templateSource,
-      positions
+    val ir = melt.ir.opt.IrOptimizer.run(
+      melt.ir.AstToIr.lower(
+        ast,
+        objectName,
+        pkg,
+        scopeId,
+        hydration,
+        sourcePath,
+        scriptBodyLine,
+        templateStartLine,
+        templateSource,
+        positions
+      )
     )
     melt.emit.SsrEmitter.emit(ir)

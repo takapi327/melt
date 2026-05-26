@@ -57,6 +57,9 @@ object SpaEmitter:
       tracker ++= s"""  private val _css =\n    "$css"\n\n"""
     }
 
+    // ── hoisted static elements ───────────────────────────────────────────
+    if ir.hoistedNodes.nonEmpty then emitHoistedNodes(ir.hoistedNodes, tracker)
+
     // ── type declarations (Props case class etc.) ──────────────────────────
     ir.typeDecls.foreach { decl =>
       decl.linesIterator.foreach(line => tracker ++= s"  $line\n")
@@ -998,3 +1001,60 @@ object SpaEmitter:
     "munderover",
     "semantics"
   )
+
+  // ── Hoisted static element emission ─────────────────────────────────────
+
+  private def emitHoistedNodes(hoisted: List[IrHoistedNode], tracker: LineTracker): Unit =
+    hoisted.foreach { case IrHoistedNode(id, node) =>
+      val hoistCtr = new Counter
+      tracker ++= s"  private val $id = {\n"
+      val v = emitStaticElementForHoist(node, tracker, "    ", hoistCtr)
+      tracker ++= s"    $v\n"
+      tracker ++= "  }\n\n"
+    }
+
+  /** Emits a [[IrNode.IrStaticElement]] without hydration checks.
+    *
+    * Hoisted vals are created once at object initialisation, not inside
+    * `apply()`, so `Hydrating.isActive` must not be referenced.
+    */
+  private def emitStaticElementForHoist(
+    node:   IrNode.IrStaticElement,
+    buf:    LineTracker,
+    indent: String,
+    ctr:    Counter
+  ): String =
+    val v       = ctr.nextEl()
+    val childNs = resolveNs(node.tag, node.ns, "")
+    if childNs == "svg" then
+      buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "${ node.tag }")\n"""
+    else if childNs == "math" then
+      buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "${ node.tag }")\n"""
+    else
+      buf ++= s"""${ indent }val $v = dom.document.createElement("${ node.tag }")\n"""
+    buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
+    node.attrs.foreach { attr =>
+      attr match
+        case IrAttr.StaticAttr("class", value) =>
+          value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
+            buf ++= s"""${ indent }$v.classList.add("${ escapeStr(cls) }")\n"""
+          }
+        case IrAttr.StaticAttr(name, value) =>
+          buf ++= s"""${ indent }$v.setAttribute("$name", "${ escapeStr(value) }")\n"""
+        case IrAttr.BooleanAttr(name) =>
+          buf ++= s"""${ indent }$v.setAttribute("$name", "")\n"""
+        case _ => () // no dynamic attrs in IrStaticElement
+    }
+    node.children.foreach { child =>
+      child match
+        case IrNode.IrStaticText(content) if !content.isBlank =>
+          val tv      = ctr.nextTxt()
+          val escaped = escapeStr(content)
+          buf ++= s"""${ indent }val $tv = dom.document.createTextNode("$escaped")\n"""
+          buf ++= s"${ indent }$v.appendChild($tv)\n"
+        case childEl: IrNode.IrStaticElement =>
+          val cv = emitStaticElementForHoist(childEl, buf, indent, ctr)
+          buf ++= s"${ indent }$v.appendChild($cv)\n"
+        case _ => () // blank IrStaticText or unexpected (won't happen in IrStaticElement)
+    }
+    v
