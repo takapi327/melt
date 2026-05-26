@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{ Files, Paths }
 import java.util.ArrayList as JArrayList
 
-import melt.css.StylePreprocessor
+import melt.preprocessor.StylePreprocessor
 
 /** CLI entry point for the melt compiler (JVM platform only).
   *

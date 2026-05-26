@@ -145,7 +145,7 @@ object MeltPlugin extends AutoPlugin {
     val meltCodegenMode =
       settingKey[String]("Codegen mode: spa, ssr, or auto (default)")
 
-    /** Class name of the [[melt.css.StylePreprocessor]] implementation to use
+    /** Class name of the [[melt.preprocessor.StylePreprocessor]] implementation to use
       * for stylesheet preprocessing in `.melt` files.
       *
       * Default: `None` — plain CSS only. Setting `<style lang="scss">` will
@@ -160,7 +160,7 @@ object MeltPlugin extends AutoPlugin {
       * }}}
       *
       * The implementation class must be a Scala `object` that extends
-      * [[melt.css.StylePreprocessor]] and its JAR must be present on
+      * [[melt.preprocessor.StylePreprocessor]] and its JAR must be present on
       * [[meltCompilerClasspath]]. For known preprocessors (e.g. [[SassPreprocessor]])
       * the plugin adds the required JAR automatically.
       *
@@ -178,9 +178,9 @@ object MeltPlugin extends AutoPlugin {
 
     /** Preprocessor constant for SCSS support via Dart Sass.
       *
-      * Requires the `melt-compiler-sass` artifact on the compiler classpath.
+      * Requires the `melt-sass-preprocessor` artifact on the compiler classpath.
       * When [[meltStylePreprocessor]] is set to `Some(SassPreprocessor)`, the plugin
-      * adds `melt-compiler-css` and `melt-compiler-sass` to the compiler classpath automatically.
+      * adds `melt-sass-preprocessor` to the compiler classpath automatically.
       *
       * {{{
       * meltStylePreprocessor := Some(SassPreprocessor)
@@ -219,8 +219,7 @@ object MeltPlugin extends AutoPlugin {
       meltStylePreprocessor.value match {
         case Some(cls) if cls == SassPreprocessor =>
           Seq(
-            ("io.github.takapi327" % "melt-compiler-css_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig,
-            ("io.github.takapi327" % "melt-compiler-sass_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig
+            ("io.github.takapi327" % "melt-sass-preprocessor_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig
           )
         case _ => Seq.empty
       }

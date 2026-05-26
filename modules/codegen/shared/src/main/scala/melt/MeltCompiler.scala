@@ -17,7 +17,7 @@ import melt.analysis.{
   TagNameChecker
 }
 import melt.codegen.{ CodeGen, SpaCodeGen, SsrCodeGen }
-import melt.css.StylePreprocessor
+import melt.preprocessor.{ StyleInput, StylePreprocessor }
 import melt.parser.MeltParser
 
 /** Entry point of the melt compiler. */
@@ -116,8 +116,8 @@ object MeltCompiler:
             ast.style match
               case None    => Right(None)
               case Some(s) =>
-                preprocessor.process(s.content, s.lang).map { css =>
-                  Some(s.copy(content = css, lang = melt.css.StyleLang.Css))
+                preprocessor.process(StyleInput(s.content, s.lang)).map { css =>
+                  Some(s.copy(content = css, lang = melt.preprocessor.StyleLang.Css))
                 }
 
           styleResult match
