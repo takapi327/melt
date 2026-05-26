@@ -2,7 +2,7 @@
 # prod.sh — Build and start the docs SSR server in production mode.
 #
 # Prerequisites (run once from the monorepo root):
-#   sbt "compiler-cssJVM/publishLocal; compiler-cssJS/publishLocal; \
+#   sbt "preprocessorJVM/publishLocal; preprocessorJS/publishLocal; \
 #        compilerJVM/publishLocal; compilerJS/publishLocal; \
 #        runtimeJVM/publishLocal; runtimeJS/publishLocal; \
 #        codegenJVM/publishLocal; codegenJS/publishLocal; \
