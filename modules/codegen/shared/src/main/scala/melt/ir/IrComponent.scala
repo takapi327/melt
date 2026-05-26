@@ -21,14 +21,14 @@ case class IrComponent(
   typeDecls:         List[String], // top-level type declarations (SSR: hoisted out of apply())
   style:             Option[IrStyle],
   template:          List[IrNode],
-  hoistedNodes:      List[IrHoistedNode] = Nil,                  // populated by StaticHoistPass
+  hoistedNodes:      List[IrHoistedNode] = Nil,                   // populated by StaticHoistPass
   hydration:         Boolean,
   sourcePath:        String,
   sourceMap:         IrSourceMap,
-  scriptBodyLine:    Int                 = 1,                    // 1-based line of script body start (for source-map)
-  templateStartLine: Int                 = 1,                    // 1-based line of template start (for source-map)
+  scriptBodyLine:    Int                 = 1,                     // 1-based line of script body start (for source-map)
+  templateStartLine: Int                 = 1,                     // 1-based line of template start (for source-map)
   nodePositions:     IrNodePositions     = IrNodePositions.empty, // per-node source positions built by AstToIr
-  reactiveVars:      Set[String]         = Set.empty             // State/Signal/memo vars from the script section
+  reactiveVars:      Set[String]         = Set.empty              // State/Signal/memo vars from the script section
 )
 
 /** Maps [[IrNode]] instances (by reference identity) to their source (line, col).

@@ -112,7 +112,7 @@ object DependencyGraphPass extends IrPass:
     valueVars match
       case single :: Nil => Some(single) // exactly one .value source
       case _ :: _ :: _   => None         // multiple .value sources — cannot merge
-      case Nil =>
+      case Nil           =>
         // No .value pattern — check if the whole expression is a bare reactive var
         val trimmed = stripped.trim
         if reactiveVars.contains(trimmed) then Some(trimmed)

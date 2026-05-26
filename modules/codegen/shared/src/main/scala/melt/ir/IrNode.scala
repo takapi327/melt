@@ -67,7 +67,7 @@ enum IrNode:
     */
   case IrDynamicText(
     expr:       ScalaExpr,
-    kind:       ReactiveKind  = ReactiveKind.Unknown,
+    kind:       ReactiveKind   = ReactiveKind.Unknown,
     mergeGroup: Option[String] = None
   )
 

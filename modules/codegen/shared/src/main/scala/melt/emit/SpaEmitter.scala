@@ -539,14 +539,16 @@ object SpaEmitter:
     }
 
     // Emit one merged subscription per reactive var, inside the withChildren block
-    mergeGroups.foreach { case (varName, nodes) =>
-      val cancelVar = ctr.nextEl()
-      buf ++= s"${ childIndent }val $cancelVar = $varName.subscribe { _ =>\n"
-      nodes.foreach { case (tv, updateExpr) =>
-        buf ++= s"${ childIndent }  $tv.textContent = ($updateExpr).toString\n"
-      }
-      buf ++= s"${ childIndent }}\n"
-      buf ++= s"${ childIndent }Cleanup.register($cancelVar)\n"
+    mergeGroups.foreach {
+      case (varName, nodes) =>
+        val cancelVar = ctr.nextEl()
+        buf ++= s"${ childIndent }val $cancelVar = $varName.subscribe { _ =>\n"
+        nodes.foreach {
+          case (tv, updateExpr) =>
+            buf ++= s"${ childIndent }  $tv.textContent = ($updateExpr).toString\n"
+        }
+        buf ++= s"${ childIndent }}\n"
+        buf ++= s"${ childIndent }Cleanup.register($cancelVar)\n"
     }
 
     if hasChildren then buf ++= s"${ indent }}\n"
