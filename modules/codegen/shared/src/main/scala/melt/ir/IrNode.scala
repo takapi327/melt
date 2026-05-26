@@ -58,8 +58,18 @@ enum IrNode:
 
   // ── Dynamic text ──────────────────────────────────────────────────────────
 
-  /** `{count}`, `{name.value}`, `{a + b}` — plain reactive text */
-  case IrDynamicText(expr: ScalaExpr, kind: ReactiveKind = ReactiveKind.Unknown)
+  /** `{count}`, `{name.value}`, `{a + b}` — plain reactive text.
+    *
+    * @param kind       reactivity hint inferred by [[melt.codegen.ReactiveInferencer]]
+    * @param mergeGroup when `Some(varName)`, [[melt.ir.opt.DependencyGraphPass]] has determined
+    *                   that this node's subscription should be merged with other nodes that share
+    *                   the same reactive variable, reducing N subscriptions to 1.
+    */
+  case IrDynamicText(
+    expr:       ScalaExpr,
+    kind:       ReactiveKind  = ReactiveKind.Unknown,
+    mergeGroup: Option[String] = None
+  )
 
   // ── Dynamic elements ──────────────────────────────────────────────────────
 

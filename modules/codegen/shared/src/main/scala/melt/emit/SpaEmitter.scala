@@ -6,6 +6,8 @@
 
 package melt.emit
 
+import scala.collection.mutable
+
 import melt.codegen.{ Counter, LineTracker }
 import melt.ir.*
 
@@ -234,7 +236,7 @@ object SpaEmitter:
         ""
 
       // ── Dynamic text ──────────────────────────────────────────────────────
-      case IrNode.IrDynamicText(expr, _) =>
+      case IrNode.IrDynamicText(expr, _, _) =>
         parentVar match
           case Some(parent) =>
             buf ++= s"${ indent }Hydrating.text(${ expr.code }, $parent)\n"
@@ -519,11 +521,34 @@ object SpaEmitter:
     val hasChildren = children.nonEmpty
     val childIndent = if hasChildren then indent + "  " else indent
     if hasChildren then buf ++= s"${ indent }Hydrating.withChildren($v) {\n"
+
+    // mergeGroup-annotated IrDynamicText nodes are declared first (no inline subscribe),
+    // then a single merged subscription is emitted per reactive var at the end of the block.
+    val mergeGroups = mutable.LinkedHashMap.empty[String, mutable.ListBuffer[(String, String)]]
     children.foreach { child =>
-      val cv =
-        emitNode(child, buf, childIndent, ctr, isRoot = false, parentVar = Some(v), ns = childNs, nodePos = nodePos)
-      if cv.nonEmpty then buf ++= s"${ childIndent }if !Hydrating.isActive then $v.appendChild($cv)\n"
+      child match
+        case IrNode.IrDynamicText(expr, _, Some(varName)) =>
+          val tv       = ctr.nextTxt()
+          val initExpr = if expr.code.trim == varName then s"$varName.value" else expr.code
+          buf ++= s"${ childIndent }val $tv = Hydrating.text(($initExpr).toString, $v)\n"
+          mergeGroups.getOrElseUpdate(varName, mutable.ListBuffer.empty) += ((tv, initExpr))
+        case other =>
+          val cv =
+            emitNode(other, buf, childIndent, ctr, isRoot = false, parentVar = Some(v), ns = childNs, nodePos = nodePos)
+          if cv.nonEmpty then buf ++= s"${ childIndent }if !Hydrating.isActive then $v.appendChild($cv)\n"
     }
+
+    // Emit one merged subscription per reactive var, inside the withChildren block
+    mergeGroups.foreach { case (varName, nodes) =>
+      val cancelVar = ctr.nextEl()
+      buf ++= s"${ childIndent }val $cancelVar = $varName.subscribe { _ =>\n"
+      nodes.foreach { case (tv, updateExpr) =>
+        buf ++= s"${ childIndent }  $tv.textContent = ($updateExpr).toString\n"
+      }
+      buf ++= s"${ childIndent }}\n"
+      buf ++= s"${ childIndent }Cleanup.register($cancelVar)\n"
+    }
+
     if hasChildren then buf ++= s"${ indent }}\n"
 
     deferredSelectBind.foreach { bsv =>

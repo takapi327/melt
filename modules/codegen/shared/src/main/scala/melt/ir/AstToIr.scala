@@ -61,7 +61,8 @@ object AstToIr:
       sourceMap         = IrSourceMap.empty, // populated by Emitters during emit()
       scriptBodyLine    = scriptBodyLine,
       templateStartLine = templateStartLine,
-      nodePositions     = posBuilder.build()
+      nodePositions     = posBuilder.build(),
+      reactiveVars      = reactiveVars
     )
 
   // ── Node lowering ─────────────────────────────────────────────────────────

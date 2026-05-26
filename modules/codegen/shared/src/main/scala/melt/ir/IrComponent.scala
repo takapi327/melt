@@ -27,7 +27,8 @@ case class IrComponent(
   sourceMap:         IrSourceMap,
   scriptBodyLine:    Int                 = 1,                    // 1-based line of script body start (for source-map)
   templateStartLine: Int                 = 1,                    // 1-based line of template start (for source-map)
-  nodePositions:     IrNodePositions     = IrNodePositions.empty // per-node source positions built by AstToIr
+  nodePositions:     IrNodePositions     = IrNodePositions.empty, // per-node source positions built by AstToIr
+  reactiveVars:      Set[String]         = Set.empty             // State/Signal/memo vars from the script section
 )
 
 /** Maps [[IrNode]] instances (by reference identity) to their source (line, col).
