@@ -33,15 +33,6 @@ import melt.CompileWarning
   */
 object EffectDepsChecker:
 
-  private val VarDeclPattern: Regex =
-    raw"""val\s+(\w+)\s*=\s*State\s*\(""".r
-
-  private val SignalDerivedPattern: Regex =
-    raw"""val\s+(\w+)\s*=\s*\w+\.(map|flatMap|signal)\s*[({]""".r
-
-  private val MemoPattern: Regex =
-    raw"""val\s+(\w+)\s*=\s*memo\s*\(""".r
-
   // Matches any `val x = ...` — used to detect local re-declarations inside
   // an effect body that shadow outer reactive vars.
   private val LocalValPattern: Regex =
@@ -65,7 +56,7 @@ object EffectDepsChecker:
       case None         => Nil
       case Some(script) =>
         val code         = script.code
-        val reactiveVars = extractReactiveVars(code)
+        val reactiveVars = ScalaTextUtils.extractReactiveVars(code)
         if reactiveVars.isEmpty then Nil
         else
           val calls = extractEffectCalls(code, scriptBodyLine)
@@ -118,20 +109,10 @@ object EffectDepsChecker:
     isLayout: Boolean
   )
 
-  // ── Step 1: collect reactive variable names ───────────────────────────────
-
-  private def extractReactiveVars(code: String): Set[String] =
-    val stripped = stripStringLiterals(code)
-    val names    = mutable.Set.empty[String]
-    VarDeclPattern.findAllMatchIn(stripped).foreach(m => names += m.group(1))
-    SignalDerivedPattern.findAllMatchIn(stripped).foreach(m => names += m.group(1))
-    MemoPattern.findAllMatchIn(stripped).foreach(m => names += m.group(1))
-    names.toSet
-
   // ── Step 2: extract effect calls ─────────────────────────────────────────
 
   private def extractEffectCalls(code: String, scriptBodyLine: Int): List[EffectCall] =
-    val stripped = stripStringLiterals(code)
+    val stripped = ScalaTextUtils.stripStringLiterals(code)
     val calls    = mutable.ListBuffer.empty[EffectCall]
     val len      = stripped.length
 
@@ -243,7 +224,7 @@ object EffectDepsChecker:
   // ── Step 3: find reactive var references in body ──────────────────────────
 
   private def referencedVars(body: String, reactiveVars: Set[String]): Set[String] =
-    val stripped = stripStringLiterals(body)
+    val stripped = ScalaTextUtils.stripStringLiterals(body)
     // Detect any local `val x = ...` inside the body that shadows an outer reactive var.
     val localDecls = LocalValPattern.findAllMatchIn(stripped).map(_.group(1)).toSet
     reactiveVars.filter { name =>
@@ -289,7 +270,7 @@ object EffectDepsChecker:
     deps: List[String]
   ): List[(String, String)] =
     if deps.isEmpty then return Nil
-    val stripped   = stripStringLiterals(body)
+    val stripped   = ScalaTextUtils.stripStringLiterals(body)
     val localDecls = LocalValPattern.findAllMatchIn(stripped).map(_.group(1)).toSet
     parseLambdaHeader(stripped, deps.size) match
       case None                       => Nil
@@ -312,7 +293,7 @@ object EffectDepsChecker:
     */
   private def findUnusedDeps(body: String, deps: List[String]): List[String] =
     if deps.isEmpty then return Nil
-    val stripped   = stripStringLiterals(body)
+    val stripped   = ScalaTextUtils.stripStringLiterals(body)
     val localDecls = LocalValPattern.findAllMatchIn(stripped).map(_.group(1)).toSet
     parseLambdaHeader(stripped, deps.size) match
       case Some((params, afterArrow)) =>
@@ -360,128 +341,6 @@ object EffectDepsChecker:
       s"hint: remove it like $hint { ... }"
 
   // ── Shared utilities ──────────────────────────────────────────────────────
-
-  /** Replaces the contents of string literals and comments with spaces,
-    * while preserving code inside Scala string-interpolation `${...}` blocks.
-    *
-    * Handles:
-    *   - `"..."` plain string literals
-    *   - `"""..."""` triple-quoted strings
-    *   - `s"..."` / `f"..."` interpolated strings — `${expr}` blocks are kept
-    *   - `//` line comments and `/* */` block comments
-    */
-  private def stripStringLiterals(src: String): String =
-    val sb  = StringBuilder(src.length)
-    var i   = 0
-    val len = src.length
-
-    while i < len do
-      if i + 2 < len && src(i) == '"' && src(i + 1) == '"' && src(i + 2) == '"' then
-        val interp = isInterpPrefix(src, i)
-        sb.append("   ")
-        i += 3
-        var closed = false
-        while i < len && !closed do
-          if i + 2 < len && src(i) == '"' && src(i + 1) == '"' && src(i + 2) == '"' then
-            sb.append("   ")
-            i += 3
-            closed = true
-          else if interp && src(i) == '$' && i + 1 < len && src(i + 1) == '{' then
-            i = appendInterpBlock(src, i, sb, len)
-          else if interp && src(i) == '$' && i + 1 < len &&
-            (src(i + 1).isLetter || src(i + 1) == '_')
-          then i = appendInterpIdent(src, i, sb, len)
-          else
-            sb.append(' ')
-            i += 1
-      else if src(i) == '"' then
-        val interp = isInterpPrefix(src, i)
-        sb.append('"')
-        i += 1
-        var closed = false
-        while i < len && !closed do
-          if src(i) == '\\' then
-            sb.append("  ")
-            i += 2
-          else if src(i) == '"' then
-            sb.append('"')
-            i += 1
-            closed = true
-          else if interp && src(i) == '$' && i + 1 < len && src(i + 1) == '{' then
-            i = appendInterpBlock(src, i, sb, len)
-          else if interp && src(i) == '$' && i + 1 < len &&
-            (src(i + 1).isLetter || src(i + 1) == '_')
-          then i = appendInterpIdent(src, i, sb, len)
-          else
-            sb.append(' ')
-            i += 1
-      else if i + 1 < len && src(i) == '/' && src(i + 1) == '/' then
-        sb.append("//")
-        i += 2
-        while i < len && src(i) != '\n' do
-          sb.append(' ')
-          i += 1
-      else if i + 1 < len && src(i) == '/' && src(i + 1) == '*' then
-        sb.append("/*")
-        i += 2
-        var closed = false
-        while i < len && !closed do
-          if i + 1 < len && src(i) == '*' && src(i + 1) == '/' then
-            sb.append("*/")
-            i += 2
-            closed = true
-          else
-            sb.append(' ')
-            i += 1
-      else
-        sb.append(src(i))
-        i += 1
-
-    sb.toString
-
-  /** True if the character before position `pos` is an interpolation prefix
-    * (`s` or `f`) that is NOT part of a longer identifier.
-    */
-  private def isInterpPrefix(src: String, pos: Int): Boolean =
-    if pos <= 0 then false
-    else
-      val prev = src(pos - 1)
-      (prev == 's' || prev == 'f') && (pos < 2 || !src(pos - 2).isLetterOrDigit)
-
-  /** Appends a `${...}` interpolation block (starting at the `$` character at
-    * position `pos`) to `sb`, preserving all code inside the braces.
-    * Returns the position after the closing `}`.
-    */
-  private def appendInterpBlock(src: String, pos: Int, sb: StringBuilder, len: Int): Int =
-    sb.append("${")
-    var i     = pos + 2 // skip '${'
-    var depth = 1
-    while i < len && depth > 0 do
-      val c = src(i)
-      if c == '{' then
-        depth += 1
-        sb.append(c)
-        i += 1
-      else if c == '}' then
-        depth -= 1
-        sb.append('}')
-        i += 1
-      else
-        sb.append(c)
-        i += 1
-    i
-
-  /** Appends a `$identifier` simple interpolation (starting at the `$` at
-    * position `pos`) to `sb`.
-    * Returns the position after the identifier.
-    */
-  private def appendInterpIdent(src: String, pos: Int, sb: StringBuilder, len: Int): Int =
-    sb.append('$')
-    var i = pos + 1
-    while i < len && (src(i).isLetterOrDigit || src(i) == '_') do
-      sb.append(src(i))
-      i += 1
-    i
 
   private def countNewlines(s: String, upTo: Int): Int =
     s.take(upTo).count(_ == '\n')

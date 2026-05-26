@@ -21,4 +21,4 @@ object IrOptimizer:
   def run(ir: IrComponent, passes: List[IrPass] = defaultPasses): IrComponent =
     passes.foldLeft(ir)((acc, pass) => pass.run(acc))
 
-  val defaultPasses: List[IrPass] = List(StaticHoistPass)
+  val defaultPasses: List[IrPass] = List(StaticHoistPass, DependencyGraphPass)

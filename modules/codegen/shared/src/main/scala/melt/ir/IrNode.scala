@@ -6,6 +6,22 @@
 
 package melt.ir
 
+/** Hint about whether a template expression references reactive state.
+  *
+  * The compiler infers this without type information, so results are
+  * conservative (false positives are possible). The actual static/reactive
+  * distinction is ultimately determined by scalac's overload resolution.
+  */
+enum ReactiveKind:
+  /** Likely does not contain a `.value` call or reactive variable reference. */
+  case LikelyStatic
+
+  /** Contains a `.value` call or references a `State`-declared variable. */
+  case LikelyReactive
+
+  /** Cannot be determined — treated conservatively as reactive. */
+  case Unknown
+
 /** Typed intermediate representation of a template node.
   *
   * The key differences from [[melt.ast.TemplateNode]]:
@@ -42,8 +58,18 @@ enum IrNode:
 
   // ── Dynamic text ──────────────────────────────────────────────────────────
 
-  /** `{count}`, `{name.value}`, `{a + b}` — plain reactive text */
-  case IrDynamicText(expr: ScalaExpr)
+  /** `{count}`, `{name.value}`, `{a + b}` — plain reactive text.
+    *
+    * @param kind       reactivity hint inferred by [[melt.codegen.ReactiveInferencer]]
+    * @param mergeGroup when `Some(varName)`, [[melt.ir.opt.DependencyGraphPass]] has determined
+    *                   that this node's subscription should be merged with other nodes that share
+    *                   the same reactive variable, reducing N subscriptions to 1.
+    */
+  case IrDynamicText(
+    expr:       ScalaExpr,
+    kind:       ReactiveKind   = ReactiveKind.Unknown,
+    mergeGroup: Option[String] = None
+  )
 
   // ── Dynamic elements ──────────────────────────────────────────────────────
 

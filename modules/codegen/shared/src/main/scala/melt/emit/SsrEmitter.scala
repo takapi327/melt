@@ -121,7 +121,7 @@ object SsrEmitter:
         val escaped = htmlEscapeLiteral(content)
         buf ++= s"""${ pad }renderer.push("${ escapeStr(escaped) }")\n"""
 
-      case IrNode.IrDynamicText(expr) =>
+      case IrNode.IrDynamicText(expr, _, _) =>
         buf ++= s"""${ pad }renderer.push(Escape.html(${ expr.code }))\n"""
 
       case IrNode.IrStaticElement(tag, _, attrs, children, _) =>
@@ -550,7 +550,7 @@ object SsrEmitter:
       case IrNode.IrStaticText(content) =>
         buf ++= s"""${ pad }renderer.head.push("${ escapeStr(htmlEscapeLiteral(content)) }")\n"""
 
-      case IrNode.IrDynamicText(expr) =>
+      case IrNode.IrDynamicText(expr, _, _) =>
         buf ++= s"${ pad }renderer.head.push(Escape.html(${ expr.code }))\n"
 
       case _ => ()
@@ -565,7 +565,7 @@ object SsrEmitter:
     hoistedMap:    Map[String, IrNode.IrStaticElement]
   ): Unit =
     titleChildren match
-      case IrNode.IrDynamicText(expr) :: Nil =>
+      case IrNode.IrDynamicText(expr, _, _) :: Nil =>
         buf ++= s"${ pad }renderer.head.title(${ expr.code })\n"
       case _ =>
         val staticText = titleChildren.collect { case IrNode.IrStaticText(t) => t }.mkString
@@ -630,7 +630,7 @@ object SsrEmitter:
         val escaped = escapeStr(htmlEscapeLiteral(content))
         if escaped.nonEmpty then buf ++= s"""${ pad }_sb ++= "$escaped"\n"""
 
-      case IrNode.IrDynamicText(expr) =>
+      case IrNode.IrDynamicText(expr, _, _) =>
         buf ++= s"${ pad }_sb ++= Escape.html(${ expr.code })\n"
 
       case IrNode.IrChildren =>
@@ -669,7 +669,7 @@ object SsrEmitter:
       val escaped = escapeStr(htmlEscapeLiteral(content))
       sb ++= s"""_sb ++= "$escaped"; """
 
-    case IrNode.IrDynamicText(expr) =>
+    case IrNode.IrDynamicText(expr, _, _) =>
       sb ++= s"""_sb ++= Escape.html(${ expr.code }); """
 
     case IrNode.IrChildren =>
