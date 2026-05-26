@@ -1005,12 +1005,13 @@ object SpaEmitter:
   // ── Hoisted static element emission ─────────────────────────────────────
 
   private def emitHoistedNodes(hoisted: List[IrHoistedNode], tracker: LineTracker): Unit =
-    hoisted.foreach { case IrHoistedNode(id, node) =>
-      val hoistCtr = new Counter
-      tracker ++= s"  private val $id = {\n"
-      val v = emitStaticElementForHoist(node, tracker, "    ", hoistCtr)
-      tracker ++= s"    $v\n"
-      tracker ++= "  }\n\n"
+    hoisted.foreach {
+      case IrHoistedNode(id, node) =>
+        val hoistCtr = new Counter
+        tracker ++= s"  private val $id = {\n"
+        val v = emitStaticElementForHoist(node, tracker, "    ", hoistCtr)
+        tracker ++= s"    $v\n"
+        tracker ++= "  }\n\n"
     }
 
   /** Emits a [[IrNode.IrStaticElement]] without hydration checks.
@@ -1030,8 +1031,7 @@ object SpaEmitter:
       buf ++= s"""${ indent }val $v = dom.document.createElementNS("$SvgNs", "${ node.tag }")\n"""
     else if childNs == "math" then
       buf ++= s"""${ indent }val $v = dom.document.createElementNS("$MathNs", "${ node.tag }")\n"""
-    else
-      buf ++= s"""${ indent }val $v = dom.document.createElement("${ node.tag }")\n"""
+    else buf ++= s"""${ indent }val $v = dom.document.createElement("${ node.tag }")\n"""
     buf ++= s"${ indent }$v.classList.add(_scopeId)\n"
     node.attrs.foreach { attr =>
       attr match
