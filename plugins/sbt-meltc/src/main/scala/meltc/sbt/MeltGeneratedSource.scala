@@ -222,11 +222,11 @@ object MeltGeneratedSource {
         readVlq()
         // Check for more fields (4-field segment with source position)
         if (i < mappings.length && mappings(i) != ';' && mappings(i) != ',') {
-          readVlq()                       // source file index delta (always 0 for us)
-          val dlSrc = readVlq()           // source line delta
-          val dcSrc = readVlq()           // source column delta
+          readVlq() // source file index delta (always 0 for us)
+          val dlSrc = readVlq() // source line delta
+          val dcSrc = readVlq() // source column delta
           prevSrcLine += dlSrc
-          prevSrcCol  += dcSrc
+          prevSrcCol += dcSrc
           result += ((genLine, prevSrcLine + 1, prevSrcCol + 1)) // back to 1-based
           // skip optional 5th field (name index)
           if (i < mappings.length && mappings(i) != ';' && mappings(i) != ',')

@@ -1984,7 +1984,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
       while cont && i < mappings.length do
         val d = B64Map.getOrElse(mappings(i), -1); i += 1
         if d >= 0 then
-          cont   = (d & 0x20) != 0
+          cont = (d & 0x20) != 0
           value |= (d & 0x1f) << shift
           shift += 5
       if (value & 1) != 0 then -(value >> 1) else value >> 1
@@ -1992,12 +1992,12 @@ class SpaCodeGenSpec extends munit.FunSuite:
       mappings(i) match
         case ';' => genLine += 1; i += 1
         case ',' => i += 1
-        case _ =>
+        case _   =>
           readVlq() // generated column (discard)
           if i < mappings.length && mappings(i) != ';' && mappings(i) != ',' then
-            readVlq()               // source file index (discard)
+            readVlq() // source file index (discard)
             prevSrcLine += readVlq()
-            prevSrcCol  += readVlq()
+            prevSrcCol += readVlq()
             result += ((genLine, prevSrcLine + 1, prevSrcCol + 1))
             if i < mappings.length && mappings(i) != ';' && mappings(i) != ',' then readVlq()
     result.toList

@@ -36,15 +36,16 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
     var prevSrcCol  = 0
     (1 to lastGenLine).foreach { genLine =>
       if (genLine > 1) sb += ';'
-      byLine.get(genLine).foreach { case (_, srcLine, srcCol) =>
-        val sl = srcLine - 1
-        val sc = srcCol  - 1
-        sb ++= encodeVlq(0)
-        sb ++= encodeVlq(0)
-        sb ++= encodeVlq(sl - prevSrcLine)
-        sb ++= encodeVlq(sc - prevSrcCol)
-        prevSrcLine = sl
-        prevSrcCol  = sc
+      byLine.get(genLine).foreach {
+        case (_, srcLine, srcCol) =>
+          val sl = srcLine - 1
+          val sc = srcCol - 1
+          sb ++= encodeVlq(0)
+          sb ++= encodeVlq(0)
+          sb ++= encodeVlq(sl - prevSrcLine)
+          sb ++= encodeVlq(sc - prevSrcCol)
+          prevSrcLine = sl
+          prevSrcCol  = sc
       }
     }
     sb.toString
@@ -92,7 +93,7 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
   }
 
   test("parse uses last occurrence when sentinel appears in user code") {
-    val block = makeBlock("/tmp/Real.melt", (5, 3, 2))
+    val block           = makeBlock("/tmp/Real.melt", (5, 3, 2))
     val withUserLiteral =
       s"""|val s = "-- MELT GENERATED --"
           |$block""".stripMargin

@@ -31,11 +31,11 @@ object SourceMapV3:
 
   /** Encodes a single signed integer as a Base64 VLQ string. */
   private def encodeVlq(n: Int): String =
-    val sb      = new StringBuilder
+    val sb = new StringBuilder
     // Sign is stored in the LSB of the first group (positive → even, negative → odd)
     var encoded = if n < 0 then ((-n) << 1) | 1 else n << 1
     while
-      val digit = encoded & 0x1f        // 5 payload bits
+      val digit = encoded & 0x1f // 5 payload bits
       encoded >>>= 5
       sb += Base64Chars(if encoded > 0 then digit | 0x20 else digit) // set continuation bit
       encoded > 0
@@ -62,15 +62,16 @@ object SourceMapV3:
     var prevSrcCol  = 0 // 0-based, cumulative across all lines
     (1 to lastGenLine).foreach { genLine =>
       if genLine > 1 then sb += ';'
-      byLine.get(genLine).foreach { case (_, srcLine, srcCol) =>
-        val sl = srcLine - 1 // convert to 0-based
-        val sc = srcCol  - 1
-        sb ++= encodeVlq(0)              // generated column (always start of line → 0)
-        sb ++= encodeVlq(0)              // source-file index delta (single source → always 0)
-        sb ++= encodeVlq(sl - prevSrcLine)
-        sb ++= encodeVlq(sc - prevSrcCol)
-        prevSrcLine = sl
-        prevSrcCol  = sc
+      byLine.get(genLine).foreach {
+        case (_, srcLine, srcCol) =>
+          val sl = srcLine - 1 // convert to 0-based
+          val sc = srcCol - 1
+          sb ++= encodeVlq(0) // generated column (always start of line → 0)
+          sb ++= encodeVlq(0) // source-file index delta (single source → always 0)
+          sb ++= encodeVlq(sl - prevSrcLine)
+          sb ++= encodeVlq(sc - prevSrcCol)
+          prevSrcLine = sl
+          prevSrcCol  = sc
       }
     }
     sb.toString

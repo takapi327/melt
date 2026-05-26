@@ -78,15 +78,16 @@ class MeltSourceMapSpec extends munit.FunSuite {
     var prevSrcCol  = 0
     (1 to lastGenLine).foreach { genLine =>
       if (genLine > 1) sb += ';'
-      byLine.get(genLine).foreach { case (_, srcLine, srcCol) =>
-        val sl = srcLine - 1
-        val sc = srcCol  - 1
-        sb ++= encodeVlq(0)
-        sb ++= encodeVlq(0)
-        sb ++= encodeVlq(sl - prevSrcLine)
-        sb ++= encodeVlq(sc - prevSrcCol)
-        prevSrcLine = sl
-        prevSrcCol  = sc
+      byLine.get(genLine).foreach {
+        case (_, srcLine, srcCol) =>
+          val sl = srcLine - 1
+          val sc = srcCol - 1
+          sb ++= encodeVlq(0)
+          sb ++= encodeVlq(0)
+          sb ++= encodeVlq(sl - prevSrcLine)
+          sb ++= encodeVlq(sc - prevSrcCol)
+          prevSrcLine = sl
+          prevSrcCol  = sc
       }
     }
     sb.toString
