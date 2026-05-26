@@ -7,7 +7,8 @@
 package melt.ir
 
 import melt.ast.*
-import melt.codegen.{ CssScoper, SpaCodeGen }
+import melt.codegen.{ CssScoper, ReactiveInferencer, SpaCodeGen }
+import melt.analysis.ScalaTextUtils
 import melt.NodePositions
 
 /** Lowers a [[MeltFile]] AST into an [[IrComponent]].
@@ -38,9 +39,10 @@ object AstToIr:
     // (double-stripping bug).
     val rawCode                 = ast.script.map(_.code.trim).getOrElse("")
     val (typeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    val reactiveVars            = ScalaTextUtils.extractReactiveVars(rawCode)
     val style                   = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
     val posBuilder              = IrNodePositions.builder()
-    val template = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder))
+    val template = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars))
 
     IrComponent(
       objectName        = objectName,
@@ -68,14 +70,15 @@ object AstToIr:
     positions:         NodePositions,
     templateSource:    String,
     templateStartLine: Int,
-    posBuilder:        IrNodePositions.Builder
+    posBuilder:        IrNodePositions.Builder,
+    reactiveVars:      Set[String] = Set.empty
   ): Option[IrNode] =
     val span = positions.spanOf(node)
     val line = span.absoluteLine(templateSource, templateStartLine)
     val col  = span.column(templateSource)
 
     // Helper to recurse children, threading posBuilder through.
-    def lower(n: TemplateNode) = lowerNode(n, scopeId, positions, templateSource, templateStartLine, posBuilder)
+    def lower(n: TemplateNode) = lowerNode(n, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
 
     val result = node match
 
@@ -86,7 +89,7 @@ object AstToIr:
         Some(IrNode.IrStaticText(content))
 
       case TemplateNode.Expression(code) =>
-        Some(lowerExpression(code))
+        Some(lowerExpression(code, reactiveVars))
 
       case TemplateNode.Element(tag, attrs, children) =>
         val irAttrs    = attrs.flatMap(lowerAttr(_, tag, attrs))
@@ -163,17 +166,20 @@ object AstToIr:
     * previously duplicated across SpaCodeGen and SsrCodeGen. Running it once at
     * IR construction time means the Emitters receive unambiguous IR node types.
     */
-  private[melt] def lowerExpression(code: String): IrNode =
-    val trimmed = code.trim
+  private[melt] def lowerExpression(code: String, reactiveVars: Set[String] = Set.empty): IrNode =
+    val trimmed  = code.trim
+    val stripped = ScalaTextUtils.stripStringLiterals(trimmed)
 
     if trimmed == "children" then IrNode.IrChildren
-    else if isKeyedList(trimmed) then buildKeyedList(trimmed)
-    else if isUnkeyedList(trimmed) then buildUnkeyedList(trimmed)
-    else if trimmed.contains("TrustedHtml") then IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
-    else if isConditionalDom(trimmed) then IrNode.IrConditional(extractReactiveSource(trimmed), ScalaExpr(trimmed))
-    else if trimmed.contains("createDocumentFragment") then IrNode.IrFragmentResult(ScalaExpr(trimmed))
-    else if returnsDomDirectly(trimmed) then IrNode.IrDomResult(ScalaExpr(trimmed))
-    else IrNode.IrDynamicText(ScalaExpr(trimmed))
+    else if isKeyedList(stripped) then buildKeyedList(trimmed)
+    else if isUnkeyedList(stripped) then buildUnkeyedList(trimmed)
+    else if stripped.contains("TrustedHtml") then IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
+    else if isConditionalDom(stripped) then IrNode.IrConditional(extractReactiveSource(trimmed), ScalaExpr(trimmed))
+    else if stripped.contains("createDocumentFragment") then IrNode.IrFragmentResult(ScalaExpr(trimmed))
+    else if returnsDomDirectly(stripped) then IrNode.IrDomResult(ScalaExpr(trimmed))
+    else
+      val kind = ReactiveInferencer.infer(trimmed, reactiveVars)
+      IrNode.IrDynamicText(ScalaExpr(trimmed), kind)
 
   private def isKeyedList(code: String): Boolean =
     code.contains(".keyed(") && code.contains(".map(")

@@ -234,7 +234,7 @@ object SpaEmitter:
         ""
 
       // ── Dynamic text ──────────────────────────────────────────────────────
-      case IrNode.IrDynamicText(expr) =>
+      case IrNode.IrDynamicText(expr, _) =>
         parentVar match
           case Some(parent) =>
             buf ++= s"${ indent }Hydrating.text(${ expr.code }, $parent)\n"
