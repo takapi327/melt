@@ -6,7 +6,7 @@
 
 package melt.parser
 
-import melt.css.StyleLang
+import melt.preprocessor.StyleLang
 
 class SectionSplitterSpec extends munit.FunSuite:
 

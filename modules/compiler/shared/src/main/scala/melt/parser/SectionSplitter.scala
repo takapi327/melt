@@ -8,7 +8,7 @@ package melt.parser
 
 import scala.util.matching.Regex
 
-import melt.css.StyleLang
+import melt.preprocessor.StyleLang
 
 /** Splits a `.melt` source file into its three raw sections.
   *
