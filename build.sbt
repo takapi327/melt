@@ -15,6 +15,9 @@ ThisBuild / githubWorkflowJavaVersions := Seq(
 )
 ThisBuild / githubWorkflowBuildMatrixAdditions +=
   "project" -> List(
+    "preprocessorJVM",
+    "preprocessorJS",
+    "sass-preprocessor",
     "compilerJVM",
     "compilerJS",
     "codegenJVM",
@@ -28,6 +31,8 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
   )
 ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   // JS runs on Java 17 only
+  MatrixExclude(Map("project" -> "preprocessorJS", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "preprocessorJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java21")),
@@ -61,7 +66,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
     cond = Some(
-      "contains('compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)"
+      "contains('preprocessorJS compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)"
     )
   ),
   WorkflowStep.Sbt(
