@@ -25,7 +25,7 @@ class AstToIrSpec extends munit.FunSuite:
   test("plain text expression lowers to IrDynamicText") {
     val ir = lower("<div>{count}</div>")
     ir.template match
-      case List(IrNode.IrElement(_, _, _, List(IrNode.IrDynamicText(expr)), _)) =>
+      case List(IrNode.IrElement(_, _, _, List(IrNode.IrDynamicText(expr, _)), _)) =>
         assertEquals(expr.code, "count")
       case other => fail(s"Unexpected: $other")
   }
