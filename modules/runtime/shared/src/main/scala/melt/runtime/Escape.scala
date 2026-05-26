@@ -27,7 +27,7 @@ package melt.runtime
   * Following Svelte 5's `escape_html`, all escape helpers coerce absent
   * values to the empty string rather than raising. This matches typical
   * Scala idioms (`Option[T]` for optional props) and eliminates
-  * NullPointerException surface. See `docs/meltc-ssr-design.md` §12.3.1.
+  * NullPointerException surface. See `docs/melt-ssr-design.md` §12.3.1.
   */
 object Escape:
 

@@ -14,7 +14,7 @@ package melt.codegen
   * Duplication rationale: melt must not depend on the runtime library, so
   * the validators that run at compile time are local to the codegen
   * package. Both copies follow Svelte 5's rules exactly (see
-  * `docs/meltc-ssr-design.md` §12.1.2 / §12.1.3).
+  * `docs/melt-ssr-design.md` §12.1.2 / §12.1.3).
   */
 object NameValidators:
 

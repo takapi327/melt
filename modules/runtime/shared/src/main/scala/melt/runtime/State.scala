@@ -39,7 +39,7 @@ import melt.runtime.impl.StateFactory
   * `trait State[A]` and `object State`, and the object delegates instance
   * construction to a platform-provided
   * [[melt.runtime.impl.StateFactory]] that lives under each platform's own
-  * source tree. See `docs/meltc-ssr-design.md` §5.1 for full rationale.
+  * source tree. See `docs/melt-ssr-design.md` §5.1 for full rationale.
   */
 trait State[A] extends ReactiveValue[A]:
 

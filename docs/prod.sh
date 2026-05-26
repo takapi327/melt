@@ -8,7 +8,7 @@
 #        codegenJVM/publishLocal; codegenJS/publishLocal; \
 #        meltkitJVM/publishLocal; meltkitJS/publishLocal; \
 #        meltkit-adapter-browser/publishLocal; \
-#        sbt-meltc/publishLocal; sbt-meltkit/publishLocal"
+#        sbt-melt/publishLocal; sbt-meltkit/publishLocal"
 #
 # Usage:
 #   ./prod.sh            # build + start server

@@ -8,7 +8,7 @@ package melt
 
 /** Selects the kind of Scala code that `melt` generates from a `.melt` file.
   *
-  * See `docs/meltc-ssr-design.md` §3.1 for the full rationale. Put simply:
+  * See `docs/melt-ssr-design.md` §3.1 for the full rationale. Put simply:
   *   - `SPA`: generates Scala.js code that manipulates the DOM directly.
   *     This is the classic client-rendered mode and is what the existing
   *     examples (`counter`, `todo-app`, …) rely on.

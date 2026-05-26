@@ -49,7 +49,7 @@ button { font-size: 1.5rem; cursor: pointer; }
 | `meltkit-adapter-browser` | ❌ | ✅ | ブラウザアダプタ |
 | `meltkit-adapter-node` | ❌ | ✅ | Node.js サーバアダプタ |
 | `meltkit-adapter-http4s` | ✅ | ✅ | http4s アダプタ |
-| `sbt-meltc` | ✅ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
+| `sbt-melt` | ✅ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
 | `sbt-meltkit` | ✅ | ❌ | sbt meltkit 統合プラグイン（Scala 2.12） |
 | `melt-language-server` | ✅ | ❌ | LSP サーバ |
 
@@ -461,7 +461,7 @@ val safe = TrustedHtml.unsafe("<strong>validated</strong>")
 
 ```scala
 // project/plugins.sbt
-addSbtPlugin("io.github.takapi327" % "sbt-meltc" % "0.1.0-SNAPSHOT")
+addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0-SNAPSHOT")
 
 // build.sbt
 enablePlugins(ScalaJSPlugin, MeltcPlugin)
@@ -470,8 +470,8 @@ scalaVersion := "3.3.7"
 
 libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % "0.1.0-SNAPSHOT"
 
-meltcPackage   := "components"  // 生成コードのパッケージ
-meltcHydration := false         // SSR+Hydration を使う場合は true
+meltPackage   := "components"  // 生成コードのパッケージ
+meltHydration := false         // SSR+Hydration を使う場合は true
 ```
 
 ### 2. コンポーネント作成
@@ -507,7 +507,7 @@ sbt fullLinkJS   # 本番用
 // build.sbt — JVM ターゲット側で
 libraryDependencies += "io.github.takapi327" %% "melt-runtime" % "0.1.0-SNAPSHOT"
 
-meltcMode := "ssr"
+meltMode := "ssr"
 ```
 
 ```scala
@@ -552,7 +552,7 @@ sbt compile
 sbt test
 
 # JVM のみ
-sbt meltcJVM/test runtimeJVM/test
+sbt meltJVM/test runtimeJVM/test
 
 # コードフォーマット
 sbt scalafmtAll
@@ -567,7 +567,7 @@ sbt headerCheckAll
 |-------|------|
 | 3.3.7 | メイン（LTS） |
 | 3.8.3 | 追加テスト |
-| 2.12.21 | `sbt-meltc` プラグインのみ |
+| 2.12.21 | `sbt-melt` プラグインのみ |
 
 ### Java バージョン
 
