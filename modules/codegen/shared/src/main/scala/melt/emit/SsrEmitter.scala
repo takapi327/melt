@@ -133,15 +133,18 @@ object SsrEmitter:
         attrs.collectFirst { case IrAttr.BindTextareaValue(expr) => expr.code } match
           case Some(bindExpr) =>
             emitTextareaBindValue(bindExpr, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-          case None => attrs.collectFirst { case IrAttr.BindSelectValue(expr, _) => expr.code } match
-            case Some(bindExpr) =>
-              emitSelectBindValue(tag, bindExpr, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-            case None => attrs.collectFirst { case IrAttr.BindGroup(expr, chk) => (expr.code, chk) } match
-              case Some((bindExpr, isCheckbox)) =>
-                emitInputBindGroup(tag, bindExpr, isCheckbox, attrs, buf, indent, scopeId)
+          case None =>
+            attrs.collectFirst { case IrAttr.BindSelectValue(expr, _) => expr.code } match
+              case Some(bindExpr) =>
+                emitSelectBindValue(tag, bindExpr, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
               case None =>
-                if hasBindInnerHtml || hasBindTextContent then emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
-                else emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
+                attrs.collectFirst { case IrAttr.BindGroup(expr, chk) => (expr.code, chk) } match
+                  case Some((bindExpr, isCheckbox)) =>
+                    emitInputBindGroup(tag, bindExpr, isCheckbox, attrs, buf, indent, scopeId)
+                  case None =>
+                    if hasBindInnerHtml || hasBindTextContent then
+                      emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
+                    else emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
 
       case IrNode.IrComponent(name, props, childrenSlot, spreadExpr, _, _) =>
         emitComponentSSR(name, props, childrenSlot, spreadExpr, buf, indent, scopeId, nodePos, hoistedMap)
