@@ -17,8 +17,8 @@ import melt.analysis.{
   TagNameChecker
 }
 import melt.codegen.{ CodeGen, SpaCodeGen, SsrCodeGen }
-import melt.preprocessor.{ StyleInput, StylePreprocessor }
 import melt.parser.MeltParser
+import melt.preprocessor.{ StyleInput, StylePreprocessor }
 
 /** Entry point of the melt compiler. */
 object MeltCompiler:
