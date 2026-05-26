@@ -127,17 +127,21 @@ object SsrEmitter:
         emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
 
       case IrNode.IrElement(tag, _, attrs, children, _) =>
-        val hasBindTextarea    = attrs.exists { case IrAttr.BindTextareaValue(_) => true; case _ => false }
-        val hasBindSelect      = attrs.exists { case IrAttr.BindSelectValue(_, _) => true; case _ => false }
-        val hasBindGrp         = attrs.exists { case IrAttr.BindGroup(_, _) => true; case _ => false }
         val hasBindInnerHtml   = attrs.exists { case IrAttr.BindInnerHtml(_) => true; case _ => false }
         val hasBindTextContent = attrs.exists { case IrAttr.BindTextContent(_) => true; case _ => false }
 
-        if hasBindTextarea then emitTextareaBindValue(attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-        else if hasBindSelect then emitSelectBindValue(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
-        else if hasBindGrp then emitInputBindGroup(tag, attrs, buf, indent, scopeId)
-        else if hasBindInnerHtml || hasBindTextContent then emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
-        else emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
+        attrs.collectFirst { case IrAttr.BindTextareaValue(expr) => expr.code } match
+          case Some(bindExpr) =>
+            emitTextareaBindValue(bindExpr, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
+          case None => attrs.collectFirst { case IrAttr.BindSelectValue(expr, _) => expr.code } match
+            case Some(bindExpr) =>
+              emitSelectBindValue(tag, bindExpr, attrs, children, buf, indent, scopeId, nodePos, hoistedMap)
+            case None => attrs.collectFirst { case IrAttr.BindGroup(expr, chk) => (expr.code, chk) } match
+              case Some((bindExpr, isCheckbox)) =>
+                emitInputBindGroup(tag, bindExpr, isCheckbox, attrs, buf, indent, scopeId)
+              case None =>
+                if hasBindInnerHtml || hasBindTextContent then emitElementWithBindContent(tag, attrs, buf, indent, scopeId)
+                else emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
 
       case IrNode.IrComponent(name, props, childrenSlot, spreadExpr, _, _) =>
         emitComponentSSR(name, props, childrenSlot, spreadExpr, buf, indent, scopeId, nodePos, hoistedMap)
@@ -348,6 +352,7 @@ object SsrEmitter:
 
   /** `<textarea bind:value={v}>` — value becomes element body content. */
   private def emitTextareaBindValue(
+    bindExpr:   String,
     attrs:      List[IrAttr],
     children:   List[IrNode],
     buf:        LineTracker,
@@ -356,10 +361,7 @@ object SsrEmitter:
     nodePos:    IrNodePositions,
     hoistedMap: Map[String, IrNode.IrStaticElement]
   ): Unit =
-    val pad      = " " * indent
-    val bindExpr = attrs
-      .collectFirst { case IrAttr.BindTextareaValue(expr) => expr.code }
-      .getOrElse(sys.error("emitTextareaBindValue called without BindTextareaValue — compiler bug"))
+    val pad       = " " * indent
     val restAttrs = attrs.filterNot { case IrAttr.BindTextareaValue(_) => true; case _ => false }
 
     emitElementStart("textarea", restAttrs, buf, indent, scopeId)
@@ -371,6 +373,7 @@ object SsrEmitter:
   /** `<select bind:value={v}>` — passes bind expression to option children as `selectBindExpr`. */
   private def emitSelectBindValue(
     tag:        String,
+    bindExpr:   String,
     attrs:      List[IrAttr],
     children:   List[IrNode],
     buf:        LineTracker,
@@ -379,10 +382,7 @@ object SsrEmitter:
     nodePos:    IrNodePositions,
     hoistedMap: Map[String, IrNode.IrStaticElement]
   ): Unit =
-    val pad      = " " * indent
-    val bindExpr = attrs
-      .collectFirst { case IrAttr.BindSelectValue(expr, _) => expr.code }
-      .getOrElse(sys.error("emitSelectBindValue called without BindSelectValue — compiler bug"))
+    val pad       = " " * indent
     val restAttrs = attrs.filterNot { case IrAttr.BindSelectValue(_, _) => true; case _ => false }
 
     emitElementStart(tag, restAttrs, buf, indent, scopeId)
@@ -392,17 +392,15 @@ object SsrEmitter:
 
   /** `<input bind:group={arr}>` — emits `checked` conditionally based on radio/checkbox type. */
   private def emitInputBindGroup(
-    tag:     String,
-    attrs:   List[IrAttr],
-    buf:     LineTracker,
-    indent:  Int,
-    scopeId: String
+    tag:        String,
+    bindExpr:   String,
+    isCheckbox: Boolean,
+    attrs:      List[IrAttr],
+    buf:        LineTracker,
+    indent:     Int,
+    scopeId:    String
   ): Unit =
-    val pad                    = " " * indent
-    val (bindExpr, isCheckbox) = attrs
-      .collectFirst { case IrAttr.BindGroup(expr, isCheckbox) => (expr.code, isCheckbox) }
-      .getOrElse(sys.error("emitInputBindGroup called without BindGroup — compiler bug"))
-
+    val pad       = " " * indent
     val valueExpr = attrs.collectFirst {
       case IrAttr.StaticAttr("value", v)  => s""""${ escapeStr(v) }""""
       case IrAttr.DynamicAttr("value", e) => e.code
