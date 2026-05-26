@@ -80,27 +80,24 @@ ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
 
-// ── CSS preprocessor API (no external dependencies, cross-compiled) ──
-lazy val `compiler-css` = crossProject(JVMPlatform, JSPlatform)
+// ── Generic preprocessor API (no external dependencies, cross-compiled) ──
+lazy val preprocessor = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
-  .in(file("modules/compiler-css"))
-  .settings(BuildSettings.commonSettings)
+  .module("preprocessor", "Generic preprocessor API")
   .settings(
-    name                                    := "melt-compiler-css",
     libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
   )
-  .enablePlugins(AutomateHeaderPlugin)
 
 // ── SCSS support via Dart Sass (optional, JVM only) ──
-lazy val `compiler-sass` = project
-  .in(file("modules/compiler-sass"))
+lazy val `sass-preprocessor` = project
+  .in(file("modules/sass-preprocessor"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                       := "melt-compiler-sass",
+    name                                       := "melt-sass-preprocessor",
     libraryDependencies += "de.larsgrefer.sass" % "sass-embedded-host" % "4.4.0"
   )
   .enablePlugins(AutomateHeaderPlugin)
-  .dependsOn(`compiler-css`.jvm)
+  .dependsOn(preprocessor.jvm)
 
 // ── Core compiler (JVM + JS + Native) ──
 lazy val compiler = crossProject(JVMPlatform, JSPlatform)
@@ -114,7 +111,7 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
   )
-  .dependsOn(`compiler-css`)
+  .dependsOn(preprocessor)
 
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
@@ -294,9 +291,9 @@ lazy val `language-server` = project
 lazy val root = project
   .in(file("."))
   .aggregate(
-    `compiler-css`.jvm,
-    `compiler-css`.js,
-    `compiler-sass`,
+    preprocessor.jvm,
+    preprocessor.js,
+    `sass-preprocessor`,
     compiler.jvm,
     compiler.js,
     runtime.jvm,
