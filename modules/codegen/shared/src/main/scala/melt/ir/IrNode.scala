@@ -15,8 +15,10 @@ package melt.ir
 enum ReactiveKind:
   /** Likely does not contain a `.value` call or reactive variable reference. */
   case LikelyStatic
+
   /** Contains a `.value` call or references a `State`-declared variable. */
   case LikelyReactive
+
   /** Cannot be determined — treated conservatively as reactive. */
   case Unknown
 

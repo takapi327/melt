@@ -6,9 +6,9 @@
 
 package melt.ir
 
+import melt.analysis.ScalaTextUtils
 import melt.ast.*
 import melt.codegen.{ CssScoper, ReactiveInferencer, SpaCodeGen }
-import melt.analysis.ScalaTextUtils
 import melt.NodePositions
 
 /** Lowers a [[MeltFile]] AST into an [[IrComponent]].
@@ -42,7 +42,9 @@ object AstToIr:
     val reactiveVars            = ScalaTextUtils.extractReactiveVars(rawCode)
     val style                   = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
     val posBuilder              = IrNodePositions.builder()
-    val template = ast.template.flatMap(lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars))
+    val template                = ast.template.flatMap(
+      lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
+    )
 
     IrComponent(
       objectName        = objectName,
@@ -78,7 +80,8 @@ object AstToIr:
     val col  = span.column(templateSource)
 
     // Helper to recurse children, threading posBuilder through.
-    def lower(n: TemplateNode) = lowerNode(n, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
+    def lower(n: TemplateNode) =
+      lowerNode(n, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
 
     val result = node match
 

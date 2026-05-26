@@ -7,7 +7,7 @@
 package melt.codegen
 
 import melt.ir.ReactiveKind
-import melt.ir.ReactiveKind.{ LikelyStatic, LikelyReactive, Unknown }
+import melt.ir.ReactiveKind.{ LikelyReactive, LikelyStatic, Unknown }
 
 /** Unit tests for [[ReactiveInferencer]]. */
 class ReactiveInferencerSpec extends munit.FunSuite:

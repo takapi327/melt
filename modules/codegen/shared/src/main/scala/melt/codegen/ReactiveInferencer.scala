@@ -6,8 +6,8 @@
 
 package melt.codegen
 
-import melt.ir.ReactiveKind
 import melt.analysis.ScalaTextUtils
+import melt.ir.ReactiveKind
 
 /** Lightweight heuristic inference of reactive kind for template expressions.
   *
@@ -38,10 +38,10 @@ object ReactiveInferencer:
 
   /** Returns `true` for numeric, boolean, `null`, or string literals. */
   private def isLiteral(code: String): Boolean = code match
-    case "true" | "false" | "null" => true
-    case s if s.matches("""-?\d+(\.\d+)?[fFdDlL]?""") => true
+    case "true" | "false" | "null"                         => true
+    case s if s.matches("""-?\d+(\.\d+)?[fFdDlL]?""")      => true
     case s if s.startsWith("\"") || s.startsWith("\"\"\"") => true
-    case _ => false
+    case _                                                 => false
 
   /** Returns `true` if any reactive variable name appears as a word boundary in `stripped`. */
   private def containsReactiveVar(stripped: String, reactiveVars: Set[String]): Boolean =
