@@ -8,7 +8,8 @@ package melt.ir
 
 import melt.analysis.ScalaTextUtils
 import melt.ast.*
-import melt.codegen.{ CssScoper, ReactiveInferencer, SpaCodeGen }
+import melt.codegen.{ ReactiveInferencer, SpaCodeGen }
+import melt.css.CssScoper
 import melt.NodePositions
 
 /** Lowers a [[MeltFile]] AST into an [[IrComponent]].
