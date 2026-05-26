@@ -6,7 +6,7 @@
 
 package melt.css
 
-/** CSS AST を文字列にシリアライズする。 */
+/** Serializes a CSS AST to a string. */
 object CssSerializer:
 
   def serialize(nodes: List[CssNode]): String =

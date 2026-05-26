@@ -88,7 +88,7 @@ class CssParserSpec extends munit.FunSuite:
   }
 
   test("unclosed block is handled without infinite loop (malformed CSS recovery)") {
-    val nodes = CssParser.parse(".card { color red") // `;` も `}` もない不正 CSS
-    // パニックしないことを確認; 結果の正確な構造は実装依存
+    val nodes = CssParser.parse(".card { color red") // malformed CSS: no `;` or `}`
+    // Verify no panic occurs; the exact structure of the result is implementation-defined
     assert(nodes.nonEmpty || nodes.isEmpty) // just verify no infinite loop
   }

@@ -30,8 +30,8 @@ package melt.css
   */
 object CssScoper:
 
-  /** CSS 文字列を受け取り、スコーピング済み CSS 文字列を返す。
-    * 公開 API は現行と同一。
+  /** Takes a CSS string and returns a scoped CSS string.
+    * The public API is unchanged.
     */
   def scope(css: String, scopeId: String): String =
     if css.trim.isEmpty then return ""
@@ -39,7 +39,7 @@ object CssScoper:
     val scoped = ast.map(scopeNode(_, scopeId))
     CssSerializer.serialize(scoped)
 
-  // ── AST トランスフォーマー ─────────────────────────────────────────────────
+  // ── AST transformer ───────────────────────────────────────────────────────
 
   private def scopeNodes(nodes: List[CssNode], scopeId: String): List[CssNode] =
     nodes.map(scopeNode(_, scopeId))
@@ -48,7 +48,7 @@ object CssScoper:
     case CssNode.StyleRule(selector, body) =>
       CssNode.StyleRule(
         scopeGroupSelector(selector, scopeId),
-        scopeNodes(body, scopeId) // CSS Nesting: 再帰的にスコーピング
+        scopeNodes(body, scopeId) // CSS Nesting: recursively scope nested rules
       )
 
     case CssNode.AtRule(name, prelude, Some(body)) if !CssNode.PassthroughAtRules.contains(name) =>
@@ -56,9 +56,9 @@ object CssScoper:
 
     case other => other // RawText, Comment, AtRule(passthrough or bodyless)
 
-  // PassthroughAtRules は CssNode.PassthroughAtRules を参照 (CssAst.scala に一元定義)
+  // PassthroughAtRules references CssNode.PassthroughAtRules (defined centrally in CssAst.scala)
 
-  // ── セレクタースコーピング ────────────────────────────────────────────────
+  // ── Selector scoping ──────────────────────────────────────────────────────
 
   /** Pseudo-elements that require the scope class to be inserted before them. */
   private val PseudoElements: Set[String] = Set(
@@ -73,7 +73,7 @@ object CssScoper:
     "::file-selector-button"
   )
 
-  /** グループセレクター (カンマ区切り) の各部分をスコーピングする。 */
+  /** Scopes each part of a group selector (comma-separated). */
   private def scopeGroupSelector(selector: String, scopeId: String): String =
     splitGroupSelector(selector).map(s => scopeSingleSelector(s.trim, scopeId)).mkString(", ")
 

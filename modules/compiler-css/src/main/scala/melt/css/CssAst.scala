@@ -6,26 +6,26 @@
 
 package melt.css
 
-/** CSS の最上位ノード。スタイルシートは `List[CssNode]` で表現する。 */
+/** Top-level CSS node. A stylesheet is represented as `List[CssNode]`. */
 sealed trait CssNode
 
 object CssNode:
 
-  /** スタイルルール: `selector { ... }`
+  /** Style rule: `selector { ... }`
     *
-    * `body` にはネストしたルールや宣言 ([[RawText]]) が混在できる (CSS Nesting)。
+    * `body` may contain a mix of nested rules and declarations ([[RawText]]) (CSS Nesting).
     */
   case class StyleRule(
     selector: String,
     body:     List[CssNode]
   ) extends CssNode
 
-  /** At-rule: `@name prelude { ... }` または `@name prelude;`
+  /** At-rule: `@name prelude { ... }` or `@name prelude;`
     *
-    * @param name    "media", "layer", "keyframes" など (@ を除いた名前)
-    * @param prelude `{` または `;` の前のテキスト (条件・識別子等)
-    * @param body    ブロック形式の場合 `Some(内部ノードリスト)`、
-    *                ブロックなし (`@charset`, `@import`, `@layer base;`) の場合 `None`
+    * @param name    the at-rule name without `@`, e.g. `"media"`, `"layer"`, `"keyframes"`
+    * @param prelude the text before `{` or `;` (condition, identifier, etc.)
+    * @param body    `Some(list of inner nodes)` for block at-rules,
+    *                `None` for bodyless at-rules (`@charset`, `@import`, `@layer base;`)
     */
   case class AtRule(
     name:    String,
@@ -33,23 +33,24 @@ object CssNode:
     body:    Option[List[CssNode]]
   ) extends CssNode
 
-  /** 宣言ブロック内の生テキスト (プロパティ宣言・空白等)。
+  /** Raw text inside a declaration block (property declarations, whitespace, etc.).
     *
-    * `color: red;` のような宣言はパースせず文字列のまま保持する。
-    * CSS スコーピングでは宣言を変換する必要がないため、この表現で十分。
+    * Declarations such as `color: red;` are kept as-is without further parsing.
+    * This representation is sufficient because CSS scoping never needs to transform declarations.
     */
   case class RawText(text: String) extends CssNode
 
-  /** `/* ... */` コメント。出力時にそのまま保持する。 */
+  /** A `/* ... */` comment. Preserved as-is in the output. */
   case class Comment(text: String) extends CssNode
 
-  /** ブロック内に CSS ルールではなく記述子のみを持つ at-rule の名前セット。
+  /** The set of at-rule names whose blocks contain only descriptors, not CSS rules.
     *
-    * `CssParser` と `CssScoper` の両方が参照するため `CssNode` に一元定義する。
-    * `CssParser` はこれらのブロックを `RawText` として保持し、
-    * `CssScoper` は `other` のままパススルーして `scopeNodes` を呼ばない。
+    * Defined here in `CssNode` as the single source of truth shared by both
+    * `CssParser` and `CssScoper`.
+    * `CssParser` stores these blocks as `RawText`;
+    * `CssScoper` passes them through as `other` without calling `scopeNodes`.
     *
-    * 同期を取るために **両クラスが必ずここを参照する** こと。
+    * **Both classes must always reference this set** to stay in sync.
     */
   val PassthroughAtRules: Set[String] = Set(
     "keyframes",
