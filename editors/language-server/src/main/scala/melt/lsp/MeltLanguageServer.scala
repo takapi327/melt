@@ -20,7 +20,7 @@ import org.eclipse.lsp4j.services.*
   * appropriate language tooling.
   *
   * Responsibilities per section:
-  *   - `<script lang="scala">` body — meltc diagnostics + Metals completions/definition
+  *   - `<script lang="scala">` body — melt diagnostics + Metals completions/definition
   *   - HTML template `{expr}` blocks — Melt template completions + script-definition jump
   *   - `<style>` section           — CSS property completions
   *
@@ -264,7 +264,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
-  /** Runs meltc syntax and semantic checks only (fast path).
+  /** Runs melt syntax and semantic checks only (fast path).
     * Used for real-time feedback while the user is typing.
     */
   private def fastValidate(uri: String, content: String): Unit =
@@ -277,10 +277,10 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       c.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
     }
 
-  /** Runs meltc checks followed by Metals type-checking (slow path).
+  /** Runs melt checks followed by Metals type-checking (slow path).
     * Executed asynchronously on didOpen / didSave.
     *
-    * Metals type-checking is skipped when meltc reports errors, because the
+    * Metals type-checking is skipped when melt reports errors, because the
     * generated virtual file may also be broken, producing a flood of spurious
     * type errors.
     *
@@ -294,7 +294,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       val filename = uriToFilename(uri)
       val result   = melt.MeltCompiler.compile(content, filename)
 
-      val meltcDiags =
+      val meltDiags =
         result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
           result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, DiagnosticSeverity.Warning))
 
@@ -309,7 +309,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       // different content. Only publish if the document still contains the same text
       // that was validated to avoid showing stale diagnostics.
       if documents.get(uri).contains(content) then
-        c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltcDiags ++ metalsDiags).asJava))
+        c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltDiags ++ metalsDiags).asJava))
     }
 
   private def makeDiagnostic(message: String, line: Int, column: Int, severity: DiagnosticSeverity): Diagnostic =
@@ -318,7 +318,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val range    = Range(Position(zeroLine, zeroCol), Position(zeroLine, Int.MaxValue))
     val d        = Diagnostic(range, message)
     d.setSeverity(severity)
-    d.setSource("meltc")
+    d.setSource("melt")
     d
 
   private def uriToFilename(uri: String): String =

@@ -15,7 +15,7 @@ package melt.lsp
   * line-number alignment of the script body.
   *
   * Note: The dummy code is not required for basic LSP operation (diagnostics from
-  * meltc already cover syntax errors). It becomes valuable when Metals delegation is
+  * melt already cover syntax errors). It becomes valuable when Metals delegation is
   * enabled so that type errors in template expressions are surfaced to the editor.
   */
 object HtmlDummyTransformer:

@@ -34,7 +34,7 @@ type HtmlTag =
 object HtmlTag:
 
   /** Runtime set of all known HTML5 tag names.
-    * Used by [[fromString]] and by the meltc compiler for string-literal validation.
+    * Used by [[fromString]] and by the melt compiler for string-literal validation.
     */
   val knownTags: Set[String] = Set(
     "a",

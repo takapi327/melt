@@ -55,7 +55,7 @@ jobs:
           codegenJVM/publishLocal; codegenJS/publishLocal;
           meltkitJVM/publishLocal; meltkitJS/publishLocal;
           meltkit-adapter-browser/publishLocal;
-          sbt-meltc/publishLocal; sbt-meltkit/publishLocal"
+          sbt-melt/publishLocal; sbt-meltkit/publishLocal"
 
       - name: Build vite-plugin
         run: pnpm --filter @melt/vite-plugin build

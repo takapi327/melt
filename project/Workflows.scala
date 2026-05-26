@@ -17,7 +17,7 @@ object Workflows {
     "modules/compiler/jvm/target",
     "modules/compiler/js/target",
     "modules/compiler/native/target",
-    "plugins/sbt-meltc/target",
+    "plugins/sbt-melt/target",
     "plugins/sbt-meltkit/target",
     "modules/runtime/target",
     "modules/testkit/target",

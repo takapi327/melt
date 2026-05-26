@@ -9,7 +9,7 @@ package melt.codegen
 /** HTML void element set used by `SsrCodeGen` to suppress `</tag>` emission.
   *
   * Deliberately duplicated from `melt.runtime.VoidElements` in the runtime
-  * module: `meltc` is a compiler and must not depend on the runtime
+  * module: `melt` is a compiler and must not depend on the runtime
   * library. Both lists must stay in sync with Svelte 5's
   * `VOID_ELEMENT_NAMES` (14 HTML5 elements + `command`, `keygen`, `param`
   * for legacy parity).

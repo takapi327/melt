@@ -12,9 +12,9 @@ import de.larsgrefer.sass.embedded.SassCompilerFactory
 
 /** [[StylePreprocessor]] implementation using Dart Sass (embedded).
   *
-  * Automatically activated when `meltcSassEnabled := true` in `build.sbt`.
-  * The `sbt-meltc` plugin adds this module to the compiler classpath and
-  * [[melt.MeltcMain]] loads it dynamically via reflection.
+  * Automatically activated when `meltStylePreprocessor := true` in `build.sbt`.
+  * The `sbt-melt` plugin adds this module to the compiler classpath and
+  * [[melt.MeltMain]] loads it dynamically via reflection.
   */
 object SassPreprocessor extends StylePreprocessor:
 

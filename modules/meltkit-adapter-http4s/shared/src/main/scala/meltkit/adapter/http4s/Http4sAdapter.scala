@@ -64,7 +64,7 @@ import org.http4s.Status
   *
   * `index.html` is read from `clientDistDir / "index.html"` at startup via
   * [[fs2.io.file.Files]], so this works on both JVM and Node.js.
-  * `sbt-meltc` copies the template automatically when `meltcIndexHtml` is set.
+  * `sbt-melt` copies the template automatically when `meltkitIndexHtml` is set.
   *
   * {{{
   * import generated.AssetManifest
@@ -197,7 +197,7 @@ object Http4sAdapter:
     *
     * Reads `index.html` from `clientDistDir / "index.html"` once at startup
     * via [[fs2.io.file.Files]], making this work on both JVM and Node.js.
-    * Use `meltcIndexHtml` in `build.sbt` to have sbt-meltc copy the template
+    * Use `meltkitIndexHtml` in `build.sbt` to have sbt-melt copy the template
     * into `clientDistDir` automatically.
     *
     * @param app           the [[MeltKit]] router
@@ -234,7 +234,7 @@ object Http4sAdapter:
     * to wire up the file service manually.
     *
     * `index.html` is read from `clientDistDir / "index.html"` once at startup.
-    * Use `meltcIndexHtml` in `build.sbt` to have sbt-meltc copy the template
+    * Use `meltkitIndexHtml` in `build.sbt` to have sbt-melt copy the template
     * into `clientDistDir` automatically.
     *
     * @param app           the [[MeltKit]] router
@@ -335,7 +335,7 @@ object Http4sAdapter:
     *
     * `index.html` is read from `clientDistDir / "index.html"` once at startup
     * via [[fs2.io.file.Files]], making this method work on both JVM and Node.js.
-    * Use `meltcIndexHtml` in `build.sbt` to have sbt-meltc copy your template
+    * Use `meltkitIndexHtml` in `build.sbt` to have sbt-melt copy your template
     * into `clientDistDir` automatically.
     *
     * @param app           the [[MeltKit]] router

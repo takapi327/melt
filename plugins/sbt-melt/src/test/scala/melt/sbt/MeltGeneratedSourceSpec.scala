@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package meltc.sbt
+package melt.sbt
 
 /** Tests for [[MeltGeneratedSource]] — parsing and position-mapping of the
   * `-- MELT GENERATED --` source-map comment block.

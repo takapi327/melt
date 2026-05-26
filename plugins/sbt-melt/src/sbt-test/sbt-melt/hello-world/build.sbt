@@ -2,7 +2,7 @@ scalaVersion := "3.3.7"
 
 name := "hello-world"
 
-enablePlugins(ScalaJSPlugin, MeltcPlugin)
+enablePlugins(ScalaJSPlugin, MeltPlugin)
 
 scalaJSUseMainModuleInitializer := true
 

@@ -20,7 +20,7 @@ import melt.codegen.{ CodeGen, SpaCodeGen, SsrCodeGen }
 import melt.css.StylePreprocessor
 import melt.parser.MeltParser
 
-/** Entry point of the meltc compiler. */
+/** Entry point of the melt compiler. */
 object MeltCompiler:
 
   /** Compiles a `.melt` source file into `.scala` code.

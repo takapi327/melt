@@ -21,7 +21,7 @@ import scala.deriving.Mirror
   *
   * Everything else — walking the case class structure, escaping
   * strings, recursing into nested types — is handled by Scala 3's
-  * inline derivation, which means `meltc` does not need to understand
+  * inline derivation, which means `melt` does not need to understand
   * the Props type at all. Any type that is:
   *
   *   - a primitive with a built-in instance (see the givens below),
@@ -155,7 +155,7 @@ object PropsCodec:
     * specific `given PropsCodec[Foo]` in scope; Scala's given-
     * resolution rules pick the most specific instance.
     *
-    * The companion method [[derived]] stays available so that meltc's
+    * The companion method [[derived]] stays available so that melt's
     * generated code can spell out the derivation explicitly, which
     * makes the resulting `.scala` source easier to read and
     * IDE-navigable.

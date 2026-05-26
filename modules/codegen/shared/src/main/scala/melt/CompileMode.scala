@@ -6,7 +6,7 @@
 
 package melt
 
-/** Selects the kind of Scala code that `meltc` generates from a `.melt` file.
+/** Selects the kind of Scala code that `melt` generates from a `.melt` file.
   *
   * See `docs/meltc-ssr-design.md` §3.1 for the full rationale. Put simply:
   *   - `SPA`: generates Scala.js code that manipulates the DOM directly.

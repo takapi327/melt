@@ -30,7 +30,7 @@ object MathTag:
   val namespace: String = "http://www.w3.org/1998/Math/MathML"
 
   /** Runtime set of all known MathML element names.
-    * Used by [[fromString]] and by the meltc compiler for string-literal validation.
+    * Used by [[fromString]] and by the melt compiler for string-literal validation.
     */
   val knownTags: Set[String] = Set(
     "annotation",
