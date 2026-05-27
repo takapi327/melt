@@ -33,6 +33,14 @@ import melt.ast.*
   *     by dynamic content should always be reviewed.
   *   - `<a target="_blank">` without `rel="noopener"` — classic
   *     tabnabbing vector.
+  *   - `<script src={url}>` — loads external JavaScript from a dynamic URL;
+  *     an attacker-controlled source can execute arbitrary code.
+  *   - `<link rel="stylesheet" href={url}>` — loads external CSS from a
+  *     dynamic URL; attacker-controlled stylesheets enable CSS injection and
+  *     data exfiltration.
+  *   - `<base href={url}>` — sets the base URL for all relative references on
+  *     the page; a dynamic value lets an attacker hijack all relative links,
+  *     scripts, and images.
   *
   * Warnings are returned as `(message, lineNumber)` tuples, the same
   * shape as [[A11yChecker.check]], so `MeltCompiler.compile` can route
@@ -175,6 +183,28 @@ object SecurityChecker:
             w += (("<a target=\"_blank\"> without rel=\"noopener\" — the " +
               "opened page can navigate window.opener (reverse tabnabbing). " +
               "Add rel=\"noopener\" (or \"noopener noreferrer\").") -> line)
+
+      case "script" =>
+        if hasDynamicAttr(attrs, "src") then
+          w += (("<script src={...}> loads external JavaScript from a dynamic URL. " +
+            "An attacker-controlled URL can execute arbitrary JavaScript. " +
+            "Prefer static `src` values or validate the URL against an allow-list.") -> line)
+
+      case "link" =>
+        val isStylesheet = attrs.exists {
+          case Attr.Static("rel", v) => v.toLowerCase.contains("stylesheet")
+          case _                     => false
+        }
+        if isStylesheet && hasDynamicAttr(attrs, "href") then
+          w += (("<link rel=\"stylesheet\" href={...}> loads external CSS from a dynamic URL. " +
+            "Attacker-controlled stylesheets can be used for data exfiltration via CSS injection. " +
+            "Prefer static `href` values or validate the URL against an allow-list.") -> line)
+
+      case "base" =>
+        if hasDynamicAttr(attrs, "href") then
+          w += (("<base href={...}> sets the base URL for all relative URLs on the page. " +
+            "An attacker-controlled value hijacks all relative links, scripts, and images. " +
+            "Avoid dynamic `href` on <base>; if necessary, validate strictly against a fixed origin.") -> line)
 
       case _ => ()
 
