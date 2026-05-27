@@ -6,7 +6,7 @@
 
 package melt.sass
 
-import melt.preprocessor.{ Preprocessor, StyleInput, StyleLang }
+import melt.preprocessor.{ StyleInput, StyleLang, StylePreprocessor }
 
 import de.larsgrefer.sass.embedded.SassCompilerFactory
 
@@ -16,7 +16,7 @@ import de.larsgrefer.sass.embedded.SassCompilerFactory
   * The `sbt-melt` plugin adds this module to the compiler classpath and
   * [[melt.MeltMain]] loads it dynamically via reflection.
   */
-object SassPreprocessor extends Preprocessor[StyleInput, String]:
+object SassPreprocessor extends StylePreprocessor:
 
   def process(input: StyleInput): Either[String, String] =
     input.lang match
