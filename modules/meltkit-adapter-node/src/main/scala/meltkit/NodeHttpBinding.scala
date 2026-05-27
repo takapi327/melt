@@ -87,7 +87,7 @@ private[meltkit] class NodeHttpBinding(
             val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
             val inner = Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
             val wrapped = runHooks(app.hooks, event, inner)
-            writeResponse(wrapped, res, isHead)
+            writeResponse(wrapped, res, isHead, nonce)
 
       case Some(route) =>
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -99,15 +99,23 @@ private[meltkit] class NodeHttpBinding(
             val event   = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
             val inner   = Future(()).flatMap(_ => thunk())
             val wrapped = runHooks(app.hooks, event, inner)
-            writeResponse(wrapped, res, isHead)
+            writeResponse(wrapped, res, isHead, nonce)
 
-  private def writeResponse(effect: Future[Response], res: ServerResponse, isHead: Boolean): Unit =
+  private def writeResponse(
+    effect:   Future[Response],
+    res:      ServerResponse,
+    isHead:   Boolean,
+    nonce:    Option[String]
+  ): Unit =
     var responded = false
     effect.onComplete {
       case Success(response) if !responded =>
         responded = true
         val headerDict = js.Dictionary[String]("Content-Type" -> response.contentType)
         response.headers.foreach { case (k, v) => headerDict(k) = v }
+        config.cspConfig.zip(nonce).foreach { case (cfg, n) =>
+          headerDict(cfg.headerName) = cfg.buildHeaderValue(n)
+        }
         response.responseCookies.foreach { c =>
           val existing   = headerDict.get("Set-Cookie").getOrElse("")
           val serialized = serializeCookie(c)

@@ -122,10 +122,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
         cspConfig.zip(nonce).fold(effect) {
           case (cfg, n) =>
             effect.map { response =>
-              val headerName = if cfg.reportOnly then "Content-Security-Policy-Report-Only"
-              else "Content-Security-Policy"
-              val headerValue = Http4sAdapter.buildCspValue(cfg.directives, n)
-              response.withHeaders(response.headers + (headerName -> headerValue))
+              response.withHeaders(response.headers + (cfg.headerName -> cfg.buildHeaderValue(n)))
             }
         }
 
@@ -268,21 +265,11 @@ object Http4sAdapter:
 
   /** Builds the `Content-Security-Policy` header value.
     *
-    * Appends `'nonce-{value}'` to `script-src` and `style-src` directives when present.
-    * Other directives (including `default-src`) are left unchanged.
+    * Delegates to [[CspConfig.buildHeaderValue]]: appends `'nonce-{value}'` to
+    * `script-src` and `style-src`, deriving them from `default-src` when absent.
     */
   private[http4s] def buildCspValue(directives: Map[String, List[String]], nonce: String): String =
-    val nonceToken   = s"'nonce-$nonce'"
-    val nonceTargets = Set("script-src", "style-src")
-    directives
-      .map {
-        case (directive, values) =>
-          val finalValues =
-            if nonceTargets.contains(directive) then values :+ nonceToken
-            else values
-          s"$directive ${ finalValues.mkString(" ") }"
-      }
-      .mkString("; ")
+    CspConfig(directives).buildHeaderValue(nonce)
 
   /** Builds [[HttpRoutes]] from a [[MeltKit]] router (API routes only).
     *
