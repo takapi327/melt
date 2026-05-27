@@ -11,8 +11,10 @@ import scala.scalajs.js.typedarray.Uint8Array
 
 /** Utilities for per-request CSP nonce.
   *
-  * When [[meltkit.adapter.http4s.Http4sAdapter]] is configured with a [[CspConfig]],
-  * it generates a nonce for every request and stores it under [[localsKey]].
+  * When any Melt server adapter is configured with a [[CspConfig]] (via the
+  * `cspConfig` parameter of `Http4sAdapter` / `ssrRoutes`, or via `app.csp(...)`
+  * for `UndertowServer` and `NodeServer`), it generates a cryptographically random
+  * nonce for every request and stores it under [[localsKey]].
   *
   * Access the nonce from middleware or route handlers:
   * {{{

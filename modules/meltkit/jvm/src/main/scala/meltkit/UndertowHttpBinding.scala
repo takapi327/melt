@@ -95,7 +95,7 @@ private[meltkit] class UndertowHttpBinding(
               val inner =
                 Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
               val wrapped = runHooks(app.hooks, event, inner)
-              writeResponse(wrapped, exchange, isHead)
+              writeResponse(wrapped, exchange, isHead, nonce)
 
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -106,13 +106,18 @@ private[meltkit] class UndertowHttpBinding(
               val event   = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
               val inner   = Future(()).flatMap(_ => thunk())
               val wrapped = runHooks(app.hooks, event, inner)
-              writeResponse(wrapped, exchange, isHead)
+              writeResponse(wrapped, exchange, isHead, nonce)
     catch
       case e: Throwable =>
         try sendText(exchange, 500, "Internal Server Error")
         catch case _: Throwable => ()
 
-  private def writeResponse(effect: Future[Response], exchange: HttpServerExchange, isHead: Boolean): Unit =
+  private def writeResponse(
+    effect:   Future[Response],
+    exchange: HttpServerExchange,
+    isHead:   Boolean,
+    nonce:    Option[String]
+  ): Unit =
     effect.onComplete {
       case Success(response) =>
         try
@@ -123,6 +128,9 @@ private[meltkit] class UndertowHttpBinding(
           exchange.getResponseHeaders.put(Headers.CONTENT_TYPE, response.contentType)
           response.responseCookies.foreach { c =>
             exchange.getResponseHeaders.add(Headers.SET_COOKIE, serializeCookie(c))
+          }
+          config.cspConfig.zip(nonce).foreach { case (cfg, n) =>
+            exchange.getResponseHeaders.put(new HttpString(cfg.headerName), cfg.buildHeaderValue(n))
           }
           exchange.setStatusCode(response.status)
           if isHead then exchange.endExchange()
