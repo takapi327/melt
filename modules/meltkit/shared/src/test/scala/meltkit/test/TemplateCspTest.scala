@@ -6,7 +6,7 @@
 
 package meltkit.test
 
-import melt.runtime.render.RenderResult
+import melt.runtime.render.{ CssEntry, RenderResult }
 
 import meltkit.*
 
@@ -144,3 +144,26 @@ class TemplateCspTest extends munit.FunSuite:
     val html     =
       template.render(resultWithComponent, manifest, title = "", lang = "en", basePath = "/assets", vars = Map.empty)
     assert(!html.contains("nonce="), s"Expected no nonce in 6-arg render: $html")
+
+  // ── Component <style> tag nonce injection ─────────────────────────────────
+
+  test("render with nonce injects nonce attribute into component <style> tags"):
+    val template = Template.fromString("<html><head>%melt.head%</head><body>%melt.body%</body></html>")
+    val result   = RenderResult(
+      body = "<div>content</div>",
+      head = "",
+      css  = Set(CssEntry("scope-abc", "body { color: red }"))
+    )
+    val html = template.render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = Some(nonce))
+    assert(html.contains(s"""<style id="scope-abc" nonce="$nonce">"""), s"Expected nonce on <style> tag: $html")
+
+  test("render without nonce produces no nonce on component <style> tags"):
+    val template = Template.fromString("<html><head>%melt.head%</head><body>%melt.body%</body></html>")
+    val result   = RenderResult(
+      body = "<div>content</div>",
+      head = "",
+      css  = Set(CssEntry("scope-abc", "body { color: red }"))
+    )
+    val html = template.render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = None)
+    assert(html.contains("""<style id="scope-abc">"""), s"Expected plain <style> tag without nonce: $html")
+    assert(!html.contains("nonce="), s"Expected no nonce attribute when nonce is None: $html")
