@@ -107,12 +107,15 @@ else
 
 <!-- キー付きリスト（FLIP アニメーション・差分更新に対応） -->
 <ul>
-  {items.map { item =>
-    <melt:key this={item.id}>
-      <li>{item.name}</li>
-    </melt:key>
+  {items.keyed(_.id).map { item =>
+    <li>{item.name}</li>
   }}
 </ul>
+
+<!-- 強制再マウント（key が変わるたびにブロックを破棄・再生成） -->
+<melt:key this={id}>
+  <Component />
+</melt:key>
 
 <!-- ネストしたコンテナなしの条件分岐 -->
 {if isLoggedIn then
@@ -268,12 +271,12 @@ case class Props(items: State[List[Todo]], renderItem: Snippet[Todo])
 <!-- Error Boundary -->
 <melt:boundary>
   <AsyncComponent />
-  {#pending}
+  <melt:pending>
     <p>Loading…</p>
-  {/pending}
-  {#failed error}
+  </melt:pending>
+  <melt:failed (error, reset)>
     <p>Error: {error.getMessage()}</p>
-  {/failed}
+  </melt:failed>
 </melt:boundary>
 ```
 
@@ -297,7 +300,7 @@ case class Props[T](items: State[List[T]], render: Snippet[T])
 val count = State(0)
 
 // 読み取り
-val current: Int = count.value  // または count.now()
+val current: Int = count.value
 
 // 更新
 count.set(5)
@@ -399,7 +402,8 @@ onMount { ctx =>
 onCleanup(() => subscription.cancel())
 
 // 次の DOM 更新を待つ
-tick().foreach { _ => ... }
+tick { ... }              // コールバック式
+tickAsync().foreach { _ => ... }  // Future 式
 ```
 
 ### コンテキスト API
