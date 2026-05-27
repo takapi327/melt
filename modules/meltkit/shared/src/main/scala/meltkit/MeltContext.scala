@@ -148,12 +148,15 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
 
   /** Builds a 301 (permanent) or 302 (temporary) redirect response.
     *
-    * Only relative paths are accepted (e.g. `"/dashboard"`, `"/users/1"`).
-    * Absolute URLs (`https://...`), protocol-relative URLs (`//...`), and
-    * other schemes are rejected with [[IllegalArgumentException]] to prevent
-    * open-redirect attacks when user-supplied input flows into this method.
+    * Only safe relative paths are accepted:
+    *   - Absolute paths starting with `/` (e.g. `"/dashboard"`, `"/users/1"`)
+    *   - Fragment references starting with `#` (e.g. `"#section"`)
     *
-    * @throws IllegalArgumentException if `path` is an external URL
+    * All other values are rejected with [[IllegalArgumentException]], including
+    * `javascript:`, `data:`, `vbscript:`, protocol-relative URLs (`//evil.com`),
+    * backslash open redirects (`/\evil.com`), and empty strings.
+    *
+    * @throws IllegalArgumentException if `path` is not a safe relative path
     */
   def redirect(path: String, permanent: Boolean = false): PlainResponse
 

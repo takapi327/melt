@@ -179,19 +179,22 @@ object Response:
       Map("Location" -> location)
     )
 
-  /** Throws [[IllegalArgumentException]] if `path` looks like an absolute or
-    * protocol-relative URL.
+  /** Throws [[IllegalArgumentException]] if `path` is not a safe relative path.
     *
-    * Allowed: paths that start with `/` but not `//`.
-    * Rejected: `http://...`, `https://...`, `//...`, `javascript:...`, etc.
+    * Uses an allowlist approach: only paths starting with `/` (but not `//` or `/\`)
+    * and fragment-only references starting with `#` are accepted.
+    * Everything else — including `javascript:`, `data:`, `vbscript:`, `//evil.com`,
+    * `/\evil.com` (backslash open redirect), and empty strings — is rejected.
     *
     * Prevents open-redirect attacks when user-supplied input flows into `ctx.redirect`.
     */
   private[meltkit] def requireRelativePath(path: String): Unit =
-    if path.startsWith("//") || path.contains("://") then
+    val isAbsPath = path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\")
+    val isAnchor  = path.startsWith("#")
+    if !isAbsPath && !isAnchor then
       throw new IllegalArgumentException(
-        s"External redirects are not allowed: '$path'. " +
-          "Use a relative path (e.g. \"/dashboard\") to prevent open-redirect attacks."
+        s"Only relative paths are allowed for redirects: '$path'. " +
+          "Use a path starting with '/' (e.g. \"/dashboard\") to prevent open-redirect attacks."
       )
 
   def badRequest(body: String): BadRequest =
