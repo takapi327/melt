@@ -32,9 +32,12 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
     val value = Http4sAdapter.buildCspValue(Map("img-src" -> List("'self'", "data:")), "abc123")
     assertEquals(value, "img-src 'self' data:")
 
-  test("buildCspValue does NOT append nonce to default-src"):
+  test("buildCspValue derives script-src and style-src from default-src when absent"):
     val value = Http4sAdapter.buildCspValue(Map("default-src" -> List("'self'")), "abc123")
-    assertEquals(value, "default-src 'self'")
+    // default-src is kept unchanged; derived script-src/style-src get the nonce
+    assert(value.contains("default-src 'self'"), s"default-src should be unchanged: $value")
+    assert(value.contains("script-src 'self' 'nonce-abc123'"), s"script-src should be derived with nonce: $value")
+    assert(value.contains("style-src 'self' 'nonce-abc123'"), s"style-src should be derived with nonce: $value")
 
   test("buildCspValue handles multiple directives and only nonce-targets get nonce"):
     val directives = Map(
@@ -50,6 +53,34 @@ class Http4sAdapterCspTest extends CatsEffectSuite:
 
   test("buildCspValue with empty directives returns empty string"):
     assertEquals(Http4sAdapter.buildCspValue(Map.empty, "abc123"), "")
+
+  test("buildCspValue does not derive script-src when script-src is already present"):
+    val value = Http4sAdapter.buildCspValue(
+      Map("default-src" -> List("'self'"), "script-src" -> List("'strict-dynamic'")),
+      "abc123"
+    )
+    assert(value.contains("script-src 'strict-dynamic' 'nonce-abc123'"), s"explicit script-src should be used: $value")
+    assert(!value.contains("script-src 'self'"), s"default-src should not override explicit script-src: $value")
+
+  // ── CspConfig methods ─────────────────────────────────────────────────────
+
+  test("CspConfig.headerName returns Content-Security-Policy by default"):
+    assertEquals(CspConfig().headerName, "Content-Security-Policy")
+
+  test("CspConfig.headerName returns Content-Security-Policy-Report-Only when reportOnly"):
+    assertEquals(CspConfig(reportOnly = true).headerName, "Content-Security-Policy-Report-Only")
+
+  test("CspConfig.recommended contains script-src and style-src"):
+    val rec = CspConfig.recommended
+    assert(rec.directives.contains("script-src"), "recommended should have script-src")
+    assert(rec.directives.contains("style-src"), "recommended should have style-src")
+    assert(rec.directives.contains("default-src"), "recommended should have default-src")
+    assert(rec.directives.contains("object-src"), "recommended should have object-src")
+
+  test("CspConfig.recommended buildHeaderValue adds nonce to script-src and style-src"):
+    val value = CspConfig.recommended.buildHeaderValue("tok")
+    assert(value.contains("script-src 'self' 'nonce-tok'"), s"script-src should have nonce: $value")
+    assert(value.contains("style-src 'self' 'nonce-tok'"), s"style-src should have nonce: $value")
 
   // ── Integration: CSP header on response ───────────────────────────────────
 
