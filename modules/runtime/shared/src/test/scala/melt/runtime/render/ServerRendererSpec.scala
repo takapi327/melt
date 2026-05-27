@@ -8,7 +8,7 @@ package melt.runtime.render
 
 import munit.FunSuite
 
-import melt.runtime.MeltWarnings
+import melt.runtime.{ Escape, MeltWarnings, TrustedHtml }
 
 /** Phase A tests for [[ServerRenderer]].
   *
@@ -383,7 +383,7 @@ class ServerRendererSpec extends FunSuite:
   test("boundary catches exceptions and pushes the fallback HTML") {
     val r = ServerRenderer()
     r.push("<div>")
-    r.boundary(e => s"<p class=\"err\">${ e.getMessage }</p>") { inner =>
+    r.boundary(e => TrustedHtml.unsafe(s"<p class=\"err\">${ Escape.html(e.getMessage) }</p>")) { inner =>
       inner.push("<span>hi</span>")
       sys.error("boom")
     }
@@ -398,7 +398,7 @@ class ServerRendererSpec extends FunSuite:
 
   test("boundary passes cleanly when body succeeds") {
     val r = ServerRenderer()
-    r.boundary(_ => "<err/>") { inner =>
+    r.boundary(_ => TrustedHtml.unsafe("<err/>")) { inner =>
       inner.push("<ok/>")
     }
     assert(r.result().body.contains("<ok/>"))
@@ -419,7 +419,7 @@ class ServerRendererSpec extends FunSuite:
 
   test("boundary catches RenderException from the output-size guard") {
     val r = ServerRenderer(ServerRenderer.Config(maxOutputBytes = 200))
-    r.boundary(_ => "<trimmed/>") { inner =>
+    r.boundary(_ => TrustedHtml.unsafe("<trimmed/>")) { inner =>
       inner.push("x" * 500) // would exceed the 200-byte limit
     }
     val body = r.result().body
