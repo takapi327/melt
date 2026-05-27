@@ -58,9 +58,10 @@ case class CspConfig(
       if withScriptSrc.contains("style-src") then withScriptSrc
       else withScriptSrc.get("default-src").fold(withScriptSrc)(ds => withScriptSrc + ("style-src" -> ds))
     effective
-      .map { case (d, vs) =>
-        val fv = if nonceTargets.contains(d) then vs :+ nonceToken else vs
-        s"$d ${ fv.mkString(" ") }"
+      .map {
+        case (d, vs) =>
+          val fv = if nonceTargets.contains(d) then vs :+ nonceToken else vs
+          s"$d ${ fv.mkString(" ") }"
       }
       .mkString("; ")
 

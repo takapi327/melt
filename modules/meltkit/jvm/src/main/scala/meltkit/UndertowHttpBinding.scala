@@ -129,8 +129,9 @@ private[meltkit] class UndertowHttpBinding(
           response.responseCookies.foreach { c =>
             exchange.getResponseHeaders.add(Headers.SET_COOKIE, serializeCookie(c))
           }
-          config.cspConfig.zip(nonce).foreach { case (cfg, n) =>
-            exchange.getResponseHeaders.put(new HttpString(cfg.headerName), cfg.buildHeaderValue(n))
+          config.cspConfig.zip(nonce).foreach {
+            case (cfg, n) =>
+              exchange.getResponseHeaders.put(new HttpString(cfg.headerName), cfg.buildHeaderValue(n))
           }
           exchange.setStatusCode(response.status)
           if isHead then exchange.endExchange()

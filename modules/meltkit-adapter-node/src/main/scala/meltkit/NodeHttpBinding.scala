@@ -102,10 +102,10 @@ private[meltkit] class NodeHttpBinding(
             writeResponse(wrapped, res, isHead, nonce)
 
   private def writeResponse(
-    effect:   Future[Response],
-    res:      ServerResponse,
-    isHead:   Boolean,
-    nonce:    Option[String]
+    effect: Future[Response],
+    res:    ServerResponse,
+    isHead: Boolean,
+    nonce:  Option[String]
   ): Unit =
     var responded = false
     effect.onComplete {
@@ -113,8 +113,9 @@ private[meltkit] class NodeHttpBinding(
         responded = true
         val headerDict = js.Dictionary[String]("Content-Type" -> response.contentType)
         response.headers.foreach { case (k, v) => headerDict(k) = v }
-        config.cspConfig.zip(nonce).foreach { case (cfg, n) =>
-          headerDict(cfg.headerName) = cfg.buildHeaderValue(n)
+        config.cspConfig.zip(nonce).foreach {
+          case (cfg, n) =>
+            headerDict(cfg.headerName) = cfg.buildHeaderValue(n)
         }
         response.responseCookies.foreach { c =>
           val existing   = headerDict.get("Set-Cookie").getOrElse("")

@@ -213,7 +213,7 @@ final class Template private[meltkit] (private val raw: String):
     // Nonce is added so that strict CSP `style-src 'nonce-...'` policies allow
     // these inline <style> blocks.
     val nonceAttr = nonce.fold("")(n => s""" nonce="$n"""")
-    val cssHtml = result.css.toList
+    val cssHtml   = result.css.toList
       .sortBy(_.scopeId)
       .map(e => s"""<style id="${ e.scopeId }"$nonceAttr>${ e.code }</style>""")
       .mkString("\n")

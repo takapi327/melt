@@ -154,7 +154,8 @@ class TemplateCspTest extends munit.FunSuite:
       head = "",
       css  = Set(CssEntry("scope-abc", "body { color: red }"))
     )
-    val html = template.render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = Some(nonce))
+    val html =
+      template.render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = Some(nonce))
     assert(html.contains(s"""<style id="scope-abc" nonce="$nonce">"""), s"Expected nonce on <style> tag: $html")
 
   test("render without nonce produces no nonce on component <style> tags"):
