@@ -49,7 +49,7 @@ jobs:
       - name: Publish monorepo modules locally
         run: >-
           sbt
-          "compiler-cssJVM/publishLocal; compiler-cssJS/publishLocal;
+          "preprocessorJVM/publishLocal; preprocessorJS/publishLocal;
           compilerJVM/publishLocal; compilerJS/publishLocal;
           runtimeJVM/publishLocal; runtimeJS/publishLocal;
           codegenJVM/publishLocal; codegenJS/publishLocal;

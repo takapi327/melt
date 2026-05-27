@@ -4,26 +4,21 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.css
+package melt.preprocessor
 
-/** Preprocesses a stylesheet before CSS scoping.
+/** Input type for stylesheet preprocessing. */
+case class StyleInput(content: String, lang: StyleLang)
+
+/** Preprocessor specialised for stylesheets.
   *
   * Implementations compile source languages (e.g. SCSS) to plain CSS.
   * The resulting CSS is then passed to the CSS scoper.
   *
   * To add SCSS support, set `meltStylePreprocessor := true` in `build.sbt`.
-  * The `sbt-melt` plugin will automatically add `melt-sass` to the
+  * The `sbt-melt` plugin will automatically add `melt-sass-preprocessor` to the
   * compiler classpath and enable [[melt.sass.SassPreprocessor]].
   */
-trait StylePreprocessor:
-
-  /** Compile `content` written in `lang` into plain CSS.
-    *
-    * @param content raw stylesheet text
-    * @param lang    source language
-    * @return Right(css) on success, Left(errorMessage) on failure
-    */
-  def process(content: String, lang: StyleLang): Either[String, String]
+trait StylePreprocessor extends Preprocessor[StyleInput, String]
 
 object StylePreprocessor:
 
@@ -34,9 +29,9 @@ object StylePreprocessor:
     * This is the default used when no preprocessor plugin is available.
     */
   val cssOnly: StylePreprocessor = new StylePreprocessor:
-    def process(content: String, lang: StyleLang): Either[String, String] =
-      lang match
-        case StyleLang.Css  => Right(content)
+    override def process(input: StyleInput): Either[String, String] =
+      input.lang match
+        case StyleLang.Css  => Right(input.content)
         case StyleLang.Scss =>
           Left(
             "SCSS is not supported. " +

@@ -29,7 +29,7 @@ lazy val counter = project
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
-// ── Example: SCSS Counter (SCSS support via compiler-sass) ────────────────────
+// ── Example: SCSS Counter (SCSS support via sass-preprocessor) ────────────────────
 lazy val `scss-counter` = project
   .in(file("scss-counter"))
   .settings(

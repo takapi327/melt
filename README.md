@@ -39,8 +39,8 @@ button { font-size: 1.5rem; cursor: pointer; }
 
 | モジュール | JVM | JS | 説明 |
 |---|:---:|:---:|---|
-| `melt-compiler-css` | ✅ | ✅ | CSS プリプロセッサ API |
-| `melt-compiler-sass` | ✅ | ❌ | Dart Sass (SCSS) サポート |
+| `melt-preprocessor` | ✅ | ✅ | 汎用プリプロセッサ API |
+| `melt-sass-preprocessor` | ✅ | ❌ | Dart Sass (SCSS) サポート |
 | `melt-compiler` | ✅ | ✅ | コアコンパイラ（`.melt` → `.scala`） |
 | `melt-runtime` | ✅ | ✅ | リアクティブランタイム |
 | `melt-codegen` | ✅ | ✅ | コードジェネレータ |

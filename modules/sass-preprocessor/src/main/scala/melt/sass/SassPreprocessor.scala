@@ -6,11 +6,11 @@
 
 package melt.sass
 
-import melt.css.{ StyleLang, StylePreprocessor }
+import melt.preprocessor.{ StyleInput, StyleLang, StylePreprocessor }
 
 import de.larsgrefer.sass.embedded.SassCompilerFactory
 
-/** [[StylePreprocessor]] implementation using Dart Sass (embedded).
+/** [[melt.preprocessor.StylePreprocessor]] implementation using Dart Sass (embedded).
   *
   * Automatically activated when `meltStylePreprocessor := true` in `build.sbt`.
   * The `sbt-melt` plugin adds this module to the compiler classpath and
@@ -18,11 +18,11 @@ import de.larsgrefer.sass.embedded.SassCompilerFactory
   */
 object SassPreprocessor extends StylePreprocessor:
 
-  def process(content: String, lang: StyleLang): Either[String, String] =
-    lang match
-      case StyleLang.Css  => Right(content)
+  override def process(input: StyleInput): Either[String, String] =
+    input.lang match
+      case StyleLang.Css  => Right(input.content)
       case StyleLang.Scss =>
         val compiler = SassCompilerFactory.bundled()
-        try Right(compiler.compileScssString(content).getCss)
+        try Right(compiler.compileScssString(input.content).getCss)
         catch case e: Exception => Left(s"SCSS compilation failed: ${ e.getMessage }")
         finally compiler.close()

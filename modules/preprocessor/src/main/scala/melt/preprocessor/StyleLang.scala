@@ -4,7 +4,7 @@
  * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
  */
 
-package melt.css
+package melt.preprocessor
 
 /** The stylesheet language used in a `<style>` section of a `.melt` file. */
 enum StyleLang:
