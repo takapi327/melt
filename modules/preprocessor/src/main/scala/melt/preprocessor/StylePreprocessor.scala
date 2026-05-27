@@ -29,7 +29,7 @@ object StylePreprocessor:
     * This is the default used when no preprocessor plugin is available.
     */
   val cssOnly: StylePreprocessor = new StylePreprocessor:
-    def process(input: StyleInput): Either[String, String] =
+    override def process(input: StyleInput): Either[String, String] =
       input.lang match
         case StyleLang.Css  => Right(input.content)
         case StyleLang.Scss =>

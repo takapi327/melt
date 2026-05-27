@@ -18,7 +18,7 @@ import de.larsgrefer.sass.embedded.SassCompilerFactory
   */
 object SassPreprocessor extends StylePreprocessor:
 
-  def process(input: StyleInput): Either[String, String] =
+  override def process(input: StyleInput): Either[String, String] =
     input.lang match
       case StyleLang.Css  => Right(input.content)
       case StyleLang.Scss =>
