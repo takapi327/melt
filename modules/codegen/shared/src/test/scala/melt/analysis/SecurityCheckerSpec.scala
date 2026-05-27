@@ -103,3 +103,45 @@ class SecurityCheckerSpec extends munit.FunSuite:
     val ws = warnings("""<iframe src={u}></iframe>""", CompileMode.SPA)
     assert(ws.exists(m => m.contains("<iframe>") && m.contains("dynamic `src`")), ws)
   }
+
+  // ── script / link / base ──────────────────────────────────────────────────
+
+  test("script with dynamic src is flagged") {
+    val ws = warnings("""<script src={url}></script>""")
+    assert(ws.exists(_.contains("<script src")), ws)
+  }
+
+  test("script with static src is NOT flagged") {
+    val ws = warnings("""<script src="/app.js"></script>""")
+    assert(!ws.exists(_.contains("<script src")), ws)
+  }
+
+  test("script with bind:src is also flagged") {
+    val ws = warnings("""<script bind:src={url}></script>""")
+    assert(ws.exists(_.contains("<script src")), ws)
+  }
+
+  test("link stylesheet with dynamic href is flagged") {
+    val ws = warnings("""<link rel="stylesheet" href={url}/>""")
+    assert(ws.exists(_.contains("<link rel=\"stylesheet\"")), ws)
+  }
+
+  test("link stylesheet with static href is NOT flagged") {
+    val ws = warnings("""<link rel="stylesheet" href="/app.css"/>""")
+    assert(!ws.exists(m => m.contains("<link") && m.contains("stylesheet")), ws)
+  }
+
+  test("link rel=icon with dynamic href is NOT flagged") {
+    val ws = warnings("""<link rel="icon" href={url}/>""")
+    assert(!ws.exists(m => m.contains("<link") && m.contains("stylesheet")), ws)
+  }
+
+  test("base with dynamic href is flagged") {
+    val ws = warnings("""<base href={url}/>""")
+    assert(ws.exists(_.contains("<base href")), ws)
+  }
+
+  test("base with static href is NOT flagged") {
+    val ws = warnings("""<base href="/"/>""")
+    assert(!ws.exists(_.contains("<base href")), ws)
+  }
