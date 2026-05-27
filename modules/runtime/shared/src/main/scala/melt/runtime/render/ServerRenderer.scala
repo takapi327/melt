@@ -8,7 +8,7 @@ package melt.runtime.render
 
 import scala.collection.mutable
 
-import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, UrlAttributes }
+import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, TrustedHtml, UrlAttributes }
 
 /** SSR rendering engine used by `melt`-generated code.
   *
@@ -224,16 +224,19 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     *     from a partially-rendered fragment. Callers should treat the
     *     fallback as an addition following whatever was emitted before
     *     the failure point.
-    *   - The fallback string is pushed verbatim via [[push]], which
-    *     means it is subject to the same size guard. It is the caller's
-    *     responsibility to keep the fallback small (typically a one-
-    *     paragraph error message).
-    *   - The fallback result bypasses HTML escaping — pass either a
-    *     static string or something you have already escaped.
+    *   - The fallback is written **directly** to the body buffer,
+    *     **bypassing** the output-size guard. This is intentional: a
+    *     fallback must be renderable even after the size limit has been
+    *     exceeded. Keep the fallback small (typically a one-paragraph
+    *     error message) as a matter of good practice.
+    *   - The fallback accepts a [[TrustedHtml]] value, which forces
+    *     callers to opt in explicitly. Use [[TrustedHtml.unsafe]] with
+    *     [[Escape.html]] for any dynamic content derived from exceptions
+    *     or user input.
     *
     * Example:
     * {{{
-    *   renderer.boundary(e => s"<p>Failed: \${ Escape.html(e.getMessage) }</p>") { r =>
+    *   renderer.boundary(e => TrustedHtml.unsafe(s"<p>Failed: \${ Escape.html(e.getMessage) }</p>")) { r =>
     *     r.push("<section>")
     *     // ... rendering that might throw ...
     *     r.push("</section>")
@@ -241,19 +244,21 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     * }}}
     */
   def boundary(
-    fallback: Throwable => String
+    fallback: Throwable => TrustedHtml
   )(
     body: ServerRenderer => Unit
   ): Unit =
     try body(this)
     catch
       case t: Throwable =>
-        val html =
-          try fallback(t)
-          catch case _: Throwable => ""
-        if html.nonEmpty then
-          bodyBuf ++= html
-          outputBytes += html.length.toLong * 2L
+        val result: Option[TrustedHtml] =
+          try Some(fallback(t))
+          catch case _: Throwable => None
+        result.foreach { th =>
+          if th.value.nonEmpty then
+            bodyBuf ++= th.value
+            outputBytes += th.value.length.toLong * 2L
+        }
 
   /** Emits a spread attribute `Map` to the body buffer, applying all
     * Phase A + Phase B security rules:
