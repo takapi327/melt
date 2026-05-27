@@ -43,6 +43,47 @@ class ResponseTest extends munit.FunSuite:
     val r = Response.redirect("/home", permanent = true)
     assertEquals(r.status, (301: StatusCode))
 
+  test("Response.redirect allows anchor fragment"):
+    val r = Response.redirect("#section")
+    assertEquals(r.headers("Location"), "#section")
+
+  // ── requireRelativePath security tests ───────────────────────────────────
+
+  test("requireRelativePath rejects javascript: scheme"):
+    intercept[IllegalArgumentException](Response.redirect("javascript:alert(1)"))
+
+  test("requireRelativePath rejects JAVASCRIPT: case variant"):
+    intercept[IllegalArgumentException](Response.redirect("JAVASCRIPT:alert(1)"))
+
+  test("requireRelativePath rejects JavaScript: mixed case"):
+    intercept[IllegalArgumentException](Response.redirect("JavaScript:alert(1)"))
+
+  test("requireRelativePath rejects vbscript: scheme"):
+    intercept[IllegalArgumentException](Response.redirect("vbscript:msgbox(1)"))
+
+  test("requireRelativePath rejects data: scheme"):
+    intercept[IllegalArgumentException](Response.redirect("data:text/html,<h1>x</h1>"))
+
+  test("requireRelativePath rejects protocol-relative URL"):
+    intercept[IllegalArgumentException](Response.redirect("//evil.com"))
+
+  test("requireRelativePath rejects backslash open redirect"):
+    intercept[IllegalArgumentException](Response.redirect("/\\evil.com"))
+
+  test("requireRelativePath rejects absolute https URL"):
+    intercept[IllegalArgumentException](Response.redirect("https://evil.com"))
+
+  test("requireRelativePath rejects empty string"):
+    intercept[IllegalArgumentException](Response.redirect(""))
+
+  test("requireRelativePath allows root path"):
+    val r = Response.redirect("/")
+    assertEquals(r.headers("Location"), "/")
+
+  test("requireRelativePath allows path with query string"):
+    val r = Response.redirect("/search?q=hello")
+    assertEquals(r.headers("Location"), "/search?q=hello")
+
   test("Response.badRequest produces 400"):
     val r = Response.badRequest("invalid input")
     assertEquals(r.status, (400: StatusCode))
