@@ -61,12 +61,16 @@ button { font-size: 1.5rem; cursor: pointer; }
 
 ```html
 <script lang="scala" props="Props">
-  case class Props(title: String = "Hello", count: State[Int])
-  val doubled = count.map(_ * 2)
+// Props: 親から受け取る外部入力
+case class Props(title: String = "Hello")
+
+// 内部状態: このコンポーネント固有
+val count   = State(0)
+val doubled = count.map(_ * 2)  // Signal[Int] — 読み取り専用の派生値
 </script>
 
 <div>
-  <h1>{title}</h1>
+  <h1>{props.title}</h1>
   <p>Count: {count} / Doubled: {doubled}</p>
   <button onclick={_ => count += 1}>+1</button>
 </div>
@@ -190,6 +194,37 @@ else
 <div class:active={isActive} class:disabled={!isEnabled}>...</div>
 <p style:color={textColor} style:font-size="{fontSize}px">...</p>
 <div {...attrs}></div>
+```
+
+#### Props と内部状態の分離
+
+`props="Props"` に宣言するのは**親から受け取る外部入力**のみです。このコンポーネント固有の状態はスクリプト本文で `val count = State(0)` と宣言します。
+
+`State[T]` を Props に含めると、親が保持する State の参照を受け取る**双方向バインディング**になります。子が `.update()` を呼ぶと変更が親に即時伝播します。
+
+```html
+<!-- StepControl.melt — 親の State[Int] を Props で受け取る -->
+<script lang="scala" props="Props">
+case class Props(count: State[Int], step: Int = 1)
+</script>
+
+<div>
+  <button onclick={_ => props.count.update(_ - props.step)}>−{props.step}</button>
+  <span>{props.count}</span>
+  <button onclick={_ => props.count.update(_ + props.step)}>+{props.step}</button>
+</div>
+```
+
+```html
+<!-- 親コンポーネント — 自身の State をそのまま渡す -->
+<script lang="scala">
+val count = State(0)
+</script>
+
+<div>
+  <p>Count: {count}</p>
+  <StepControl count={count} step={5} />
+</div>
 ```
 
 #### スニペット（コンテンツ投影）
