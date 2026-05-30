@@ -74,15 +74,15 @@ object TrustedHtml:
     * failure.
     *
     * {{{
-    * // JVM: jsoup ベース
+    * // JVM: jsoup-based
     * TrustedHtml.sanitize(userInput, Jsoup.clean(_, Safelist.basic()))
     *
-    * // JS: DOMPurify ベース
+    * // JS: DOMPurify-based
     * TrustedHtml.sanitize(userInput, DOMPurify.sanitize(_))
     * }}}
     *
-    * @param html      sanitize 対象の HTML 文字列
-    * @param sanitizer String => String のサニタイザ関数。例外を投げてよい
+    * @param html      the HTML string to sanitize
+    * @param sanitizer a `String => String` sanitizer function; may throw
     */
   def sanitize(html: String, sanitizer: String => String): TrustedHtml =
     new TrustedHtml(sanitizer(html))
