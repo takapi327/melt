@@ -215,8 +215,7 @@ object SecurityChecker:
     line:  Int
   ): Unit =
     attrs.foreach {
-      case Attr.Directive("bind", "innerHTML", Some(expr), _)
-          if expr.contains("TrustedHtml.unsafe") =>
+      case Attr.Directive("bind", "innerHTML", Some(expr), _) if expr.contains("TrustedHtml.unsafe") =>
         w += (
           ("bind:innerHTML with TrustedHtml.unsafe — if the content includes user input, " +
             "use TrustedHtml.sanitize(content, sanitizer) instead. " +
