@@ -39,6 +39,10 @@ class EscapeSpec extends FunSuite:
     )
   }
 
+  test("Escape.attr escapes single quotes") {
+    assertEquals(Escape.attr("value 'with' quotes"), "value &#39;with&#39; quotes")
+  }
+
   // ── Null safety (§12.3.1) ──────────────────────────────────────────────
 
   test("Escape.html(null) is empty string") {
@@ -120,6 +124,12 @@ class EscapeSpec extends FunSuite:
   test("Escape.url blocks file:") {
     MeltWarnings.mute()
     try assertEquals(Escape.url("file:///etc/passwd"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.url blocks blob:") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.url("blob:https://example.com/uuid"), "")
     finally MeltWarnings.resetHandler()
   }
 
@@ -217,6 +227,80 @@ class EscapeSpec extends FunSuite:
     MeltWarnings.mute()
     try assertEquals(Escape.cssValue("url(vbscript:msgbox(1))"), "")
     finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(file:...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(file:///etc/passwd)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue does NOT block values containing 'file:' outside url()") {
+    assertEquals(Escape.cssValue("profile file: path"), "profile file: path")
+  }
+
+  test("Escape.cssValue blocks url(blob:...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(blob:https://example.com/uuid)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url('blob:...') single-quoted") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url('blob:https://example.com/uuid')"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(\"blob:...\") double-quoted") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("""url("blob:https://example.com/uuid")"""), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(data:text/html,...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(data:text/html,<h1>hi</h1>)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url('data:text/html,...') single-quoted") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url('data:text/html,<h1>hi</h1>')"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url('file:...') single-quoted") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url('file:///etc/passwd')"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(data:text/css,...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(data:text/css,body{color:red})"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(data:image/svg+xml,...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(data:image/svg+xml,<svg><script>alert(1)</script></svg>)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue blocks url(data:application/javascript,...)") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.cssValue("url(data:application/javascript,alert(1))"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.cssValue does NOT block url(data:image/png;base64,...)") {
+    val val1 = Escape.cssValue("url(data:image/png;base64,iVBORw0KGgo=)")
+    assert(val1.nonEmpty, "raster image data URI should be allowed")
+  }
+
+  test("Escape.cssValue does NOT block url(data:image/webp;base64,...)") {
+    val val1 = Escape.cssValue("url(data:image/webp;base64,UklGRg==)")
+    assert(val1.nonEmpty, "raster image data URI should be allowed")
   }
 
   test("Escape.cssValue(null) is empty string") {

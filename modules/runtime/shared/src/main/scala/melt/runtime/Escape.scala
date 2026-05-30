@@ -49,16 +49,32 @@ object Escape:
     * Blocks CSS-specific attack vectors that plain attribute escaping
     * misses:
     *
-    *   - `url(javascript:...)` — executes JavaScript in some legacy
-    *     browsers and tooling
-    *   - `url(data:text/html,...)` — can embed arbitrary HTML
+    *   - `url(javascript:...)` / `url(vbscript:...)` — script protocol
+    *   - `url(data:text/...)` / `url(data:image/svg...)` /
+    *     `url(data:application/...)` — non-raster-image data URIs that can
+    *     carry arbitrary HTML, CSS, or JavaScript
+    *   - `url(blob:...)` — attacker-controlled blob content (fonts, SVG, etc.)
+    *   - `url(file:...)` — local file access via CSS
     *   - `expression(...)` — IE-era JavaScript expressions
     *   - `@import "..."` — pulls in arbitrary stylesheets
     *
+    * Safe raster-image data URIs (`url(data:image/png;base64,...)` etc.)
+    * are not blocked.
+    *
     * Detection is case-insensitive and tolerates whitespace / control
     * characters inside the dangerous construct (mirroring
-    * [[isDangerousUrl]]). When a dangerous pattern is found the whole
-    * value is replaced with an empty string and a warning is emitted.
+    * [[isDangerousUrl]]). Quoted `url()` forms (`url('...')` and
+    * `url("...")`) are normalised to the unquoted form before matching,
+    * so quoting cannot be used to bypass the checks. When a dangerous
+    * pattern is found the whole value is replaced with an empty string
+    * and a warning is emitted.
+    *
+    * '''Known limitation''': CSS Unicode escape sequences
+    * (e.g. `\6A` for `j`) are not decoded before matching. A crafted
+    * value like `url(\6Aavascript:...)` would bypass string detection.
+    * In practice modern browsers do not execute JavaScript from CSS
+    * `url()` values, so the practical risk is low. A future version may
+    * add a CSS-escape decoder pass.
     *
     * `null` / `None` collapse to empty string as elsewhere in this object.
     */
@@ -139,6 +155,7 @@ object Escape:
         case '<'  => buf ++= "&lt;"
         case '>'  => buf ++= "&gt;"
         case '"'  => buf ++= "&quot;"
+        case '\'' => buf ++= "&#39;"
         case '\n' => buf ++= "&#10;"
         case '\r' => buf ++= "&#13;"
         case '\t' => buf ++= "&#9;"
@@ -150,12 +167,19 @@ object Escape:
     *
     * Normalises whitespace, tabs, and newlines before matching, which
     * covers most bypass attempts (`java  script:`, `expre\nssion(...)`).
-    * Returns `true` if any of the following substrings appear:
+    * Returns `true` if any of the following patterns are found:
     *
-    *   - `javascript:` / `vbscript:` / `file:` — any script protocol in
-    *     `url()` or otherwise
+    *   - `javascript:` / `vbscript:` — script protocols anywhere in the value
+    *   - `url(file:...)` — local file access
+    *   - `url(blob:...)` — attacker-controlled blob content
+    *   - `url(data:text/...)` — text/html, text/css, text/javascript, etc.
+    *   - `url(data:image/svg...)` — SVG can carry inline scripts
+    *   - `url(data:application/...)` — application/javascript, etc.
     *   - `expression(` — IE CSS expressions
     *   - `@import` — stylesheet injection
+    *
+    * Safe raster-image data URIs (`url(data:image/png;base64,...)`) do not
+    * match any of the above and are therefore allowed.
     */
   private def isDangerousCss(raw: String): Boolean =
     val normalized = raw.filterNot { c =>
@@ -164,15 +188,25 @@ object Escape:
       c == '\u0020' || c == '\u0009' ||
       c == '\u000A' || c == '\u000D'
     }.toLowerCase
+    // Normalise quoted url() forms: url('...') and url("...") → url(...)
+    // so that url('blob:...') is treated identically to url(blob:...).
+    val deQuoted = normalized.replace("url('", "url(").replace("url(\"", "url(")
 
-    normalized.contains("javascript:") ||
-    normalized.contains("vbscript:") ||
-    normalized.contains("file:") ||
-    normalized.contains("expression(") ||
-    normalized.contains("@import")
+    deQuoted.contains("javascript:") ||
+    deQuoted.contains("vbscript:") ||
+    deQuoted.contains("url(file:") ||
+    deQuoted.contains("url(blob:") ||
+    deQuoted.contains("url(data:text/") ||
+    deQuoted.contains("url(data:image/svg") ||
+    deQuoted.contains("url(data:application/") ||
+    deQuoted.contains("expression(") ||
+    deQuoted.contains("@import")
 
   /** Detects dangerous URL protocols after normalising whitespace and
     * control characters (browsers do the same before parsing the scheme).
+    *
+    * Blocked schemes: `javascript:`, `vbscript:`, `file:`, `blob:`,
+    * and `data:` except raster image subtypes (`data:image/png` etc.).
     */
   private def isDangerousUrl(raw: String): Boolean =
     val normalized = raw.filterNot { c =>
@@ -185,6 +219,7 @@ object Escape:
     if normalized.startsWith("javascript:") then true
     else if normalized.startsWith("vbscript:") then true
     else if normalized.startsWith("file:") then true
+    else if normalized.startsWith("blob:") then true
     else if normalized.startsWith("data:") then
       // data: URLs are OK for raster images only. SVG can carry <script>
       // and HTML data: URLs render arbitrary markup, so both are blocked.
