@@ -145,3 +145,35 @@ class SecurityCheckerSpec extends munit.FunSuite:
     val ws = warnings("""<base href="/"/>""")
     assert(!ws.exists(_.contains("<base href")), ws)
   }
+
+  // ── bind:innerHTML + TrustedHtml.unsafe ───────────────────────────────
+
+  test("bind:innerHTML with inline TrustedHtml.unsafe is flagged") {
+    val ws = warnings("""<div bind:innerHTML={TrustedHtml.unsafe(dynamicContent)}></div>""")
+    assert(ws.exists(m => m.contains("bind:innerHTML") && m.contains("TrustedHtml.unsafe")), ws)
+  }
+
+  test("bind:innerHTML with inline TrustedHtml.unsafe includes sanitize suggestion") {
+    val ws = warnings("""<div bind:innerHTML={TrustedHtml.unsafe(dynamicContent)}></div>""")
+    assert(ws.exists(_.contains("TrustedHtml.sanitize")), ws)
+  }
+
+  test("bind:innerHTML with variable reference (no inline unsafe) is NOT flagged") {
+    val ws = warnings("""<div bind:innerHTML={badge}></div>""")
+    assert(!ws.exists(m => m.contains("bind:innerHTML") && m.contains("TrustedHtml.unsafe")), ws)
+  }
+
+  test("bind:innerHTML with TrustedHtml.sanitize is NOT flagged") {
+    val ws = warnings("""<div bind:innerHTML={TrustedHtml.sanitize(content, mySanitizer)}></div>""")
+    assert(!ws.exists(m => m.contains("bind:innerHTML") && m.contains("TrustedHtml.unsafe")), ws)
+  }
+
+  test("bind:innerHTML unsafe warning fires on non-div elements too") {
+    val ws = warnings("""<span bind:innerHTML={TrustedHtml.unsafe(x)}></span>""")
+    assert(ws.exists(m => m.contains("bind:innerHTML") && m.contains("TrustedHtml.unsafe")), ws)
+  }
+
+  test("bind:innerHTML unsafe warning fires in SPA mode") {
+    val ws = warnings("""<div bind:innerHTML={TrustedHtml.unsafe(x)}></div>""", CompileMode.SPA)
+    assert(ws.exists(m => m.contains("bind:innerHTML") && m.contains("TrustedHtml.unsafe")), ws)
+  }
