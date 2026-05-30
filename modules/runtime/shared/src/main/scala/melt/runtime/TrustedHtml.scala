@@ -9,17 +9,17 @@ package melt.runtime
 /** A string that has been explicitly marked as safe to insert as raw HTML.
   *
   * `Bind.html` requires `TrustedHtml` instead of a plain `String` so that
-  * XSS-prone calls become visible at the call site. Callers must opt in by
-  * wrapping their string with [[TrustedHtml.unsafe]], which signals that the
-  * content is either static or has already been sanitised.
+  * XSS-prone calls become visible at the call site. Use [[TrustedHtml.unsafe]]
+  * for static, developer-controlled markup, or [[TrustedHtml.sanitize]] to
+  * produce a `TrustedHtml` value from user input via an explicit sanitizer
+  * function.
   *
   * {{{
   * // OK — static, developer-controlled markup
   * Bind.html(el, TrustedHtml.unsafe("<strong>Hello</strong>"))
   *
-  * // OK — sanitised user input
-  * val sanitised = sanitise(userInput)
-  * Bind.html(el, State(TrustedHtml.unsafe(sanitised)))
+  * // OK — sanitised user input (JVM: jsoup, JS: DOMPurify, etc.)
+  * Bind.html(el, State(TrustedHtml.sanitize(userInput, mySanitizer)))
   *
   * // Compile error — plain State[String] no longer accepted
   * Bind.html(el, State(userInput))
@@ -44,7 +44,7 @@ package melt.runtime
   * letting unsanitised user input bypass HTML escaping — a critical XSS
   * vulnerability.
   *
-  * `final class TrustedHtml(val value: String) extends AnyVal` gives us:
+  * `final class TrustedHtml private (val value: String) extends AnyVal` gives us:
   *
   *   1. A runtime-distinguishable type, so `isInstanceOf[TrustedHtml]`
   *      and the pattern match above behave as intended.
@@ -53,7 +53,7 @@ package melt.runtime
   *   3. An API surface identical to the opaque-type version —
   *      `TrustedHtml.unsafe(str)` wraps and `th.value` unwraps.
   */
-final class TrustedHtml(val value: String) extends AnyVal
+final class TrustedHtml private (val value: String) extends AnyVal
 
 object TrustedHtml:
 
@@ -61,6 +61,28 @@ object TrustedHtml:
     *
     * '''Warning:''' Only pass content that is either developer-controlled
     * (static markup) or has been sanitised against XSS. Never pass raw user
-    * input.
+    * input. For user-supplied content, prefer [[sanitize]].
     */
   def unsafe(html: String): TrustedHtml = new TrustedHtml(html)
+
+  /** Sanitizes a string using the provided sanitizer function and wraps the
+    * result as trusted HTML.
+    *
+    * The sanitizer is responsible for removing or escaping unsafe content
+    * (script tags, event handlers, dangerous URLs, etc.). If the sanitizer
+    * throws, the exception propagates to the caller — there is no silent
+    * failure.
+    *
+    * {{{
+    * // JVM: jsoup ベース
+    * TrustedHtml.sanitize(userInput, Jsoup.clean(_, Safelist.basic()))
+    *
+    * // JS: DOMPurify ベース
+    * TrustedHtml.sanitize(userInput, DOMPurify.sanitize(_))
+    * }}}
+    *
+    * @param html      sanitize 対象の HTML 文字列
+    * @param sanitizer String => String のサニタイザ関数。例外を投げてよい
+    */
+  def sanitize(html: String, sanitizer: String => String): TrustedHtml =
+    new TrustedHtml(sanitizer(html))
