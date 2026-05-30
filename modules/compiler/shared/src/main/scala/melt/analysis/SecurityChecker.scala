@@ -207,6 +207,23 @@ object SecurityChecker:
             "Avoid dynamic `href` on <base>; if necessary, validate strictly against a fixed origin.") -> line)
 
       case _ => ()
+    checkBindInnerHtml(attrs, w, line)
+
+  private def checkBindInnerHtml(
+    attrs: List[Attr],
+    w:     mutable.ListBuffer[(String, Int)],
+    line:  Int
+  ): Unit =
+    attrs.foreach {
+      case Attr.Directive("bind", "innerHTML", Some(expr), _) if expr.contains("TrustedHtml.unsafe") =>
+        w += (
+          ("bind:innerHTML with TrustedHtml.unsafe — if the content includes user input, " +
+            "use TrustedHtml.sanitize(content, sanitizer) instead. " +
+            "If the content is static and developer-controlled, this warning can be ignored.") ->
+            line
+        )
+      case _ => ()
+    }
 
   private def hasDynamicAttr(attrs: List[Attr], name: String): Boolean =
     attrs.exists {

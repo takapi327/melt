@@ -1,5 +1,12 @@
 <script lang="scala">
 val showExtra = State(false)
+
+// Demo sanitizer: removes <script> tags (production code should use jsoup / DOMPurify)
+def demoSanitize(html: String): String =
+  html.replaceAll("(?i)<script[^>]*>[\\s\\S]*?</script>", "")
+
+val userInput   = State("<p>User <strong>content</strong></p><script>alert('xss')</script>")
+val safeContent = userInput.map(TrustedHtml.sanitize(_, demoSanitize))
 </script>
 
 <div class="app">
@@ -38,6 +45,15 @@ val showExtra = State(false)
        then TrustedHtml.unsafe("<p><strong>Extra content</strong> is now visible.</p>")
        else TrustedHtml.unsafe("<p><em>(hidden)</em></p>")}
     </div>
+  </section>
+
+  <section>
+    <h2>5. Sanitized user input via <code>TrustedHtml.sanitize</code></h2>
+    <p class="note">
+      The demo sanitizer strips <code>&lt;script&gt;</code> tags. In production use jsoup (JVM) or DOMPurify (JS).
+    </p>
+    <p class="note">Raw input contains an injected <code>&lt;script&gt;</code> tag — it is removed by the sanitizer.</p>
+    <div class="output" bind:innerHTML={safeContent}></div>
   </section>
 </div>
 

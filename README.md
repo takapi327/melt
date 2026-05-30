@@ -488,8 +488,11 @@ Escape.url(hrefValue)
 // CSS 値エスケープ
 Escape.cssValue(styleValue)
 
-// 信頼済み HTML（エスケープをバイパス）
+// 信頼済み HTML — 静的・開発者管理コンテンツ
 val safe = TrustedHtml.unsafe("<strong>validated</strong>")
+
+// 信頼済み HTML — ユーザー入力をサニタイザ経由で生成（JVM: jsoup, JS: DOMPurify 等）
+val sanitized = TrustedHtml.sanitize(userInput, mySanitizer)
 ```
 
 ---
