@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
 import "/styles/global.css"
 import docs.I18n
 

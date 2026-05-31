@@ -958,7 +958,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("component with HtmlProps spread generates withHtml chain") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String) extends ButtonHtmlProps
         |</script>
         |<button {...props.html}>{props.label}</button>""".stripMargin
@@ -971,7 +971,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("component with allHtmlAttrs spread") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(text: String) extends InputHtmlProps
         |</script>
         |<input {...props.allHtmlAttrs} />""".stripMargin
@@ -996,7 +996,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("button component with HtmlProps spread applies to button tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String) extends ButtonHtmlProps
         |</script>
         |<button {...props.allHtmlAttrs}>{props.label}</button>""".stripMargin
@@ -1007,7 +1007,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("input component with HtmlProps spread applies to input tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String) extends InputHtmlProps
         |</script>
         |<div><label>{props.label}</label><input {...props.allHtmlAttrs} /></div>""".stripMargin
@@ -1018,7 +1018,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("anchor component with HtmlProps spread applies to a tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(text: String) extends AnchorHtmlProps
         |</script>
         |<a {...props.allHtmlAttrs}>{props.text}</a>""".stripMargin
@@ -1029,7 +1029,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("img component with HtmlProps spread applies to img tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(caption: String) extends ImgHtmlProps
         |</script>
         |<figure><img {...props.allHtmlAttrs} /><figcaption>{props.caption}</figcaption></figure>""".stripMargin
@@ -1040,7 +1040,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("form component with HtmlProps spread applies to form tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(children: () => dom.Element) extends FormHtmlProps
         |</script>
         |<form {...props.allHtmlAttrs}></form>""".stripMargin
@@ -1051,7 +1051,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("textarea component with HtmlProps spread applies to textarea tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String) extends TextAreaHtmlProps
         |</script>
         |<div><label>{props.label}</label><textarea {...props.allHtmlAttrs}></textarea></div>""".stripMargin
@@ -1062,7 +1062,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("select component with HtmlProps spread applies to select tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String) extends SelectHtmlProps
         |</script>
         |<div><label>{props.label}</label><select {...props.allHtmlAttrs}></select></div>""".stripMargin
@@ -1450,7 +1450,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry imports SimpleJson and PropsCodec") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(name: String = "x")
         |</script>
         |<div>{props.name}</div>""".stripMargin
@@ -1460,7 +1460,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry emits derived PropsCodec val for components with Props") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(user: String = "guest", count: Int = 0)
         |</script>
         |<div>{props.user}</div>""".stripMargin
@@ -1470,7 +1470,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry reads Props JSON from data-melt-props script tag") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(user: String = "guest")
         |</script>
         |<div>{props.user}</div>""".stripMargin
@@ -1486,7 +1486,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry falls back to defaults when Props JSON is missing") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(user: String = "guest")
         |</script>
         |<div>{props.user}</div>""".stripMargin
@@ -1523,7 +1523,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry is omitted when hydration flag is disabled") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(name: String = "x")
         |</script>
         |<div>{props.name}</div>""".stripMargin
@@ -1805,7 +1805,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("generic component: single type param produces apply[T] and mount[T]") {
     val src =
-      """<script lang="scala" props="Props[T]">
+      """<script lang="scala">
         |case class Props[T](items: Seq[T], render: T => String)
         |</script>
         |<div>{props.items.map(props.render).mkString(", ")}</div>""".stripMargin
@@ -1817,7 +1817,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("generic component: multiple type params produces apply[K, V]") {
     val src =
-      """<script lang="scala" props="Props[K, V]">
+      """<script lang="scala">
         |case class Props[K, V](items: Map[K, V])
         |</script>
         |<div></div>""".stripMargin
@@ -1828,7 +1828,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("generic component: type param with upper bound produces apply[T <: Ordered[T]]") {
     val src =
-      """<script lang="scala" props="Props[T <: Ordered[T]]">
+      """<script lang="scala">
         |case class Props[T <: Ordered[T]](items: Seq[T])
         |</script>
         |<div></div>""".stripMargin
@@ -1839,7 +1839,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("non-generic component: apply() and mount() have no type params") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String)
         |</script>
         |<span>{props.label}</span>""".stripMargin
@@ -1880,7 +1880,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("props type named Props: no alias generated") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(value: Int)
         |</script>
         |<span>{props.value}</span>""".stripMargin
@@ -1892,7 +1892,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("{#snippet} without params generates () => dom.Node lambda") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(children: () => dom.Node)
         |</script>
         |<div>
@@ -1980,7 +1980,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("{children} with props adds both params to apply()") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(title: String = "")
         |</script>
         |<div>{children}</div>""".stripMargin

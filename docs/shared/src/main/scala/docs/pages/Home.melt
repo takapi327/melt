@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
 import docs.I18n
 import docs.CodeSamples
 import docs.components.Layout
