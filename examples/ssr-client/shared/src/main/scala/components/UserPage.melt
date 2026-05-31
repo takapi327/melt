@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
   case class Props(initialUsers: List[User] = Nil)
 
   val users    = State(props.initialUsers)
