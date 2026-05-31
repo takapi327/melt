@@ -190,13 +190,12 @@ class SsrCodeGenSpec extends munit.FunSuite:
     )
   }
 
-  test("custom Props type name (not literally 'Props') is supported") {
-    // `props="HomeProps"` — the user can name their type whatever
-    // they want. melt only knows the name, and the Scala inliner
-    // takes care of the rest.
+  test("Props type alias to external case class is supported") {
+    // `type Props = HomeProps` — the user can alias an external type as Props.
     val src =
-      """<script lang="scala" props="HomeProps">
+      """<script lang="scala">
         |case class HomeProps(user: String = "guest")
+        |type Props = HomeProps
         |</script>
         |<div>{props.user}</div>""".stripMargin
     val code = compile(src, name = "Home")

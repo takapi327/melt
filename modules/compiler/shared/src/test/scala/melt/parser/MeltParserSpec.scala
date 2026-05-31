@@ -16,7 +16,7 @@ class MeltParserSpec extends munit.FunSuite:
 
   test("parses Counter.melt from Appendix A correctly") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |  case class Props(label: String, count: Int = 0)
         |
         |  val internal = State(props.count)
@@ -43,7 +43,6 @@ class MeltParserSpec extends munit.FunSuite:
 
     // ── Script section ────────────────────────────────────────────────────
     val script = meltFile.script.getOrElse(fail("script section missing"))
-    assertEquals(script.propsType, Some("Props"))
     assert(script.code.contains("case class Props(label: String, count: Int = 0)"))
     assert(script.code.contains("val internal = State(props.count)"))
 
@@ -370,7 +369,7 @@ class MeltParserSpec extends munit.FunSuite:
 
   test("Counter.melt badge function (from Appendix A) is preserved in ScriptSection.code") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |  case class Props(label: String, count: Int = 0)
         |  val internal = State(props.count)
         |  def badge(text: String): Html = {

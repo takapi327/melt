@@ -20,7 +20,6 @@ private[parser] object SectionSplitter:
 
   case class RawScript(
     code:           String,
-    propsType:      Option[String],
     imports:        List[String]           = Nil,
     importWarnings: List[(String, String)] = Nil // (message, path) for unsupported imports
   )
@@ -31,16 +30,9 @@ private[parser] object SectionSplitter:
     style:          Option[(String, StyleLang)]
   )
 
-  /** Matches `<script` tags that contain `lang="scala"` or `lang='scala'`.
-    * Group 1 captures the full attribute string inside the tag.
-    */
+  /** Matches `<script` tags that contain `lang="scala"` or `lang='scala'`. */
   private val ScriptOpenTag: Regex =
-    """(?s)<script(\s[^>]*\blang\s*=\s*["']scala["'][^>]*)>""".r
-
-  /** Matches `props="TypeName"` or `props='TypeName'` within an attribute string.
-    * Group 1 captures the type name.
-    */
-  private val PropsAttr: Regex = """props\s*=\s*["']([^"']+)["']""".r
+    """(?s)<script(?:\s[^>]*\blang\s*=\s*["']scala["'][^>]*)>""".r
 
   /** Matches `import "..."` — string literal import (always a file import, never valid Scala). */
   private val StringImportPattern: Regex =
@@ -117,10 +109,9 @@ private[parser] object SectionSplitter:
         val bodyEnd   = source.indexOf(CloseScript, bodyStart)
         if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
         val rawCode   = source.substring(bodyStart, bodyEnd).trim
-        val propsType = PropsAttr.findFirstMatchIn(m.group(1)).map(_.group(1))
         val remaining = source.substring(0, m.start) + source.substring(bodyEnd + CloseScript.length)
         val (filteredCode, imports, warnings) = extractImports(rawCode)
-        (Some(RawScript(filteredCode, propsType, imports, warnings)), remaining)
+        (Some(RawScript(filteredCode, imports, warnings)), remaining)
 
     // ── 2. Extract <style> section ────────────────────────────────────────
     // Only plain `<style>` (no attributes) and `<style lang="...">` are

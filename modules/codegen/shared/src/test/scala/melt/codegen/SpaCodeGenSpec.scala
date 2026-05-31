@@ -1498,8 +1498,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("hydration entry supports user-named Props type (arbitrary case class name)") {
     val src =
-      """<script lang="scala" props="MyFancyProps">
+      """<script lang="scala">
         |case class MyFancyProps(name: String = "x")
+        |type Props = MyFancyProps
         |</script>
         |<div>{props.name}</div>""".stripMargin
     val code = compileHydrate(src, name = "Fancy")
@@ -1853,8 +1854,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("custom props type name: generates val/type Props alias for non-generic") {
     val src =
-      """<script lang="scala" props="Todo">
+      """<script lang="scala">
         |case class Todo(title: String, done: Boolean)
+        |type Props = Todo
         |</script>
         |<li>{props.title}</li>""".stripMargin
     val code = compile(src, name = "TodoItem")
@@ -1868,8 +1870,9 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("custom generic props type name: generates val/type Props alias") {
     val src =
-      """<script lang="scala" props="Todo[T]">
+      """<script lang="scala">
         |case class Todo[T](items: Seq[T], render: T => String)
+        |type Props[T] = Todo[T]
         |</script>
         |<div></div>""".stripMargin
     val code = compile(src, name = "TodoList")

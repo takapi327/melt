@@ -39,10 +39,7 @@ object AstToIr:
     // (double-stripping bug).
     val rawCode                    = ast.script.map(_.code.trim).getOrElse("")
     val (allTypeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
-    // Phase 1: props="..." attribute takes priority; fall back to auto-detection from typeDecls.
-    val propsType = ast.script.flatMap(_.propsType) match
-      case Some(typeName) => Some(buildPropsType(typeName, ast.script))
-      case None           => detectPropsType(allTypeDecls, ast.script)
+    val propsType = detectPropsType(allTypeDecls, ast.script)
     // For a non-Named-Tuple alias (type Props = X), remove the "type Props ..." decl from
     // typeDecls because the emitter's baseName != "Props" block already re-generates it.
     // ⚠ Use boundary-checked startsWith to avoid removing "type PropsAlias = ..." by accident.
@@ -405,25 +402,6 @@ object AstToIr:
     case _ => None
 
   // ── Script body helpers ───────────────────────────────────────────────────
-
-  // Phase 1: used when props="..." attribute is explicitly set (backward compat).
-  // Phase 2: this method will be removed in favour of detectPropsType only.
-  private def buildPropsType(typeName: String, script: Option[ScriptSection]): IrPropsType =
-    val baseName        = extractBaseName(typeName)
-    val typeParams      = extractTypeParamStr(typeName)
-    val scriptCode      = script.map(_.code).getOrElse("")
-    val (typeDecls, _)  = splitTypeDecls(scriptCode)
-    val scriptDecl      = typeDecls.mkString("\n\n")
-    val allHaveDefaults = allPropsHaveDefaults(scriptDecl)
-    IrPropsType(
-      typeName,
-      typeParams,
-      baseName,
-      allHaveDefaults,
-      scriptDecl,
-      isNamedTuple     = false,
-      namedTupleFields = Nil
-    )
 
   /** Splits `script` into (typeDecls, restBody).
     * Identical logic to `SpaCodeGen.splitTypeDecls` / `SsrCodeGen.splitTypeDecls`;
