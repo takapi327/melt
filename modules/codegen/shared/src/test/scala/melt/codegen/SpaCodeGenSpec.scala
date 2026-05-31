@@ -1850,6 +1850,42 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("def apply["), code)
   }
 
+  test("all-defaults Props: apply() and mount() have default argument so zero-arg call compiles") {
+    val src =
+      """<script lang="scala">
+        |case class Props(label: String = "hello", count: Int = 0)
+        |</script>
+        |<span>{props.label}</span>""".stripMargin
+    val code = compile(src, name = "Badge")
+    assert(code.contains("def apply(props: Props = Props()): dom.Element"), code)
+    assert(code.contains("def mount(target: dom.Element, props: Props = Props())"), code)
+  }
+
+  test("required-field Props: apply() and mount() have no default argument") {
+    val src =
+      """<script lang="scala">
+        |case class Props(label: String, count: Int = 0)
+        |</script>
+        |<span>{props.label}</span>""".stripMargin
+    val code = compile(src, name = "Badge")
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
+    assert(code.contains("def mount(target: dom.Element, props: Props)"), code)
+    assert(!code.contains("Props = Props()"), code)
+  }
+
+  test("generic Props: apply() and mount() never have default argument even if all fields have defaults") {
+    val src =
+      """<script lang="scala">
+        |case class Props[T](items: Seq[T] = Seq.empty)
+        |</script>
+        |<div></div>""".stripMargin
+    val code = compile(src, name = "List")
+    // Generic Props cannot use Props[T]() as a default — no default generated
+    assert(code.contains("def apply[T](props: Props[T]): dom.Element"), code)
+    assert(code.contains("def mount[T](target: dom.Element, props: Props[T])"), code)
+    assert(!code.contains("Props[T]()"), code)
+  }
+
   // ── M-8 part 2: custom Props type name ────────────────────────────────────
 
   test("custom props type name: generates val/type Props alias for non-generic") {

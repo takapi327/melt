@@ -93,6 +93,10 @@ object SpaEmitter:
     // ── apply() signature ─────────────────────────────────────────────────
     val hasChildren = templateHasChildrenRef(ir.template)
     ir.propsType match
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple && pt.typeParams.isEmpty =>
+        if hasChildren then
+          tracker ++= s"  def apply(props: ${ pt.typeName } = ${ pt.typeName }(), children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
+        else tracker ++= s"  def apply(props: ${ pt.typeName } = ${ pt.typeName }()): dom.Element = {\n"
       case Some(pt) =>
         if hasChildren then
           tracker ++= s"  def apply${ pt.typeParams }(props: ${ pt.typeName }, children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
@@ -145,6 +149,8 @@ object SpaEmitter:
 
     // ── mount() ───────────────────────────────────────────────────────────
     ir.propsType match
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple && pt.typeParams.isEmpty =>
+        tracker ++= s"  def mount(target: dom.Element, props: ${ pt.typeName } = ${ pt.typeName }()): Unit = Mount(target, apply(props))\n\n"
       case Some(pt) =>
         tracker ++= s"  def mount${ pt.typeParams }(target: dom.Element, props: ${ pt.typeName }): Unit = Mount(target, apply(props))\n\n"
       case None =>
