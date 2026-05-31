@@ -521,7 +521,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("props type generates case class at object level and create(props)") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(label: String, count: Int)
         |val doubled = count * 2
         |</script>
@@ -538,6 +538,68 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("def mount(target: dom.Element, props: Props)"), code)
     // body code is inside create
     assert(code.contains("val doubled = count * 2"), code)
+  }
+
+  // ── Named Tuple Props ─────────────────────────────────────────────────────
+
+  test("Named Tuple Props: emits type alias and object Props factory") {
+    val src =
+      """<script lang="scala">
+        |type Props = (label: String, count: Int)
+        |</script>
+        |<p>{props.label}</p>""".stripMargin
+    val code = compile(src, name = "Counter")
+    assert(code.contains("type Props = (label: String, count: Int)"), code)
+    assert(code.contains("object Props:"), code)
+    assert(code.contains("def apply(label: String, count: Int): Counter.Props ="), code)
+    assert(code.contains("(label = label, count = count)"), code)
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
+  }
+
+  test("Named Tuple Props: does not emit PropsCodec or val Props alias") {
+    val src =
+      """<script lang="scala">
+        |type Props = (title: String)
+        |</script>
+        |<h1>{props.title}</h1>""".stripMargin
+    val code = compile(src, name = "Header")
+    assert(!code.contains("_propsCodec"), code)
+    assert(!code.contains("val Props ="), code)
+  }
+
+  test("Named Tuple Props: auto-detected without props= attribute") {
+    val src =
+      """<script lang="scala">
+        |type Props = (count: Int, step: Int)
+        |val doubled = props.count * 2
+        |</script>
+        |<p>{doubled}</p>""".stripMargin
+    val code = compile(src, name = "StepControl")
+    assert(code.contains("type Props = (count: Int, step: Int)"), code)
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
+  }
+
+  test("Named Tuple Props: generic type parameter") {
+    val src =
+      """<script lang="scala">
+        |type Props[T] = (value: T, label: String)
+        |</script>
+        |<p>{props.label}</p>""".stripMargin
+    val code = compile(src, name = "Typed")
+    assert(code.contains("type Props[T] = (value: T, label: String)"), code)
+    assert(code.contains("def apply[T](value: T, label: String): Typed.Props[T] ="), code)
+    assert(code.contains("def apply[T](props: Props[T]): dom.Element"), code)
+  }
+
+  test("case class Props: auto-detected without props= attribute") {
+    val src =
+      """<script lang="scala">
+        |case class Props(label: String, count: Int)
+        |</script>
+        |<p>{props.label}</p>""".stripMargin
+    val code = compile(src, name = "Counter")
+    assert(code.contains("case class Props(label: String, count: Int)"), code)
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
   }
 
   test("component reference without props generates create()") {

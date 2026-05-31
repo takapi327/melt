@@ -166,7 +166,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   test("components with props emit a derived PropsCodec val") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(name: String = "world", count: Int = 0)
         |</script>
         |<div>{props.name}</div>""".stripMargin
@@ -177,7 +177,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   test("apply(props) tracks the serialised props on the renderer") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(name: String = "x")
         |</script>
         |<div>{props.name}</div>""".stripMargin
@@ -202,6 +202,58 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val code = compile(src, name = "Home")
     assert(code.contains("private val _propsCodec: PropsCodec[HomeProps] = PropsCodec.derived"), code)
     assert(code.contains("_propsCodec.encodeToString(props)"), code)
+  }
+
+  // ── Named Tuple Props ──────────────────────────────────────────────────
+
+  test("Named Tuple Props: emits type alias and object Props factory") {
+    val src =
+      """<script lang="scala">
+        |type Props = (label: String, count: Int)
+        |</script>
+        |<p>{props.label}</p>""".stripMargin
+    val code = compile(src, name = "Counter")
+    assert(code.contains("type Props = (label: String, count: Int)"), code)
+    assert(code.contains("object Props:"), code)
+    assert(code.contains("def apply(label: String, count: Int): Counter.Props ="), code)
+    assert(code.contains("(label = label, count = count)"), code)
+    assert(code.contains("def apply(props: Props): RenderResult"), code)
+  }
+
+  test("Named Tuple Props: does not emit PropsCodec or val Props alias") {
+    val src =
+      """<script lang="scala">
+        |type Props = (title: String)
+        |</script>
+        |<h1>{props.title}</h1>""".stripMargin
+    val code = compile(src, name = "Header")
+    assert(!code.contains("import melt.runtime.json.PropsCodec"), code)
+    assert(!code.contains("_propsCodec"), code)
+    assert(!code.contains("trackHydrationProps"), code)
+    assert(!code.contains("val Props ="), code)
+  }
+
+  test("Named Tuple Props: props parameter has no default value") {
+    val src =
+      """<script lang="scala">
+        |type Props = (title: String)
+        |</script>
+        |<h1>{props.title}</h1>""".stripMargin
+    val code = compile(src, name = "Header")
+    // Named Tuple has no zero-arg constructor, so Props() default must not be emitted
+    assert(!code.contains("props: Props = Props()"), code)
+    assert(code.contains("props: Props)"), code)
+  }
+
+  test("case class Props: auto-detected without props= attribute") {
+    val src =
+      """<script lang="scala">
+        |case class Props(name: String = "world")
+        |</script>
+        |<div>{props.name}</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("import melt.runtime.json.PropsCodec"), code)
+    assert(code.contains("props: Props = Props()"), code)
   }
 
   // ── CSS ────────────────────────────────────────────────────────────────
@@ -388,7 +440,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   test("{children} with props adds both params to apply()") {
     val src =
-      """<script lang="scala" props="Props">
+      """<script lang="scala">
         |case class Props(title: String = "")
         |</script>
         |<div>{children}</div>""".stripMargin
