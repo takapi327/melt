@@ -26,7 +26,7 @@ object SsrEmitter:
     if ir.pkg.nonEmpty then tracker ++= s"package ${ ir.pkg }\n\n"
     tracker ++= "import scala.language.implicitConversions\n"
     tracker ++= "import melt.runtime.*\n"
-    if ir.propsType.isDefined then tracker ++= "import melt.runtime.json.PropsCodec\n"
+    if ir.propsType.exists(!_.isNamedTuple) then tracker ++= "import melt.runtime.json.PropsCodec\n"
     tracker ++= "import melt.runtime.render.*\n\n"
 
     tracker ++= s"object ${ ir.objectName } {\n\n"
@@ -42,16 +42,24 @@ object SsrEmitter:
       tracker += '\n'
     }
 
+    // ── Named Tuple Props: emit object Props factory ───────────────────────
     ir.propsType.foreach { pt =>
-      if pt.baseName != "Props" then
+      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then
+        emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
+    }
+
+    // ── Props alias when baseName != "Props" (non-Named-Tuple only) ───────
+    ir.propsType.foreach { pt =>
+      if pt.baseName != "Props" && !pt.isNamedTuple then
         tracker ++= s"  val Props = ${ pt.baseName }\n"
         if pt.typeParams.nonEmpty then tracker ++= s"  type Props${ pt.typeParams } = ${ pt.typeName }\n"
         else tracker ++= s"  type Props = ${ pt.baseName }\n"
         tracker += '\n'
     }
 
+    // ── PropsCodec (Named Tuple not supported until Scala 3.7+) ──────────
     ir.propsType.foreach { pt =>
-      if pt.typeParams.isEmpty then
+      if pt.typeParams.isEmpty && !pt.isNamedTuple then
         tracker ++= s"  private val _propsCodec: PropsCodec[${ pt.typeName }] = PropsCodec.derived\n\n"
     }
 
@@ -62,7 +70,7 @@ object SsrEmitter:
     val moduleId = kebabCase(ir.objectName)
     tracker ++= s"""    renderer.trackComponent("$moduleId")\n"""
     ir.propsType.foreach { pt =>
-      if pt.typeParams.isEmpty then
+      if pt.typeParams.isEmpty && !pt.isNamedTuple then
         tracker ++= s"""    renderer.trackHydrationProps("$moduleId", _propsCodec.encodeToString(props))\n"""
     }
     if hasCss then tracker ++= "    renderer.css.add(_scopeId, _css)\n"
@@ -829,11 +837,26 @@ object SsrEmitter:
 
   // ── Props helpers ──────────────────────────────────────────────────────────
 
+  // ── Named Tuple Props factory ──────────────────────────────────────────────
+
+  /** Emits an `object Props { def apply(...): ComponentName.Props = (...) }` factory
+    * for Named Tuple Props so that call sites can use `ComponentName.Props(field = value)`.
+    */
+  private def emitNamedTuplePropsFactory(pt: IrPropsType, tracker: LineTracker, objectName: String): Unit =
+    val paramList = pt.namedTupleFields.map { case (name, tpe) => s"$name: $tpe" }.mkString(", ")
+    val argList   = pt.namedTupleFields.map { case (name, _) => s"$name = $name" }.mkString(", ")
+    val retType   = s"$objectName.Props${ pt.typeParams }"
+    tracker ++= s"  object Props:\n"
+    tracker ++= s"    def apply${ pt.typeParams }($paramList): $retType =\n"
+    tracker ++= s"      ($argList)\n"
+    tracker += '\n'
+
   private def renderParams(propsType: Option[IrPropsType], hasChildren: Boolean): String =
     val propsPart = propsType match
-      case Some(pt) if pt.typeParams.nonEmpty => s"props: ${ pt.typeName }"
-      case Some(pt)                           => s"props: ${ pt.typeName } = ${ pt.typeName }()"
-      case None                               => ""
+      case Some(pt) if pt.typeParams.nonEmpty                       => s"props: ${ pt.typeName }"
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple       => s"props: ${ pt.typeName } = ${ pt.typeName }()"
+      case Some(pt)                                                  => s"props: ${ pt.typeName }"
+      case None                                                      => ""
     val childrenPart =
       if hasChildren then "children: () => RenderResult = () => RenderResult.empty"
       else ""

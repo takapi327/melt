@@ -33,17 +33,30 @@ object AstToIr:
     templateSource:    String = "",
     positions:         NodePositions = NodePositions.empty
   ): IrComponent =
-    val propsType = ast.script.flatMap(_.propsType).map(buildPropsType(_, ast.script))
     // ⚠ Call splitTypeDecls once on the raw script code.
     // Calling extractScriptBody (which already strips typeDecls) and then
     // extractTypeDecls on the result would always yield an empty typeDecls list
     // (double-stripping bug).
-    val rawCode                 = ast.script.map(_.code.trim).getOrElse("")
-    val (typeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
-    val reactiveVars            = ScalaTextUtils.extractReactiveVars(rawCode)
-    val style                   = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
-    val posBuilder              = IrNodePositions.builder()
-    val template                = ast.template.flatMap(
+    val rawCode                     = ast.script.map(_.code.trim).getOrElse("")
+    val (allTypeDecls, scriptBody)  = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    // Phase 1: props="..." attribute takes priority; fall back to auto-detection from typeDecls.
+    val propsType = ast.script.flatMap(_.propsType) match
+      case Some(typeName) => Some(buildPropsType(typeName, ast.script))
+      case None           => detectPropsType(allTypeDecls, ast.script)
+    // For a non-Named-Tuple alias (type Props = X), remove the "type Props ..." decl from
+    // typeDecls because the emitter's baseName != "Props" block already re-generates it.
+    // ⚠ Use boundary-checked startsWith to avoid removing "type PropsAlias = ..." by accident.
+    val effectiveTypeDecls = propsType match
+      case Some(pt) if !pt.isNamedTuple && pt.baseName != "Props" =>
+        allTypeDecls.filterNot { d =>
+          val t = d.trim
+          t.startsWith("type Props =") || t.startsWith("type Props[")
+        }
+      case _ => allTypeDecls
+    val reactiveVars = ScalaTextUtils.extractReactiveVars(rawCode)
+    val style        = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
+    val posBuilder   = IrNodePositions.builder()
+    val template     = ast.template.flatMap(
       lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
     )
 
@@ -54,7 +67,7 @@ object AstToIr:
       propsType         = propsType,
       scriptBody        = scriptBody,
       fileImports       = ast.script.toList.flatMap(_.imports),
-      typeDecls         = typeDecls,
+      typeDecls         = effectiveTypeDecls,
       style             = style,
       template          = template,
       hydration         = hydration,
@@ -393,6 +406,8 @@ object AstToIr:
 
   // ── Script body helpers ───────────────────────────────────────────────────
 
+  // Phase 1: used when props="..." attribute is explicitly set (backward compat).
+  // Phase 2: this method will be removed in favour of detectPropsType only.
   private def buildPropsType(typeName: String, script: Option[ScriptSection]): IrPropsType =
     val baseName        = extractBaseName(typeName)
     val typeParams      = extractTypeParamStr(typeName)
@@ -400,7 +415,8 @@ object AstToIr:
     val (typeDecls, _)  = splitTypeDecls(scriptCode)
     val scriptDecl      = typeDecls.mkString("\n\n")
     val allHaveDefaults = allPropsHaveDefaults(scriptDecl)
-    IrPropsType(typeName, typeParams, baseName, allHaveDefaults, scriptDecl)
+    IrPropsType(typeName, typeParams, baseName, allHaveDefaults, scriptDecl,
+                isNamedTuple = false, namedTupleFields = Nil)
 
   /** Splits `script` into (typeDecls, restBody).
     * Identical logic to `SpaCodeGen.splitTypeDecls` / `SsrCodeGen.splitTypeDecls`;
@@ -432,6 +448,10 @@ object AstToIr:
       trimmed.startsWith("sealed abstract class ") ||
       trimmed.startsWith("enum ")
 
+  // ⚠ Depth changes are counted across the full line before deciding whether the
+  // typeDecl is complete.  The previous per-character `done = true` inside forEach
+  // caused early termination for constructs like `case class Props[T <: Ordered[T]](`
+  // where the outer `]` closes depth to 0 before the `(` reopens it on the same line.
   private def collectBalanced(lines: Vector[String], start: Int): (Int, Vector[String]) =
     var depth       = 0
     var seenAnyOpen = false
@@ -442,24 +462,44 @@ object AstToIr:
       val line = lines(i)
       buf += line
       line.foreach {
-        case '(' | '[' | '{' =>
-          depth += 1
-          seenAnyOpen = true
-        case ')' | ']' | '}' =>
-          depth -= 1
-          if seenAnyOpen && depth == 0 then done = true
-        case _ => ()
+        case '(' | '[' | '{' => depth += 1; seenAnyOpen = true
+        case ')' | ']' | '}' => depth -= 1
+        case _               => ()
       }
-      if !done then i += 1
+      // Decide after the full line is scanned (not mid-character):
+      if !seenAnyOpen then done = true    // bracket-free single-line decl (type Props = HomeProps)
+      else if depth == 0 then done = true // all brackets closed
+      else i += 1
     (i, buf.toVector)
 
+  // Splits `s` at top-level commas (depth == 0), respecting nested brackets.
+  private def splitByCommaBalanced(s: String): List[String] =
+    val buf   = scala.collection.mutable.ListBuffer.empty[String]
+    var depth = 0
+    var start = 0
+    var i     = 0
+    while i < s.length do
+      s(i) match
+        case '[' | '(' | '{' => depth += 1
+        case ']' | ')' | '}' => depth -= 1
+        case ',' if depth == 0 =>
+          buf += s.substring(start, i)
+          start = i + 1
+        case _ => ()
+      i += 1
+    buf += s.substring(start)
+    buf.toList
+
+  // ⚠ Uses splitByCommaBalanced to avoid false negatives on params like
+  // `data: Map[String, Int] = Map.empty` where a naive split(",") would
+  // fragment the type parameter list.
   private def allPropsHaveDefaults(propsDef: String): Boolean =
     val open  = propsDef.indexOf('(')
     val close = propsDef.lastIndexOf(')')
     if open < 0 || close <= open then true
     else
       val params = propsDef.substring(open + 1, close)
-      params.split(",").forall { param =>
+      splitByCommaBalanced(params).forall { param =>
         val trimmed = param.trim
         trimmed.isEmpty || trimmed.contains("=")
       }
@@ -471,6 +511,138 @@ object AstToIr:
     val i = typeName.indexOf('[')
     if i < 0 then ""
     else typeName.substring(i)
+
+  // ── Named Tuple Props auto-detection ──────────────────────────────────────
+
+  // Exact-boundary check: `case class Props` must be followed by `(`, `[`, or space.
+  private def isCaseClassProps(decl: String): Boolean =
+    val t = decl.trim
+    t.startsWith("case class Props(") ||
+    t.startsWith("case class Props[") ||
+    t.startsWith("case class Props ")
+
+  // Exact-boundary check: `type Props` must be followed by ` =` or `[`.
+  private def isTypePropAlias(decl: String): Boolean =
+    val t = decl.trim
+    t.startsWith("type Props =") ||
+    t.startsWith("type Props[")
+
+  /** Extracts the `[...]` type-parameter bracket that immediately follows "Props"
+    * in `decl`, using depth tracking so nested brackets (e.g. `[T <: Ordered[T]]`)
+    * are handled correctly.
+    *
+    * Returns `""` if there is no `[` after "Props", or if the first `[` appears
+    * after the first `(` (i.e. it belongs to a field type, not to Props itself).
+    */
+  private def extractTypeParamBracket(decl: String, propsOffset: Int): String =
+    val afterProps = decl.indexOf('[', propsOffset)
+    if afterProps < 0 then return ""
+    // Guard: if '(' comes before '[', the '[' belongs to a field type, not Props.
+    val firstParen = decl.indexOf('(', propsOffset)
+    if firstParen >= 0 && firstParen < afterProps then return ""
+    var depth = 0
+    var i     = afterProps
+    while i < decl.length do
+      if decl(i) == '[' then depth += 1
+      else if decl(i) == ']' then
+        depth -= 1
+        if depth == 0 then return decl.substring(afterProps, i + 1)
+      i += 1
+    "" // malformed declaration (no matching ']')
+
+  /** Parses `(field: Type, ...)` fields from a Named Tuple declaration string.
+    * Uses balanced-comma splitting so nested generics like `Map[String, Int]` are
+    * not split at the inner comma.
+    */
+  private def parseNamedTupleFields(decl: String): List[(String, String)] =
+    val eqIdx      = decl.indexOf('=')
+    if eqIdx < 0 then return Nil
+    val innerOpen  = decl.indexOf('(', eqIdx)
+    val innerClose = decl.lastIndexOf(')')
+    if innerOpen < 0 || innerClose <= innerOpen then return Nil
+    val content = decl.substring(innerOpen + 1, innerClose).trim
+    splitByCommaBalanced(content).flatMap { field =>
+      val f        = field.trim
+      val colonIdx = f.indexOf(':') // ⚠ use first ':' only — struct types may contain ':'
+      if colonIdx < 0 then None
+      else
+        val fieldName = f.substring(0, colonIdx).trim
+        val fieldType = f.substring(colonIdx + 1).trim
+        if fieldName.isEmpty || fieldType.isEmpty then None
+        else Some((fieldName, fieldType))
+    }
+
+  /** Detects the Props type from the already-computed `typeDecls` list without
+    * re-parsing the script.  Returns `None` if no Props type is found.
+    *
+    * Detection order (first match wins):
+    *   1. `case class Props(...)` or `case class Props[T](...)`
+    *   2. `type Props = (...)` — inline Named Tuple
+    *   3. `type Props[T] = (...)` — generic inline Named Tuple
+    *   4. `type Props = X` where X is a Named Tuple in the same typeDecls
+    *   5. `type Props = X` where X is a case class in the same typeDecls
+    *   6. `type Props = X` where X is an external type (alias)
+    */
+  private def detectPropsType(typeDecls: List[String], script: Option[ScriptSection]): Option[IrPropsType] =
+    typeDecls.find(d => isCaseClassProps(d) || isTypePropAlias(d)).map { decl =>
+      val trimmed     = decl.trim
+      val propsOffset = trimmed.indexOf("Props")
+      val typeParams  = extractTypeParamBracket(trimmed, propsOffset)
+
+      if isCaseClassProps(trimmed) then
+        // case class Props[T](...) — classic path
+        val typeName        = "Props" + typeParams
+        val allHaveDefaults = allPropsHaveDefaults(trimmed)
+        IrPropsType(typeName, typeParams, "Props", allHaveDefaults, trimmed,
+                    isNamedTuple = false, namedTupleFields = Nil)
+      else
+        // type Props ... — extract RHS
+        val rhsStr = trimmed.dropWhile(_ != '=').drop(1).trim
+
+        if rhsStr.startsWith("(") then
+          // type Props[T] = (...) — inline Named Tuple
+          val typeName = "Props" + typeParams
+          val fields   = parseNamedTupleFields(trimmed)
+          IrPropsType(typeName, typeParams, "Props", allHaveDefaults = false, trimmed,
+                      isNamedTuple = true, namedTupleFields = fields)
+        else
+          // type Props = X  or  type Props[T] = X
+          val baseName       = extractBaseName(rhsStr)
+          val rhsHasTypeArgs = rhsStr != baseName // "Hoge[String]" != "Hoge"
+
+          if !rhsHasTypeArgs then
+            // Check if X is a Named Tuple declared in the same typeDecls
+            val namedTupleDecl = typeDecls.find(d => d.trim.startsWith(s"type $baseName = ("))
+            // Check if X is a case class declared in the same typeDecls (boundary-safe)
+            val caseClassDecl  = typeDecls.find { d =>
+              val t = d.trim
+              t.startsWith(s"case class $baseName(") ||
+              t.startsWith(s"case class $baseName[") ||
+              t.startsWith(s"case class $baseName ")
+            }
+
+            if namedTupleDecl.isDefined then
+              // type Props = Hoge (Named Tuple alias in same script)
+              val typeName = "Props" + typeParams
+              val fields   = parseNamedTupleFields(namedTupleDecl.get)
+              IrPropsType(typeName, typeParams, baseName, allHaveDefaults = false, trimmed,
+                          isNamedTuple = true, namedTupleFields = fields)
+            else if caseClassDecl.isDefined then
+              // type Props = HomeProps (case class alias in same script) — OLD-compat
+              val typeName        = rhsStr
+              val allHaveDefaults = allPropsHaveDefaults(caseClassDecl.get)
+              IrPropsType(typeName, typeParams, baseName, allHaveDefaults, trimmed,
+                          isNamedTuple = false, namedTupleFields = Nil)
+            else
+              // type Props = ExternalType (external alias) — OLD-compat
+              IrPropsType(rhsStr, typeParams, baseName, allHaveDefaults = false, trimmed,
+                          isNamedTuple = false, namedTupleFields = Nil)
+          else
+            // type Props = Hoge[T] — type args on RHS; Named Tuple factory generation
+            // is unsupported (T would be unresolved in the factory).  Treat as external alias.
+            IrPropsType(rhsStr, typeParams, baseName, allHaveDefaults = false, trimmed,
+                        isNamedTuple = false, namedTupleFields = Nil)
+    }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
