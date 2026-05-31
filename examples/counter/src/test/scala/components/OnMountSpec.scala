@@ -100,7 +100,7 @@ class OnMountSpec extends munit.FunSuite:
       val el = dom.document.createElement("div")
       onMount { ctx =>
         mounted = true
-        ctx.onCleanup(() => { destroyed = true })
+        ctx.onCleanup(() => destroyed = true)
       }
       el
     }
@@ -122,9 +122,9 @@ class OnMountSpec extends munit.FunSuite:
     val (el, owner) = Owner.withNew {
       val el = dom.document.createElement("div")
       onMount { ctx =>
-        ctx.onCleanup(() => { log += "first" })
-        ctx.onCleanup(() => { log += "second" })
-        ctx.onCleanup(() => { log += "third" })
+        ctx.onCleanup(() => log += "first")
+        ctx.onCleanup(() => log += "second")
+        ctx.onCleanup(() => log += "third")
       }
       el
     }
