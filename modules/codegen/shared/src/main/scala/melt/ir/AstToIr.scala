@@ -39,7 +39,7 @@ object AstToIr:
     // (double-stripping bug).
     val rawCode                    = ast.script.map(_.code.trim).getOrElse("")
     val (allTypeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
-    val propsType = detectPropsType(allTypeDecls, ast.script)
+    val propsType                  = detectPropsType(allTypeDecls, ast.script)
     // For a non-Named-Tuple alias (type Props = X), remove the "type Props ..." decl from
     // typeDecls because the emitter's baseName != "Props" block already re-generates it.
     // ⚠ Use boundary-checked startsWith to avoid removing "type PropsAlias = ..." by accident.
