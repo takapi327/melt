@@ -179,3 +179,100 @@ class AstToIrSpec extends munit.FunSuite:
     )
     assertEquals(result, None)
   }
+
+  // ── detectPropsType (Named Tuple Props auto-detection) ─────────────────────
+
+  test("detectPropsType: case class Props — detected without props= attribute") {
+    val src = """<script lang="scala">
+                |case class Props(label: String, count: Int)
+                |</script>
+                |<p>{props.label}</p>""".stripMargin
+    val ir = lower(src)
+    assertEquals(ir.propsType.map(_.typeName), Some("Props"))
+    assertEquals(ir.propsType.map(_.isNamedTuple), Some(false))
+  }
+
+  test("detectPropsType: inline Named Tuple Props") {
+    val src = """<script lang="scala">
+                |type Props = (label: String, count: Int)
+                |</script>
+                |<p>{props.label}</p>""".stripMargin
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
+    assertEquals(pt.typeName, "Props")
+    assertEquals(pt.baseName, "Props")
+    assert(pt.isNamedTuple)
+    assertEquals(pt.namedTupleFields, List("label" -> "String", "count" -> "Int"))
+    assertEquals(pt.allHaveDefaults, false)
+  }
+
+  test("detectPropsType: generic Named Tuple Props") {
+    val src = """<script lang="scala">
+                |type Props[T] = (value: T, label: String)
+                |</script>
+                |<p>{props.label}</p>""".stripMargin
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
+    assertEquals(pt.typeName, "Props[T]")
+    assertEquals(pt.typeParams, "[T]")
+    assert(pt.isNamedTuple)
+    assertEquals(pt.namedTupleFields, List("value" -> "T", "label" -> "String"))
+  }
+
+  test("detectPropsType: Named Tuple alias in same script") {
+    val src = """<script lang="scala">
+                |type Hoge = (name: String, age: Int)
+                |type Props = Hoge
+                |</script>
+                |<p>{props.name}</p>""".stripMargin
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
+    assertEquals(pt.typeName, "Props")
+    assertEquals(pt.baseName, "Hoge")
+    assert(pt.isNamedTuple)
+    assertEquals(pt.namedTupleFields, List("name" -> "String", "age" -> "Int"))
+  }
+
+  test("detectPropsType: case class alias in same script (baseName != Props)") {
+    val src = """<script lang="scala">
+                |case class HomeProps(user: String = "guest")
+                |type Props = HomeProps
+                |</script>
+                |<p>{props.user}</p>""".stripMargin
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
+    assertEquals(pt.typeName, "HomeProps")
+    assertEquals(pt.baseName, "HomeProps")
+    assert(!pt.isNamedTuple)
+    // "type Props = HomeProps" must be filtered out from typeDecls (emitter re-generates it)
+    assert(!ir.typeDecls.exists(_.trim.startsWith("type Props =")), s"typeDecls: ${ ir.typeDecls }")
+  }
+
+  test("detectPropsType: no Props type in script yields None") {
+    val ir = lower("<div>hello</div>")
+    assertEquals(ir.propsType, None)
+  }
+
+  test("collectBalanced fix: type Props = HomeProps does not absorb next typeDecl") {
+    val src = """<script lang="scala">
+                |type Props = HomeProps
+                |case class Foo(x: Int)
+                |</script>
+                |<div/>""".stripMargin
+    val ir = lower(src)
+    // Both "type Props = HomeProps" and "case class Foo(x: Int)" must be in separate decls.
+    // The Props alias is filtered from effectiveTypeDecls but Foo must remain.
+    assert(ir.typeDecls.exists(_.trim.startsWith("case class Foo")), s"typeDecls: ${ ir.typeDecls }")
+  }
+
+  test("collectBalanced fix: case class Props with complex type params on one line") {
+    val src =
+      """<script lang="scala">
+        |case class Props[T <: Ordered[T]](items: Seq[T])
+        |</script>
+        |<div/>""".stripMargin
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
+    assertEquals(pt.typeParams, "[T <: Ordered[T]]")
+    assertEquals(pt.typeName, "Props[T <: Ordered[T]]")
+  }

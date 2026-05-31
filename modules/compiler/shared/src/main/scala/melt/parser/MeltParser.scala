@@ -70,7 +70,7 @@ object MeltParser:
         }
 
       val ast = MeltFile(
-        script   = sections.rawScript.map(r => ScriptSection(r.code, r.propsType, r.imports)),
+        script   = sections.rawScript.map(r => ScriptSection(r.code, r.imports)),
         template = nodes,
         style    = sections.style.map((content, lang) => StyleSection(content, lang))
       )

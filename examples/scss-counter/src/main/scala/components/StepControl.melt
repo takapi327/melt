@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
 case class Props(count: State[Int], step: Int)
 </script>
 

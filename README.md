@@ -60,7 +60,7 @@ button { font-size: 1.5rem; cursor: pointer; }
 `.melt` ファイルは 3 つのセクションで構成されます。
 
 ```html
-<script lang="scala" props="Props">
+<script lang="scala">
 // Props: 親から受け取る外部入力
 case class Props(title: String = "Hello")
 
@@ -198,13 +198,13 @@ else
 
 #### Props と内部状態の分離
 
-`props="Props"` に宣言するのは**親から受け取る外部入力**のみです。このコンポーネント固有の状態はスクリプト本文で `val count = State(0)` と宣言します。
+`case class Props` または `type Props` に宣言するのは**親から受け取る外部入力**のみです。このコンポーネント固有の状態はスクリプト本文で `val count = State(0)` と宣言します。
 
 `State[T]` を Props に含めると、親が保持する State の参照を受け取る**双方向バインディング**になります。子が `.update()` を呼ぶと変更が親に即時伝播します。
 
 ```html
 <!-- StepControl.melt — 親の State[Int] を Props で受け取る -->
-<script lang="scala" props="Props">
+<script lang="scala">
 case class Props(count: State[Int], step: Int = 1)
 </script>
 
@@ -241,7 +241,7 @@ val count = State(0)
 </List>
 
 <!-- 子コンポーネント（List.melt） -->
-<script lang="scala" props="Props">
+<script lang="scala">
 case class Props(items: State[List[Todo]], renderItem: Snippet[Todo])
 </script>
 
@@ -318,7 +318,7 @@ case class Props(items: State[List[Todo]], renderItem: Snippet[Todo])
 #### ジェネリックコンポーネント
 
 ```html
-<script lang="scala" props="Props[T]">
+<script lang="scala">
 case class Props[T](items: State[List[T]], render: Snippet[T])
 </script>
 ```

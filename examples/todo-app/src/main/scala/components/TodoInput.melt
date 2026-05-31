@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
 case class Props(onAdd: String => Unit)
 val text = State("")
 </script>

@@ -40,7 +40,8 @@ object SpaEmitter:
     tracker ++= "import org.scalajs.dom\n"
     tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, State, Signal }\n"
     tracker ++= "import melt.runtime.*\n"
-    if ir.hydration && ir.propsType.isDefined then tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
+    if ir.hydration && ir.propsType.exists(!_.isNamedTuple) then
+      tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     tracker ++= "import melt.runtime.transition.*\n"
     tracker ++= "import melt.runtime.animate.*\n\n"
 
@@ -68,19 +69,24 @@ object SpaEmitter:
       tracker += '\n'
     }
 
-    // ── Props alias when baseName != "Props" ──────────────────────────────
+    // ── Named Tuple Props: emit object Props factory ───────────────────────
     ir.propsType.foreach { pt =>
-      if pt.baseName != "Props" then
+      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
+    }
+
+    // ── Props alias when baseName != "Props" (non-Named-Tuple only) ───────
+    ir.propsType.foreach { pt =>
+      if pt.baseName != "Props" && !pt.isNamedTuple then
         tracker ++= s"  val Props = ${ pt.baseName }\n"
         if pt.typeParams.nonEmpty then tracker ++= s"  type Props${ pt.typeParams } = ${ pt.typeName }\n"
         else tracker ++= s"  type Props = ${ pt.baseName }\n"
         tracker += '\n'
     }
 
-    // ── hydration PropsCodec ───────────────────────────────────────────────
+    // ── hydration PropsCodec (Named Tuple not supported until Scala 3.7+) ─
     if ir.hydration then
       ir.propsType.foreach { pt =>
-        if pt.typeParams.isEmpty then
+        if pt.typeParams.isEmpty && !pt.isNamedTuple then
           tracker ++= s"  private val _propsCodec: PropsCodec[${ pt.typeName }] = PropsCodec.derived\n\n"
       }
 
@@ -145,7 +151,7 @@ object SpaEmitter:
         tracker ++= "  def mount(target: dom.Element): Unit = Mount(target, apply())\n\n"
 
     // ── hydration entry ───────────────────────────────────────────────────
-    if ir.hydration && ir.propsType.forall(_.typeParams.isEmpty) then
+    if ir.hydration && ir.propsType.forall(pt => pt.typeParams.isEmpty && !pt.isNamedTuple) then
       val hydrationBuf = new StringBuilder
       emitHydrationEntry(hydrationBuf, ir)
       tracker ++= hydrationBuf.toString
@@ -896,6 +902,23 @@ object SpaEmitter:
                 |$resolveProps$guardOpen$loopBody$guardClose
                 |
                 |""".stripMargin
+
+  // ── Named Tuple Props factory ──────────────────────────────────────────────
+
+  /** Emits an `object Props { def apply(...): ComponentName.Props = (...) }` factory
+    * for Named Tuple Props so that call sites can use `ComponentName.Props(field = value)`.
+    *
+    * ⚠ The return type must be qualified (`objectName.Props`) because inside `object Props`
+    * the unqualified `Props` refers to the object itself, not the type alias.
+    */
+  private def emitNamedTuplePropsFactory(pt: IrPropsType, tracker: LineTracker, objectName: String): Unit =
+    val paramList = pt.namedTupleFields.map { case (name, tpe) => s"$name: $tpe" }.mkString(", ")
+    val argList   = pt.namedTupleFields.map { case (name, _) => s"$name = $name" }.mkString(", ")
+    val retType   = s"$objectName.Props${ pt.typeParams }"
+    tracker ++= s"  object Props:\n"
+    tracker ++= s"    def apply${ pt.typeParams }($paramList): $retType =\n"
+    tracker ++= s"      ($argList)\n"
+    tracker += '\n'
 
   // ── Utilities ──────────────────────────────────────────────────────────────
 

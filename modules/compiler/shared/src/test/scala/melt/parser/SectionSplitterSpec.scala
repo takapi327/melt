@@ -58,36 +58,6 @@ class SectionSplitterSpec extends munit.FunSuite:
     assertEquals(sections.style, Some(("p { margin: 0; }", StyleLang.Css)))
   }
 
-  // ── props attribute extraction ────────────────────────────────────────────
-
-  test("extracts propsType from props=\"...\" attribute") {
-    val src =
-      """<script lang="scala" props="Props">
-        |  case class Props(label: String)
-        |</script>
-        |<div></div>""".stripMargin
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), Some("Props"))
-  }
-
-  test("propsType is None when props attribute is absent") {
-    val src      = """<script lang="scala">val x = 1</script><div></div>"""
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), None)
-  }
-
-  test("attribute order: lang before props") {
-    val src      = """<script lang="scala" props="MyProps">val x = 1</script><p></p>"""
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
-  }
-
-  test("attribute order: props before lang") {
-    val src      = """<script props="MyProps" lang="scala">val x = 1</script><p></p>"""
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
-  }
-
   // ── Plain <script> tags are NOT treated as Scala ──────────────────────────
 
   test("plain <script> without lang=\"scala\" stays in template") {
@@ -112,12 +82,6 @@ class SectionSplitterSpec extends munit.FunSuite:
     val sections = split(src).getOrElse(fail("unexpected error"))
     assert(sections.rawScript.isDefined)
     assertEquals(sections.rawScript.map(_.code), Some("val x = 1"))
-  }
-
-  test("props with single quotes is extracted") {
-    val src      = "<script lang='scala' props='MyProps'>val x = 1</script><p></p>"
-    val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), Some("MyProps"))
   }
 
   // ── Empty and whitespace-only bodies ──────────────────────────────────────
@@ -146,13 +110,11 @@ class SectionSplitterSpec extends munit.FunSuite:
   test("attributes spread across lines in script tag") {
     val src =
       """<script
-        |  lang="scala"
-        |  props="Props">
+        |  lang="scala">
         |  val x = 1
         |</script>
         |<p></p>""".stripMargin
     val sections = split(src).getOrElse(fail("unexpected error"))
-    assertEquals(sections.rawScript.flatMap(_.propsType), Some("Props"))
     assertEquals(sections.rawScript.map(_.code), Some("val x = 1"))
   }
 

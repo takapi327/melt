@@ -1,4 +1,4 @@
-<script lang="scala" props="Props">
+<script lang="scala">
 // Receives the parent's State[Int] directly.
 // Calling .update() on it propagates changes back to the parent automatically —
 // no callbacks, no event emitters needed.
