@@ -37,8 +37,8 @@ object AstToIr:
     // Calling extractScriptBody (which already strips typeDecls) and then
     // extractTypeDecls on the result would always yield an empty typeDecls list
     // (double-stripping bug).
-    val rawCode                     = ast.script.map(_.code.trim).getOrElse("")
-    val (allTypeDecls, scriptBody)  = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    val rawCode                    = ast.script.map(_.code.trim).getOrElse("")
+    val (allTypeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
     // Phase 1: props="..." attribute takes priority; fall back to auto-detection from typeDecls.
     val propsType = ast.script.flatMap(_.propsType) match
       case Some(typeName) => Some(buildPropsType(typeName, ast.script))
@@ -415,8 +415,15 @@ object AstToIr:
     val (typeDecls, _)  = splitTypeDecls(scriptCode)
     val scriptDecl      = typeDecls.mkString("\n\n")
     val allHaveDefaults = allPropsHaveDefaults(scriptDecl)
-    IrPropsType(typeName, typeParams, baseName, allHaveDefaults, scriptDecl,
-                isNamedTuple = false, namedTupleFields = Nil)
+    IrPropsType(
+      typeName,
+      typeParams,
+      baseName,
+      allHaveDefaults,
+      scriptDecl,
+      isNamedTuple     = false,
+      namedTupleFields = Nil
+    )
 
   /** Splits `script` into (typeDecls, restBody).
     * Identical logic to `SpaCodeGen.splitTypeDecls` / `SsrCodeGen.splitTypeDecls`;
@@ -467,7 +474,7 @@ object AstToIr:
         case _               => ()
       }
       // Decide after the full line is scanned (not mid-character):
-      if !seenAnyOpen then done = true    // bracket-free single-line decl (type Props = HomeProps)
+      if !seenAnyOpen then done = true // bracket-free single-line decl (type Props = HomeProps)
       else if depth == 0 then done = true // all brackets closed
       else i += 1
     (i, buf.toVector)
@@ -480,8 +487,8 @@ object AstToIr:
     var i     = 0
     while i < s.length do
       s(i) match
-        case '[' | '(' | '{' => depth += 1
-        case ']' | ')' | '}' => depth -= 1
+        case '[' | '(' | '{'   => depth += 1
+        case ']' | ')' | '}'   => depth -= 1
         case ',' if depth == 0 =>
           buf += s.substring(start, i)
           start = i + 1
@@ -555,7 +562,7 @@ object AstToIr:
     * not split at the inner comma.
     */
   private def parseNamedTupleFields(decl: String): List[(String, String)] =
-    val eqIdx      = decl.indexOf('=')
+    val eqIdx = decl.indexOf('=')
     if eqIdx < 0 then return Nil
     val innerOpen  = decl.indexOf('(', eqIdx)
     val innerClose = decl.lastIndexOf(')')
@@ -593,8 +600,15 @@ object AstToIr:
         // case class Props[T](...) — classic path
         val typeName        = "Props" + typeParams
         val allHaveDefaults = allPropsHaveDefaults(trimmed)
-        IrPropsType(typeName, typeParams, "Props", allHaveDefaults, trimmed,
-                    isNamedTuple = false, namedTupleFields = Nil)
+        IrPropsType(
+          typeName,
+          typeParams,
+          "Props",
+          allHaveDefaults,
+          trimmed,
+          isNamedTuple     = false,
+          namedTupleFields = Nil
+        )
       else
         // type Props ... — extract RHS
         val rhsStr = trimmed.dropWhile(_ != '=').drop(1).trim
@@ -603,8 +617,15 @@ object AstToIr:
           // type Props[T] = (...) — inline Named Tuple
           val typeName = "Props" + typeParams
           val fields   = parseNamedTupleFields(trimmed)
-          IrPropsType(typeName, typeParams, "Props", allHaveDefaults = false, trimmed,
-                      isNamedTuple = true, namedTupleFields = fields)
+          IrPropsType(
+            typeName,
+            typeParams,
+            "Props",
+            allHaveDefaults = false,
+            trimmed,
+            isNamedTuple     = true,
+            namedTupleFields = fields
+          )
         else
           // type Props = X  or  type Props[T] = X
           val baseName       = extractBaseName(rhsStr)
@@ -614,7 +635,7 @@ object AstToIr:
             // Check if X is a Named Tuple declared in the same typeDecls
             val namedTupleDecl = typeDecls.find(d => d.trim.startsWith(s"type $baseName = ("))
             // Check if X is a case class declared in the same typeDecls (boundary-safe)
-            val caseClassDecl  = typeDecls.find { d =>
+            val caseClassDecl = typeDecls.find { d =>
               val t = d.trim
               t.startsWith(s"case class $baseName(") ||
               t.startsWith(s"case class $baseName[") ||
@@ -625,23 +646,51 @@ object AstToIr:
               // type Props = Hoge (Named Tuple alias in same script)
               val typeName = "Props" + typeParams
               val fields   = parseNamedTupleFields(namedTupleDecl.get)
-              IrPropsType(typeName, typeParams, baseName, allHaveDefaults = false, trimmed,
-                          isNamedTuple = true, namedTupleFields = fields)
+              IrPropsType(
+                typeName,
+                typeParams,
+                baseName,
+                allHaveDefaults = false,
+                trimmed,
+                isNamedTuple     = true,
+                namedTupleFields = fields
+              )
             else if caseClassDecl.isDefined then
               // type Props = HomeProps (case class alias in same script) — OLD-compat
               val typeName        = rhsStr
               val allHaveDefaults = allPropsHaveDefaults(caseClassDecl.get)
-              IrPropsType(typeName, typeParams, baseName, allHaveDefaults, trimmed,
-                          isNamedTuple = false, namedTupleFields = Nil)
+              IrPropsType(
+                typeName,
+                typeParams,
+                baseName,
+                allHaveDefaults,
+                trimmed,
+                isNamedTuple     = false,
+                namedTupleFields = Nil
+              )
             else
               // type Props = ExternalType (external alias) — OLD-compat
-              IrPropsType(rhsStr, typeParams, baseName, allHaveDefaults = false, trimmed,
-                          isNamedTuple = false, namedTupleFields = Nil)
+              IrPropsType(
+                rhsStr,
+                typeParams,
+                baseName,
+                allHaveDefaults = false,
+                trimmed,
+                isNamedTuple     = false,
+                namedTupleFields = Nil
+              )
           else
             // type Props = Hoge[T] — type args on RHS; Named Tuple factory generation
             // is unsupported (T would be unresolved in the factory).  Treat as external alias.
-            IrPropsType(rhsStr, typeParams, baseName, allHaveDefaults = false, trimmed,
-                        isNamedTuple = false, namedTupleFields = Nil)
+            IrPropsType(
+              rhsStr,
+              typeParams,
+              baseName,
+              allHaveDefaults = false,
+              trimmed,
+              isNamedTuple     = false,
+              namedTupleFields = Nil
+            )
     }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

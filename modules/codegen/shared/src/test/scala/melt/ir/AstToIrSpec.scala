@@ -187,7 +187,7 @@ class AstToIrSpec extends munit.FunSuite:
                 |case class Props(label: String, count: Int)
                 |</script>
                 |<p>{props.label}</p>""".stripMargin
-    val ir  = lower(src)
+    val ir = lower(src)
     assertEquals(ir.propsType.map(_.typeName), Some("Props"))
     assertEquals(ir.propsType.map(_.isNamedTuple), Some(false))
   }
@@ -197,8 +197,8 @@ class AstToIrSpec extends munit.FunSuite:
                 |type Props = (label: String, count: Int)
                 |</script>
                 |<p>{props.label}</p>""".stripMargin
-    val ir  = lower(src)
-    val pt  = ir.propsType.getOrElse(fail("propsType expected"))
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
     assertEquals(pt.typeName, "Props")
     assertEquals(pt.baseName, "Props")
     assert(pt.isNamedTuple)
@@ -211,8 +211,8 @@ class AstToIrSpec extends munit.FunSuite:
                 |type Props[T] = (value: T, label: String)
                 |</script>
                 |<p>{props.label}</p>""".stripMargin
-    val ir  = lower(src)
-    val pt  = ir.propsType.getOrElse(fail("propsType expected"))
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
     assertEquals(pt.typeName, "Props[T]")
     assertEquals(pt.typeParams, "[T]")
     assert(pt.isNamedTuple)
@@ -225,8 +225,8 @@ class AstToIrSpec extends munit.FunSuite:
                 |type Props = Hoge
                 |</script>
                 |<p>{props.name}</p>""".stripMargin
-    val ir  = lower(src)
-    val pt  = ir.propsType.getOrElse(fail("propsType expected"))
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
     assertEquals(pt.typeName, "Props")
     assertEquals(pt.baseName, "Hoge")
     assert(pt.isNamedTuple)
@@ -239,13 +239,13 @@ class AstToIrSpec extends munit.FunSuite:
                 |type Props = HomeProps
                 |</script>
                 |<p>{props.user}</p>""".stripMargin
-    val ir  = lower(src)
-    val pt  = ir.propsType.getOrElse(fail("propsType expected"))
+    val ir = lower(src)
+    val pt = ir.propsType.getOrElse(fail("propsType expected"))
     assertEquals(pt.typeName, "HomeProps")
     assertEquals(pt.baseName, "HomeProps")
     assert(!pt.isNamedTuple)
     // "type Props = HomeProps" must be filtered out from typeDecls (emitter re-generates it)
-    assert(!ir.typeDecls.exists(_.trim.startsWith("type Props =")), s"typeDecls: ${ir.typeDecls}")
+    assert(!ir.typeDecls.exists(_.trim.startsWith("type Props =")), s"typeDecls: ${ ir.typeDecls }")
   }
 
   test("detectPropsType: no Props type in script yields None") {
@@ -259,10 +259,10 @@ class AstToIrSpec extends munit.FunSuite:
                 |case class Foo(x: Int)
                 |</script>
                 |<div/>""".stripMargin
-    val ir  = lower(src)
+    val ir = lower(src)
     // Both "type Props = HomeProps" and "case class Foo(x: Int)" must be in separate decls.
     // The Props alias is filtered from effectiveTypeDecls but Foo must remain.
-    assert(ir.typeDecls.exists(_.trim.startsWith("case class Foo")), s"typeDecls: ${ir.typeDecls}")
+    assert(ir.typeDecls.exists(_.trim.startsWith("case class Foo")), s"typeDecls: ${ ir.typeDecls }")
   }
 
   test("collectBalanced fix: case class Props with complex type params on one line") {

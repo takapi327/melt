@@ -44,8 +44,7 @@ object SsrEmitter:
 
     // ── Named Tuple Props: emit object Props factory ───────────────────────
     ir.propsType.foreach { pt =>
-      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then
-        emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
+      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
     }
 
     // ── Props alias when baseName != "Props" (non-Named-Tuple only) ───────
@@ -853,10 +852,10 @@ object SsrEmitter:
 
   private def renderParams(propsType: Option[IrPropsType], hasChildren: Boolean): String =
     val propsPart = propsType match
-      case Some(pt) if pt.typeParams.nonEmpty                       => s"props: ${ pt.typeName }"
-      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple       => s"props: ${ pt.typeName } = ${ pt.typeName }()"
-      case Some(pt)                                                  => s"props: ${ pt.typeName }"
-      case None                                                      => ""
+      case Some(pt) if pt.typeParams.nonEmpty                 => s"props: ${ pt.typeName }"
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple => s"props: ${ pt.typeName } = ${ pt.typeName }()"
+      case Some(pt)                                           => s"props: ${ pt.typeName }"
+      case None                                               => ""
     val childrenPart =
       if hasChildren then "children: () => RenderResult = () => RenderResult.empty"
       else ""

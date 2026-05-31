@@ -65,12 +65,12 @@ case class IrHoistedNode(id: String, node: IrNode.IrStaticElement)
 
 case class IrPropsType(
   typeName:         String,
-  typeParams:       String,              // e.g. "[A]" or ""
-  baseName:         String,              // e.g. "Props" or "Config"
-  allHaveDefaults:  Boolean,             // used for hydration fallback
-  scriptDecl:       String,              // the props declaration text
-  isNamedTuple:     Boolean             = false, // true when Props is a Named Tuple
-  namedTupleFields: List[(String, String)] = Nil  // (fieldName, typeStr) for factory generation
+  typeParams:       String, // e.g. "[A]" or ""
+  baseName:         String, // e.g. "Props" or "Config"
+  allHaveDefaults:  Boolean, // used for hydration fallback
+  scriptDecl:       String, // the props declaration text
+  isNamedTuple:     Boolean                = false, // true when Props is a Named Tuple
+  namedTupleFields: List[(String, String)] = Nil    // (fieldName, typeStr) for factory generation
 )
 
 case class IrStyle(

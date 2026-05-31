@@ -40,7 +40,8 @@ object SpaEmitter:
     tracker ++= "import org.scalajs.dom\n"
     tracker ++= "import melt.runtime.{ Bind, Cleanup, Mount, Ref, Style, State, Signal }\n"
     tracker ++= "import melt.runtime.*\n"
-    if ir.hydration && ir.propsType.exists(!_.isNamedTuple) then tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
+    if ir.hydration && ir.propsType.exists(!_.isNamedTuple) then
+      tracker ++= "import melt.runtime.json.{ PropsCodec, SimpleJson }\n"
     tracker ++= "import melt.runtime.transition.*\n"
     tracker ++= "import melt.runtime.animate.*\n\n"
 
@@ -70,8 +71,7 @@ object SpaEmitter:
 
     // ── Named Tuple Props: emit object Props factory ───────────────────────
     ir.propsType.foreach { pt =>
-      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then
-        emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
+      if pt.isNamedTuple && pt.namedTupleFields.nonEmpty then emitNamedTuplePropsFactory(pt, tracker, ir.objectName)
     }
 
     // ── Props alias when baseName != "Props" (non-Named-Tuple only) ───────
