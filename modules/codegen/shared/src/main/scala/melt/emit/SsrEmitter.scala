@@ -37,6 +37,12 @@ object SsrEmitter:
       tracker ++= s"""  private val _css =\n    "${ escapeStr(s.scopedCss) }"\n\n"""
     }
 
+    // ── module script (shared across all instances) ────────────────────────
+    if ir.moduleBody.nonEmpty then
+      tracker ++= "  // ── module script ──\n"
+      ir.moduleBody.linesIterator.foreach(line => tracker ++= s"  $line\n")
+      tracker += '\n'
+
     ir.typeDecls.foreach { decl =>
       decl.linesIterator.foreach(line => tracker ++= s"  $line\n")
       tracker += '\n'

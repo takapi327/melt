@@ -39,6 +39,7 @@ object AstToIr:
     // (double-stripping bug).
     val rawCode                    = ast.script.map(_.code.trim).getOrElse("")
     val (allTypeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    val moduleBody                 = ast.moduleScript.map(_.code.trim).getOrElse("")
     val propsType                  = detectPropsType(allTypeDecls, ast.script)
     // For a non-Named-Tuple alias (type Props = X), remove the "type Props ..." decl from
     // typeDecls because the emitter's baseName != "Props" block already re-generates it.
@@ -50,7 +51,8 @@ object AstToIr:
           t.startsWith("type Props =") || t.startsWith("type Props[")
         }
       case _ => allTypeDecls
-    val reactiveVars = ScalaTextUtils.extractReactiveVars(rawCode)
+    val reactiveVars = ScalaTextUtils.extractReactiveVars(rawCode) ++
+                       ScalaTextUtils.extractReactiveVars(moduleBody)
     val style        = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
     val posBuilder   = IrNodePositions.builder()
     val template     = ast.template.flatMap(
@@ -63,7 +65,9 @@ object AstToIr:
       scopeId           = scopeId,
       propsType         = propsType,
       scriptBody        = scriptBody,
-      fileImports       = ast.script.toList.flatMap(_.imports),
+      moduleBody        = moduleBody,
+      fileImports       = ast.moduleScript.toList.flatMap(_.imports) ++
+                          ast.script.toList.flatMap(_.imports),
       typeDecls         = effectiveTypeDecls,
       style             = style,
       template          = template,

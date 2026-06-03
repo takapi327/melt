@@ -63,6 +63,12 @@ object SpaEmitter:
     // ── hoisted static elements ───────────────────────────────────────────
     if ir.hoistedNodes.nonEmpty then emitHoistedNodes(ir.hoistedNodes, tracker)
 
+    // ── module script (shared across all instances) ────────────────────────
+    if ir.moduleBody.nonEmpty then
+      tracker ++= "  // ── module script ──\n"
+      ir.moduleBody.linesIterator.foreach(line => tracker ++= s"  $line\n")
+      tracker += '\n'
+
     // ── type declarations (Props case class etc.) ──────────────────────────
     ir.typeDecls.foreach { decl =>
       decl.linesIterator.foreach(line => tracker ++= s"  $line\n")

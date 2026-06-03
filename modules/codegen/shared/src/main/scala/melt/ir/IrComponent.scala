@@ -17,6 +17,7 @@ case class IrComponent(
   scopeId:           String,
   propsType:         Option[IrPropsType],
   scriptBody:        String, // Scala code (verbatim, not parsed)
+  moduleBody:        String        = "",  // <script lang="scala" module> content (emitted at object level)
   fileImports:       List[String], // import "path/to/style.css"
   typeDecls:         List[String], // top-level type declarations (SSR: hoisted out of apply())
   style:             Option[IrStyle],
