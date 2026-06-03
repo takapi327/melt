@@ -276,3 +276,62 @@ class AstToIrSpec extends munit.FunSuite:
     assertEquals(pt.typeParams, "[T <: Ordered[T]]")
     assertEquals(pt.typeName, "Props[T <: Ordered[T]]")
   }
+
+  // ── module script / moduleBody ─────────────────────────────────────────────
+
+  test("module script body is stored in IrComponent.moduleBody") {
+    val src =
+      """<script lang="scala" module>
+        |val total = State(0)
+        |def format(n: Int): String = s"#$n"
+        |</script>
+        |<p></p>""".stripMargin
+    val ir = lower(src)
+    assert(ir.moduleBody.contains("val total = State(0)"), ir.moduleBody)
+    assert(ir.moduleBody.contains("def format"), ir.moduleBody)
+  }
+
+  test("moduleBody is empty string when no module script is present") {
+    val ir = lower("<p>hello</p>")
+    assertEquals(ir.moduleBody, "")
+  }
+
+  test("module script State var is included in reactiveVars") {
+    val src =
+      """<script lang="scala" module>
+        |val count = State(0)
+        |</script>
+        |<p>{count}</p>""".stripMargin
+    val ir = lower(src)
+    assert(ir.reactiveVars.contains("count"), s"reactiveVars: ${ ir.reactiveVars }")
+  }
+
+  test("reactiveVars merges module and instance script vars") {
+    val src =
+      """<script lang="scala" module>
+        |val moduleCount = State(0)
+        |</script>
+        |<script lang="scala">
+        |val instanceCount = State(0)
+        |</script>
+        |<p></p>""".stripMargin
+    val ir = lower(src)
+    assert(ir.reactiveVars.contains("moduleCount"), s"reactiveVars: ${ ir.reactiveVars }")
+    assert(ir.reactiveVars.contains("instanceCount"), s"reactiveVars: ${ ir.reactiveVars }")
+  }
+
+  test("fileImports: module imports come before instance imports") {
+    val src =
+      """<script lang="scala" module>
+        |import "/module.css"
+        |val x = 1
+        |</script>
+        |<script lang="scala">
+        |import "/instance.css"
+        |val y = 2
+        |</script>
+        |<p></p>""".stripMargin
+    val ir = lower(src)
+    assertEquals(ir.fileImports, List("/module.css", "/instance.css"))
+  }
+
