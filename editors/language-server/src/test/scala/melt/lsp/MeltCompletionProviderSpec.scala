@@ -113,8 +113,8 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
   // ── ModuleScript section ──────────────────────────────────────────────────
 
   test("ModuleScript section returns same completions as Script section") {
-    val scriptItems  = MeltCompletionProvider.completionsFor(MeltSection.Script)
-    val moduleItems  = MeltCompletionProvider.completionsFor(MeltSection.ModuleScript)
+    val scriptItems = MeltCompletionProvider.completionsFor(MeltSection.Script)
+    val moduleItems = MeltCompletionProvider.completionsFor(MeltSection.ModuleScript)
     assertEquals(moduleItems.map(_.getLabel), scriptItems.map(_.getLabel))
   }
 
@@ -133,7 +133,9 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
 
   test("all snippet items use InsertTextFormat.Snippet") {
     import org.eclipse.lsp4j.InsertTextFormat
-    for section <- List(MeltSection.Script, MeltSection.ModuleScript, MeltSection.Template, MeltSection.Style, MeltSection.Unknown) do
+    for section <-
+        List(MeltSection.Script, MeltSection.ModuleScript, MeltSection.Template, MeltSection.Style, MeltSection.Unknown)
+    do
       val items = MeltCompletionProvider.completionsFor(section)
       for item <- items if item.getInsertText != null do
         assertEquals(

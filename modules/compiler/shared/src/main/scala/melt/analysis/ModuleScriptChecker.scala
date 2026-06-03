@@ -32,10 +32,12 @@ object ModuleScriptChecker:
   def check(moduleScript: ScriptSection): List[(String, Int)] =
     moduleScript.code.linesIterator.zipWithIndex.toList.flatMap { (line, idx) =>
       if PropsRef.findFirstIn(line).isDefined then
-        List((
-          "`props` is not available in <script module>; module script runs once and has no component instance",
-          idx + 1
-        ))
+        List(
+          (
+            "`props` is not available in <script module>; module script runs once and has no component instance",
+            idx + 1
+          )
+        )
       else Nil
     }
 
@@ -50,9 +52,11 @@ object ModuleScriptChecker:
     */
   def checkSsrState(moduleScript: ScriptSection): List[(String, Int)] =
     if StateOrVarRef.findFirstIn(moduleScript.code).isDefined then
-      List((
-        "<script module> contains State/Var which is shared across ALL SSR requests; " +
-          "use request-scoped state in <script> instead",
-        0
-      ))
+      List(
+        (
+          "<script module> contains State/Var which is shared across ALL SSR requests; " +
+            "use request-scoped state in <script> instead",
+          0
+        )
+      )
     else Nil

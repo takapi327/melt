@@ -27,7 +27,7 @@ private[parser] object SectionSplitter:
 
   case class Sections(
     rawScript:      Option[RawScript],
-    moduleScript:   Option[RawScript],        // <script lang="scala" module>
+    moduleScript:   Option[RawScript], // <script lang="scala" module>
     templateSource: String,
     style:          Option[(String, StyleLang)]
   )
@@ -114,8 +114,7 @@ private[parser] object SectionSplitter:
     // ── 1. Extract <script lang="scala" module> section ───────────────────
     // Check for duplicate module scripts first; at most one is allowed.
     val moduleMatches = ModuleScriptOpenTag.findAllMatchIn(source).toList
-    if moduleMatches.size > 1 then
-      return Left("At most one <script module> is allowed per component")
+    if moduleMatches.size > 1 then return Left("At most one <script module> is allowed per component")
 
     val (moduleRaw, afterModule) = moduleMatches.headOption match
       case None    => (None, source)

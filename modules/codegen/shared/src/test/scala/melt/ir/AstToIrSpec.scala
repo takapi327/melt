@@ -334,4 +334,3 @@ class AstToIrSpec extends munit.FunSuite:
     val ir = lower(src)
     assertEquals(ir.fileImports, List("/module.css", "/instance.css"))
   }
-

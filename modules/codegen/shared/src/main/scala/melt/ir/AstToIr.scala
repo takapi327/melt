@@ -52,22 +52,22 @@ object AstToIr:
         }
       case _ => allTypeDecls
     val reactiveVars = ScalaTextUtils.extractReactiveVars(rawCode) ++
-                       ScalaTextUtils.extractReactiveVars(moduleBody)
-    val style        = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
-    val posBuilder   = IrNodePositions.builder()
-    val template     = ast.template.flatMap(
+      ScalaTextUtils.extractReactiveVars(moduleBody)
+    val style      = ast.style.map(s => IrStyle(CssScoper.scope(s.content, scopeId), scopeId))
+    val posBuilder = IrNodePositions.builder()
+    val template   = ast.template.flatMap(
       lowerNode(_, scopeId, positions, templateSource, templateStartLine, posBuilder, reactiveVars)
     )
 
     IrComponent(
-      objectName        = objectName,
-      pkg               = pkg,
-      scopeId           = scopeId,
-      propsType         = propsType,
-      scriptBody        = scriptBody,
-      moduleBody        = moduleBody,
-      fileImports       = ast.moduleScript.toList.flatMap(_.imports) ++
-                          ast.script.toList.flatMap(_.imports),
+      objectName  = objectName,
+      pkg         = pkg,
+      scopeId     = scopeId,
+      propsType   = propsType,
+      scriptBody  = scriptBody,
+      moduleBody  = moduleBody,
+      fileImports = ast.moduleScript.toList.flatMap(_.imports) ++
+        ast.script.toList.flatMap(_.imports),
       typeDecls         = effectiveTypeDecls,
       style             = style,
       template          = template,

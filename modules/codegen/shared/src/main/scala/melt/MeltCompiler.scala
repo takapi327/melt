@@ -171,7 +171,8 @@ object MeltCompiler:
                     }
                   }
                 else Nil
-              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings ++ moduleWarnings
+              val allWarnings =
+                parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings ++ moduleWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */

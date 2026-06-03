@@ -209,7 +209,7 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     val vf    = VirtualFileGenerator.generate(source)
     val lines = vf.content.split("\n", -1).toVector
     assertEquals(lines(1), "  val total = State(0)")
-    assertEquals(lines(0), "")  // tag line is blank
+    assertEquals(lines(0), "") // tag line is blank
   }
 
   test("mapper.moduleScriptRange is set for module script body lines") {
