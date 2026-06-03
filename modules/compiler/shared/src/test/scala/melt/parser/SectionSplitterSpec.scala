@@ -865,3 +865,116 @@ val x = 1"""
     val sections = split(src).getOrElse(fail("unexpected error"))
     assertEquals(sections.rawScript.map(_.imports), Some(Nil))
   }
+
+  // ── <script module> section ───────────────────────────────────────────────
+
+  test("module script is extracted into moduleScript field") {
+    val src =
+      """<script lang="scala" module>
+        |  val total = 0
+        |</script>
+        |<p>{total}</p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.code), Some("val total = 0"))
+    assertEquals(sections.rawScript, None)
+    assert(sections.templateSource.contains("<p>{total}</p>"))
+  }
+
+  test("module script and instance script can coexist (module first)") {
+    val src =
+      """<script lang="scala" module>
+        |  val total = 0
+        |</script>
+        |<script lang="scala">
+        |  val count = 1
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.code), Some("val total = 0"))
+    assertEquals(sections.rawScript.map(_.code), Some("val count = 1"))
+  }
+
+  test("module script and instance script can coexist (instance first)") {
+    val src =
+      """<script lang="scala">
+        |  val count = 1
+        |</script>
+        |<script lang="scala" module>
+        |  val total = 0
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.code), Some("val total = 0"))
+    assertEquals(sections.rawScript.map(_.code), Some("val count = 1"))
+  }
+
+  test("module attribute order is irrelevant (module before lang)") {
+    val src =
+      """<script module lang="scala">
+        |  val x = 1
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.code), Some("val x = 1"))
+  }
+
+  test("module only, no instance script") {
+    val src =
+      """<script lang="scala" module>
+        |  val MaxItems = 100
+        |</script>
+        |<p>{MaxItems}</p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.code), Some("val MaxItems = 100"))
+    assertEquals(sections.rawScript, None)
+  }
+
+  test("two module scripts return Left error") {
+    val src =
+      """<script lang="scala" module>val a = 1</script>
+        |<script lang="scala" module>val b = 2</script>
+        |<p></p>""".stripMargin
+    val result = split(src)
+    assert(result.isLeft, s"expected Left but got $result")
+    assert(result.left.getOrElse("").contains("<script module>"))
+  }
+
+  test("moduleScript is None when only instance script is present") {
+    val src =
+      """<script lang="scala">val x = 1</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript, None)
+    assert(sections.rawScript.isDefined)
+  }
+
+  test("<script type=\"module\"> without lang=\"scala\" is not a module script") {
+    val src      = """<script type="module">import x from './lib.js'</script><span></span>"""
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript, None)
+    assertEquals(sections.rawScript, None)
+  }
+
+  test("data-module attribute does not trigger module script detection") {
+    val src =
+      """<script lang="scala" data-module="true">
+        |  val x = 1
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    // data-module="true" is not the boolean `module` attribute — treated as instance script
+    assertEquals(sections.moduleScript, None)
+    assert(sections.rawScript.isDefined)
+  }
+
+  test("string imports in module script are collected into moduleScript.imports") {
+    val src =
+      """<script lang="scala" module>
+        |import "/styles/global.css"
+        |val MaxItems = 100
+        |</script>
+        |<p></p>""".stripMargin
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.moduleScript.map(_.imports), Some(List("/styles/global.css")))
+    assertEquals(sections.moduleScript.map(_.code).map(_.trim), Some("val MaxItems = 100"))
+  }
