@@ -12,6 +12,7 @@ import melt.analysis.{
   BindingContextChecker,
   EffectDepsChecker,
   MalformedExpressionChecker,
+  ModuleScriptChecker,
   RawTextInterpolationChecker,
   SecurityChecker,
   TagNameChecker
@@ -106,7 +107,14 @@ object MeltCompiler:
             CompileError(msg, line, 0, filename)
         }
 
-        val allErrors = semanticErrors ++ securityErrors
+        val moduleErrors = result.ast.moduleScript.toList.flatMap { ms =>
+          ModuleScriptChecker.check(ms).map {
+            case (msg, localLine) =>
+              CompileError(msg, result.moduleBodyLine + localLine - 1, 0, filename)
+          }
+        }
+
+        val allErrors = semanticErrors ++ securityErrors ++ moduleErrors
         if allErrors.nonEmpty then CompileResult(None, None, allErrors, Nil)
         else
           // ── Preprocess CSS before code generation ─────────────────────────
@@ -155,7 +163,16 @@ object MeltCompiler:
                 filename,
                 scriptBodyLine = result.scriptBodyLine
               )
-              val allWarnings = parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings
+              val moduleWarnings =
+                if mode == CompileMode.SSR then
+                  result.ast.moduleScript.toList.flatMap { ms =>
+                    ModuleScriptChecker.checkSsrState(ms).map {
+                      case (msg, _) => CompileWarning(msg, 0, 0, filename)
+                    }
+                  }
+                else Nil
+              val allWarnings =
+                parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings ++ moduleWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */

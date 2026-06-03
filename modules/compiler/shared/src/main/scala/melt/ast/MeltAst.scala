@@ -8,12 +8,13 @@ package melt.ast
 
 /** A fully parsed `.melt` file. */
 case class MeltFile(
-  script:   Option[ScriptSection],
-  template: List[TemplateNode],
-  style:    Option[StyleSection]
+  script:       Option[ScriptSection],
+  template:     List[TemplateNode],
+  style:        Option[StyleSection],
+  moduleScript: Option[ScriptSection] = None // <script lang="scala" module> — shared across all instances
 )
 
-/** The `<script lang="scala">` section of a `.melt` file.
+/** The `<script lang="scala">` or `<script lang="scala" module>` section of a `.melt` file.
   *
   * @param code    the raw Scala source inside the script tags (string literal imports removed)
   * @param imports absolute paths from string literal imports (e.g. `List("/styles/global.css")`)

@@ -17,18 +17,19 @@ case class IrComponent(
   scopeId:           String,
   propsType:         Option[IrPropsType],
   scriptBody:        String, // Scala code (verbatim, not parsed)
+  moduleBody:        String              = "",  // <script lang="scala" module> content (emitted at object level)
   fileImports:       List[String], // import "path/to/style.css"
   typeDecls:         List[String], // top-level type declarations (SSR: hoisted out of apply())
   style:             Option[IrStyle],
   template:          List[IrNode],
-  hoistedNodes:      List[IrHoistedNode] = Nil,                   // populated by StaticHoistPass
+  hoistedNodes:      List[IrHoistedNode] = Nil, // populated by StaticHoistPass
   hydration:         Boolean,
   sourcePath:        String,
   sourceMap:         IrSourceMap,
-  scriptBodyLine:    Int                 = 1,                     // 1-based line of script body start (for source-map)
-  templateStartLine: Int                 = 1,                     // 1-based line of template start (for source-map)
-  nodePositions:     IrNodePositions     = IrNodePositions.empty, // per-node source positions built by AstToIr
-  reactiveVars:      Set[String]         = Set.empty              // State/Signal/memo vars from the script section
+  scriptBodyLine:    Int                 = 1,   // 1-based line of script body start (for source-map)
+  templateStartLine: Int                 = 1,   // 1-based line of template start (for source-map)
+  nodePositions: IrNodePositions = IrNodePositions.empty, // per-node source positions built by AstToIr
+  reactiveVars:  Set[String]     = Set.empty              // State/Signal/memo vars from the script section
 )
 
 /** Maps [[IrNode]] instances (by reference identity) to their source (line, col).

@@ -45,7 +45,8 @@ object MeltParser:
     scriptBodyLine:    Int           = 1,
     templateStartLine: Int           = 1,
     templateSource:    String        = "",
-    positions:         NodePositions = NodePositions.empty
+    positions:         NodePositions = NodePositions.empty,
+    moduleBodyLine:    Int           = 1
   )
 
   def parse(source: String): Either[String, MeltFile] =
@@ -69,10 +70,20 @@ object MeltParser:
           }
         }
 
+      val moduleImportWarningTuples: List[(String, Int)] =
+        sections.moduleScript.toList.flatMap { r =>
+          r.importWarnings.map { (msg, path) =>
+            val needle = s"""import "$path""""
+            val offset = source.indexOf(needle)
+            (msg, if offset >= 0 then offset else 0)
+          }
+        }
+
       val ast = MeltFile(
-        script   = sections.rawScript.map(r => ScriptSection(r.code, r.imports)),
-        template = nodes,
-        style    = sections.style.map((content, lang) => StyleSection(content, lang))
+        script       = sections.rawScript.map(r => ScriptSection(r.code, r.imports)),
+        template     = nodes,
+        style        = sections.style.map((content, lang) => StyleSection(content, lang)),
+        moduleScript = sections.moduleScript.map(r => ScriptSection(r.code, r.imports))
       )
 
       // ── Source-position bookmarks (used for source-map LINES metadata) ────
@@ -84,15 +95,20 @@ object MeltParser:
         case None     => 1
         case Some(rs) => SourcePosition.searchLine(source, rs.code.trim, default = 1)
 
+      val moduleBodyLine: Int = sections.moduleScript match
+        case None     => 1
+        case Some(ms) => SourcePosition.searchLine(source, ms.code.trim, default = 1)
+
       val templateStartLine: Int =
         SourcePosition.searchLine(source, sections.templateSource, default = 1)
 
       ParseResult(
         ast,
-        templateWarnings ++ importWarningTuples,
+        templateWarnings ++ importWarningTuples ++ moduleImportWarningTuples,
         scriptBodyLine,
         templateStartLine,
         sections.templateSource,
-        positions
+        positions,
+        moduleBodyLine = moduleBodyLine
       )
     }

@@ -197,3 +197,71 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     // Line 4 (template) is outside script
     assertEquals(vf.mapper.sectionAt(4), MeltSection.Template)
   }
+
+  // ── <script module> ───────────────────────────────────────────────────────
+
+  test("module script lines are preserved verbatim in the virtual file") {
+    val source =
+      """|<script lang="scala" module>
+         |  val total = State(0)
+         |</script>
+         |<p></p>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "  val total = State(0)")
+    assertEquals(lines(0), "") // tag line is blank
+  }
+
+  test("mapper.moduleScriptRange is set for module script body lines") {
+    val source =
+      """|<script lang="scala" module>
+         |  val total = State(0)
+         |</script>
+         |<p></p>""".stripMargin
+    val vf = VirtualFileGenerator.generate(source)
+    assertEquals(vf.mapper.moduleScriptRange, Some(LineRange(1, 1)))
+  }
+
+  test("sectionAt returns ModuleScript for module script body lines") {
+    val source =
+      """|<script lang="scala" module>
+         |  val total = State(0)
+         |  def format(n: Int) = n.toString
+         |</script>
+         |<p></p>""".stripMargin
+    val vf = VirtualFileGenerator.generate(source)
+    assertEquals(vf.mapper.sectionAt(1), MeltSection.ModuleScript)
+    assertEquals(vf.mapper.sectionAt(2), MeltSection.ModuleScript)
+    assertEquals(vf.mapper.sectionAt(4), MeltSection.Template)
+  }
+
+  test("module and instance script both have body lines in virtual file") {
+    val source =
+      """|<script lang="scala" module>
+         |  val total = State(0)
+         |</script>
+         |<script lang="scala">
+         |  val count = State(0)
+         |</script>
+         |<p></p>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    assertEquals(lines(1), "  val total = State(0)")
+    assertEquals(lines(4), "  val count = State(0)")
+    assertEquals(vf.mapper.sectionAt(1), MeltSection.ModuleScript)
+    assertEquals(vf.mapper.sectionAt(4), MeltSection.Script)
+  }
+
+  test("mapper.scriptRange still reflects instance script (not module)") {
+    val source =
+      """|<script lang="scala" module>
+         |  val total = State(0)
+         |</script>
+         |<script lang="scala">
+         |  val count = State(0)
+         |</script>
+         |<p></p>""".stripMargin
+    val vf = VirtualFileGenerator.generate(source)
+    assertEquals(vf.mapper.scriptRange, Some(LineRange(4, 4)))
+    assertEquals(vf.mapper.moduleScriptRange, Some(LineRange(1, 1)))
+  }

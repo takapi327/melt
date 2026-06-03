@@ -10,9 +10,10 @@ import scala.util.matching.Regex
 
 import melt.preprocessor.StyleLang
 
-/** Splits a `.melt` source file into its three raw sections.
+/** Splits a `.melt` source file into its four raw sections.
   *
-  * Only `<script lang="scala">` is treated as the Scala section.
+  * Only `<script lang="scala">` is treated as the Scala instance section.
+  * `<script lang="scala" module>` is treated as the module section.
   * Plain `<script>` tags (without `lang="scala"`) are left in the template
   * source as regular HTML, per §3 of the design document.
   */
@@ -26,13 +27,22 @@ private[parser] object SectionSplitter:
 
   case class Sections(
     rawScript:      Option[RawScript],
+    moduleScript:   Option[RawScript], // <script lang="scala" module>
     templateSource: String,
     style:          Option[(String, StyleLang)]
   )
 
-  /** Matches `<script` tags that contain `lang="scala"` or `lang='scala'`. */
-  private val ScriptOpenTag: Regex =
-    """(?s)<script(?:\s[^>]*\blang\s*=\s*["']scala["'][^>]*)>""".r
+  /** Matches `<script lang="scala" module>` — the module script tag.
+    * Uses lookaheads so attribute order (`lang` before/after `module`) does not matter.
+    * The `module` attribute must be preceded by whitespace and followed by whitespace, `>`, or `/`
+    * to avoid matching `data-module="true"` or similar attribute values.
+    */
+  private val ModuleScriptOpenTag: Regex =
+    """(?s)<script(?=\s)(?=[^>]*\blang\s*=\s*["']scala["'])(?=[^>]*\smodule(?=\s|>|/))[^>]*>""".r
+
+  /** Matches instance `<script lang="scala">` — must NOT have the `module` attribute. */
+  private val InstanceScriptOpenTag: Regex =
+    """(?s)<script(?=\s)(?=[^>]*\blang\s*=\s*["']scala["'])(?![^>]*\smodule(?=\s|>|/))[^>]*>""".r
 
   /** Matches `import "..."` — string literal import (always a file import, never valid Scala). */
   private val StringImportPattern: Regex =
@@ -101,19 +111,33 @@ private[parser] object SectionSplitter:
     (filtered, imports, warnings)
 
   def split(source: String): Either[String, Sections] =
-    // ── 1. Extract <script lang="scala"> section ──────────────────────────
-    val (rawScript, afterScript) = ScriptOpenTag.findFirstMatchIn(source) match
+    // ── 1. Extract <script lang="scala" module> section ───────────────────
+    // Check for duplicate module scripts first; at most one is allowed.
+    val moduleMatches = ModuleScriptOpenTag.findAllMatchIn(source).toList
+    if moduleMatches.size > 1 then return Left("At most one <script module> is allowed per component")
+
+    val (moduleRaw, afterModule) = moduleMatches.headOption match
       case None    => (None, source)
       case Some(m) =>
-        val bodyStart = m.end
-        val bodyEnd   = source.indexOf(CloseScript, bodyStart)
-        if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
-        val rawCode   = source.substring(bodyStart, bodyEnd).trim
+        val bodyEnd = source.indexOf(CloseScript, m.end)
+        if bodyEnd < 0 then return Left("""Unclosed <script lang="scala" module> tag""")
+        val rawCode   = source.substring(m.end, bodyEnd).trim
         val remaining = source.substring(0, m.start) + source.substring(bodyEnd + CloseScript.length)
         val (filteredCode, imports, warnings) = extractImports(rawCode)
         (Some(RawScript(filteredCode, imports, warnings)), remaining)
 
-    // ── 2. Extract <style> section ────────────────────────────────────────
+    // ── 2. Extract <script lang="scala"> (instance) section ───────────────
+    val (rawScript, afterScript) = InstanceScriptOpenTag.findFirstMatchIn(afterModule) match
+      case None    => (None, afterModule)
+      case Some(m) =>
+        val bodyEnd = afterModule.indexOf(CloseScript, m.end)
+        if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
+        val rawCode   = afterModule.substring(m.end, bodyEnd).trim
+        val remaining = afterModule.substring(0, m.start) + afterModule.substring(bodyEnd + CloseScript.length)
+        val (filteredCode, imports, warnings) = extractImports(rawCode)
+        (Some(RawScript(filteredCode, imports, warnings)), remaining)
+
+    // ── 3. Extract <style> section ────────────────────────────────────────
     // Only plain `<style>` (no attributes) and `<style lang="...">` are
     // extracted. Tags with other attributes (e.g. `<style scoped>`) are
     // left in the template source unchanged, matching the original behaviour.
@@ -141,4 +165,4 @@ private[parser] object SectionSplitter:
             afterScript.substring(cssEnd + StyleClose.length)
           (Some((rawContent, lang)), remaining)
 
-    Right(Sections(rawScript, templateRaw.trim, styleOpt))
+    Right(Sections(rawScript, moduleRaw, templateRaw.trim, styleOpt))

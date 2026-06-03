@@ -66,6 +66,53 @@ class PositionMapperSpec extends munit.FunSuite:
     assert(!m.isScriptLine(5))
   }
 
+  // ── moduleScriptRange ─────────────────────────────────────────────────────
+
+  test("sectionAt returns ModuleScript for lines inside moduleScriptRange") {
+    val m = PositionMapper(
+      scriptRange       = Some(LineRange(3, 5)),
+      styleRange        = None,
+      moduleScriptRange = Some(LineRange(1, 2))
+    )
+    assertEquals(m.sectionAt(1), MeltSection.ModuleScript)
+    assertEquals(m.sectionAt(2), MeltSection.ModuleScript)
+    assertEquals(m.sectionAt(3), MeltSection.Script)
+  }
+
+  test("moduleScriptRange takes priority over Script check in sectionAt") {
+    // If module and instance overlap (shouldn't happen, but defensive)
+    val m = PositionMapper(
+      scriptRange       = Some(LineRange(1, 3)),
+      styleRange        = None,
+      moduleScriptRange = Some(LineRange(1, 3))
+    )
+    assertEquals(m.sectionAt(2), MeltSection.ModuleScript)
+  }
+
+  test("isScriptLine returns true for module script lines") {
+    val m = PositionMapper(
+      scriptRange       = Some(LineRange(5, 7)),
+      styleRange        = None,
+      moduleScriptRange = Some(LineRange(1, 3))
+    )
+    assert(m.isScriptLine(1))
+    assert(m.isScriptLine(2))
+    assert(m.isScriptLine(3))
+    assert(!m.isScriptLine(4))
+    assert(m.isScriptLine(5)) // instance script also true
+    assert(!m.isScriptLine(8))
+  }
+
+  test("sectionAt returns Template for lines between module and instance scripts") {
+    val m = PositionMapper(
+      scriptRange       = Some(LineRange(5, 7)),
+      styleRange        = None,
+      moduleScriptRange = Some(LineRange(1, 2))
+    )
+    assertEquals(m.sectionAt(3), MeltSection.Template)
+    assertEquals(m.sectionAt(4), MeltSection.Template)
+  }
+
   // ── position identity mapping ─────────────────────────────────────────────
 
   test("virtualToMelt is the identity function") {

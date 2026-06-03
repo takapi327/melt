@@ -110,11 +110,32 @@ class MeltCompletionProviderSpec extends munit.FunSuite:
     assert(text.contains("<style>"), "should contain style tag")
   }
 
+  // ── ModuleScript section ──────────────────────────────────────────────────
+
+  test("ModuleScript section returns same completions as Script section") {
+    val scriptItems = MeltCompletionProvider.completionsFor(MeltSection.Script)
+    val moduleItems = MeltCompletionProvider.completionsFor(MeltSection.ModuleScript)
+    assertEquals(moduleItems.map(_.getLabel), scriptItems.map(_.getLabel))
+  }
+
+  test("module-script-block snippet is available in Unknown section") {
+    val items = MeltCompletionProvider.completionsFor(MeltSection.Unknown)
+    assert(items.exists(_.getLabel == "module-script-block"), s"labels: ${ items.map(_.getLabel) }")
+  }
+
+  test("module-script-block snippet insert text contains lang=\"scala\" module") {
+    val items = MeltCompletionProvider.completionsFor(MeltSection.Unknown)
+    val item  = items.find(_.getLabel == "module-script-block").get
+    assert(item.getInsertText.contains("lang=\"scala\" module"), item.getInsertText)
+  }
+
   // ── Snippet format ─────────────────────────────────────────────────────────
 
   test("all snippet items use InsertTextFormat.Snippet") {
     import org.eclipse.lsp4j.InsertTextFormat
-    for section <- List(MeltSection.Script, MeltSection.Template, MeltSection.Style, MeltSection.Unknown) do
+    for section <-
+        List(MeltSection.Script, MeltSection.ModuleScript, MeltSection.Template, MeltSection.Style, MeltSection.Unknown)
+    do
       val items = MeltCompletionProvider.completionsFor(section)
       for item <- items if item.getInsertText != null do
         assertEquals(

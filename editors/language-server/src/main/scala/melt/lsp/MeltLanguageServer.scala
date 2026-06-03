@@ -176,10 +176,11 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val vf      = VirtualFileGenerator.generate(content)
     val line    = params.getPosition.getLine
     val message = vf.mapper.sectionAt(line) match
-      case MeltSection.Script   => "**Scala script** — type-checked by Metals"
-      case MeltSection.Style    => "**CSS style** — scoped to this component"
-      case MeltSection.Template => "**HTML template** — compiled to reactive DOM bindings"
-      case MeltSection.Unknown  => "**Melt component**"
+      case MeltSection.Script       => "**Scala script** — type-checked by Metals"
+      case MeltSection.ModuleScript => "**Scala module script** — shared across all instances, type-checked by Metals"
+      case MeltSection.Style        => "**CSS style** — scoped to this component"
+      case MeltSection.Template     => "**HTML template** — compiled to reactive DOM bindings"
+      case MeltSection.Unknown      => "**Melt component**"
     val markup = MarkupContent(MarkupKind.MARKDOWN, message)
     CompletableFuture.completedFuture(Hover(markup))
 
@@ -206,7 +207,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     // script section, return only file-path completions and skip Melt/Metals items.
     val lineText = content.split("\n", -1).lift(line).getOrElse("")
     val importPathItems: List[CompletionItem] =
-      if section == MeltSection.Script then
+      if section == MeltSection.Script || section == MeltSection.ModuleScript then
         ImportPathCompletionProvider
           .detectImportPrefix(lineText, char)
           .map(prefix => ImportPathCompletionProvider.completionsFor(prefix, fileIndex))
@@ -217,7 +218,8 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     else
       val meltItems   = MeltCompletionProvider.completionsFor(section)
       val metalsItems =
-        if section == MeltSection.Script then metals.completionsForScript(uri, vf, line, char)
+        if section == MeltSection.Script || section == MeltSection.ModuleScript then
+          metals.completionsForScript(uri, vf, line, char)
         else Nil
 
       CompletableFuture.completedFuture(JEither.forLeft((metalsItems ++ meltItems).asJava))
@@ -240,7 +242,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     val section = vf.mapper.sectionAt(line)
 
     val locations: List[Location] = section match
-      case MeltSection.Script =>
+      case MeltSection.Script | MeltSection.ModuleScript =>
         metals.definitionForScript(uri, vf, line, char)
       case MeltSection.Template =>
         ScriptDefinitionFinder.find(content, uri, line, char, vf)
