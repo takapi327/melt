@@ -23,10 +23,10 @@ object MeltCompletionProvider:
 
   def completionsFor(section: MeltSection): List[CompletionItem] =
     section match
-      case MeltSection.Script   => scriptCompletions
-      case MeltSection.Template => templateCompletions
-      case MeltSection.Style    => styleCompletions
-      case MeltSection.Unknown  => meltStructureCompletions
+      case MeltSection.Script | MeltSection.ModuleScript => scriptCompletions
+      case MeltSection.Template                          => templateCompletions
+      case MeltSection.Style                             => styleCompletions
+      case MeltSection.Unknown                           => meltStructureCompletions
 
   // ── Script section ────────────────────────────────────────────────────────
 
@@ -261,6 +261,12 @@ object MeltCompletionProvider:
       "script-block",
       "<script lang=\"scala\">\n$0\n</script>",
       "Scala script block",
+      CompletionItemKind.Snippet
+    ),
+    snippet(
+      "module-script-block",
+      "<script lang=\"scala\" module>\n$0\n</script>",
+      "Module script block — shared across all instances (runs once at object init)",
       CompletionItemKind.Snippet
     ),
     snippet(

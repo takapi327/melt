@@ -48,24 +48,29 @@ case class VirtualFile(content: String, mapper: PositionMapper)
 object VirtualFileGenerator:
 
   private val ScalaLangRe    = """lang\s*=\s*["']scala["']""".r
+  private val ModuleAttrRe   = """\smodule(?=\s|>|/)""".r
   private val StringImportRe = """^\s*import\s+"[^"]+"\s*$""".r
 
   /** Generates a [[VirtualFile]] from a raw .melt source string. */
   def generate(meltSource: String): VirtualFile =
     val lines = meltSource.split("\n", -1).toVector
 
-    val scriptBounds = findSection(lines, isScriptOpen, "</script>")
-    val styleBounds  = findSection(lines, isStyleOpen, "</style>")
+    val moduleScriptBounds   = findSection(lines, isModuleScriptOpen, "</script>")
+    val instanceScriptBounds = findSection(lines, isInstanceScriptOpen, "</script>")
+    val styleBounds          = findSection(lines, isStyleOpen, "</style>")
 
     val virtualLines = lines.zipWithIndex.map { (line, idx) =>
-      val inScriptBody = scriptBounds.exists {
-        case (open, close) =>
-          idx > open && idx < close
-      }
+      val inScriptBody =
+        moduleScriptBounds.exists { case (open, close) => idx > open && idx < close } ||
+          instanceScriptBounds.exists { case (open, close) => idx > open && idx < close }
       if inScriptBody && !StringImportRe.matches(line) then line else ""
     }
 
-    val scriptRange = scriptBounds
+    val moduleScriptRange = moduleScriptBounds
+      .map { case (open, close) => LineRange(open + 1, close - 1) }
+      .filter(r => r.startLine <= r.endLine)
+
+    val scriptRange = instanceScriptBounds
       .map { case (open, close) => LineRange(open + 1, close - 1) }
       .filter(r => r.startLine <= r.endLine)
 
@@ -75,11 +80,17 @@ object VirtualFileGenerator:
 
     VirtualFile(
       content = virtualLines.mkString("\n"),
-      mapper  = PositionMapper(scriptRange, styleRange)
+      mapper  = PositionMapper(scriptRange, styleRange, moduleScriptRange)
     )
 
   private def isScriptOpen(line: String): Boolean =
     line.trim.startsWith("<script") && ScalaLangRe.findFirstIn(line).isDefined
+
+  private def isModuleScriptOpen(line: String): Boolean =
+    isScriptOpen(line) && ModuleAttrRe.findFirstIn(line).isDefined
+
+  private def isInstanceScriptOpen(line: String): Boolean =
+    isScriptOpen(line) && ModuleAttrRe.findFirstIn(line).isEmpty
 
   private def isStyleOpen(line: String): Boolean =
     line.trim.startsWith("<style")
