@@ -211,8 +211,9 @@ object SpaEmitter:
           v
 
       // ── Hoisted element reference ─────────────────────────────────────────
-      case IrNode.IrHoistRef(id) =>
+      case IrNode.IrHoistRef(id, tag) =>
         val v = ctr.nextEl()
+        buf ++= s"""${ indent }if Hydrating.isActive then Hydrating.element("$tag")\n"""
         buf ++= s"${ indent }val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
         v
 

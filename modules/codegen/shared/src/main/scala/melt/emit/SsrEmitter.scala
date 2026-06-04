@@ -216,7 +216,7 @@ object SsrEmitter:
       case IrNode.IrRenderCall(expr) =>
         buf ++= s"${ pad }renderer.push(${ expr.code })\n"
 
-      case IrNode.IrHoistRef(id) =>
+      case IrNode.IrHoistRef(id, _) =>
         hoistedMap.get(id) match
           case Some(elem) =>
             emitElementSSR(
@@ -726,7 +726,7 @@ object SsrEmitter:
         case InlineKind.SingleString => sb ++= s"_sb ++= ($expr); "
       sb ++= """_sb ++= "<!--]melt:dyn-->"; """
 
-    case IrNode.IrHoistRef(id) =>
+    case IrNode.IrHoistRef(id, _) =>
       hoistedMap.get(id) match
         case Some(elem) => appendIrElementToSb(elem.tag, elem.attrs, elem.children, sb, scopeId, hoistedMap)
         case None       => ()
@@ -779,20 +779,20 @@ object SsrEmitter:
         val lit = escapeStr(s" $name")
         stmts += s"""_sb ++= "$lit""""
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\""""
+        stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"""""
       case IrAttr.DynamicAttr(name, expr) =>
-        if isUrlAttr(tag, name) then stmts += s"""_sb ++= s" $name=\\"" + Escape.url(${ expr.code }) + "\\""""
-        else stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\""""
+        if isUrlAttr(tag, name) then stmts += s"""_sb ++= s" $name=\\"" + Escape.url(${ expr.code }) + "\\"""""
+        else stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"""""
       case IrAttr.BindInputValue(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + Escape.attr(${ expr.code }) + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + Escape.attr(${ expr.code }) + "\\"""""
       case IrAttr.BindInputValueInt(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\"""""
       case IrAttr.BindInputValueDouble(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\""""
+        stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\"""""
       case IrAttr.BindChecked(expr) =>
-        stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${ expr.code }) + "\\""""
+        stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${ expr.code }) + "\\"""""
       case IrAttr.StyleProp(prop, expr) =>
-        stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\""""
+        stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\"""""
       case _ => ()
     }
 

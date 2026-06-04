@@ -36,7 +36,7 @@ object StaticHoistPass extends IrPass:
         val id = s"_hoist_$counter"
         counter += 1
         hoisted += IrHoistedNode(id, e)
-        IrNode.IrHoistRef(id) // replace in-place with a reference
+        IrNode.IrHoistRef(id, e.tag) // replace in-place with a reference
       case IrNode.IrInlineTemplate(_) =>
         node // do not recurse into bridge nodes
       case other =>

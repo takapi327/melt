@@ -201,7 +201,7 @@ enum IrNode:
     * [[melt.emit.SsrEmitter]] re-emits the hoisted element inline (cloning has no benefit
     * in SSR since each render is independent).
     */
-  case IrHoistRef(id: String)
+  case IrHoistRef(id: String, tag: String)
 
   // ── InlineTemplate (bridge) ───────────────────────────────────────────────
 
