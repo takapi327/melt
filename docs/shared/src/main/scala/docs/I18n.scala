@@ -8,7 +8,7 @@ package docs
 
 object I18n:
 
-  case class Nav(guide: String, api: String, examples: String, changelog: String)
+  case class Nav(guide: String, api: String, examples: String, changelog: String, playground: String)
 
   case class SidebarSections(intro: String, basics: String, advanced: String, server: String)
 
@@ -45,10 +45,11 @@ object I18n:
 
   val en: Dict = Dict(
     nav = Nav(
-      guide     = "Guide",
-      api       = "API Reference",
-      examples  = "Examples",
-      changelog = "Changelog"
+      guide      = "Guide",
+      api        = "API Reference",
+      examples   = "Examples",
+      changelog  = "Changelog",
+      playground = "Playground"
     ),
     sidebarSections = SidebarSections(
       intro    = "Getting Started",
@@ -139,10 +140,11 @@ object I18n:
 
   val ja: Dict = Dict(
     nav = Nav(
-      guide     = "ガイド",
-      api       = "API リファレンス",
-      examples  = "サンプル",
-      changelog = "変更履歴"
+      guide      = "ガイド",
+      api        = "API リファレンス",
+      examples   = "サンプル",
+      changelog  = "変更履歴",
+      playground = "プレイグラウンド"
     ),
     sidebarSections = SidebarSections(
       intro    = "はじめに",

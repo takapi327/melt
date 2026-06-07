@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
 
-import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
+import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home, PlaygroundPage }
 import meltkit.*
 import meltkit.ssg.*
 
@@ -135,6 +135,18 @@ private def createApp(): MeltKit[Future] =
     Future.successful(
       ctx.render(
         ChangelogPage(ChangelogPage.Props(basePath = basePath, lang = l))
+      )
+    )
+  }
+
+  app.get(
+    lang / "playground",
+    On.copy(entries = langs.map(l => s"/$l/playground"))
+  ) { ctx =>
+    val l = ctx.params.lang
+    Future.successful(
+      ctx.render(
+        PlaygroundPage(PlaygroundPage.Props(basePath = basePath, lang = l))
       )
     )
   }

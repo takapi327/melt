@@ -1,0 +1,309 @@
+<script lang="scala">
+import docs.{ CodeSamples, I18n }
+import docs.components.Layout
+import melt.{ CompileMode, MeltCompiler }
+
+case class Props(basePath: String = "", lang: String = "en")
+
+val t       = I18n(props.lang)
+val source  = State(CodeSamples.counterMelt)
+val modeStr = State("spa")
+
+val result = source.flatMap(s =>
+  modeStr.map { m =>
+    val mode = if m == "spa" then CompileMode.SPA else CompileMode.SSR
+    MeltCompiler.compile(s, "Playground.melt", "Playground", "", mode)
+  }
+)
+
+val outputText = result.map { r =>
+  if r.errors.nonEmpty then
+    r.errors.map(e => s"// Error (line ${e.line}): ${e.message}").mkString("\n\n")
+  else
+    r.scalaCode.getOrElse("// (no output)")
+}
+
+val hasError    = result.map(_.errors.nonEmpty)
+val errorLabel  = hasError.map(b => if b then "Error" else "")
+val warnings    = result.map(_.warnings)
+val hasWarnings = warnings.map(_.nonEmpty)
+
+val isSpa = modeStr.map(_ == "spa")
+val isSsr = modeStr.map(_ == "ssr")
+</script>
+
+<Layout basePath={props.basePath} lang={props.lang} section="playground" slug="">
+<div class="playground">
+
+  <div class="playground-header">
+    <h1 class="playground-title">{t.nav.playground}</h1>
+    <div class="sample-picker">
+      {CodeSamples.samples.map((s: CodeSamples.Sample) =>
+        <button class="sample-btn" onclick={_ => source.set(s.code)}>{s.label}</button>
+      )}
+    </div>
+    <div class="mode-tabs">
+      <button class:active={isSpa} onclick={_ => modeStr.set("spa")}>SPA</button>
+      <button class:active={isSsr} onclick={_ => modeStr.set("ssr")}>SSR</button>
+    </div>
+  </div>
+
+  <div class="playground-split">
+    <div class="panel editor-panel">
+      <div class="panel-label">
+        <span class="panel-label-dot"></span>Input (.melt)
+      </div>
+      <textarea
+        class="editor"
+        bind:value={source}
+        spellcheck="false"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+      ></textarea>
+    </div>
+
+    <div class="panel output-panel">
+      <div class="panel-label">
+        <span class="panel-label-dot output-dot"></span>Generated Scala
+        <span class:error-badge={hasError}>{errorLabel}</span>
+      </div>
+      <pre class:has-error={hasError}><code>{outputText}</code></pre>
+    </div>
+  </div>
+
+  <div class="warnings-bar" class:visible={hasWarnings}>
+    {warnings.value.map((w: melt.CompileWarning) =>
+      <div class="warning-item">⚠ line {w.line.toString}: {w.message}</div>
+    )}
+  </div>
+
+</div>
+</Layout>
+
+<style>
+.playground {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  margin: -56px -56px -120px;
+  min-height: calc(100vh - var(--nav-h));
+}
+
+.playground-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elev);
+  flex-wrap: wrap;
+}
+
+.playground-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.sample-picker {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.sample-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-mute);
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .12s;
+  letter-spacing: 0.02em;
+}
+.sample-btn:hover {
+  border-color: var(--wine);
+  color: var(--wine-text);
+}
+
+.mode-tabs {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  flex: 0 0 auto;
+}
+.mode-tabs button {
+  background: transparent;
+  border: none;
+  color: var(--fg-mute);
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  transition: all .12s;
+}
+.mode-tabs button.active {
+  background: var(--wine);
+  color: #fff;
+}
+.mode-tabs button:not(.active):hover { color: var(--fg); }
+
+.playground-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 540px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+}
+.panel:last-child { border-right: none; }
+
+.panel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elev);
+  flex: 0 0 auto;
+}
+
+.panel-label-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wine-text);
+  opacity: 0.7;
+}
+.output-dot { background: #5a9e5a; }
+
+.error-badge {
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #e05050;
+  background: rgba(224, 80, 80, 0.15);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.editor {
+  flex: 1;
+  width: 100%;
+  background: var(--bg-code);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 20px;
+  border: none;
+  outline: none;
+  resize: none;
+  tab-size: 2;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow: auto;
+}
+
+.output-panel pre {
+  flex: 1;
+  margin: 0;
+  padding: 20px;
+  background: var(--bg-code);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow: auto;
+  white-space: pre;
+}
+.output-panel pre.has-error {
+  color: #e05050;
+}
+.output-panel code {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.warnings-bar {
+  display: none;
+}
+.warnings-bar.visible {
+  display: block;
+  background: rgba(180, 140, 0, 0.12);
+  border-top: 1px solid rgba(180, 140, 0, 0.3);
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #b89030;
+}
+
+.warning-item {
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .playground-split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    min-height: 0;
+  }
+  .panel {
+    min-height: 280px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel:last-child { border-bottom: none; }
+}
+
+@media (max-width: 800px) {
+  .playground {
+    margin: -40px -24px -80px;
+  }
+}
+
+@media (max-width: 560px) {
+  .playground-header {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .playground-title { font-size: 15px; }
+  .sample-picker {
+    order: 3;
+    flex: 0 0 100%;
+  }
+  .editor,
+  .output-panel pre {
+    font-size: 12px;
+    padding: 14px 16px;
+  }
+}
+</style>

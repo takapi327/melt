@@ -4,8 +4,9 @@ import docs.I18n
 
 case class Props(basePath: String = "", lang: String = "en", section: String = "", slug: String = "")
 
-val base = props.basePath + "/" + props.lang
-val t    = I18n(props.lang)
+val base     = props.basePath + "/" + props.lang
+val t        = I18n(props.lang)
+val menuOpen = State(false)
 </script>
 
 <header class="topnav">
@@ -27,6 +28,7 @@ val t    = I18n(props.lang)
     <a href={base + "/guide/introduction"} class:active={props.section == "guide"}>{t.nav.guide}</a>
     <a href={base + "/api/template-syntax"} class:active={props.section == "api"}>{t.nav.api}</a>
     <a href={base + "/examples"} class:active={props.section == "examples"}>{t.nav.examples}</a>
+    <a href={base + "/playground"} class:active={props.section == "playground"}>{t.nav.playground}</a>
     <a href={base + "/changelog"} class:active={props.section == "changelog"}>{t.nav.changelog}</a>
   </nav>
   <div class="topnav-actions">
@@ -39,11 +41,28 @@ val t    = I18n(props.lang)
         <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17a10.9 10.9 0 0 1 5.74 0c2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z"/>
       </svg>
     </a>
+    <button class="mobile-menu-btn" onclick={_ => menuOpen.update(!_)} aria-label="Toggle menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <line x1="2" y1="4.5" x2="16" y2="4.5"></line>
+        <line x1="2" y1="9" x2="16" y2="9"></line>
+        <line x1="2" y1="13.5" x2="16" y2="13.5"></line>
+      </svg>
+    </button>
   </div>
 </header>
 
+<div class="sidebar-overlay" class:open={menuOpen} onclick={_ => menuOpen.set(false)} role="presentation" tabindex="-1"></div>
+
 <div class="layout">
-  <Sidebar basePath={props.basePath} lang={props.lang} section={props.section} slug={props.slug}/>
+  <div class="sidebar-wrapper" class:open={menuOpen}>
+    <button class="sidebar-close-btn" onclick={_ => menuOpen.set(false)} aria-label="Close menu">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <line x1="2" y1="2" x2="14" y2="14"></line>
+        <line x1="14" y1="2" x2="2" y2="14"></line>
+      </svg>
+    </button>
+    <Sidebar basePath={props.basePath} lang={props.lang} section={props.section} slug={props.slug}/>
+  </div>
   <main class="content">{children}</main>
 </div>
 
@@ -175,6 +194,21 @@ val t    = I18n(props.lang)
 }
 .icon-btn:hover { color: var(--fg); border-color: var(--fg-dim); }
 
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg-mute);
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.mobile-menu-btn:hover { color: var(--fg); border-color: var(--fg-dim); }
+
 /* ============ Layout ============ */
 .layout {
   display: grid;
@@ -182,6 +216,18 @@ val t    = I18n(props.lang)
   gap: 0;
   max-width: 1400px;
   align-items: flex-start;
+}
+
+.sidebar-wrapper {
+  display: contents;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+.sidebar-close-btn {
+  display: none;
 }
 
 /* ============ Footer ============ */
@@ -203,6 +249,75 @@ val t    = I18n(props.lang)
 /* ============ Responsive ============ */
 @media (max-width: 800px) {
   .layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .topnav { padding: 0 16px; gap: 16px; }
+  .topnav-links { gap: 14px; }
+  .topnav-links a { font-size: 14px; }
+  .mobile-menu-btn { display: inline-flex; }
+
+  .sidebar-wrapper {
+    display: block;
+    position: fixed;
+    top: var(--nav-h);
+    left: 0;
+    width: var(--sidebar-w);
+    height: calc(100vh - var(--nav-h));
+    background: var(--bg);
+    border-right: 1px solid var(--line);
+    z-index: 45;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+  }
+  .sidebar-wrapper.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px; height: 28px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--fg-mute);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .sidebar-close-btn:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    top: var(--nav-h);
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 44;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .sidebar-overlay.open {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-version { display: none; }
+  .topnav-links {
+    gap: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .topnav-links::-webkit-scrollbar { display: none; }
+  .topnav-links a { font-size: 13px; white-space: nowrap; }
+  .topnav-actions { flex-shrink: 0; }
 }
 </style>

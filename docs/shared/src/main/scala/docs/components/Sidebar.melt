@@ -41,9 +41,13 @@ val exampleItems  = List("counter", "todo-app")
 
   <div class="sidebar-section">
     <h4>{ss.server}</h4>
-    {serverItems.map((item: String) =>
-      <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>{t.guideLinks(item)}</a>
-    )}
+    {
+      serverItems.map((item: String) => {
+        <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>
+          {t.guideLinks(item)}
+        </a>
+      })
+    }
   </div>
 
   <div class="sidebar-section">
@@ -110,5 +114,14 @@ val exampleItems  = List("counter", "todo-app")
   background: var(--bg-elev);
   border-left-color: var(--wine);
   font-weight: 500;
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    padding-top: 52px;
+  }
 }
 </style>
