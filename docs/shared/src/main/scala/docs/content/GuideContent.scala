@@ -243,8 +243,7 @@ object GuideContent:
 
     <h2>2 · Configure build.sbt</h2>
 
-    <p>Enable the plugin on your Scala.js module. <code>MeltPlugin</code> automatically
-    adds <code>melt-runtime</code> to your dependencies — no manual entry needed:</p>
+    <p>Enable the plugin on your Scala.js module:</p>
 
     <div class="code-block">
       <div class="code-block-header">
@@ -256,7 +255,6 @@ lazy val client = project
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
   .settings(
     scalaVersion := "3.3.7"
-    // melt-runtime is added automatically by MeltPlugin
   )</code></pre>
     </div>
 

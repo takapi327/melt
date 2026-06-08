@@ -176,8 +176,7 @@ object GuideContentJa:
 
     <h2>2 · build.sbt を設定する</h2>
 
-    <p>Scala.js モジュールでプラグインを有効化します。<code>MeltPlugin</code> が
-    <code>melt-runtime</code> を自動的に依存関係に追加するため、手動での設定は不要です。</p>
+    <p>Scala.js モジュールでプラグインを有効化します。</p>
 
     <div class="code-block">
       <div class="code-block-header">
@@ -189,7 +188,6 @@ lazy val client = project
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
   .settings(
     scalaVersion := "3.3.7"
-    // melt-runtime は MeltPlugin が自動追加
   )</code></pre>
     </div>
 
