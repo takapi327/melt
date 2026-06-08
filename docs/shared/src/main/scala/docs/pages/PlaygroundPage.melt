@@ -85,34 +85,35 @@ val isSsr = modeStr.map(_ == "ssr")
 .playground {
   display: flex;
   flex-direction: column;
-  gap: 0;
   padding: 0;
-  margin: -56px -56px -120px;
+  margin: -52px -60px -120px;
   min-height: calc(100vh - var(--nav-h));
 }
 
 .playground-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 24px;
+  gap: 12px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-elev);
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .playground-title {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--fg);
   margin: 0;
   flex: 0 0 auto;
+  letter-spacing: -0.01em;
 }
 
 .sample-picker {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   flex-wrap: wrap;
 }
@@ -121,23 +122,24 @@ val isSsr = modeStr.map(_ == "ssr")
   font-family: var(--font-mono);
   font-size: 11px;
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--fg-mute);
-  padding: 4px 10px;
-  border-radius: 3px;
+  border: 1px solid var(--line-2);
+  color: var(--fg-3);
+  padding: 3px 9px;
+  border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all .12s;
+  transition: all 0.12s;
   letter-spacing: 0.02em;
 }
 .sample-btn:hover {
-  border-color: var(--wine);
-  color: var(--wine-text);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-bg);
 }
 
 .mode-tabs {
   display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -147,19 +149,19 @@ val isSsr = modeStr.map(_ == "ssr")
 .mode-tabs button {
   background: transparent;
   border: none;
-  color: var(--fg-mute);
-  padding: 5px 12px;
+  color: var(--fg-3);
+  padding: 4px 12px;
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
   letter-spacing: inherit;
-  transition: all .12s;
+  transition: all 0.12s;
 }
 .mode-tabs button.active {
-  background: var(--wine);
+  background: var(--accent);
   color: #fff;
 }
-.mode-tabs button:not(.active):hover { color: var(--fg); }
+.mode-tabs button:not(.active):hover { color: var(--fg); background: var(--bg-card); }
 
 .playground-split {
   display: grid;
@@ -181,36 +183,37 @@ val isSsr = modeStr.map(_ == "ssr")
 .panel-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--fg-dim);
-  padding: 10px 16px;
+  color: var(--fg-3);
+  padding: 8px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-elev);
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .panel-label-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--wine-text);
-  opacity: 0.7;
+  background: var(--accent-text);
+  opacity: 0.6;
 }
-.output-dot { background: #5a9e5a; }
+.output-dot { background: #4a9e60; }
 
 .error-badge {
   margin-left: auto;
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: #e05050;
-  background: rgba(224, 80, 80, 0.15);
-  padding: 2px 6px;
-  border-radius: 2px;
+  background: rgba(224, 80, 80, 0.12);
+  border: 1px solid rgba(224, 80, 80, 0.25);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
 }
 
 .editor {
@@ -220,8 +223,8 @@ val isSsr = modeStr.map(_ == "ssr")
   color: var(--fg);
   font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.6;
-  padding: 20px;
+  line-height: 1.65;
+  padding: 20px 24px;
   border: none;
   outline: none;
   resize: none;
@@ -229,46 +232,39 @@ val isSsr = modeStr.map(_ == "ssr")
   white-space: pre;
   overflow-wrap: normal;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+  caret-color: var(--accent-text);
 }
 
 .output-panel pre {
   flex: 1;
   margin: 0;
-  padding: 20px;
+  padding: 20px 24px;
   background: var(--bg-code);
   color: var(--fg);
   font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
   overflow: auto;
   white-space: pre;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
 }
-.output-panel pre.has-error {
-  color: #e05050;
-}
-.output-panel code {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-}
+.output-panel pre.has-error { color: #e05050; }
+.output-panel code { font-family: inherit; font-size: inherit; color: inherit; }
 
-.warnings-bar {
-  display: none;
-}
+.warnings-bar { display: none; }
 .warnings-bar.visible {
   display: block;
-  background: rgba(180, 140, 0, 0.12);
-  border-top: 1px solid rgba(180, 140, 0, 0.3);
-  padding: 8px 16px;
+  background: rgba(160, 120, 0, 0.1);
+  border-top: 1px solid rgba(160, 120, 0, 0.25);
+  padding: 8px 20px;
   font-family: var(--font-mono);
-  font-size: 12px;
-  color: #b89030;
+  font-size: 11.5px;
+  color: #b08828;
 }
-
-.warning-item {
-  padding: 2px 0;
-  line-height: 1.5;
-}
+.warning-item { padding: 2px 0; line-height: 1.5; }
 
 @media (max-width: 860px) {
   .playground-split {
@@ -276,34 +272,18 @@ val isSsr = modeStr.map(_ == "ssr")
     grid-template-rows: 1fr 1fr;
     min-height: 0;
   }
-  .panel {
-    min-height: 280px;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
+  .panel { min-height: 280px; border-right: none; border-bottom: 1px solid var(--line); }
   .panel:last-child { border-bottom: none; }
 }
 
 @media (max-width: 800px) {
-  .playground {
-    margin: -40px -24px -80px;
-  }
+  .playground { margin: -36px -24px -80px; }
 }
 
 @media (max-width: 560px) {
-  .playground-header {
-    padding: 10px 14px;
-    gap: 8px;
-  }
-  .playground-title { font-size: 15px; }
-  .sample-picker {
-    order: 3;
-    flex: 0 0 100%;
-  }
-  .editor,
-  .output-panel pre {
-    font-size: 12px;
-    padding: 14px 16px;
-  }
+  .playground-header { padding: 8px 14px; gap: 8px; }
+  .playground-title { font-size: 14px; }
+  .sample-picker { order: 3; flex: 0 0 100%; }
+  .editor, .output-panel pre { font-size: 12px; padding: 14px 16px; }
 }
 </style>

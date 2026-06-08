@@ -1,27 +1,185 @@
 <script lang="scala">
 import docs.components.Layout
+import docs.CodeSamples
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+
+val base = props.basePath + "/" + props.lang
+
+val pageTitle = props.slug match
+  case "counter"      => "Counter"
+  case "todo-app"     => "Todo App"
+  case "transitions"  => "Transitions"
+  case "trusted-html" => "Trusted HTML"
+  case "ssr"          => "SSR + Hydration"
+  case "routing"      => "MeltKit Routing"
+  case other          => other.replace("-", " ").split(" ").map(_.capitalize).mkString(" ")
+
+val code = props.slug match
+  case "counter"  => CodeSamples.counterMelt
+  case "todo-app" => CodeSamples.todoMelt
+  case _          => CodeSamples.helloMelt
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="examples" slug={props.slug}>
-<article class="page">
-  <h1 class="page-title">{props.slug}</h1>
-  <p class="page-placeholder">Example coming soon.</p>
+<article class="example-page">
+
+  <div class="doc-page-header">
+    <div class="doc-breadcrumb">
+      <a href={base + "/examples"}>Examples</a>
+      <span class="breadcrumb-sep">›</span>
+      {pageTitle}
+    </div>
+    <h1 class="doc-title">{pageTitle}</h1>
+  </div>
+
+  <div class="example-layout">
+    <div class="example-code-panel">
+      <div class="code-bar">
+        <span class="code-dots">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="code-filename">{props.slug}.melt</span>
+      </div>
+      <pre class="example-code"><code>{code}</code></pre>
+    </div>
+
+    <div class="example-result-panel">
+      <div class="result-label">Live preview</div>
+      <div class="result-placeholder">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+        <span>Interactive preview available in the <a href={base + "/playground"}>Playground</a></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="example-nav">
+    <a href={base + "/examples"} class="example-nav-back">← All Examples</a>
+  </div>
+
 </article>
 </Layout>
 
 <style>
-.page {
-  padding: 0;
+.example-page { padding: 0; }
+
+.doc-page-header {
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
 }
-.page-title {
-  font-size: 2rem;
+.doc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-4);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-breadcrumb a { color: var(--fg-3); }
+.doc-breadcrumb a:hover { color: var(--accent-text); }
+.breadcrumb-sep { color: var(--fg-4); }
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 1rem;
-  text-transform: capitalize;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--fg);
 }
-.page-placeholder {
-  color: #718096;
+
+/* ── Layout ──────────────────────────────────────────────────── */
+.example-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+.example-code-panel { background: var(--bg-code); }
+.code-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--line);
+}
+.code-dots { display: flex; gap: 5px; }
+.code-dots span {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+.code-dots span:nth-child(1) { background: #ff5f57; }
+.code-dots span:nth-child(2) { background: #ffbd2e; }
+.code-dots span:nth-child(3) { background: #28c840; }
+.code-filename {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.example-code {
+  margin: 0;
+  padding: 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--fg);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.example-result-panel {
+  background: var(--bg-elev);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.result-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-4);
+}
+.result-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+  color: var(--fg-3);
+  font-size: 13px;
+  text-align: center;
+}
+.result-placeholder svg { color: var(--fg-4); }
+.result-placeholder a { color: var(--accent-text); }
+
+/* ── Nav ──────────────────────────────────────────────────────── */
+.example-nav { margin-top: 8px; }
+.example-nav-back {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-3);
+  transition: color 0.15s;
+}
+.example-nav-back:hover { color: var(--accent-text); }
+
+@media (max-width: 860px) {
+  .example-layout { grid-template-columns: 1fr; }
 }
 </style>

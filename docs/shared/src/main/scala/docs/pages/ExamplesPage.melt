@@ -2,25 +2,331 @@
 import docs.components.Layout
 
 case class Props(basePath: String = "", lang: String = "en")
+
+val base = props.basePath + "/" + props.lang
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="examples">
-<article class="page">
-  <h1 class="page-title">Examples</h1>
-  <p class="page-placeholder">Examples coming soon.</p>
+<article class="examples-page">
+
+  <div class="doc-page-header">
+    <div class="doc-breadcrumb">Examples</div>
+    <h1 class="doc-title">Examples</h1>
+    <p class="doc-lead">Explore real-world Melt components and patterns. Each example shows the full source code alongside the live result.</p>
+  </div>
+
+  <div class="example-grid">
+
+    <a class="example-card" href={base + "/examples/counter"}>
+      <div class="example-card-preview">
+        <div class="example-counter-demo">
+          <span class="example-num">0</span>
+          <div class="example-btns">
+            <span class="example-btn">−</span>
+            <span class="example-btn">+</span>
+          </div>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>Counter</h3>
+        <p>Basic reactive state with <code>State[Int]</code>, derived values, and event handlers.</p>
+        <div class="example-tags">
+          <span class="example-tag">State</span>
+          <span class="example-tag">Events</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="example-card" href={base + "/examples/todo-app"}>
+      <div class="example-card-preview">
+        <div class="example-todo-demo">
+          <div class="example-todo-item">✓ Learn Melt</div>
+          <div class="example-todo-item example-todo-pending">Build something</div>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>Todo App</h3>
+        <p>List rendering with <code>.map()</code>, two-way <code>bind:value</code>, and state updates.</p>
+        <div class="example-tags">
+          <span class="example-tag">Lists</span>
+          <span class="example-tag">bind:value</span>
+          <span class="example-tag">State</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="example-card" href={base + "/examples/transitions"}>
+      <div class="example-card-preview">
+        <div class="example-transition-demo">
+          <div class="example-fade-box">Fade in/out</div>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>Transitions</h3>
+        <p>Animate elements entering and leaving the DOM with built-in transition directives.</p>
+        <div class="example-tags">
+          <span class="example-tag">Transitions</span>
+          <span class="example-tag">Animate</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="example-card" href={base + "/examples/trusted-html"}>
+      <div class="example-card-preview">
+        <div class="example-html-demo">
+          <span class="example-html-badge">HTML</span>
+          <span>Safe injection</span>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>Trusted HTML</h3>
+        <p>Render server-controlled HTML safely with <code>TrustedHtml</code> and <code>bind:html</code>.</p>
+        <div class="example-tags">
+          <span class="example-tag">TrustedHtml</span>
+          <span class="example-tag">bind:html</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="example-card" href={base + "/examples/ssr"}>
+      <div class="example-card-preview">
+        <div class="example-ssr-demo">
+          <span class="example-ssr-label">Server</span>
+          <span class="example-ssr-arrow">→</span>
+          <span class="example-ssr-label">Client</span>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>SSR + Hydration</h3>
+        <p>Server-render with the JVM and hydrate on the client with full reactivity.</p>
+        <div class="example-tags">
+          <span class="example-tag">SSR</span>
+          <span class="example-tag">Hydration</span>
+          <span class="example-tag">http4s</span>
+        </div>
+      </div>
+    </a>
+
+    <a class="example-card" href={base + "/examples/routing"}>
+      <div class="example-card-preview">
+        <div class="example-routing-demo">
+          <code class="example-route">/en/guide/:slug</code>
+        </div>
+      </div>
+      <div class="example-card-body">
+        <h3>MeltKit Routing</h3>
+        <p>Type-safe URL routing with named path parameters using the <code>/</code> DSL.</p>
+        <div class="example-tags">
+          <span class="example-tag">MeltKit</span>
+          <span class="example-tag">Routing</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
 </article>
 </Layout>
 
 <style>
-.page {
-  padding: 0;
+.examples-page { padding: 0; }
+
+.doc-page-header {
+  padding-bottom: 28px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid var(--line);
 }
-.page-title {
-  font-size: 2rem;
+.doc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-4);
+  margin-bottom: 12px;
+}
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--fg);
+  margin-bottom: 10px;
 }
-.page-placeholder {
-  color: #718096;
+.doc-lead {
+  font-size: 16px;
+  color: var(--fg-2);
+  line-height: 1.65;
+}
+
+/* ── Example grid ──────────────────────────────────────────────── */
+.example-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.example-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.example-card:hover {
+  border-color: var(--accent-line);
+  background: var(--bg-elev);
+}
+
+.example-card-preview {
+  height: 120px;
+  background: var(--bg-code);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.example-card-body {
+  padding: 18px 20px;
+}
+.example-card-body h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+.example-card-body p {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+
+/* Mini previews */
+.example-counter-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.example-num {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.example-btns { display: flex; gap: 6px; }
+.example-btn {
+  width: 28px; height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--fg-3);
+}
+
+.example-todo-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 20px;
+}
+.example-todo-item {
+  font-size: 13px;
+  color: var(--fg-2);
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.example-todo-pending { color: var(--fg-3); }
+
+.example-transition-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.example-fade-box {
+  font-size: 13px;
+  color: var(--accent-text);
+  padding: 8px 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  background: var(--accent-bg);
+}
+
+.example-html-demo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.example-html-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-sm);
+  color: var(--accent-text);
+  letter-spacing: 0.06em;
+}
+
+.example-ssr-demo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.example-ssr-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  padding: 4px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+}
+.example-ssr-arrow {
+  color: var(--accent-text);
+  font-size: 14px;
+}
+
+.example-routing-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.example-route {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-text);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+}
+
+/* ── Tags ──────────────────────────────────────────────────────── */
+.example-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.example-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-4);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 640px) {
+  .example-grid { grid-template-columns: 1fr; }
 }
 </style>

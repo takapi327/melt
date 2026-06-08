@@ -1,27 +1,35 @@
 <script lang="scala">
 import docs.components.Layout
+import docs.content.ApiContent
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+
+val content    = ApiContent.get(props.slug, props.basePath, props.lang)
+val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>
-<article class="page">
-  <h1 class="page-title">{props.slug}</h1>
-  <p class="page-placeholder">API reference coming soon.</p>
+<article class="doc-page">
+  <div class="doc-page-header">
+    <div class="doc-breadcrumb">{breadcrumb}</div>
+  </div>
+  {TrustedHtml.unsafe(content.value)}
 </article>
 </Layout>
 
 <style>
-.page {
-  padding: 0;
+.doc-page { padding: 0; }
+
+.doc-page-header {
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  text-transform: capitalize;
-}
-.page-placeholder {
-  color: #718096;
+.doc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-4);
+  margin-bottom: 24px;
 }
 </style>
