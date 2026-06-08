@@ -306,7 +306,9 @@ object SpaEmitter:
         parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
         sourceOpt match
           case Some(src) => buf ++= s"${ indent }Bind.htmlAnchor(${ src.code }, _ => { ${ expr.code } }, $anchor)\n"
-          case None      => buf ++= s"${ indent }Bind.htmlAnchor(${ expr.code }, $anchor)\n"
+          // SSR inlines TrustedHtml content directly with no anchor marker, so during
+          // hydration the content is already in the DOM — skip re-insertion.
+          case None      => buf ++= s"${ indent }if !Hydrating.isActive then Bind.htmlAnchor(${ expr.code }, $anchor)\n"
         ""
 
       // ── DOM-returning expressions ─────────────────────────────────────────
