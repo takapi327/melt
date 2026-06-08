@@ -238,12 +238,13 @@ object GuideContent:
       <div class="code-block-header">
         <span class="code-block-dot"></span>project/plugins.sbt
       </div>
-      <pre><code>addSbtPlugin("io.github.takapi327" % "sbt-meltc" % "0.1.0-SNAPSHOT")</code></pre>
+      <pre><code>addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0-SNAPSHOT")</code></pre>
     </div>
 
     <h2>2 · Configure build.sbt</h2>
 
-    <p>Enable the plugin and add the Melt runtime dependency to your Scala.js module:</p>
+    <p>Enable the plugin on your Scala.js module. <code>MeltPlugin</code> automatically
+    adds <code>melt-runtime</code> to your dependencies — no manual entry needed:</p>
 
     <div class="code-block">
       <div class="code-block-header">
@@ -252,10 +253,10 @@ object GuideContent:
       <pre><code>// Scala.js frontend module
 lazy val client = project
   .in(file("client"))
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
   .settings(
-    scalaVersion := "3.3.7",
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % "0.1.0-SNAPSHOT"
+    scalaVersion := "3.3.7"
+    // melt-runtime is added automatically by MeltPlugin
   )</code></pre>
     </div>
 
@@ -1263,7 +1264,7 @@ val link = TrustedUrl.unsafe("https://example.com")
     <div class="callout callout-info">
       <div class="callout-title">SCSS requires Dart Sass</div>
       <p>The <code>melt-compiler-sass</code> module wraps Dart Sass. Add it to
-      your JVM classpath and set <code>meltcPreprocessor := "scss"</code> in
+      your JVM classpath and set <code>meltStylePreprocessor := Some(SassPreprocessor)</code> in
       your sbt config.</p>
     </div>
   """
