@@ -171,12 +171,13 @@ object GuideContentJa:
       <div class="code-block-header">
         <span class="code-block-dot"></span>project/plugins.sbt
       </div>
-      <pre><code>addSbtPlugin("io.github.takapi327" % "sbt-meltc" % "0.1.0-SNAPSHOT")</code></pre>
+      <pre><code>addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0-SNAPSHOT")</code></pre>
     </div>
 
     <h2>2 · build.sbt を設定する</h2>
 
-    <p>プラグインを有効化し、Scala.js モジュールに Melt ランタイムの依存関係を追加します。</p>
+    <p>Scala.js モジュールでプラグインを有効化します。<code>MeltPlugin</code> が
+    <code>melt-runtime</code> を自動的に依存関係に追加するため、手動での設定は不要です。</p>
 
     <div class="code-block">
       <div class="code-block-header">
@@ -185,10 +186,10 @@ object GuideContentJa:
       <pre><code>// Scala.js フロントエンドモジュール
 lazy val client = project
   .in(file("client"))
-  .enablePlugins(ScalaJSPlugin, MeltcPlugin)
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
   .settings(
-    scalaVersion := "3.3.7",
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % "0.1.0-SNAPSHOT"
+    scalaVersion := "3.3.7"
+    // melt-runtime は MeltPlugin が自動追加
   )</code></pre>
     </div>
 
@@ -1347,7 +1348,7 @@ val link = TrustedUrl.unsafe("https://example.com")
     <div class="callout callout-info">
       <div class="callout-title">SCSS には Dart Sass が必要です</div>
       <p><code>melt-compiler-sass</code> モジュールが Dart Sass をラップしています。
-      JVM のクラスパスに追加し、sbt の設定に <code>meltcPreprocessor := "scss"</code> を
+      JVM のクラスパスに追加し、sbt の設定に <code>meltStylePreprocessor := Some(SassPreprocessor)</code> を
       追記してください。</p>
     </div>
 
