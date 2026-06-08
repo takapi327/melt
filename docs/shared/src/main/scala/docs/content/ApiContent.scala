@@ -11,7 +11,12 @@ import melt.runtime.TrustedHtml
 object ApiContent:
 
   private val order = List(
-    "template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin"
+    "template-syntax",
+    "runtime",
+    "meltkit",
+    "meltkit-ssg",
+    "compiler",
+    "sbt-plugin"
   )
 
   private val titles = Map(
@@ -48,24 +53,25 @@ object ApiContent:
 
   private def nav(prev: Option[String], next: Option[String], base: String, lang: String = "en"): String =
     val (prevLabel, nextLabel) = if lang == "ja" then ("← 前のページ", "次のページ →") else ("← Previous", "Next →")
-    val prevHtml = prev.map(p =>
-      s"""<a href="$base/api/$p" class="doc-nav-item doc-nav-prev">
+    val prevHtml               = prev
+      .map(p => s"""<a href="$base/api/$p" class="doc-nav-item doc-nav-prev">
          |  <span class="doc-nav-dir">$prevLabel</span>
-         |  <span class="doc-nav-label">${titleForLang(p, lang)}</span>
-         |</a>""".stripMargin
-    ).getOrElse("")
-    val nextHtml = next.map(n =>
-      s"""<a href="$base/api/$n" class="doc-nav-item doc-nav-next">
+         |  <span class="doc-nav-label">${ titleForLang(p, lang) }</span>
+         |</a>""".stripMargin)
+      .getOrElse("")
+    val nextHtml = next
+      .map(n => s"""<a href="$base/api/$n" class="doc-nav-item doc-nav-next">
          |  <span class="doc-nav-dir">$nextLabel</span>
-         |  <span class="doc-nav-label">${titleForLang(n, lang)}</span>
-         |</a>""".stripMargin
-    ).getOrElse("")
+         |  <span class="doc-nav-label">${ titleForLang(n, lang) }</span>
+         |</a>""".stripMargin)
+      .getOrElse("")
     if prevHtml.isEmpty && nextHtml.isEmpty then ""
     else s"""<nav class="doc-nav">$prevHtml$nextHtml</nav>"""
 
   private def content(slug: String, base: String): String = slug match
 
-    case "template-syntax" => """
+    case "template-syntax" =>
+      """
 <h1 class="doc-title">Template Syntax</h1>
 <p class="doc-lead">Melt templates are HTML-first with Scala expressions embedded via <code>{}</code> interpolation. This reference covers every construct the compiler understands.</p>
 
@@ -168,7 +174,8 @@ else
 </table>
 """
 
-    case "runtime" => """
+    case "runtime" =>
+      """
 <h1 class="doc-title">Runtime API</h1>
 <p class="doc-lead">The Melt runtime provides reactive primitives, lifecycle hooks, and HTML escaping utilities. All shared APIs work on both Scala.js (browser) and JVM (SSR).</p>
 
@@ -281,7 +288,8 @@ val data = State[Option[String]](None)
 // Await automatically uses MeltEffect[Future]</code></pre>
 """
 
-    case "meltkit" => """
+    case "meltkit" =>
+      """
 <h1 class="doc-title">MeltKit</h1>
 <p class="doc-lead">MeltKit is Melt's server framework — a type-safe routing DSL and request/response model that works on both Node.js and the JVM via http4s. It handles SSR, API routes, and static file serving.</p>
 
@@ -403,7 +411,8 @@ ctx.locals.set(UserKey, currentUser)
 val user = ctx.locals.get(UserKey) // Option[User]</code></pre>
 """
 
-    case "meltkit-ssg" => """
+    case "meltkit-ssg" =>
+      """
 <h1 class="doc-title">Static Site Generation</h1>
 <p class="doc-lead">Melt can generate static HTML files at build time using the same MeltKit routing setup you use for SSR. This makes it easy to deploy documentation sites, blogs, and landing pages to any static host.</p>
 
@@ -480,7 +489,8 @@ sbt meltkitSsgGenerate
 cp -r target/ssg/* docs/</code></pre>
 """
 
-    case "compiler" => """
+    case "compiler" =>
+      """
 <h1 class="doc-title">Compiler API</h1>
 <p class="doc-lead">The Melt compiler transforms <code>.melt</code> source files into Scala code. This page documents the public API surface for integrating the compiler into custom tools, build systems, or language servers.</p>
 
@@ -570,7 +580,8 @@ println(result.code)</code></pre>
 // BooleanAttr, Spread, Shorthand</code></pre>
 """
 
-    case "sbt-plugin" => """
+    case "sbt-plugin" =>
+      """
 <h1 class="doc-title">sbt Plugin</h1>
 <p class="doc-lead">The <code>sbt-melt</code> plugin watches for <code>.melt</code> files in your project and compiles them to Scala sources automatically on every build. The <code>sbt-meltkit</code> plugin extends this with MeltKit server integration.</p>
 
@@ -645,4 +656,4 @@ meltStylePreprocessor := Some(SassPreprocessor)</code></pre>
 <p>The plugin only recompiles <code>.melt</code> files that have changed since the last build. Generated <code>.scala</code> files are tracked as managed sources and fed into the normal Scala compilation pipeline automatically.</p>
 """
 
-    case _ => s"""<h1 class="doc-title">${titles.getOrElse(slug, slug)}</h1><p>Documentation coming soon.</p>"""
+    case _ => s"""<h1 class="doc-title">${ titles.getOrElse(slug, slug) }</h1><p>Documentation coming soon.</p>"""

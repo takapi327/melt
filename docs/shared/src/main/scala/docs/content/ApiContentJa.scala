@@ -10,7 +10,8 @@ object ApiContentJa:
 
   def content(slug: String, base: String): String = slug match
 
-    case "template-syntax" => """
+    case "template-syntax" =>
+      """
 <h1 class="doc-title">テンプレート構文</h1>
 <p class="doc-lead">Melt のテンプレートは HTML ファーストで、Scala 式を <code>{}</code> で埋め込みます。このページでは、コンパイラが理解するすべての構文を解説します。</p>
 
@@ -103,7 +104,8 @@ else
 </table>
 """
 
-    case "runtime" => """
+    case "runtime" =>
+      """
 <h1 class="doc-title">Runtime API</h1>
 <p class="doc-lead">Melt のランタイムはリアクティブプリミティブ、ライフサイクルフック、HTML エスケープユーティリティを提供します。共有 API はすべて Scala.js (ブラウザ) と JVM (SSR) で動作します。</p>
 
@@ -203,7 +205,8 @@ Batch {
 </table>
 """
 
-    case "meltkit" => """
+    case "meltkit" =>
+      """
 <h1 class="doc-title">MeltKit</h1>
 <p class="doc-lead">MeltKit は Melt のサーバーフレームワークです。型安全なルーティング DSL とリクエスト/レスポンスモデルを提供し、Node.js と JVM (http4s 経由) の両方で動作します。SSR、API ルート、静的ファイル配信を処理します。</p>
 
@@ -310,7 +313,8 @@ ctx.locals.set(UserKey, currentUser)
 val user = ctx.locals.get(UserKey) // Option[User]</code></pre>
 """
 
-    case "meltkit-ssg" => """
+    case "meltkit-ssg" =>
+      """
 <h1 class="doc-title">静的サイト生成</h1>
 <p class="doc-lead">Melt は SSR に使用するのと同じ MeltKit ルーティングセットアップを使って、ビルド時に静的 HTML ファイルを生成できます。ドキュメントサイト、ブログ、ランディングページを任意の静的ホストにデプロイするのに最適です。</p>
 
@@ -380,7 +384,8 @@ sbt meltkitSsgGenerate
 cp -r target/ssg/* docs/</code></pre>
 """
 
-    case "compiler" => """
+    case "compiler" =>
+      """
 <h1 class="doc-title">コンパイラ API</h1>
 <p class="doc-lead">Melt コンパイラは <code>.melt</code> ソースファイルを Scala コードに変換します。このページでは、カスタムツール、ビルドシステム、言語サーバーへのコンパイラ統合のためのパブリック API を説明します。</p>
 
@@ -469,7 +474,8 @@ println(result.code)</code></pre>
 // BooleanAttr, Spread, Shorthand</code></pre>
 """
 
-    case "sbt-plugin" => """
+    case "sbt-plugin" =>
+      """
 <h1 class="doc-title">sbt プラグイン</h1>
 <p class="doc-lead"><code>sbt-melt</code> プラグインはプロジェクト内の <code>.melt</code> ファイルを監視し、ビルドのたびに自動的に Scala ソースにコンパイルします。<code>sbt-meltkit</code> プラグインはこれを MeltKit サーバー統合で拡張します。</p>
 
@@ -536,4 +542,4 @@ meltCompilerClasspath := (codegenJVM / Compile / fullClasspath).value.files</cod
 <p>プラグインは最後のビルド以降に変更された <code>.melt</code> ファイルのみ再コンパイルします。生成された <code>.scala</code> ファイルは管理ソースとして追跡され、通常の Scala コンパイルパイプラインに自動的に組み込まれます。</p>
 """
 
-    case _ => s"""<h1 class="doc-title">${ApiContent.titleForLang(slug, "ja")}</h1><p>このページのドキュメントは準備中です。</p>"""
+    case _ => s"""<h1 class="doc-title">${ ApiContent.titleForLang(slug, "ja") }</h1><p>このページのドキュメントは準備中です。</p>"""

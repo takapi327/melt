@@ -11,10 +11,26 @@ import melt.runtime.TrustedHtml
 object GuideContent:
 
   private val order = List(
-    "introduction", "installation", "quick-start",
-    "components", "template-syntax", "reactivity", "computed", "effects", "events", "lifecycle",
-    "control-flow", "special-elements", "transitions", "trusted-html", "css", "testing",
-    "routing", "ssr", "ssg", "adapters"
+    "introduction",
+    "installation",
+    "quick-start",
+    "components",
+    "template-syntax",
+    "reactivity",
+    "computed",
+    "effects",
+    "events",
+    "lifecycle",
+    "control-flow",
+    "special-elements",
+    "transitions",
+    "trusted-html",
+    "css",
+    "testing",
+    "routing",
+    "ssr",
+    "ssg",
+    "adapters"
   )
 
   private val titles = Map(
@@ -70,28 +86,28 @@ object GuideContent:
     else titles.getOrElse(slug, slug)
 
   def get(slug: String, basePath: String, lang: String): TrustedHtml =
-    val base  = s"$basePath/$lang"
-    val idx   = order.indexOf(slug)
-    val prev  = if idx > 0 then Some(order(idx - 1)) else None
-    val next  = if idx >= 0 && idx < order.length - 1 then Some(order(idx + 1)) else None
-    val html  = (if lang == "ja" then GuideContentJa.content(slug, base) else content(slug, base)) +
-                nav(prev, next, base, lang)
+    val base = s"$basePath/$lang"
+    val idx  = order.indexOf(slug)
+    val prev = if idx > 0 then Some(order(idx - 1)) else None
+    val next = if idx >= 0 && idx < order.length - 1 then Some(order(idx + 1)) else None
+    val html = (if lang == "ja" then GuideContentJa.content(slug, base) else content(slug, base)) +
+      nav(prev, next, base, lang)
     TrustedHtml.unsafe(html)
 
   private def nav(prev: Option[String], next: Option[String], base: String, lang: String = "en"): String =
     val (prevLabel, nextLabel) = if lang == "ja" then ("← 前のページ", "次のページ →") else ("← Previous", "Next →")
-    val prevLink = prev.map(s =>
-      s"""<a class="doc-nav-prev" href="$base/guide/$s">
+    val prevLink               = prev
+      .map(s => s"""<a class="doc-nav-prev" href="$base/guide/$s">
            <span class="doc-nav-dir">$prevLabel</span>
-           <span class="doc-nav-title">${titleForLang(s, lang)}</span>
-         </a>"""
-    ).getOrElse("<span></span>")
-    val nextLink = next.map(s =>
-      s"""<a class="doc-nav-next" href="$base/guide/$s">
+           <span class="doc-nav-title">${ titleForLang(s, lang) }</span>
+         </a>""")
+      .getOrElse("<span></span>")
+    val nextLink = next
+      .map(s => s"""<a class="doc-nav-next" href="$base/guide/$s">
            <span class="doc-nav-dir">$nextLabel</span>
-           <span class="doc-nav-title">${titleForLang(s, lang)}</span>
-         </a>"""
-    ).getOrElse("<span></span>")
+           <span class="doc-nav-title">${ titleForLang(s, lang) }</span>
+         </a>""")
+      .getOrElse("<span></span>")
     s"""<div class="doc-nav">$prevLink$nextLink</div>"""
 
   private def content(slug: String, base: String): String = slug match
@@ -554,7 +570,7 @@ props.disabled // Boolean</code></pre>
     <h2>Style directives</h2>
 
     <p>Set individual CSS properties reactively:</p>
-    <pre><code>&lt;div style:color={textColor} style:font-size={"${"{fontSize}"}px"}&gt;</code></pre>
+    <pre><code>&lt;div style:color={textColor} style:font-size={"${ "{fontSize}" }px"}&gt;</code></pre>
 
     <h2>Event handlers</h2>
 
