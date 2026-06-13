@@ -6,6 +6,8 @@
 
 package docs
 
+import docs.i18n.{ GuideI18n, ApiI18n }
+
 object I18n:
 
   case class Nav(guide: String, api: String, examples: String, changelog: String, playground: String)
@@ -40,7 +42,9 @@ object I18n:
     guideLinks:      SidebarLinks,
     apiLinks:        SidebarLinks,
     exampleLinks:    SidebarLinks,
-    home:            Home
+    home:            Home,
+    guide:           GuideI18n,
+    api:             ApiI18n
   )
 
   val en: Dict = Dict(
@@ -135,7 +139,9 @@ object I18n:
       demoCardLabel  = "// live preview",
       pageNavNextDir = "Next",
       pageNavNext    = "Quick Start"
-    )
+    ),
+    guide = GuideI18n.en,
+    api   = ApiI18n.en
   )
 
   val ja: Dict = Dict(
@@ -216,7 +222,9 @@ object I18n:
       demoCardLabel  = "// ライブプレビュー",
       pageNavNextDir = "次へ",
       pageNavNext    = "クイックスタート"
-    )
+    ),
+    guide = GuideI18n.ja,
+    api   = ApiI18n.ja
   )
 
   def apply(lang: String): Dict = if lang == "ja" then ja else en

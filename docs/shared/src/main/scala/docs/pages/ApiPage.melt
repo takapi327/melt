@@ -1,10 +1,13 @@
 <script lang="scala">
+import docs.I18n
 import docs.components.Layout
-import docs.content.ApiContent
+import docs.pages.api.{
+  TemplateSyntax, Runtime, Meltkit, MeltkitSsg, Compiler, SbtPlugin
+}
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val content    = ApiContent.get(props.slug, props.basePath, props.lang)
+val pageTitle  = I18n(props.lang).apiLinks(props.slug)
 val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
 </script>
 
@@ -12,8 +15,17 @@ val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API R
 <article class="doc-page">
   <div class="doc-page-header">
     <div class="doc-breadcrumb">{breadcrumb}</div>
+    <h1 class="doc-title">{pageTitle}</h1>
   </div>
-  {TrustedHtml.unsafe(content.value)}
+  {props.slug match
+    case "template-syntax" => <TemplateSyntax lang={props.lang} basePath={props.basePath} />
+    case "runtime"         => <Runtime lang={props.lang} basePath={props.basePath} />
+    case "meltkit"         => <Meltkit lang={props.lang} basePath={props.basePath} />
+    case "meltkit-ssg"     => <MeltkitSsg lang={props.lang} basePath={props.basePath} />
+    case "compiler"        => <Compiler lang={props.lang} basePath={props.basePath} />
+    case "sbt-plugin"      => <SbtPlugin lang={props.lang} basePath={props.basePath} />
+    case _                 => <p>{props.slug}</p>
+  }
 </article>
 </Layout>
 
@@ -21,8 +33,9 @@ val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API R
 .doc-page { padding: 0; }
 
 .doc-page-header {
-  padding-bottom: 0;
-  margin-bottom: 0;
+  padding-bottom: 28px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--line);
 }
 .doc-breadcrumb {
   font-family: var(--font-mono);
@@ -30,6 +43,14 @@ val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API R
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--fg-4);
-  margin-bottom: 24px;
+  margin-bottom: 12px;
+}
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--fg);
 }
 </style>

@@ -1,11 +1,16 @@
 <script lang="scala">
+import docs.I18n
 import docs.components.Layout
-import docs.content.GuideContent
+import docs.pages.guide.{
+  Introduction, Installation, QuickStart, Components, TemplateSyntax,
+  Reactivity, Computed, Effects, Events, Lifecycle, ControlFlow,
+  SpecialElements, Transitions, TrustedHtml as TrustedHtmlPage, Css, Testing, Routing,
+  Ssr, Ssg, Adapters
+}
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val pageTitle = GuideContent.titleForLang(props.slug, props.lang)
-val content   = GuideContent.get(props.slug, props.basePath, props.lang)
+val pageTitle  = I18n(props.lang).guideLinks(props.slug)
 val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
 </script>
 
@@ -15,7 +20,29 @@ val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
     <div class="doc-breadcrumb">{breadcrumb}</div>
     <h1 class="doc-title">{pageTitle}</h1>
   </div>
-  {TrustedHtml.unsafe(content.value)}
+  {props.slug match
+    case "introduction"     => <Introduction lang={props.lang} basePath={props.basePath} />
+    case "installation"     => <Installation lang={props.lang} basePath={props.basePath} />
+    case "quick-start"      => <QuickStart lang={props.lang} basePath={props.basePath} />
+    case "components"       => <Components lang={props.lang} basePath={props.basePath} />
+    case "template-syntax"  => <TemplateSyntax lang={props.lang} basePath={props.basePath} />
+    case "reactivity"       => <Reactivity lang={props.lang} basePath={props.basePath} />
+    case "computed"         => <Computed lang={props.lang} basePath={props.basePath} />
+    case "effects"          => <Effects lang={props.lang} basePath={props.basePath} />
+    case "events"           => <Events lang={props.lang} basePath={props.basePath} />
+    case "lifecycle"        => <Lifecycle lang={props.lang} basePath={props.basePath} />
+    case "control-flow"     => <ControlFlow lang={props.lang} basePath={props.basePath} />
+    case "special-elements" => <SpecialElements lang={props.lang} basePath={props.basePath} />
+    case "transitions"      => <Transitions lang={props.lang} basePath={props.basePath} />
+    case "trusted-html"     => <TrustedHtmlPage lang={props.lang} basePath={props.basePath} />
+    case "css"              => <Css lang={props.lang} basePath={props.basePath} />
+    case "testing"          => <Testing lang={props.lang} basePath={props.basePath} />
+    case "routing"          => <Routing lang={props.lang} basePath={props.basePath} />
+    case "ssr"              => <Ssr lang={props.lang} basePath={props.basePath} />
+    case "ssg"              => <Ssg lang={props.lang} basePath={props.basePath} />
+    case "adapters"         => <Adapters lang={props.lang} basePath={props.basePath} />
+    case _                  => <p>{props.slug}</p>
+  }
 </article>
 </Layout>
 

@@ -1,0 +1,55 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).computed
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.mapH2}</h2>
+<p>{t.mapIntro}</p>
+
+<pre><code>{GuideCodes.computedMapExample}</code></pre>
+
+<pre><code>{GuideCodes.computedMapTemplate}</code></pre>
+
+<h2>{t.flatMapH2}</h2>
+<p>{t.flatMapIntro}</p>
+
+<pre><code>{GuideCodes.computedFlatMapExample}</code></pre>
+
+<h2>{t.memoH2}</h2>
+<p>{t.memoIntro}</p>
+
+<pre><code>{GuideCodes.computedMemoExample}</code></pre>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.memoCalloutTitle}</div>
+  <p>{t.memoCalloutText}</p>
+</div>
+
+<h2>{t.combineH2}</h2>
+<p>{t.combineIntro}</p>
+
+<pre><code>{GuideCodes.computedCombineExample}</code></pre>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/reactivity"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "リアクティビティ" else "Reactivity"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/effects"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "エフェクト" else "Effects"}</span>
+  </a>
+</div>

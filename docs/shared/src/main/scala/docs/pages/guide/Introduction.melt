@@ -1,0 +1,73 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).introduction
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead1}<strong>{t.sfcFramework}</strong>{t.lead2}</p>
+
+<h2>{t.keyIdeasH2}</h2>
+<p>{t.keyIdeasIntro}</p>
+<ul>
+  <li><strong>{t.idea1Bold}</strong>{t.idea1Text}</li>
+  <li><strong>{t.idea2Bold}</strong>{t.idea2Text}</li>
+  <li><strong>{t.idea3Bold}</strong>{t.idea3Text}</li>
+</ul>
+
+<h2>{t.firstLookH2}</h2>
+<p>{t.firstLookIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Counter.melt
+  </div>
+  <pre><code>{GuideCodes.introCounter}</code></pre>
+</div>
+
+<p>{t.in15Lines}</p>
+<ul>
+  <li><code>{t.li15_1}</code></li>
+  <li><code>{t.li15_2}</code></li>
+  <li><code>{t.li15_3}</code></li>
+  <li><code>{t.li15_4}</code></li>
+</ul>
+
+<h2>{t.compilesH2}</h2>
+<p>{t.compilesIntro}</p>
+<ol>
+  <li><code>{t.step1}</code></li>
+  <li><code>{t.step2}</code></li>
+  <li><code>{t.step3}</code></li>
+  <li><code>{t.step4}</code></li>
+</ol>
+<p>{t.outputText}</p>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.calloutTitle}</div>
+  <p>{t.calloutText}<a href={base + "/playground"}>{t.calloutLink}</a></p>
+</div>
+
+<h2>{t.notH2}</h2>
+<ul>
+  <li>{t.not1Pre}<strong>{t.not1Kit}</strong>{t.not1Post}</li>
+  <li>{t.not2}</li>
+  <li>{t.not3}</li>
+</ul>
+
+<div class="doc-nav">
+  <span></span>
+  <a class="doc-nav-next" href={base + "/guide/installation"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "インストール" else "Installation"}</span>
+  </a>
+</div>

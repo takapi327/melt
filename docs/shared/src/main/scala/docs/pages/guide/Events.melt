@@ -1,0 +1,100 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).events
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.basicH2}</h2>
+
+<pre><code>{GuideCodes.eventsBasicHandlers}</code></pre>
+
+<p>{t.basicOutro}</p>
+
+<h2>{t.eventObjH2}</h2>
+<p>{t.eventTableIntro}</p>
+
+<pre><code>{GuideCodes.eventsObjExample}</code></pre>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.handlerH}</th>
+      <th>{t.typeH}</th>
+      <th>{t.useH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>onclick</code></td>
+      <td><code>MouseEvent</code></td>
+      <td>{t.row1Use}</td>
+    </tr>
+    <tr>
+      <td><code>oninput</code></td>
+      <td><code>Event</code></td>
+      <td>{t.row2Use}</td>
+    </tr>
+    <tr>
+      <td><code>onchange</code></td>
+      <td><code>Event</code></td>
+      <td>{t.row3Use}</td>
+    </tr>
+    <tr>
+      <td><code>onsubmit</code></td>
+      <td><code>Event</code></td>
+      <td>{t.row4Use}</td>
+    </tr>
+    <tr>
+      <td><code>onkeydown</code></td>
+      <td><code>KeyboardEvent</code></td>
+      <td>{t.row5Use}</td>
+    </tr>
+    <tr>
+      <td><code>onfocus</code> / <code>onblur</code></td>
+      <td><code>FocusEvent</code></td>
+      <td>{t.row6Use}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>{t.bindValueH2}</h2>
+<p>{t.bindValueIntro}</p>
+
+<pre><code>{GuideCodes.eventsBindValueExample}</code></pre>
+
+<h2>{t.windowH2}</h2>
+<p>{t.windowIntro}<a href={base + "/guide/special-elements"}>Special Elements</a>):</p>
+
+<pre><code>{GuideCodes.eventsWindowExample}</code></pre>
+
+{t.windowOutro.map(text => <p>{text}</p>)}
+
+{t.customTitle.map(title =>
+  <div class="callout callout-info">
+    <div class="callout-title">{title}</div>
+    <p>{t.customText.getOrElse("")}</p>
+  </div>
+)}
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/effects"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "エフェクト" else "Effects"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/lifecycle"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "ライフサイクル" else "Lifecycle"}</span>
+  </a>
+</div>
