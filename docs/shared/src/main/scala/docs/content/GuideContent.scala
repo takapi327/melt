@@ -361,7 +361,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 @JSExportTopLevel("main")
 def main(): Unit =
-  Mount.render(Counter(Counter.Props()), dom.document.getElementById("app"))</code></pre>
+  Mount(dom.document.getElementById("app").asInstanceOf[dom.Element], Counter(Counter.Props()))</code></pre>
           </div>
         </div>
       </div>
@@ -727,67 +727,58 @@ val fullName  = firstName.flatMap(f =&gt; lastName.map(l =&gt; s"$$f $$l"))</cod
   // ── Effects ───────────────────────────────────────────────────────────────
 
   private def effects(base: String) = s"""
-    <p>An <em>effect</em> is a side-effectful computation that runs whenever its
-    reactive dependencies change. Use effects for things like logging, network
+    <p>An <em>effect</em> is a side-effectful computation that re-runs whenever
+    its declared dependencies change. Use effects for things like logging, network
     requests, and direct DOM manipulation.</p>
 
     <h2>Basic effect</h2>
 
-    <p>Call <code>Effect { ... }</code> inside the script section. The block runs
-    once on mount and again whenever any <code>State</code> or <code>Signal</code>
-    read inside it changes:</p>
+    <p>Call <code>effect(dep) { value =&gt; ... }</code> inside the script section.
+    The block runs once immediately with the current value, then re-runs in the
+    post-DOM phase whenever the dependency changes:</p>
 
     <div class="code-block">
       <div class="code-block-header">
         <span class="code-block-dot"></span>Example
       </div>
       <pre><code>&lt;script lang="scala"&gt;
-  import melt.runtime.Effect
-
   val query = State("")
 
-  Effect {
-    // Runs when `query` changes
-    println(s"Searching for: $${query.value}")
-    fetchResults(query.value)
+  effect(query) { q =&gt;
+    println(s"Searching for: $$q")
+    fetchResults(q)
   }
 &lt;/script&gt;</code></pre>
     </div>
 
+    <h2>Multiple dependencies</h2>
+
+    <p>Pass multiple dependencies as arguments. The effect re-runs when any of
+    them changes, receiving all current values at once:</p>
+    <pre><code>val x = State(0)
+val y = State(0)
+
+effect(x, y) { (xVal, yVal) =&gt;
+  println(s"position: ($$xVal, $$yVal)")
+  updatePosition(xVal, yVal)
+}</code></pre>
+
     <h2>Cleanup</h2>
 
-    <p>Return a cleanup function from an effect to cancel subscriptions, timers,
-    or event listeners when the component unmounts or before the next run:</p>
+    <p>Call <code>onCleanup</code> inside an effect to register a teardown
+    function. It runs before each re-execution and once more when the component
+    is destroyed:</p>
 
     <div class="code-block">
       <div class="code-block-header">
         <span class="code-block-dot"></span>Effect with cleanup
       </div>
-      <pre><code>import melt.runtime.{ Effect, Cleanup }
+      <pre><code>val enabled = State(false)
 
-val intervalId = State(0)
-
-Effect {
+effect(enabled) { _ =&gt;
   val id = js.timers.setInterval(1000) { count += 1 }
-  Cleanup.register(() =&gt; js.timers.clearInterval(id))
+  onCleanup(() =&gt; js.timers.clearInterval(id))
 }</code></pre>
-    </div>
-
-    <h2>Untracked reads</h2>
-
-    <p>Sometimes you want to read a value inside an effect without making it a
-    dependency. Wrap the read in <code>Untrack { ... }</code>:</p>
-    <pre><code>import melt.runtime.Untrack
-
-Effect {
-  val current = Untrack { count.value }  // read without subscribing
-  println(s"Triggered by other dep; count is $$current")
-}</code></pre>
-
-    <div class="callout callout-warn">
-      <div class="callout-title">Avoid infinite loops</div>
-      <p>Do not write to a <code>State</code> that you also read inside the same
-      effect without using <code>Untrack</code> — it creates an infinite update loop.</p>
     </div>
   """
 
@@ -892,17 +883,15 @@ OnMount {
 
     <h2>Effect cleanup</h2>
 
-    <p><code>Cleanup.register</code> inside an <code>Effect</code> block runs
+    <p><code>onCleanup</code> inside an <code>effect</code> block runs
     before each re-execution of the effect, and once more on component destroy:</p>
 
-    <pre><code>import melt.runtime.{ Effect, Cleanup }
+    <pre><code>val id = State[Option[Int]](None)
 
-val id = State[Option[Int]](None)
-
-Effect {
-  id.value.foreach { currentId =&gt;
+effect(id) { idOpt =&gt;
+  idOpt.foreach { currentId =&gt;
     val ws = new WebSocket(s"wss://api.example.com/feed/$$currentId")
-    Cleanup.register(() =&gt; ws.close())
+    onCleanup(() =&gt; ws.close())
   }
 }</code></pre>
   """
@@ -1076,30 +1065,33 @@ Effect {
         <span class="code-block-dot"></span>Tween example
       </div>
       <pre><code>&lt;script lang="scala"&gt;
-  import melt.runtime.transition.Tween
+  import melt.runtime.motion.Tween
 
-  val target  = State(0.0)
-  val display = Tween(target, duration = 400)
+  val opacity = Tween(0.0, duration = 400)
+  opacity.subscribe { v =&gt; /* reactive DOM updates via effect */ }
 &lt;/script&gt;
 
-&lt;div style:opacity={display}&gt;Content&lt;/div&gt;
-&lt;button onclick={_ =&gt; target.set(1.0)}&gt;Fade in&lt;/button&gt;</code></pre>
+&lt;button onclick={_ =&gt; opacity.set(1.0)}&gt;Fade in&lt;/button&gt;
+&lt;button onclick={_ =&gt; opacity.set(0.0)}&gt;Fade out&lt;/button&gt;</code></pre>
     </div>
+
+    <p><code>Tween</code> animates a numeric value toward a target with <code>set(target)</code>.
+    Subscribe to changes with <code>subscribe(fn)</code> to update the DOM each frame.</p>
 
     <h2>Spring</h2>
 
     <p>Use a physics-based spring for natural-feeling motion:</p>
-    <pre><code>import melt.runtime.transition.Spring
+    <pre><code>import melt.runtime.motion.Spring
 
-val x      = State(0.0)
-val smooth = Spring(x, stiffness = 0.15, damping = 0.8)</code></pre>
+val smooth = Spring(0.0, stiffness = 0.15, damping = 0.8)
+smooth.set(100.0)</code></pre>
 
     <table class="api-table">
       <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>stiffness</code></td><td>0.15</td><td>How fast the spring moves toward the target</td></tr>
         <tr><td><code>damping</code></td><td>0.8</td><td>How quickly oscillations decay (1.0 = no oscillation)</td></tr>
-        <tr><td><code>precision</code></td><td>0.001</td><td>Distance at which motion stops</td></tr>
+        <tr><td><code>precision</code></td><td>0.01</td><td>Distance at which motion stops</td></tr>
       </tbody>
     </table>
 
@@ -1289,35 +1281,38 @@ val link = TrustedUrl.unsafe("https://example.com")
 class CounterSpec extends MeltSuite:
 
   test("counter starts at zero") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    assertEquals(env.text(".h1"), "0")
+    val c = mount(Counter(Counter.Props()))
+    assertEquals(c.text("h1"), "0")
   }
 
   test("increment button updates count") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    env.click("button:first-child")
-    assertEquals(env.text("h1"), "1")
+    val c = mount(Counter(Counter.Props()))
+    c.click("button:first-child")
+    assertEquals(c.text("h1"), "1")
   }
 
   test("reset returns to zero") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    env.click("button:first-child")
-    env.click("button:last-child")
-    assertEquals(env.text("h1"), "0")
+    val c = mount(Counter(Counter.Props()))
+    c.click("button:first-child")
+    c.click("button:last-child")
+    assertEquals(c.text("h1"), "0")
   }</code></pre>
     </div>
 
-    <h2>MeltEnv API</h2>
+    <h2>MountedComponent API</h2>
 
     <table class="api-table">
       <thead><tr><th>Method</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>MeltEnv.render(component)</code></td><td>Mount a component and return a test environment</td></tr>
-        <tr><td><code>env.text(selector)</code></td><td>Get the text content of a matched element</td></tr>
-        <tr><td><code>env.click(selector)</code></td><td>Simulate a click on a matched element</td></tr>
-        <tr><td><code>env.input(selector, value)</code></td><td>Type a value into an input</td></tr>
-        <tr><td><code>env.query(selector)</code></td><td>Find an element (<code>Option[Element]</code>)</td></tr>
-        <tr><td><code>env.queryAll(selector)</code></td><td>Find all matching elements</td></tr>
+        <tr><td><code>mount(component)</code></td><td>Mount a component and return a <code>MountedComponent</code> handle</td></tr>
+        <tr><td><code>c.text(selector)</code></td><td>Get the text content of a matched element</td></tr>
+        <tr><td><code>c.click(selector)</code></td><td>Simulate a click on a matched element</td></tr>
+        <tr><td><code>c.input(selector, value)</code></td><td>Type a value into an input</td></tr>
+        <tr><td><code>c.exists(selector)</code></td><td>Returns true if at least one element matches</td></tr>
+        <tr><td><code>c.findAll(selector)</code></td><td>Find all matching elements</td></tr>
+        <tr><td><code>c.getByText(text)</code></td><td>Find element by text content</td></tr>
+        <tr><td><code>c.getByRole(role)</code></td><td>Find element by ARIA role</td></tr>
+        <tr><td><code>waitFor { () =&gt; ... }</code></td><td>Wait for async state changes</td></tr>
       </tbody>
     </table>
   """

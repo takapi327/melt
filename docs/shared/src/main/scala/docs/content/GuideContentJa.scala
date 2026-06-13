@@ -314,7 +314,7 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 @JSExportTopLevel("main")
 def main(): Unit =
-  Mount.render(Counter(Counter.Props()), dom.document.getElementById("app"))</code></pre>
+  Mount(dom.document.getElementById("app").asInstanceOf[dom.Element], Counter(Counter.Props()))</code></pre>
           </div>
         </div>
       </div>
@@ -640,15 +640,6 @@ val isEmpty: Signal[Boolean] = items.map(_.isEmpty)</code></pre>
       1 つの値を変更すると、それに依存する DOM ノードだけが更新されます。</p>
     </div>
 
-    <h2>.subscribe() によるサブスクリプション</h2>
-
-    <p>テンプレート外から State/Signal の変化を監視したい場合は <code>.subscribe()</code> を使います。</p>
-    <pre><code>val cancel = count.subscribe { newValue =&gt;
-  println(s"count changed to $newValue")
-}
-
-// 監視を止めるときは cancel() を呼ぶ
-cancel()</code></pre>
   """
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -714,80 +705,56 @@ val fullName  = firstName.flatMap(f =&gt; lastName.map(l =&gt; s"$f $l"))</code>
   // ── Effects ───────────────────────────────────────────────────────────────
 
   private val effects = """
-    <p class="doc-lead"><em>エフェクト</em>は、リアクティブな依存関係が変化するたびに再実行される
+    <p class="doc-lead"><em>エフェクト</em>は、宣言した依存関係が変化するたびに再実行される
     副作用を伴う処理です。ログ出力・ネットワークリクエスト・直接的な DOM 操作などに使います。</p>
 
     <h2>基本的なエフェクト</h2>
 
-    <p>スクリプトセクション内で <code>Effect { ... }</code> を呼び出します。
-    ブロックはマウント時に一度実行され、内部で読んだ <code>State</code> や <code>Signal</code> が
-    変わるたびに再実行されます。</p>
+    <p>スクリプトセクション内で <code>effect(dep) { value =&gt; ... }</code> を呼び出します。
+    ブロックはマウント時に現在の値ですぐ実行され、依存関係が変わるたびに DOM 更新後に再実行されます。</p>
 
     <div class="code-block">
       <div class="code-block-header">
         <span class="code-block-dot"></span>使用例
       </div>
       <pre><code>&lt;script lang="scala"&gt;
-  import melt.runtime.Effect
-
   val query = State("")
 
-  Effect {
+  effect(query) { q =&gt;
     // `query` が変わるたびに実行される
-    println(s"検索クエリ: ${query.value}")
-    fetchResults(query.value)
+    println(s"検索クエリ: $q")
+    fetchResults(q)
   }
 &lt;/script&gt;</code></pre>
     </div>
 
+    <h2>複数の依存関係</h2>
+
+    <p>複数の依存関係を引数に渡せます。いずれかが変化すると、全ての現在値を受け取って再実行されます。</p>
+    <pre><code>val x = State(0)
+val y = State(0)
+
+effect(x, y) { (xVal, yVal) =&gt;
+  println(s"position: ($xVal, $yVal)")
+  updatePosition(xVal, yVal)
+}</code></pre>
+
     <h2>クリーンアップ</h2>
 
-    <p>コンポーネントがアンマウントされたり、エフェクトが再実行される前に
-    サブスクリプションやタイマー、イベントリスナーを解除したい場合は
-    <code>Cleanup.register</code> を使います。</p>
+    <p>エフェクト内で <code>onCleanup</code> を呼ぶと、再実行前とコンポーネント破棄時に
+    クリーンアップ関数が実行されます。タイマーやイベントリスナーの解除に使います。</p>
 
     <div class="code-block">
       <div class="code-block-header">
         <span class="code-block-dot"></span>クリーンアップを持つエフェクト
       </div>
-      <pre><code>import melt.runtime.{ Effect, Cleanup }
+      <pre><code>val enabled = State(false)
 
-val count = State(0)
-
-Effect {
+effect(enabled) { _ =&gt;
   val id = js.timers.setInterval(1000) { count += 1 }
-  Cleanup.register(() =&gt; js.timers.clearInterval(id))
+  onCleanup(() =&gt; js.timers.clearInterval(id))
 }</code></pre>
     </div>
-
-    <h2>Untrack — 依存なし読み取り</h2>
-
-    <p>エフェクト内で値を読みたいが依存関係として登録したくない場合は
-    <code>Untrack { ... }</code> でラップします。</p>
-    <pre><code>import melt.runtime.Untrack
-
-Effect {
-  val current = Untrack { count.value }  // サブスクライブせずに読む
-  println(s"別の依存関係でトリガーされた。count は $current")
-}</code></pre>
-
-    <div class="callout callout-warn">
-      <div class="callout-title">無限ループに注意</div>
-      <p>同一エフェクト内で読み取った <code>State</code> に書き込むと無限更新ループが発生します。
-      書き込みが必要な場合は <code>Untrack</code> で読み取りを保護してください。</p>
-    </div>
-
-    <h2>複数の依存関係</h2>
-
-    <p>1 つのエフェクトで複数の State/Signal を読み取ると、そのどれが変わっても再実行されます。</p>
-    <pre><code>val x = State(0)
-val y = State(0)
-
-Effect {
-  // x または y が変わると再実行
-  println(s"position: (${x.value}, ${y.value})")
-  updatePosition(x.value, y.value)
-}</code></pre>
   """
 
   // ── Events ────────────────────────────────────────────────────────────────
@@ -901,17 +868,15 @@ OnMount {
 
     <h2>Effect 内のクリーンアップ</h2>
 
-    <p><code>Effect</code> ブロック内で <code>Cleanup.register</code> を使うと、
+    <p><code>effect</code> ブロック内で <code>onCleanup</code> を使うと、
     エフェクトが再実行される直前と、コンポーネントのデストロイ時に呼ばれます。</p>
 
-    <pre><code>import melt.runtime.{ Effect, Cleanup }
+    <pre><code>val id = State[Option[Int]](None)
 
-val id = State[Option[Int]](None)
-
-Effect {
-  id.value.foreach { currentId =&gt;
+effect(id) { idOpt =&gt;
+  idOpt.foreach { currentId =&gt;
     val ws = new WebSocket(s"wss://api.example.com/feed/$currentId")
-    Cleanup.register(() =&gt; ws.close())
+    onCleanup(() =&gt; ws.close())
   }
 }</code></pre>
 
@@ -1121,31 +1086,33 @@ Effect {
         <span class="code-block-dot"></span>Tween の例
       </div>
       <pre><code>&lt;script lang="scala"&gt;
-  import melt.runtime.transition.Tween
+  import melt.runtime.motion.Tween
 
-  val target  = State(0.0)
-  val display = Tween(target, duration = 400) // 400ms かけてアニメーション
+  val opacity = Tween(0.0, duration = 400) // 初期値 0.0、400ms でアニメーション
+  opacity.subscribe { v =&gt; /* フレームごとに DOM を更新 */ }
 &lt;/script&gt;
 
-&lt;div style:opacity={display}&gt;コンテンツ&lt;/div&gt;
-&lt;button onclick={_ =&gt; target.set(1.0)}&gt;フェードイン&lt;/button&gt;
-&lt;button onclick={_ =&gt; target.set(0.0)}&gt;フェードアウト&lt;/button&gt;</code></pre>
+&lt;button onclick={_ =&gt; opacity.set(1.0)}&gt;フェードイン&lt;/button&gt;
+&lt;button onclick={_ =&gt; opacity.set(0.0)}&gt;フェードアウト&lt;/button&gt;</code></pre>
     </div>
+
+    <p><code>Tween</code> は数値を目標値に向けてアニメーションします。<code>set(target)</code> でアニメーション開始、
+    <code>subscribe(fn)</code> でフレームごとの値変化を受け取ります。</p>
 
     <h2>Spring — 物理ベースのアニメーション</h2>
 
     <p>自然な動きを実現したい場合は物理ベースのバネモデル <code>Spring</code> を使います。</p>
-    <pre><code>import melt.runtime.transition.Spring
+    <pre><code>import melt.runtime.motion.Spring
 
-val x      = State(0.0)
-val smooth = Spring(x, stiffness = 0.15, damping = 0.8)</code></pre>
+val smooth = Spring(0.0, stiffness = 0.15, damping = 0.8)
+smooth.set(100.0)</code></pre>
 
     <table class="api-table">
       <thead><tr><th>オプション</th><th>デフォルト</th><th>説明</th></tr></thead>
       <tbody>
         <tr><td><code>stiffness</code></td><td>0.15</td><td>バネの硬さ — 目標値に近づく速さ</td></tr>
         <tr><td><code>damping</code></td><td>0.8</td><td>減衰係数 — 振動の収まる速さ (1.0 = 振動なし)</td></tr>
-        <tr><td><code>precision</code></td><td>0.001</td><td>動きが止まるとみなす距離</td></tr>
+        <tr><td><code>precision</code></td><td>0.01</td><td>動きが止まるとみなす距離</td></tr>
       </tbody>
     </table>
 
@@ -1389,35 +1356,38 @@ val link = TrustedUrl.unsafe("https://example.com")
 class CounterSpec extends MeltSuite:
 
   test("カウンターはゼロから始まる") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    assertEquals(env.text("h1"), "0")
+    val c = mount(Counter(Counter.Props()))
+    assertEquals(c.text("h1"), "0")
   }
 
   test("増やすボタンでカウントが増える") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    env.click("button:first-child")
-    assertEquals(env.text("h1"), "1")
+    val c = mount(Counter(Counter.Props()))
+    c.click("button:first-child")
+    assertEquals(c.text("h1"), "1")
   }
 
   test("リセットでゼロに戻る") {
-    val env = MeltEnv.render(Counter(Counter.Props()))
-    env.click("button:first-child")
-    env.click("button:last-child")
-    assertEquals(env.text("h1"), "0")
+    val c = mount(Counter(Counter.Props()))
+    c.click("button:first-child")
+    c.click("button:last-child")
+    assertEquals(c.text("h1"), "0")
   }</code></pre>
     </div>
 
-    <h2>MeltEnv API</h2>
+    <h2>MountedComponent API</h2>
 
     <table class="api-table">
       <thead><tr><th>メソッド</th><th>説明</th></tr></thead>
       <tbody>
-        <tr><td><code>MeltEnv.render(component)</code></td><td>コンポーネントをマウントしてテスト環境を返す</td></tr>
-        <tr><td><code>env.text(selector)</code></td><td>マッチした要素のテキストコンテンツを取得</td></tr>
-        <tr><td><code>env.click(selector)</code></td><td>マッチした要素のクリックをシミュレート</td></tr>
-        <tr><td><code>env.input(selector, value)</code></td><td>input に値を入力</td></tr>
-        <tr><td><code>env.query(selector)</code></td><td>要素を検索 (<code>Option[Element]</code>)</td></tr>
-        <tr><td><code>env.queryAll(selector)</code></td><td>マッチするすべての要素を返す</td></tr>
+        <tr><td><code>mount(component)</code></td><td>コンポーネントをマウントして <code>MountedComponent</code> ハンドルを返す</td></tr>
+        <tr><td><code>c.text(selector)</code></td><td>マッチした要素のテキストコンテンツを取得</td></tr>
+        <tr><td><code>c.click(selector)</code></td><td>マッチした要素のクリックをシミュレート</td></tr>
+        <tr><td><code>c.input(selector, value)</code></td><td>input に値を入力</td></tr>
+        <tr><td><code>c.exists(selector)</code></td><td>要素が存在するか確認</td></tr>
+        <tr><td><code>c.findAll(selector)</code></td><td>マッチするすべての要素を返す</td></tr>
+        <tr><td><code>c.getByText(text)</code></td><td>テキストコンテンツで要素を検索</td></tr>
+        <tr><td><code>c.getByRole(role)</code></td><td>ARIA ロールで要素を検索</td></tr>
+        <tr><td><code>waitFor { () =&gt; ... }</code></td><td>非同期の状態変化を待機</td></tr>
       </tbody>
     </table>
 
@@ -1425,16 +1395,16 @@ class CounterSpec extends MeltSuite:
 
     <p>State を直接変更してレンダリング結果を確認することもできます。</p>
     <pre><code>test("Props の変化が反映される") {
-  val env   = MeltEnv.render(Greeting(Greeting.Props(name = "Alice")))
-  assertEquals(env.text("p"), "こんにちは、Alice！")
+  val c = mount(Greeting(Greeting.Props(name = "Alice")))
+  assertEquals(c.text("p"), "こんにちは、Alice！")
 }</code></pre>
 
     <h2>イベントのシミュレーション</h2>
 
     <pre><code>test("テキスト入力が State を更新する") {
-  val env = MeltEnv.render(NameInput(NameInput.Props()))
-  env.input("input", "Bob")
-  assertEquals(env.text(".preview"), "Bob")
+  val c = mount(NameInput(NameInput.Props()))
+  c.input("input", "Bob")
+  assertEquals(c.text(".preview"), "Bob")
 }</code></pre>
 
     <div class="callout callout-tip">
