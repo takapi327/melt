@@ -192,13 +192,23 @@ object AstToIr:
     if trimmed == "children" then IrNode.IrChildren
     else if isKeyedList(stripped) then buildKeyedList(trimmed)
     else if isUnkeyedList(stripped) then buildUnkeyedList(trimmed)
-    else if stripped.contains("TrustedHtml") then IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
+    else if mentionsTrustedHtml(stripped) then IrNode.IrRawHtml(extractReactiveSource(trimmed), ScalaExpr(trimmed))
     else if isConditionalDom(stripped) then IrNode.IrConditional(extractReactiveSource(trimmed), ScalaExpr(trimmed))
     else if stripped.contains("createDocumentFragment") then IrNode.IrFragmentResult(ScalaExpr(trimmed))
     else if returnsDomDirectly(stripped) then IrNode.IrDomResult(ScalaExpr(trimmed))
     else
       val kind = ReactiveInferencer.infer(trimmed, reactiveVars)
       IrNode.IrDynamicText(ScalaExpr(trimmed), kind)
+
+  private def mentionsTrustedHtml(code: String): Boolean =
+    var i = code.indexOf("TrustedHtml")
+    while i >= 0 do
+      val before = if i > 0 then code(i - 1) else ' '
+      val after  = code.lift(i + "TrustedHtml".length).getOrElse(' ')
+      if !before.isLetterOrDigit && before != '_' && !after.isLetterOrDigit && after != '_' then
+        return true
+      i = code.indexOf("TrustedHtml", i + 1)
+    false
 
   private def isKeyedList(code: String): Boolean =
     code.contains(".keyed(") && code.contains(".map(")

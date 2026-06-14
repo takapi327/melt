@@ -149,7 +149,7 @@ object SpaEmitter:
 
     tracker ++= "    _result\n"
     tracker ++= "    }\n"
-    tracker ++= "    Lifecycle.register(_result, _owner)\n"
+    tracker ++= "    melt.runtime.Lifecycle.register(_result, _owner)\n"
     tracker ++= "    _result\n"
     tracker ++= "  }\n\n"
 
