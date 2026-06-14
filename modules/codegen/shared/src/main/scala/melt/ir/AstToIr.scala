@@ -205,8 +205,7 @@ object AstToIr:
     while i >= 0 do
       val before = if i > 0 then code(i - 1) else ' '
       val after  = code.lift(i + "TrustedHtml".length).getOrElse(' ')
-      if !before.isLetterOrDigit && before != '_' && !after.isLetterOrDigit && after != '_' then
-        return true
+      if !before.isLetterOrDigit && before != '_' && !after.isLetterOrDigit && after != '_' then return true
       i = code.indexOf("TrustedHtml", i + 1)
     false
 

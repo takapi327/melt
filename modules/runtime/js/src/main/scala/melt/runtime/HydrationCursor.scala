@@ -102,8 +102,7 @@ final class HydrationCursor(private[this] var _current: dom.Node | Null):
               Option(c.parentNode).foreach(_.removeChild(c))
               toRemove = next
             case c: dom.Comment if c.data == "]melt:dyn" =>
-              if depth == 0 then
-                close = c
+              if depth == 0 then close = c
               else
                 depth -= 1
                 val next = c.nextSibling
