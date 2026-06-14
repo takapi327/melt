@@ -3,8 +3,8 @@ import docs.I18n
 import docs.components.Layout
 import docs.pages.guide.{
   Introduction, Installation, QuickStart, Components, TemplateSyntax,
-  Reactivity, Computed, Effects, Events, Lifecycle, ControlFlow,
-  SpecialElements, Transitions, TrustedHtml as TrustedHtmlPage, Css, Testing, Routing,
+  Reactivity, Computed, Effects, Events, LifecyclePage, ControlFlow,
+  SpecialElements, Transitions, TrustedHtml as HtmlPage, Css, Testing, Routing,
   Ssr, Ssg, Adapters
 }
 
@@ -20,28 +20,27 @@ val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
     <div class="doc-breadcrumb">{breadcrumb}</div>
     <h1 class="doc-title">{pageTitle}</h1>
   </div>
-  {props.slug match
-    case "introduction"     => <Introduction lang={props.lang} basePath={props.basePath} />
-    case "installation"     => <Installation lang={props.lang} basePath={props.basePath} />
-    case "quick-start"      => <QuickStart lang={props.lang} basePath={props.basePath} />
-    case "components"       => <Components lang={props.lang} basePath={props.basePath} />
-    case "template-syntax"  => <TemplateSyntax lang={props.lang} basePath={props.basePath} />
-    case "reactivity"       => <Reactivity lang={props.lang} basePath={props.basePath} />
-    case "computed"         => <Computed lang={props.lang} basePath={props.basePath} />
-    case "effects"          => <Effects lang={props.lang} basePath={props.basePath} />
-    case "events"           => <Events lang={props.lang} basePath={props.basePath} />
-    case "lifecycle"        => <Lifecycle lang={props.lang} basePath={props.basePath} />
-    case "control-flow"     => <ControlFlow lang={props.lang} basePath={props.basePath} />
-    case "special-elements" => <SpecialElements lang={props.lang} basePath={props.basePath} />
-    case "transitions"      => <Transitions lang={props.lang} basePath={props.basePath} />
-    case "trusted-html"     => <TrustedHtmlPage lang={props.lang} basePath={props.basePath} />
-    case "css"              => <Css lang={props.lang} basePath={props.basePath} />
-    case "testing"          => <Testing lang={props.lang} basePath={props.basePath} />
-    case "routing"          => <Routing lang={props.lang} basePath={props.basePath} />
-    case "ssr"              => <Ssr lang={props.lang} basePath={props.basePath} />
-    case "ssg"              => <Ssg lang={props.lang} basePath={props.basePath} />
-    case "adapters"         => <Adapters lang={props.lang} basePath={props.basePath} />
-    case _                  => <p>{props.slug}</p>
+  {if props.slug == "introduction" then <Introduction lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "installation" then <Installation lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "quick-start" then <QuickStart lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "components" then <Components lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "template-syntax" then <TemplateSyntax lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "reactivity" then <Reactivity lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "computed" then <Computed lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "effects" then <Effects lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "events" then <Events lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "lifecycle" then <LifecyclePage lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "control-flow" then <ControlFlow lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "special-elements" then <SpecialElements lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "transitions" then <Transitions lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "trusted-html" then <HtmlPage lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "css" then <Css lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "testing" then <Testing lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "routing" then <Routing lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "ssr" then <Ssr lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "ssg" then <Ssg lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "adapters" then <Adapters lang={props.lang} basePath={props.basePath} />
+  else <p>{props.slug}</p>
   }
 </article>
 </Layout>

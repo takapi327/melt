@@ -115,7 +115,7 @@ object ApiCodes:
        |  z.set(3)
        |} // subscribers notified once, with all three values updated""".stripMargin
 
-  val runtimeTrustedHtml: String =
+  val runtimeSafeHtml: String =
     """|// Developer-controlled content — safe
        |val badge = TrustedHtml.unsafe("<strong>New</strong>")
        |
