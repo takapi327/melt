@@ -6,8 +6,8 @@
 
 package meltkit.sbt
 
-import sbt._
-import sbt.Keys._
+import sbt.{ given, * }
+import sbt.Keys.*
 
 import org.scalajs.linker.interface.{ ModuleKind, Report, StandardConfig }
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport.{
@@ -142,7 +142,7 @@ object MeltkitPlugin extends AutoPlugin {
     /** The generator task itself — exposed so advanced users can
       * customise invocation or inspect the output path.
       */
-    val meltkitAssetManifestGenerate =
+    @transient val meltkitAssetManifestGenerate =
       taskKey[Seq[File]]("Generate AssetManifest.scala from the client's fastLinkJS Report")
 
     /** When `true`, the asset manifest is generated from a real Vite
@@ -196,7 +196,7 @@ object MeltkitPlugin extends AutoPlugin {
       * component automatically updates the Vite build without editing
       * any config files.
       */
-    val meltkitViteInputGenerate =
+    @transient val meltkitViteInputGenerate =
       taskKey[File]("Generate vite-inputs.json from the client's fullLinkJS Report")
 
     /** Generates a `MeltKitConfig.scala` source for SSR projects.
@@ -213,7 +213,7 @@ object MeltkitPlugin extends AutoPlugin {
       * The generated file lives alongside `AssetManifest.scala` in the
       * same managed source directory and package.
       */
-    val meltkitConfigGenerate =
+    @transient val meltkitConfigGenerate =
       taskKey[Seq[File]]("Generate MeltKitConfig.scala for SSR rendering via ctx.melt()")
 
     /** Object name of the generated MeltKitConfig.
@@ -242,7 +242,7 @@ object MeltkitPlugin extends AutoPlugin {
 
   import autoImport._
 
-  override def projectSettings: Seq[Setting[_]] = Seq(
+  override def projectSettings: Seq[Setting[?]] = Seq(
     // JS projects default to Browser mode; JVM projects have no mode by default.
     // Override explicitly for Node.js servers: meltMode := Some(Node)
     meltMode                 := { if (hasScalaJSPlugin(thisProject.value)) Some(MeltMode.Browser) else None },

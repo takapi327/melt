@@ -1,9 +1,9 @@
-scalaVersion := "3.8.3"
+scalaVersion := "3.8.4"
 name         := "hello-meltkit"
 
 enablePlugins(ScalaJSPlugin, MeltkitPlugin)
 
 meltMode := Some(Browser)
 
-libraryDependencies += "io.github.takapi327" %%% "melt-runtime" %
+libraryDependencies += "io.github.takapi327" %% "melt-runtime" %
   sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
