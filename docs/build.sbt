@@ -2,7 +2,7 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 
 val meltVersion = "0.1.0-SNAPSHOT"
 
-ThisBuild / scalaVersion   := "3.8.3"
+ThisBuild / scalaVersion   := "3.8.4"
 ThisBuild / publish / skip := true
 
 // ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
@@ -15,7 +15,7 @@ lazy val docs = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(MeltkitPlugin)
   .settings(
     // melt-codegen powers the in-browser playground compiler.
-    libraryDependencies += "io.github.takapi327" %%% "melt-codegen" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-codegen" % meltVersion
   )
   .jsSettings(
     // MeltkitPlugin sets ModuleKind.ESModule for Browser mode automatically.

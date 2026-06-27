@@ -126,11 +126,11 @@ object ApiCodes:
 
   val meltkitInstall: String =
     """|// build.sbt
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit" % "0.1.0"
+       |libraryDependencies += "io.github.takapi327" %% "meltkit" % "0.1.0"
        |
        |// Pick your adapter:
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % "0.1.0"  // Scala.js
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-http4s"  % "0.1.0"  // JVM / Node""".stripMargin
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0"  // Scala.js
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0"  // JVM / Node""".stripMargin
 
   val meltkitRoutes: String =
     """|import meltkit.*

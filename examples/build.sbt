@@ -4,7 +4,7 @@ import meltkit.sbt.MeltkitPlugin.autoImport._
 
 val meltVersion = "0.1.0-SNAPSHOT"
 
-ThisBuild / scalaVersion  := "3.8.3"
+ThisBuild / scalaVersion  := "3.8.4"
 ThisBuild / publish / skip := true
 
 // ── Example: Hello World ──────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ lazy val `hello-world` = project
   .in(file("hello-world"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -23,8 +23,8 @@ lazy val counter = project
     scalaJSUseMainModuleInitializer := true,
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
     libraryDependencies ++= Seq(
-      "io.github.takapi327" %%% "melt-runtime" % meltVersion,
-      "io.github.takapi327" %%% "melt-testkit" % meltVersion % Test
+      "io.github.takapi327" %% "melt-runtime" % meltVersion,
+      "io.github.takapi327" %% "melt-testkit" % meltVersion % Test
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
@@ -35,7 +35,7 @@ lazy val `scss-counter` = project
   .settings(
     scalaJSUseMainModuleInitializer := true,
     meltStylePreprocessor          := Some(SassPreprocessor),
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -44,7 +44,7 @@ lazy val `todo-app` = project
   .in(file("todo-app"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -53,7 +53,7 @@ lazy val transitions = project
   .in(file("transitions"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -62,7 +62,7 @@ lazy val `special-elements` = project
   .in(file("special-elements"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -71,7 +71,7 @@ lazy val `media-binding` = project
   .in(file("media-binding"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -80,7 +80,7 @@ lazy val `dimension-binding` = project
   .in(file("dimension-binding"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -89,7 +89,7 @@ lazy val `dynamic-element` = project
   .in(file("dynamic-element"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -98,7 +98,7 @@ lazy val `layout-effect` = project
   .in(file("layout-effect"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -107,7 +107,7 @@ lazy val `select-textarea-bind` = project
   .in(file("select-textarea-bind"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -116,7 +116,7 @@ lazy val boundary = project
   .in(file("boundary"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -127,8 +127,8 @@ lazy val `reactive-scope` = project
     scalaJSUseMainModuleInitializer := true,
     jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
     libraryDependencies ++= Seq(
-      "io.github.takapi327" %%% "melt-runtime" % meltVersion,
-      "io.github.takapi327" %%% "melt-testkit" % meltVersion % Test
+      "io.github.takapi327" %% "melt-runtime" % meltVersion,
+      "io.github.takapi327" %% "melt-testkit" % meltVersion % Test
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
@@ -138,7 +138,7 @@ lazy val `trusted-html` = project
   .in(file("trusted-html"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    libraryDependencies += "io.github.takapi327" %%% "melt-runtime" % meltVersion
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
@@ -152,10 +152,10 @@ lazy val `http4s-spa-client` = project
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     libraryDependencies ++= Seq(
-      "io.github.takapi327" %%% "meltkit-adapter-browser" % meltVersion,
-      "io.circe"            %%% "circe-core"              % "0.14.9",
-      "io.circe"            %%% "circe-generic"           % "0.14.9",
-      "io.circe"            %%% "circe-parser"            % "0.14.9"
+      "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion,
+      "io.circe"            %% "circe-core"              % "0.14.9",
+      "io.circe"            %% "circe-generic"           % "0.14.9",
+      "io.circe"            %% "circe-parser"            % "0.14.9"
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
@@ -183,16 +183,16 @@ lazy val `ssr-client` = crossProject(JVMPlatform, JSPlatform)
   .in(file("ssr-client"))
   .settings(
     libraryDependencies ++= Seq(
-      "io.github.takapi327" %%% "meltkit"       % meltVersion,
-      "io.circe"            %%% "circe-core"    % "0.14.9",
-      "io.circe"            %%% "circe-generic" % "0.14.9",
-      "io.circe"            %%% "circe-parser"  % "0.14.9"
+      "io.github.takapi327" %% "meltkit"       % meltVersion,
+      "io.circe"            %% "circe-core"    % "0.14.9",
+      "io.circe"            %% "circe-generic" % "0.14.9",
+      "io.circe"            %% "circe-parser"  % "0.14.9"
     )
   )
   .enablePlugins(MeltPlugin)
   .jsConfigure(
     _.settings(
-      libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % meltVersion
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
     )
   )
   .jsSettings(
@@ -247,9 +247,9 @@ lazy val `node-ssr-server` = project
     Compile / unmanagedSourceDirectories +=
       baseDirectory.value / ".." / ".." / "ssr-client" / "shared" / "src" / "main" / "scala",
     libraryDependencies ++= Seq(
-      "io.circe" %%% "circe-core"    % "0.14.9",
-      "io.circe" %%% "circe-generic" % "0.14.9",
-      "io.circe" %%% "circe-parser"  % "0.14.9"
+      "io.circe" %% "circe-core"    % "0.14.9",
+      "io.circe" %% "circe-generic" % "0.14.9",
+      "io.circe" %% "circe-parser"  % "0.14.9"
     )
   )
   .enablePlugins(ScalaJSPlugin, MeltkitPlugin)
