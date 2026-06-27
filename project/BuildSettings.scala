@@ -55,7 +55,7 @@ object BuildSettings {
   object MeltSbtPluginProject {
     def apply(name: String, dir: String): Project =
       Project(name, file(dir))
-        .settings(scalaVersion := scala3)
+        .settings(scalaVersion := scala38)
         .settings(pluginCrossBuild / sbtVersion := "2.0.0")
         .settings(commonSettings)
         .settings(scriptedSettings)
