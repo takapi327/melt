@@ -1,4 +1,4 @@
-import sbt.{given, *}
+import sbt.{ *, given }
 import sbt.Keys.*
 
 /** Plugin that disables publishing. Apply to example projects and similar. */

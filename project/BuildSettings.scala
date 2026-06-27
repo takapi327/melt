@@ -1,4 +1,4 @@
-import sbt.{given, *}
+import sbt.{ *, given }
 import sbt.plugins.SbtPlugin
 import sbt.Keys.*
 import sbt.ScriptedPlugin.autoImport.*
@@ -6,7 +6,6 @@ import sbt.ScriptedPlugin.autoImport.*
 import sbtheader.{ AutomateHeaderPlugin, CommentBlockCreator, CommentStyle }
 import sbtheader.HeaderPlugin.autoImport.*
 import sbtheader.HeaderPlugin.autoImport.HeaderPattern.commentBetween
-
 import ScalaVersions.*
 
 object BuildSettings {

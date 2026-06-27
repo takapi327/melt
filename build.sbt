@@ -127,7 +127,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/runtime"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "melt-runtime",
+    name                                   := "melt-runtime",
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test,
     // sbt 2.0.0 is stricter about duplicate ZIP entries in sources JARs.
     // BoilerplatePlugin registers generated files twice; deduplicate by target path.
@@ -151,7 +151,7 @@ lazy val codegen = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/codegen"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "melt-codegen",
+    name                                   := "melt-codegen",
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
@@ -178,8 +178,8 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/meltkit"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "meltkit",
-    scalaVersion                            := scala38,
+    name                                   := "meltkit",
+    scalaVersion                           := scala38,
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .jvmSettings(

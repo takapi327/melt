@@ -1,12 +1,11 @@
 import scala.language.implicitConversions
 
-import sbt.{given, *}
+import sbt.{ *, given }
 import sbt.Keys.*
 
 import sbtcrossproject.CrossProject
 
 import sbtheader.AutomateHeaderPlugin
-
 import BuildSettings.*
 import ScalaVersions.*
 
