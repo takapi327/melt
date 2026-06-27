@@ -1,5 +1,36 @@
 # sbt 2 完全移行計画 (Scala 3 統一)
 
+## 実装完了サマリー (2026-06-27)
+
+Phase 0〜5 の全フェーズ実装済み。全モジュール compile + test + scripted 通過確認済み。
+
+### 実装中の重要な発見・修正事項
+
+| 項目 | 計画時の想定 | 実際の結果 |
+|---|---|---|
+| `sbt2-compat` 追加方法 | `libraryDependencies += "com.github.sbt" %% "sbt2-compat" % "0.1.0"` | `%` + フルアーティファクト名 `"sbt2-compat_sbt2_3"` が必要 (plugin artifact) |
+| `MeltSbtPluginProject` の `scalaVersion` | `scala3 = "3.3.7"` のまま | **`scala384 = "3.8.4"` に変更必須** (sbt 2.0.0 が Scala 3.8.4 でコンパイル済み → TASTy 非互換) |
+| `ivyConfigurations` + `update.value.select()` | 動作未確認・リスクあり | **動作確認済み** — sbt 2.0.0 でも `Seq[File]` を返す (リスク解消) |
+| `FileFunction.cached` | sbt 2 で削除と想定 | **sbt 2.0.0 にも残存** — 削除不要 |
+| Classpath 型変換 (`sbt2-compat` の `toFiles`) | 必要と想定 | **不要** — `update.value.select()` が依然 `Seq[File]` を返す |
+| `sbt2-compat` API 実使用 | 必要と想定 | **不使用** — `@transient` + `Def.uncached` で直接対応 |
+| sbt 2 target ディレクトリ構造 | 不明 | `target/out/sjs1/scala-x.y.z/<projectName>/src_managed/` (sbt 1 の `target/scala-x.y.z/src_managed/` から変更) |
+| `BoilerplatePlugin` 生成ファイルの重複 | 未把握 | sbt 2 は ZIP 重複を厳格にエラー化 → `Compile / packageSrc / mappings ~= { _.distinctBy(_._2) }` で修正 |
+| `PathFinder.get` | 変更なし想定 | **`get()` に変更 (引数なし → `()` 必須)** |
+| `Setting[_]` | 警告として許容 | `Setting[?]` に変更 (警告解消) |
+
+### 主要な変更ファイル一覧
+
+- `project/Versions.scala` — `scala384 = "3.8.4"` 追加
+- `project/BuildSettings.scala` — `MeltSbtPluginProject` が `scala384` を使用
+- `build.sbt` — `sbt2-compat_sbt2_3`、runtime の `packageSrc` 重複修正
+- `plugins/sbt-melt/src/main/scala/melt/sbt/MeltPlugin.scala` — import 更新、`@transient`、`Def.uncached`、`.get()`
+- `plugins/sbt-meltkit/src/main/scala/meltkit/sbt/MeltkitPlugin.scala` — import 更新、`@transient`、`Setting[?]`
+- `plugins/sbt-melt/src/sbt-test/*/` — `build.properties` 新規作成、sbt-scalajs 1.22.0、`%%%`→`%%`、テストパス更新
+- `plugins/sbt-meltkit/src/sbt-test/*/` — 同上
+
+---
+
 ## Context
 
 melt プロジェクトは現在 sbt 1.12.8 上で動作しており、sbt プラグイン (`sbt-melt`, `sbt-meltkit`) は Scala 2.12.21 でビルドされている。今回これを **sbt 2.0.0 (正式版、2026-06-14 リリース)** に完全移行し、プラグインも含めて **Scala 3** に統一する。
