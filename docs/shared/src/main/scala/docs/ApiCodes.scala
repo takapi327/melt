@@ -309,8 +309,9 @@ object ApiCodes:
        |  )""".stripMargin
 
   val sbtMonorepoSetup: String =
-    """|// build.sbt — point at compiled classes directly
-       |meltCompilerClasspath := (codegenJVM / Compile / fullClasspath).value.files""".stripMargin
+    """|// build.sbt — depend on the codegen project directly
+       |lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
+       |  .dependsOn(codegen.jvm)""".stripMargin
 
   val sbtScssSetup: String =
     """|// project/plugins.sbt

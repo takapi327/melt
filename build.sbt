@@ -250,6 +250,7 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
 // internal `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo
 // the hello-world example wires codegen.jvm directly (see below).
 lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
+  .dependsOn(codegen.jvm, `sass-preprocessor`)
   .settings(
     libraryDependencies += "com.github.sbt" % "sbt2-compat_sbt2_3" % "0.1.0",
     libraryDependencies += "org.scalameta" %% "munit"              % "1.3.0" % Test
