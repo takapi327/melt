@@ -45,7 +45,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
-  // Scala 3.8.3 runs on Java 17 only
   MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
   MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
 )
@@ -129,7 +128,10 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .settings(BuildSettings.commonSettings)
   .settings(
     name                                    := "melt-runtime",
-    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test,
+    // sbt 2.0.0 is stricter about duplicate ZIP entries in sources JARs.
+    // BoilerplatePlugin registers generated files twice; deduplicate by target path.
+    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) }
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-dom" % "2.8.1",
@@ -243,14 +245,14 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
   )
 
 // ── sbt plugin: core compiler ──
-// The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 2.12/3 binary
-// incompatibility. In external projects the classpath is auto-resolved via the internal
-// `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo the
-// hello-world example wires codegen.jvm directly (see below).
+// The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 3.3.x/3.8.x
+// TASTy incompatibility. In external projects the classpath is auto-resolved via the
+// internal `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo
+// the hello-world example wires codegen.jvm directly (see below).
 lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
   .settings(
-    libraryDependencies += "com.github.sbt" %% "sbt2-compat" % "0.1.0",
-    libraryDependencies += "org.scalameta"  %% "munit"       % "1.3.0" % Test
+    libraryDependencies += "com.github.sbt" % "sbt2-compat_sbt2_3" % "0.1.0",
+    libraryDependencies += "org.scalameta" %% "munit"              % "1.3.0" % Test
   )
 
 // ── sbt plugin: meltkit integration ──
