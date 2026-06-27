@@ -17,13 +17,13 @@ import xsbti.Position
   * Each test uses temporary files so the cache key `(file, lastModified)` is
   * unique per test, avoiding cross-test interference from the static cache.
   */
-class MeltSourceMapSpec extends munit.FunSuite {
+class MeltSourceMapSpec extends munit.FunSuite:
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   /** Creates a mock [[Position]] pointing to `file` at `lineNumber`. */
   private def makePosition(file: File, lineNumber: Int): Position =
-    new Position {
+    new Position:
       override def line():         Optional[Integer] = Optional.of(lineNumber.asInstanceOf[Integer])
       override def lineContent():  String            = ""
       override def offset():       Optional[Integer] = Optional.empty()
@@ -31,11 +31,10 @@ class MeltSourceMapSpec extends munit.FunSuite {
       override def pointerSpace(): Optional[String]  = Optional.empty()
       override def sourcePath():   Optional[String]  = Optional.of(file.getAbsolutePath)
       override def sourceFile():   Optional[File]    = Optional.of(file)
-    }
 
   /** Creates a mock [[Position]] with no source file (synthetic position). */
   private def makePositionNoFile(): Position =
-    new Position {
+    new Position:
       override def line():         Optional[Integer] = Optional.of(5.asInstanceOf[Integer])
       override def lineContent():  String            = ""
       override def offset():       Optional[Integer] = Optional.empty()
@@ -43,41 +42,38 @@ class MeltSourceMapSpec extends munit.FunSuite {
       override def pointerSpace(): Optional[String]  = Optional.empty()
       override def sourcePath():   Optional[String]  = Optional.empty()
       override def sourceFile():   Optional[File]    = Optional.empty()
-    }
 
   /** Writes `content` to a temp file with the given suffix and returns the file. */
-  private def tempFile(suffix: String, content: String): File = {
+  private def tempFile(suffix: String, content: String): File =
     val f = File.createTempFile("MeltSourceMapSpec", suffix)
     f.deleteOnExit()
     Files.write(f.toPath, content.getBytes("UTF-8"))
     f
-  }
 
   // ── Test-local V3 helpers ─────────────────────────────────────────────────
 
   private val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
-  private def encodeVlq(n: Int): String = {
+  private def encodeVlq(n: Int): String =
     val sb      = new StringBuilder
-    var encoded = if (n < 0) ((-n) << 1) | 1 else n << 1
-    while ({
+    var encoded = if n < 0 then ((-n) << 1) | 1 else n << 1
+    while {
       val digit = encoded & 0x1f
       encoded >>>= 5
-      sb += B64(if (encoded > 0) digit | 0x20 else digit)
+      sb += B64(if encoded > 0 then digit | 0x20 else digit)
       encoded > 0
-    }) ()
+    } do ()
     sb.toString
-  }
 
-  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String = {
-    if (entries.isEmpty) return ""
+  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String =
+    if entries.isEmpty then return ""
     val sb          = new StringBuilder
     val lastGenLine = entries.last._1
     val byLine      = entries.map(e => e._1 -> e).toMap
     var prevSrcLine = 0
     var prevSrcCol  = 0
     (1 to lastGenLine).foreach { genLine =>
-      if (genLine > 1) sb += ';'
+      if genLine > 1 then sb += ';'
       byLine.get(genLine).foreach {
         case (_, srcLine, srcCol) =>
           val sl = srcLine - 1
@@ -91,10 +87,9 @@ class MeltSourceMapSpec extends munit.FunSuite {
       }
     }
     sb.toString
-  }
 
   /** Builds a generated `.scala` file content with a V3 source-map block. */
-  private def scalaContent(meltPath: String, entries: (Int, Int, Int)*): String = {
+  private def scalaContent(meltPath: String, entries: (Int, Int, Int)*): String =
     val mappings = encodeMappings(entries)
     val escaped  = meltPath.replace("\\", "\\\\").replace("\"", "\\\"")
     val json     = s"""{"version":3,"sources":["$escaped"],"names":[],"mappings":"$mappings"}"""
@@ -107,7 +102,6 @@ class MeltSourceMapSpec extends munit.FunSuite {
         |    -- MELT GENERATED --
         |*/
         |""".stripMargin
-  }
 
   // ── positionMapper ────────────────────────────────────────────────────────
 
@@ -179,7 +173,7 @@ class MeltSourceMapSpec extends munit.FunSuite {
     val meltFile  = tempFile(".melt", "")
     val scalaFile = tempFile(".scala", scalaContent(meltFile.getAbsolutePath, (5, 3, 2)))
 
-    val pos = new Position {
+    val pos = new Position:
       override def line():         Optional[Integer] = Optional.empty() // no line
       override def lineContent():  String            = ""
       override def offset():       Optional[Integer] = Optional.empty()
@@ -187,8 +181,6 @@ class MeltSourceMapSpec extends munit.FunSuite {
       override def pointerSpace(): Optional[String]  = Optional.empty()
       override def sourcePath():   Optional[String]  = Optional.of(scalaFile.getAbsolutePath)
       override def sourceFile():   Optional[File]    = Optional.of(scalaFile)
-    }
     val result = MeltSourceMap.positionMapper(pos)
     assert(result.isEmpty, "expected None when position has no line number")
   }
-}

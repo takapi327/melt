@@ -21,7 +21,7 @@ import xsbti.Position
   * Compile / sourcePositionMappers += Def.uncached((pos: xsbti.Position) => MeltSourceMap.positionMapper(pos))
   * }}}
   */
-object MeltSourceMap {
+object MeltSourceMap:
 
   /** Cache keyed by File with the lastModified timestamp stored in the value.
     * Limits the map to one entry per generated `.scala` file while still
@@ -38,42 +38,36 @@ object MeltSourceMap {
     *   - No `-- MELT GENERATED --` block is present in the generated file
     *   - The generated line is before the first LINES entry
     */
-  val positionMapper: Position => Option[Position] = { pos =>
+  val positionMapper: Position => Option[Position] = pos =>
     // Only remap positions that come from a .scala file.
     // The sourceFile Optional may be absent for synthetic positions.
-    if (!pos.sourceFile().isPresent) None
-    else {
+    if !pos.sourceFile().isPresent then None
+    else
       val genFile = pos.sourceFile().get()
-      if (!genFile.getName.endsWith(".scala")) None
-      else {
+      if !genFile.getName.endsWith(".scala") then None
+      else
         val lastMod = genFile.lastModified()
         val meta    = Option(cache.get(genFile)).filter(_._2 == lastMod).map(_._1).getOrElse {
           val result = MeltGeneratedSource.read(genFile)
           cache.put(genFile, (result, lastMod))
           result
         }
-        meta match {
+        meta match
           case None       => None
           case Some(meta) =>
             val meltFile = new File(meta.sourcePath)
-            if (!meltFile.exists()) None
-            else if (!pos.line().isPresent) None
-            else {
+            if !meltFile.exists() then None
+            else if !pos.line().isPresent then None
+            else
               val genLine = pos.line().get().intValue()
-              MeltGeneratedSource.mapPosition(meta, genLine) match {
+              MeltGeneratedSource.mapPosition(meta, genLine) match
                 case None                    => None
                 case Some((srcLine, srcCol)) =>
                   Some(remappedPosition(meltFile, srcLine, srcCol))
-              }
-            }
-        }
-      }
-    }
-  }
 
   /** Constructs an `xsbti.Position` pointing to `file` at `srcLine` and `srcCol`. */
   private def remappedPosition(file: File, srcLine: Int, srcCol: Int): xsbti.Position =
-    new xsbti.Position {
+    new xsbti.Position:
       override def line(): Optional[Integer] =
         Optional.of(srcLine.asInstanceOf[Integer])
       override def lineContent(): String            = ""
@@ -83,5 +77,3 @@ object MeltSourceMap {
       override def pointerSpace(): Optional[String]       = Optional.empty()
       override def sourcePath():   Optional[String]       = Optional.of(file.getAbsolutePath)
       override def sourceFile():   Optional[java.io.File] = Optional.of(file)
-    }
-}

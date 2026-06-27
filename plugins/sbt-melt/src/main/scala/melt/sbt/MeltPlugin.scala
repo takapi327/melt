@@ -32,12 +32,12 @@ import melt.preprocessor.StylePreprocessor
   * sbt compilerJVM/publishLocal runtimeJVM/publishLocal codegenJVM/publishLocal sbt-melt/publishLocal
   * }}}
   */
-object MeltPlugin extends AutoPlugin {
+object MeltPlugin extends AutoPlugin:
 
   override def trigger  = noTrigger
   override def requires = plugins.JvmPlugin
 
-  object autoImport {
+  object autoImport:
 
     val meltHydration =
       settingKey[Boolean]("Emit @JSExportTopLevel hydration entries in SPA codegen")
@@ -70,9 +70,8 @@ object MeltPlugin extends AutoPlugin {
       )
 
     val SassPreprocessor: StylePreprocessor = melt.sass.SassPreprocessor
-  }
 
-  import autoImport._
+  import autoImport.*
 
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
@@ -93,10 +92,8 @@ object MeltPlugin extends AutoPlugin {
     libraryDependencies += {
       val v    = pluginVersion
       val binV = scalaBinaryVersion.value
-      if (hasScalaJSPlugin(thisProject.value))
-        "io.github.takapi327" % s"melt-runtime_sjs1_$binV" % v
-      else
-        "io.github.takapi327" %% "melt-runtime" % v
+      if hasScalaJSPlugin(thisProject.value) then "io.github.takapi327" % s"melt-runtime_sjs1_$binV" % v
+      else "io.github.takapi327"                                       %% "melt-runtime"             % v
     },
 
     meltGenerate := compileMeltFiles(
@@ -104,11 +101,11 @@ object MeltPlugin extends AutoPlugin {
       srcDirs = meltSourceDirectories.value,
       outDir  = meltOutputDirectory.value,
       pkg     = meltPackage.value,
-      mode    = meltCodegenMode.value match {
+      mode    = meltCodegenMode.value match
         case "spa" => "spa"
         case "ssr" => "ssr"
-        case _     => if (hasScalaJSPlugin(thisProject.value)) "spa" else "ssr"
-      },
+        case _     => if hasScalaJSPlugin(thisProject.value) then "spa" else "ssr"
+      ,
       hydration     = meltHydration.value,
       hydrationRoot = meltHydrationRoot.value,
       preprocessor  = meltStylePreprocessor.value,
@@ -130,7 +127,7 @@ object MeltPlugin extends AutoPlugin {
     hydrationRoot: Option[String],
     preprocessor:  Option[StylePreprocessor],
     reporter:      xsbti.Reporter
-  ): Seq[File] = {
+  ): Seq[File] =
     val log = streams.log
 
     IO.createDirectory(outDir)
@@ -140,12 +137,11 @@ object MeltPlugin extends AutoPlugin {
         (srcDir ** "*.melt").get().map(f => (f, srcDir))
       }
 
-    if (meltFilesWithRoot.isEmpty) {
+    if meltFilesWithRoot.isEmpty then
       log.debug(s"[sbt-melt] No .melt files found under ${ srcDirs.mkString(", ") }")
       return Seq.empty
-    }
 
-    val compileMode      = if (mode.toLowerCase == "ssr") CompileMode.SSR else CompileMode.SPA
+    val compileMode       = if mode.toLowerCase == "ssr" then CompileMode.SSR else CompileMode.SPA
     val stylePreprocessor = preprocessor.getOrElse(StylePreprocessor.cssOnly)
 
     meltFilesWithRoot.flatMap {
@@ -156,11 +152,10 @@ object MeltPlugin extends AutoPlugin {
           .relativize(srcDir, meltFile.getParentFile)
           .map(_.replace(java.io.File.separatorChar, '.'))
           .getOrElse("")
-        val fullPkg = (pkg, subPkg) match {
+        val fullPkg = (pkg, subPkg) match
           case (p, "") => p
           case ("", s) => s
           case (p, s)  => s"$p.$s"
-        }
 
         val outSubDir = IO
           .relativize(srcDir, meltFile.getParentFile)
@@ -176,10 +171,9 @@ object MeltPlugin extends AutoPlugin {
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
           log.info(s"[sbt-melt] Compiling ${ meltFile.getName } → ${ outFile.getName }")
 
-          val emitHydration = hydrationRoot match {
+          val emitHydration = hydrationRoot match
             case Some(root) => objectName == root
             case None       => hydration
-          }
 
           val result = MeltCompiler.compile(
             source       = IO.read(meltFile),
@@ -194,18 +188,17 @@ object MeltPlugin extends AutoPlugin {
 
           result.warnings.foreach { w =>
             try reporter.log(mkProblem(meltFile.getAbsolutePath, w.line, w.column, w.message, xsbti.Severity.Warn))
-            catch { case _: Throwable => log.warn(s"melt warning: ${ meltFile.getName }:${ w.line }: ${ w.message }") }
+            catch case _: Throwable => log.warn(s"melt warning: ${ meltFile.getName }:${ w.line }: ${ w.message }")
           }
 
-          if (result.errors.nonEmpty) {
+          if result.errors.nonEmpty then
             result.errors.foreach { e =>
               try reporter.log(mkProblem(meltFile.getAbsolutePath, e.line, e.column, e.message, xsbti.Severity.Error))
-              catch { case _: Throwable => log.error(s"melt error: ${ meltFile.getName }:${ e.line }: ${ e.message }") }
+              catch case _: Throwable => log.error(s"melt error: ${ meltFile.getName }:${ e.line }: ${ e.message }")
             }
             throw new MessageOnlyException(
               s"[sbt-melt] ${ meltFile.getName } failed to compile — see errors above"
             )
-          }
 
           result.scalaCode match
             case None =>
@@ -218,12 +211,11 @@ object MeltPlugin extends AutoPlugin {
 
         cachedCompile(Set(meltFile)).toSeq
     }
-  }
 
   private def mkPosition(absPath: String, lineNum: Int): xsbti.Position =
-    new xsbti.Position {
+    new xsbti.Position:
       override def line(): Optional[Integer] =
-        if (lineNum > 0) Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
+        if lineNum > 0 then Optional.of(lineNum.asInstanceOf[Integer]) else Optional.empty()
       override def lineContent():  String                 = ""
       override def offset():       Optional[Integer]      = Optional.empty()
       override def pointer():      Optional[Integer]      = Optional.empty()
@@ -231,7 +223,6 @@ object MeltPlugin extends AutoPlugin {
       override def sourcePath():   Optional[String]       = Optional.of(absPath)
       override def sourceFile():   Optional[java.io.File] =
         Optional.of(new java.io.File(absPath))
-    }
 
   private def mkProblem(
     absPath: String,
@@ -240,10 +231,8 @@ object MeltPlugin extends AutoPlugin {
     msg:     String,
     sev:     xsbti.Severity
   ): xsbti.Problem =
-    new xsbti.Problem {
+    new xsbti.Problem:
       override def category(): String         = "melt"
       override def severity(): xsbti.Severity = sev
       override def message():  String         = msg
       override def position(): xsbti.Position = mkPosition(absPath, lineNum)
-    }
-}
