@@ -18,12 +18,8 @@ import xsbti.Position
   *
   * The mapper is registered in sbt via:
   * {{{
-  * Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) }
+  * Compile / sourcePositionMappers += Def.uncached((pos: xsbti.Position) => MeltSourceMap.positionMapper(pos))
   * }}}
-  *
-  * Implementation notes (Scala 2.12 / sbt plugin constraints):
-  *   - `java.util.Optional` is used directly (no `.toOption` available)
-  *   - Anonymous class syntax `new xsbti.Position { ... }` (not `new Trait:`)
   */
 object MeltSourceMap {
 

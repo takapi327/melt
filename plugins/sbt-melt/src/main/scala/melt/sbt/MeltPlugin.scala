@@ -8,8 +8,8 @@ package melt.sbt
 
 import java.util.Optional
 
-import sbt._
-import sbt.Keys._
+import sbt.{ given, * }
+import sbt.Keys.*
 
 /** sbt-melt plugin
   *
@@ -126,11 +126,11 @@ object MeltPlugin extends AutoPlugin {
       * Override to point at the melt JVM output directly
       * (e.g. `(compilerJVM / Compile / fullClasspath).value.files`).
       */
-    val meltCompilerClasspath =
+    @transient val meltCompilerClasspath =
       taskKey[Seq[File]]("Classpath for the melt compiler JVM process")
 
     /** Compiles all `.melt` files and returns the generated `.scala` files. */
-    val meltGenerate =
+    @transient val meltGenerate =
       taskKey[Seq[File]]("Compile .melt files to .scala files")
 
     /** Codegen mode passed to `melt.MeltMain`.
@@ -204,7 +204,7 @@ object MeltPlugin extends AutoPlugin {
   private def hasScalaJSPlugin(project: sbt.ResolvedProject): Boolean =
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
-  override def projectSettings: Seq[Setting[_]] = Seq(
+  override def projectSettings: Seq[Setting[?]] = Seq(
     meltHydration         := false,
     meltHydrationRoot     := None,
     meltStylePreprocessor := None,
@@ -214,12 +214,12 @@ object MeltPlugin extends AutoPlugin {
     meltPackage           := "",
 
     ivyConfigurations += MeltCompilerConfig,
-    libraryDependencies += ("io.github.takapi327" % "melt-codegen_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig,
+    libraryDependencies += ("io.github.takapi327" % "melt-codegen_3" % pluginVersion).cross(CrossVersion.disabled) % MeltCompilerConfig,
     libraryDependencies ++= {
       meltStylePreprocessor.value match {
         case Some(cls) if cls == SassPreprocessor =>
           Seq(
-            ("io.github.takapi327" % "melt-sass-preprocessor_3" % pluginVersion cross CrossVersion.disabled) % MeltCompilerConfig
+            ("io.github.takapi327" % "melt-sass-preprocessor_3" % pluginVersion).cross(CrossVersion.disabled) % MeltCompilerConfig
           )
         case _ => Seq.empty
       }
@@ -258,8 +258,8 @@ object MeltPlugin extends AutoPlugin {
     // Remaps scalac error positions from generated `.scala` files back to the
     // original `.melt` source files using the `-- MELT GENERATED --` comment
     // block that melt appends to every generated file.
-    Compile / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) },
-    Test / sourcePositionMappers += { pos => MeltSourceMap.positionMapper(pos) }
+    Compile / sourcePositionMappers += Def.uncached((pos: xsbti.Position) => MeltSourceMap.positionMapper(pos)),
+    Test / sourcePositionMappers += Def.uncached((pos: xsbti.Position) => MeltSourceMap.positionMapper(pos))
   )
 
   private def compileMeltFiles(
@@ -288,7 +288,7 @@ object MeltPlugin extends AutoPlugin {
 
     val meltFilesWithRoot: Seq[(File, File)] =
       srcDirs.filter(_.exists).flatMap { srcDir =>
-        (srcDir ** "*.melt").get.map(f => (f, srcDir))
+        (srcDir ** "*.melt").get().map(f => (f, srcDir))
       }
 
     if (meltFilesWithRoot.isEmpty) {
@@ -302,7 +302,7 @@ object MeltPlugin extends AutoPlugin {
 
     meltFilesWithRoot.flatMap {
       case (meltFile, srcDir) =>
-        val objectName = meltFile.base.head.toUpper + meltFile.base.tail
+        val objectName = s"${meltFile.base.head.toUpper}${meltFile.base.tail}"
 
         val subPkg = IO
           .relativize(srcDir, meltFile.getParentFile)

@@ -1,6 +1,6 @@
 # Verify that meltGenerate produces the expected Scala file from App.melt
 > meltGenerate
-$ exists target/scala-3.3.7/src_managed/main/melt/components/App.scala
+$ exists target/out/sjs1/scala-3.3.7/hello-world/src_managed/main/melt/components/App.scala
 
 # Verify the full project compiles (includes the generated App.scala + Main.scala)
 > compile
