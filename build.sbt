@@ -45,7 +45,6 @@ ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
   MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
-  // Scala 3.8.3 runs on Java 17 only
   MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
   MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
 )
@@ -90,7 +89,7 @@ lazy val preprocessor = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
   .module("preprocessor", "Generic preprocessor API")
   .settings(
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
 
 // ── SCSS support via Dart Sass (optional, JVM only) ──
@@ -110,7 +109,7 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform)
   .module("compiler", "Core compiler: .melt → .scala")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.3.0" % Test
+      "org.scalameta" %% "munit" % "1.3.0" % Test
     )
   )
   .jsSettings(
@@ -128,14 +127,17 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/runtime"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "melt-runtime",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
+    name                                   := "melt-runtime",
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test,
+    // sbt 2.0.0 is stricter about duplicate ZIP entries in sources JARs.
+    // BoilerplatePlugin registers generated files twice; deduplicate by target path.
+    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) }
   )
   .jsSettings(
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.1",
+    libraryDependencies += "org.scala-js" %% "scalajs-dom" % "2.8.1",
     // Use jsdom so that DOM APIs (matchMedia, dispatchEvent, etc.) are
     // available in unit tests.
-    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
+    jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
   .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
@@ -149,8 +151,8 @@ lazy val codegen = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/codegen"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "melt-codegen",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
+    name                                   := "melt-codegen",
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(compiler, runtime)
@@ -162,10 +164,10 @@ lazy val testkit = project
   .settings(
     name := "melt-testkit",
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.3.0"
+      "org.scalameta" %% "munit" % "1.3.0"
     ),
     // Use jsdom so that DOM APIs are available in unit tests
-    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()
+    jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
@@ -176,9 +178,9 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .in(file("modules/meltkit"))
   .settings(BuildSettings.commonSettings)
   .settings(
-    name                                    := "meltkit",
-    scalaVersion                            := scala38,
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
+    name                                   := "meltkit",
+    scalaVersion                           := scala38,
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .jvmSettings(
     libraryDependencies += "io.undertow" % "undertow-core" % "2.3.18.Final"
@@ -195,7 +197,7 @@ lazy val `meltkit-adapter-browser` = project
     name         := "meltkit-adapter-browser",
     scalaVersion := scala38,
     libraryDependencies ++= Seq(
-      "org.scalameta" %%% "munit" % "1.3.0" % Test
+      "org.scalameta" %% "munit" % "1.3.0" % Test
     )
   )
   .dependsOn(meltkit.js)
@@ -211,7 +213,7 @@ lazy val `meltkit-adapter-node` = project
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.CommonJSModule)
     },
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.3.0" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
   )
   .dependsOn(meltkit.js)
 
@@ -224,12 +226,12 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
     name         := "meltkit-adapter-http4s",
     scalaVersion := scala38,
     libraryDependencies ++= Seq(
-      "org.http4s"    %%% "http4s-core"         % "0.23.33",
-      "org.http4s"    %%% "http4s-server"       % "0.23.33",
-      "org.http4s"    %%% "http4s-ember-server" % "0.23.33",
-      "org.http4s"    %%% "http4s-circe"        % "0.23.33",
-      "io.circe"      %%% "circe-parser"        % "0.14.9",
-      "org.typelevel" %%% "munit-cats-effect"   % "2.0.0" % Test
+      "org.http4s"    %% "http4s-core"         % "0.23.33",
+      "org.http4s"    %% "http4s-server"       % "0.23.33",
+      "org.http4s"    %% "http4s-ember-server" % "0.23.33",
+      "org.http4s"    %% "http4s-circe"        % "0.23.33",
+      "io.circe"      %% "circe-parser"        % "0.14.9",
+      "org.typelevel" %% "munit-cats-effect"   % "2.0.0" % Test
     )
   )
   .enablePlugins(AutomateHeaderPlugin)
@@ -239,18 +241,19 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
     // Node.js: AsyncLocalStorage uses @JSImport which requires module support
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
     // Tests require Node.js (cats-effect IO runtime + AsyncLocalStorage for Router)
-    jsEnv := new org.scalajs.jsenv.nodejs.NodeJSEnv()
+    jsEnv := Def.uncached(new org.scalajs.jsenv.nodejs.NodeJSEnv())
   )
 
 // ── sbt plugin: core compiler ──
-// The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 2.12/3 binary
-// incompatibility. In external projects the classpath is auto-resolved via the internal
-// `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo the
-// hello-world example wires codegen.jvm directly (see below).
+// The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 3.3.x/3.8.x
+// TASTy incompatibility. In external projects the classpath is auto-resolved via the
+// internal `melt-compiler` Ivy configuration after `publishLocal`. In this monorepo
+// the hello-world example wires codegen.jvm directly (see below).
 lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
+  .dependsOn(codegen.jvm, `sass-preprocessor`)
   .settings(
-    crossScalaVersions                     := Seq(ScalaVersions.scala2), // sbt plugins require Scala 2.12
-    libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test
+    libraryDependencies += "com.github.sbt" % "sbt2-compat_sbt2_3" % "0.1.0",
+    libraryDependencies += "org.scalameta" %% "munit"              % "1.3.0" % Test
   )
 
 // ── sbt plugin: meltkit integration ──
@@ -259,12 +262,7 @@ lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
 lazy val `sbt-meltkit` = MeltSbtPluginProject("sbt-meltkit", "plugins/sbt-meltkit")
   .dependsOn(`sbt-melt`)
   .settings(
-    crossScalaVersions := Seq(ScalaVersions.scala2),
-    libraryDependencies += Defaults.sbtPluginExtra(
-      "org.scala-js" % "sbt-scalajs" % "1.21.0",
-      (pluginCrossBuild / sbtBinaryVersion).value,
-      (update / scalaBinaryVersion).value
-    )
+    addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.22.0")
   )
 
 // ── Language Server (LSP — shared across all editors) ──

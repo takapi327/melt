@@ -574,7 +574,7 @@ object GuideCodes:
   // ── Testing ───────────────────────────────────────────────────────────────
 
   val testingDepExample: String =
-    """libraryDependencies += "io.github.takapi327" %%% "melt-testkit" % "0.1.0-SNAPSHOT" % Test"""
+    """libraryDependencies += "io.github.takapi327" %% "melt-testkit" % "0.1.0-SNAPSHOT" % Test"""
 
   val testingCounterSpec: String =
     """|import melt.testkit.*
@@ -736,7 +736,7 @@ object GuideCodes:
        |  .useForever""".stripMargin
 
   val adaptersNodeDep: String =
-    """libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-node" % "0.1.0-SNAPSHOT""""
+    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-node" % "0.1.0-SNAPSHOT""""
 
   val adaptersBrowserDep: String =
-    """libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT""""
+    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT""""

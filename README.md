@@ -49,8 +49,8 @@ button { font-size: 1.5rem; cursor: pointer; }
 | `meltkit-adapter-browser` | ❌ | ✅ | ブラウザアダプタ |
 | `meltkit-adapter-node` | ❌ | ✅ | Node.js サーバアダプタ |
 | `meltkit-adapter-http4s` | ✅ | ✅ | http4s アダプタ |
-| `sbt-melt` | ✅ | ❌ | sbt コンパイラプラグイン（Scala 2.12） |
-| `sbt-meltkit` | ✅ | ❌ | sbt meltkit 統合プラグイン（Scala 2.12） |
+| `sbt-melt` | ✅ | ❌ | sbt コンパイラプラグイン（Scala 3.8.4） |
+| `sbt-meltkit` | ✅ | ❌ | sbt meltkit 統合プラグイン（Scala 3.8.4） |
 | `melt-language-server` | ✅ | ❌ | LSP サーバ |
 
 ---
@@ -608,8 +608,7 @@ sbt headerCheckAll
 | Scala | 用途 |
 |-------|------|
 | 3.3.7 | メイン（LTS） |
-| 3.8.3 | 追加テスト |
-| 2.12.21 | `sbt-melt` プラグインのみ |
+| 3.8.4 | meltkit 系モジュール・sbt プラグイン（sbt 2.0.0 が要求） |
 
 ### Java バージョン
 

@@ -9,33 +9,32 @@ package melt.sbt
 /** Tests for [[MeltGeneratedSource]] — parsing and position-mapping of the
   * `-- MELT GENERATED --` source-map comment block.
   */
-class MeltGeneratedSourceSpec extends munit.FunSuite {
+class MeltGeneratedSourceSpec extends munit.FunSuite:
 
   // ── Test-local V3 helpers ──────────────────────────────────────────────────
 
   private val B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
-  private def encodeVlq(n: Int): String = {
+  private def encodeVlq(n: Int): String =
     val sb      = new StringBuilder
-    var encoded = if (n < 0) ((-n) << 1) | 1 else n << 1
-    while ({
+    var encoded = if n < 0 then ((-n) << 1) | 1 else n << 1
+    while {
       val digit = encoded & 0x1f
       encoded >>>= 5
-      sb += B64(if (encoded > 0) digit | 0x20 else digit)
+      sb += B64(if encoded > 0 then digit | 0x20 else digit)
       encoded > 0
-    }) ()
+    } do ()
     sb.toString
-  }
 
-  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String = {
-    if (entries.isEmpty) return ""
+  private def encodeMappings(entries: Seq[(Int, Int, Int)]): String =
+    if entries.isEmpty then return ""
     val sb          = new StringBuilder
     val lastGenLine = entries.last._1
     val byLine      = entries.map(e => e._1 -> e).toMap
     var prevSrcLine = 0
     var prevSrcCol  = 0
     (1 to lastGenLine).foreach { genLine =>
-      if (genLine > 1) sb += ';'
+      if genLine > 1 then sb += ';'
       byLine.get(genLine).foreach {
         case (_, srcLine, srcCol) =>
           val sl = srcLine - 1
@@ -49,10 +48,9 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
       }
     }
     sb.toString
-  }
 
   /** Builds a `-- MELT GENERATED --` block with a V3 source map. */
-  private def makeBlock(sourcePath: String, entries: (Int, Int, Int)*): String = {
+  private def makeBlock(sourcePath: String, entries: (Int, Int, Int)*): String =
     val mappings = encodeMappings(entries)
     val escaped  = sourcePath.replace("\\", "\\\\").replace("\"", "\\\"")
     val json     = s"""{"version":3,"sources":["$escaped"],"names":[],"mappings":"$mappings"}"""
@@ -65,7 +63,6 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
         |    -- MELT GENERATED --
         |*/
         |""".stripMargin
-  }
 
   // ── parse ─────────────────────────────────────────────────────────────────
 
@@ -149,4 +146,3 @@ class MeltGeneratedSourceSpec extends munit.FunSuite {
     assertEquals(MeltGeneratedSource.mapPosition(meta((5, 3, 2)), 6), Some((3, 2)))
     assertEquals(MeltGeneratedSource.mapPosition(meta((5, 3, 2)), 4), None)
   }
-}

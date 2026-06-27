@@ -126,11 +126,11 @@ object ApiCodes:
 
   val meltkitInstall: String =
     """|// build.sbt
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit" % "0.1.0"
+       |libraryDependencies += "io.github.takapi327" %% "meltkit" % "0.1.0"
        |
        |// Pick your adapter:
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % "0.1.0"  // Scala.js
-       |libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-http4s"  % "0.1.0"  // JVM / Node""".stripMargin
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0"  // Scala.js
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0"  // JVM / Node""".stripMargin
 
   val meltkitRoutes: String =
     """|import meltkit.*
@@ -309,8 +309,9 @@ object ApiCodes:
        |  )""".stripMargin
 
   val sbtMonorepoSetup: String =
-    """|// build.sbt — point at compiled classes directly
-       |meltCompilerClasspath := (codegenJVM / Compile / fullClasspath).value.files""".stripMargin
+    """|// build.sbt — depend on the codegen project directly
+       |lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
+       |  .dependsOn(codegen.jvm)""".stripMargin
 
   val sbtScssSetup: String =
     """|// project/plugins.sbt

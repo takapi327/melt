@@ -1,13 +1,12 @@
-import sbt._
+import sbt.{ *, given }
 import sbt.plugins.SbtPlugin
-import sbt.Keys._
-import sbt.ScriptedPlugin.autoImport._
+import sbt.Keys.*
+import sbt.ScriptedPlugin.autoImport.*
 
-import de.heikoseeberger.sbtheader.{ AutomateHeaderPlugin, CommentBlockCreator, CommentStyle }
-import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
-import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport.HeaderPattern.commentBetween
-
-import ScalaVersions._
+import sbtheader.{ AutomateHeaderPlugin, CommentBlockCreator, CommentStyle }
+import sbtheader.HeaderPlugin.autoImport.*
+import sbtheader.HeaderPlugin.autoImport.HeaderPattern.commentBetween
+import ScalaVersions.*
 
 object BuildSettings {
 
@@ -18,7 +17,7 @@ object BuildSettings {
     )
 
   /** Settings for scripted tests. */
-  def scriptedSettings: Seq[Setting[_]] = Seq(
+  def scriptedSettings: Seq[Setting[?]] = Seq(
     scriptedLaunchOpts := {
       scriptedLaunchOpts.value ++
         Seq("-Xmx1024M", s"-Dplugin.version=${ version.value }")
@@ -27,7 +26,7 @@ object BuildSettings {
   )
 
   /** Settings shared across all projects. */
-  def commonSettings: Seq[Setting[_]] = Def.settings(
+  def commonSettings: Seq[Setting[?]] = Def.settings(
     organization     := "io.github.takapi327",
     organizationName := "takapi327",
     startYear        := Some(2026),
@@ -55,7 +54,8 @@ object BuildSettings {
   object MeltSbtPluginProject {
     def apply(name: String, dir: String): Project =
       Project(name, file(dir))
-        .settings(scalaVersion := scala2)
+        .settings(scalaVersion := scala38)
+        .settings(pluginCrossBuild / sbtVersion := "2.0.0")
         .settings(commonSettings)
         .settings(scriptedSettings)
         .enablePlugins(SbtPlugin, AutomateHeaderPlugin)
