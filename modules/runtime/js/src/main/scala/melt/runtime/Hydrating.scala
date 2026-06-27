@@ -138,7 +138,11 @@ object Hydrating:
           val c = dom.document.createComment("melt")
           parent.appendChild(c)
           c
-        case anchor => anchor
+        case anchor =>
+          // Mark this closing marker as consumed so that an outer consumeDyn
+          // treats it as a plain node to remove rather than the outer close.
+          anchor.data = "]melt:dyn:consumed"
+          anchor
     else
       val c = dom.document.createComment("melt")
       parent.appendChild(c)

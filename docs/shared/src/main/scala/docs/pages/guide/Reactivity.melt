@@ -1,0 +1,58 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).reactivity
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.stateH2}</h2>
+<p>{t.stateIntro}</p>
+
+<pre><code>{GuideCodes.reactivityStateExample}</code></pre>
+
+<p>{t.stateReadText}</p>
+
+<pre><code>{GuideCodes.reactivityStateRead}</code></pre>
+
+<h2>{t.mutateH2}</h2>
+<p>{t.mutateIntro}</p>
+
+<pre><code>{GuideCodes.reactivityMutateExample}</code></pre>
+
+<h2>{t.signalH2}</h2>
+<p>{t.signalIntro}</p>
+
+<pre><code>{GuideCodes.reactivitySignalExample}</code></pre>
+
+<p>{t.signalUsage}</p>
+
+<pre><code>{GuideCodes.reactivitySignalTemplate}</code></pre>
+
+<h2>{t.domH2}</h2>
+<p>{t.domIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.reactivityDomExample}</code></pre>
+</div>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.calloutTitle}</div>
+  <p>{t.calloutText}</p>
+</div>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/template-syntax"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "テンプレート構文" else "Template Syntax"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/computed"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "算出値" else "Computed"}</span>
+  </a>
+</div>

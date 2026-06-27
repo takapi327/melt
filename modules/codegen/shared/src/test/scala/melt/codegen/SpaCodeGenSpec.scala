@@ -1986,6 +1986,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("""createComment("melt-html")"""), code)
     assert(code.contains("Bind.htmlAnchor(TrustedHtml.unsafe"), code)
+    assert(code.contains("if !Hydrating.isActive then Bind.htmlAnchor(TrustedHtml.unsafe"), code)
     assert(!code.contains("""createElement("span")"""), code)
   }
 

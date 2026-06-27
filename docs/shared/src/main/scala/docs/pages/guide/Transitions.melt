@@ -1,0 +1,81 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).transitions
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.tweenH2}</h2>
+<p>{t.tweenIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.transitionsTweenExample}</code></pre>
+</div>
+
+<p>{t.tweenOutro}</p>
+
+<h2>{t.springH2}</h2>
+<p>{t.springIntro}</p>
+
+<pre><code>{GuideCodes.transitionsSpringExample}</code></pre>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.optionH}</th>
+      <th>{t.defaultH}</th>
+      <th>{t.descH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>stiffness</code></td>
+      <td><code>0.15</code></td>
+      <td>{t.stiffnessDesc}</td>
+    </tr>
+    <tr>
+      <td><code>damping</code></td>
+      <td><code>0.8</code></td>
+      <td>{t.dampingDesc}</td>
+    </tr>
+    <tr>
+      <td><code>precision</code></td>
+      <td><code>0.01</code></td>
+      <td>{t.precisionDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>{t.cssH2}</h2>
+<p>{t.cssIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.transitionsCssExample}</code></pre>
+</div>
+
+{t.inOutH2.map(h => <h2>{h}</h2>)}
+{t.inOutIntro.map(p => <p>{p}</p>)}
+
+{t.perfTitle.map(title =>
+  <div class="callout callout-tip">
+    <div class="callout-title">{title}</div>
+    <p>{t.perfText.getOrElse("")}</p>
+  </div>
+)}
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/special-elements"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "特殊要素" else "Special Elements"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/trusted-html"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "信頼済み HTML" else "Trusted HTML"}</span>
+  </a>
+</div>

@@ -1,0 +1,98 @@
+<script lang="scala">
+import docs.i18n.{ApiI18n, GuideI18n}
+import docs.ApiCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = ApiI18n(props.lang).compiler
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.entryH2}</h2>
+<p>{t.entryDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.compilerExample}</code></pre>
+</div>
+
+<h2>{t.configH2}</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.fieldH}</th>
+      <th>{t.typeH}</th>
+      <th>{t.defaultH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>componentName</code></td>
+      <td><code>String</code></td>
+      <td>{t.componentNameDesc}</td>
+    </tr>
+    <tr>
+      <td><code>pkg</code></td>
+      <td><code>String</code></td>
+      <td>{t.pkgDesc}</td>
+    </tr>
+    <tr>
+      <td><code>mode</code></td>
+      <td><code>String</code></td>
+      <td>{t.modeDesc}</td>
+    </tr>
+    <tr>
+      <td><code>hydration</code></td>
+      <td><code>Boolean</code></td>
+      <td>{t.hydrationDesc}</td>
+    </tr>
+    <tr>
+      <td><code>hydrationRoot</code></td>
+      <td><code>Option[String]</code></td>
+      <td>{t.hydrationRootDesc}</td>
+    </tr>
+    <tr>
+      <td><code>stylePreprocessor</code></td>
+      <td><code>Option[String]</code></td>
+      <td>{t.stylePreprocessorDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>{t.pipelineH2}</h2>
+
+<ol>
+  <li>{t.step1Label}</li>
+  <li>{t.step2Label}</li>
+  <li>{t.step3Label}</li>
+  <li>{t.step4Label}</li>
+  <li>{t.step5Label}</li>
+  <li>{t.step6Label}</li>
+</ol>
+
+<h2>{t.warningH2}</h2>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.compilerWarning}</code></pre>
+</div>
+
+<h2>{t.astH2}</h2>
+<p>{t.astDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.compilerAstTypes}</code></pre>
+</div>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/api/meltkit-ssg"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "静的サイト生成" else "Static Site Generation"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/api/sbt-plugin"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "sbt プラグイン" else "sbt Plugin"}</span>
+  </a>
+</div>

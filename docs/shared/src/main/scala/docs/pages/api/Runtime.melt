@@ -1,0 +1,200 @@
+<script lang="scala">
+import docs.i18n.{ApiI18n, GuideI18n}
+import docs.ApiCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = ApiI18n(props.lang).runtime
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.stateH2}</h2>
+<p>{t.stateDesc}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.memberH}</th>
+      <th>{t.descH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>State(init)</code></td>
+      <td>{t.stateCreateDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.value</code></td>
+      <td>{t.stateValueDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.set(v)</code></td>
+      <td>{t.stateSetDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.update(f)</code></td>
+      <td>{t.stateUpdateDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.map(f)</code></td>
+      <td>{t.stateMapDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.memo(f)</code></td>
+      <td>{t.stateMemoDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.flatMap(f)</code></td>
+      <td>{t.stateFlatMapDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.subscribe(f)</code></td>
+      <td>{t.stateSubDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.signal</code></td>
+      <td>{t.stateSignalDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.runtimeStateExample}</code></pre>
+</div>
+
+<div class="callout callout-tip">
+  <p>{t.stateTip}</p>
+</div>
+
+<h2>{t.signalH2}</h2>
+<p>{t.signalDesc}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.memberH}</th>
+      <th>{t.descH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Signal.pure(v)</code></td>
+      <td>{t.signalPureDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.value</code></td>
+      <td>{t.signalValueDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.map(f)</code></td>
+      <td>{t.signalMapDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.memo(f)</code></td>
+      <td>{t.signalMemoDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.subscribe(f)</code></td>
+      <td>{t.signalSubDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>{t.stateExtH2}</h2>
+<p>{t.stateExtDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.runtimeStateExtensions}</code></pre>
+</div>
+
+<h2>{t.onMountH2}</h2>
+<p>{t.onMountDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.runtimeOnMount}</code></pre>
+</div>
+
+<div class="callout callout-info">
+  <p>{t.onMountNote}</p>
+</div>
+
+<h2>{t.batchH2}</h2>
+<p>{t.batchDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.runtimeBatch}</code></pre>
+</div>
+
+<h2>{t.trustedHtmlH2}</h2>
+<p>{t.trustedHtmlDesc}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.memberH}</th>
+      <th>{t.descH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>TrustedHtml.unsafe(str)</code></td>
+      <td>{t.trustedHtmlUnsafeDesc}</td>
+    </tr>
+    <tr>
+      <td><code>TrustedHtml.sanitize(str, f)</code></td>
+      <td>{t.trustedHtmlSanitizeDesc}</td>
+    </tr>
+    <tr>
+      <td><code>.value</code></td>
+      <td>{t.trustedHtmlValueDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.runtimeSafeHtml}</code></pre>
+</div>
+
+<h2>{t.escapeH2}</h2>
+<p>{t.escapeDesc}</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.funcH}</th>
+      <th>{t.useCaseH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Escape.html(str)</code></td>
+      <td>{t.escapeHtmlDesc}</td>
+    </tr>
+    <tr>
+      <td><code>Escape.attr(str)</code></td>
+      <td>{t.escapeAttrDesc}</td>
+    </tr>
+    <tr>
+      <td><code>Escape.url(str)</code></td>
+      <td>{t.escapeUrlDesc}</td>
+    </tr>
+    <tr>
+      <td><code>Escape.cssValue(str)</code></td>
+      <td>{t.escapeCssDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/api/template-syntax"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "テンプレート構文" else "Template Syntax"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/api/meltkit"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">MeltKit</span>
+  </a>
+</div>

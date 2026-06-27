@@ -84,19 +84,36 @@ final class HydrationCursor(private[this] var _current: dom.Node | Null):
     do n = n.nextSibling
     n match
       case open: dom.Comment if open.data == "[melt:dyn" =>
-        // Remove nodes between open and close dyn markers
+        // Remove all nodes between open and close dyn markers, tracking nested
+        // [melt:dyn / ]melt:dyn pairs so that inner closing markers are not
+        // mistaken for the outer closing marker.
+        // Use each node's actual parentNode for removal — the `parent` argument
+        // may be a freshly-created element (e.g. _root in a child hydrate entry)
+        // that is not yet attached to the SSR DOM, so calling parent.removeChild
+        // on SSR nodes would throw NotFoundError.
         var toRemove = open.nextSibling
         var close: dom.Comment | Null = null
+        var depth = 0
         while toRemove != null && close == null do
           toRemove match
+            case c: dom.Comment if c.data == "[melt:dyn" =>
+              depth += 1
+              val next = c.nextSibling
+              Option(c.parentNode).foreach(_.removeChild(c))
+              toRemove = next
             case c: dom.Comment if c.data == "]melt:dyn" =>
-              close = c
+              if depth == 0 then close = c
+              else
+                depth -= 1
+                val next = c.nextSibling
+                Option(c.parentNode).foreach(_.removeChild(c))
+                toRemove = next
             case other =>
               val next = other.nextSibling
-              parent.removeChild(other)
+              Option(other.parentNode).foreach(_.removeChild(other))
               toRemove = next
         // Also remove the opening marker
-        parent.removeChild(open)
+        Option(open.parentNode).foreach(_.removeChild(open))
         // Advance cursor past the closing marker
         _current = close match
           case null => null

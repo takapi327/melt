@@ -1,0 +1,742 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package docs
+
+object GuideCodes:
+
+  // ── Introduction ──────────────────────────────────────────────────────────
+
+  val introCounter: String =
+    """|<script lang="scala">
+       |  val count   = State(0)
+       |  val doubled = count.map(_ * 2)
+       |</script>
+       |
+       |<div class="counter">
+       |  <h1>{count}</h1>
+       |  <p>doubled: {doubled}</p>
+       |  <button onclick={_ => count += 1}>+</button>
+       |  <button onclick={_ => count -= 1}>-</button>
+       |</div>
+       |
+       |<style>
+       |  h1 { font-size: 4rem; color: #d6526a; }
+       |</style>""".stripMargin
+
+  // ── Installation ──────────────────────────────────────────────────────────
+
+  val installPluginsSbt: String =
+    """addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0-SNAPSHOT")"""
+
+  val installBuildSbt: String =
+    """|// Scala.js frontend module
+       |lazy val client = project
+       |  .in(file("client"))
+       |  .enablePlugins(ScalaJSPlugin, MeltPlugin)
+       |  .settings(
+       |    scalaVersion := "3.3.7"
+       |  )""".stripMargin
+
+  val installProjectLayout: String =
+    """|my-project/
+       |├── build.sbt
+       |├── project/
+       |│   └── plugins.sbt
+       |└── client/
+       |    └── src/main/scala/
+       |        └── myapp/
+       |            ├── Counter.melt      ← your component
+       |            └── App.melt""".stripMargin
+
+  val installViteConfig: String =
+    """|import { defineConfig } from 'vite'
+       |
+       |export default defineConfig({
+       |  publicDir: 'public',
+       |  build: {
+       |    rollupOptions: {
+       |      input: 'index.html',
+       |    }
+       |  }
+       |})""".stripMargin
+
+  // ── Quick Start ───────────────────────────────────────────────────────────
+
+  val quickStartCounterMelt: String =
+    """|<script lang="scala">
+       |  val count = State(0)
+       |</script>
+       |
+       |<div>
+       |  <p>Count: {count}</p>
+       |  <button onclick={_ => count += 1}>Increment</button>
+       |  <button onclick={_ => count.set(0)}>Reset</button>
+       |</div>""".stripMargin
+
+  val quickStartMainScala: String =
+    """|import org.scalajs.dom
+       |import melt.runtime.Mount
+       |import scala.scalajs.js.annotation.JSExportTopLevel
+       |
+       |@JSExportTopLevel("main")
+       |def main(): Unit =
+       |  Mount(dom.document.getElementById("app").asInstanceOf[dom.Element], Counter(Counter.Props()))""".stripMargin
+
+  val quickStartIndexHtml: String =
+    """|<!DOCTYPE html>
+       |<html lang="en">
+       |  <head><meta charset="UTF-8" /><title>My App</title></head>
+       |  <body>
+       |    <div id="app"></div>
+       |    <script type="module">
+       |      import { main } from './target/.../main.js'
+       |      main()
+       |    </script>
+       |  </body>
+       |</html>""".stripMargin
+
+  val quickStartRunCmds: String =
+    """|# Compile with sbt
+       |sbt client/fastLinkJS
+       |
+       |# Serve with Vite (or any static server)
+       |npx vite""".stripMargin
+
+  // ── Components ────────────────────────────────────────────────────────────
+
+  val componentsGreetingMelt: String =
+    """|<!-- 1. Script section: Scala logic -->
+       |<script lang="scala">
+       |  case class Props(name: String = "World")
+       |  val greeting = "Hello"
+       |</script>
+       |
+       |<!-- 2. Template: HTML with embedded expressions -->
+       |<p class="msg">{greeting}, {props.name}!</p>
+       |
+       |<!-- 3. Style section: scoped CSS -->
+       |<style>
+       |  .msg { font-size: 1.25rem; color: #d6526a; }
+       |</style>""".stripMargin
+
+  val componentsButtonMelt: String =
+    """|<script lang="scala">
+       |  case class Props(
+       |    label:    String  = "Click me",
+       |    disabled: Boolean = false
+       |  )
+       |</script>
+       |
+       |<button disabled={props.disabled}>{props.label}</button>""".stripMargin
+
+  val componentsPropsAccess: String =
+    """|props.label    // String
+       |props.disabled // Boolean""".stripMargin
+
+  val componentsAppMelt: String =
+    """|<script lang="scala">
+       |  import myapp.Button
+       |</script>
+       |
+       |<div>
+       |  <Button label="Save" />
+       |  <Button label="Cancel" disabled={true} />
+       |</div>""".stripMargin
+
+  val componentsCardMelt: String =
+    """|<div class="card">
+       |  {children}
+       |</div>
+       |
+       |<style>
+       |  .card { padding: 24px; border: 1px solid #ccc; border-radius: 8px; }
+       |</style>""".stripMargin
+
+  val componentsCardUsage: String =
+    """|<!-- Usage -->
+       |<Card>
+       |  <h2>Title</h2>
+       |  <p>Any content here.</p>
+       |</Card>""".stripMargin
+
+  // ── Template Syntax ───────────────────────────────────────────────────────
+
+  val templateExprExample: String =
+    """|<p>{count}</p>
+       |<p>{count.map(_ * 2)}</p>
+       |<p>{"Hello, " + props.name + "!"}</p>""".stripMargin
+
+  val templateAttrExample: String =
+    """|<img src={imageUrl} alt={props.alt} />
+       |<input type="text" placeholder={hint} />""".stripMargin
+
+  val templateTwoWayExample: String =
+    """|<script lang="scala">
+       |  val name = State("")
+       |</script>
+       |
+       |<input type="text" bind:value={name} placeholder="Your name" />
+       |<p>Hello, {name}!</p>""".stripMargin
+
+  val templateClassExample: String =
+    """<button class:active={isActive}>Click me</button>"""
+
+  val templateClassMultiExample: String =
+    """<div class="item" class:selected={isSelected} class:disabled={isDisabled}>"""
+
+  val templateStyleExample: String =
+    """<div style:color={textColor} style:font-size={fontSize + "px"}>"""
+
+  val templateEventsExample: String =
+    """|<button onclick={_ => count += 1}>+</button>
+       |<input oninput={e => name.set(e.target.value)} />
+       |<form onsubmit={e => { e.preventDefault(); submit() }}>""".stripMargin
+
+  val templateSpreadExample: String =
+    """|<script lang="scala">
+       |  val attrs = Map("role" -> "button", "aria-label" -> "Close")
+       |</script>
+       |
+       |<div {...attrs}></div>""".stripMargin
+
+  val templateRefExample: String =
+    """|<script lang="scala">
+       |  import melt.runtime.Ref
+       |  val inputRef = Ref.empty[dom.html.Input]
+       |</script>
+       |
+       |<input bind:this={inputRef} />
+       |<button onclick={_ => inputRef.foreach(_.focus())}>Focus</button>""".stripMargin
+
+  // ── Reactivity ────────────────────────────────────────────────────────────
+
+  val reactivityStateExample: String =
+    """|val count   = State(0)          // State[Int]
+       |val name    = State("Alice")    // State[String]
+       |val items   = State(List[String]()) // State[List[String]]""".stripMargin
+
+  val reactivityStateRead: String =
+    """|val n: Int = count.value  // explicit
+       |val n: Int = count        // implicit conversion also works""".stripMargin
+
+  val reactivityMutateExample: String =
+    """|count.set(10)             // replace
+       |count.update(_ + 1)       // transform
+       |count += 1                // shorthand for Int/Long/Double
+       |count -= 1
+       |name += " Smith"          // string append
+       |
+       |// List operations
+       |items.append("new item")
+       |items.prepend("first")
+       |items.removeWhere(_.isEmpty)
+       |items.clear()""".stripMargin
+
+  val reactivitySignalExample: String =
+    """|val doubled: Signal[Int]    = count.map(_ * 2)
+       |val upper:   Signal[String] = name.map(_.toUpperCase)
+       |val isEmpty: Signal[Boolean] = items.map(_.isEmpty)""".stripMargin
+
+  val reactivitySignalTemplate: String =
+    """<p>{count} × 2 = {doubled}</p>"""
+
+  val reactivityDomExample: String =
+    """|<script lang="scala">
+       |  val count = State(0)
+       |</script>
+       |
+       |<!-- Only this text node re-renders when count changes -->
+       |<p>Count: {count}</p>
+       |
+       |<!-- This element is static and never re-renders -->
+       |<p>This text never changes.</p>""".stripMargin
+
+  // ── Computed ──────────────────────────────────────────────────────────────
+
+  val computedMapExample: String =
+    """|val count:   State[Int]   = State(0)
+       |val doubled: Signal[Int]  = count.map(_ * 2)
+       |val label:   Signal[String] = count.map(n => if n == 0 then "zero" else s"$n")""".stripMargin
+
+  val computedMapTemplate: String =
+    """|<p>{count} doubled is {doubled}</p>
+       |<p>Label: {label}</p>""".stripMargin
+
+  val computedFlatMapExample: String =
+    """|val mode   = State("spa")
+       |val output = source.flatMap { code =>
+       |  mode.map { m =>
+       |    compile(code, m)  // re-runs when either source OR mode changes
+       |  }
+       |}""".stripMargin
+
+  val computedMemoExample: String =
+    """|val isEven: Signal[Boolean] = count.memo(_ % 2 == 0)
+       |// Only triggers updates when the boolean flips, not on every count change""".stripMargin
+
+  val computedCombineExample: String =
+    """|val firstName = State("Alice")
+       |val lastName  = State("Smith")
+       |val fullName  = firstName.flatMap(f => lastName.map(l => s"$f $l"))""".stripMargin
+
+  // ── Effects ───────────────────────────────────────────────────────────────
+
+  val effectsBasicExample: String =
+    """|<script lang="scala">
+       |  val query = State("")
+       |
+       |  effect(query) { q =>
+       |    println(s"Searching for: $q")
+       |    fetchResults(q)
+       |  }
+       |</script>""".stripMargin
+
+  val effectsMultiExample: String =
+    """|val x = State(0)
+       |val y = State(0)
+       |
+       |effect(x, y) { (xVal, yVal) =>
+       |  println(s"position: ($xVal, $yVal)")
+       |  updatePosition(xVal, yVal)
+       |}""".stripMargin
+
+  val effectsCleanupExample: String =
+    """|val enabled = State(false)
+       |
+       |effect(enabled) { _ =>
+       |  val id = js.timers.setInterval(1000) { count += 1 }
+       |  onCleanup(() => js.timers.clearInterval(id))
+       |}""".stripMargin
+
+  // ── Events ────────────────────────────────────────────────────────────────
+
+  val eventsBasicHandlers: String =
+    """|<button onclick={_ => count += 1}>Increment</button>
+       |<button onclick={_ => count.set(0)}>Reset</button>""".stripMargin
+
+  val eventsObjExample: String =
+    """|<input oninput={e => name.set(e.target.asInstanceOf[dom.html.Input].value)} />
+       |<form onsubmit={e => { e.preventDefault(); submit() }}></form>""".stripMargin
+
+  val eventsBindValueExample: String =
+    """|val text = State("")
+       |// ...
+       |<input type="text" bind:value={text} />""".stripMargin
+
+  val eventsWindowExample: String =
+    """<melt:window onkeydown={e => handleShortcut(e)} />"""
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  val lifecycleOnMountExample: String =
+    """|<script lang="scala">
+       |  import melt.runtime.Ref
+       |
+       |  val canvasRef = Ref.empty[dom.html.Canvas]
+       |
+       |  onMount {
+       |    canvasRef.foreach { canvas =>
+       |      // canvas is now in the DOM — safe to measure or draw
+       |      val ctx = canvas.getContext("2d")
+       |      // ...
+       |    }
+       |  }
+       |</script>
+       |
+       |<canvas bind:this={canvasRef}></canvas>""".stripMargin
+
+  val lifecycleCleanupExample: String =
+    """|onMount {
+       |  val id = js.timers.setInterval(1000) { tick() }
+       |  onCleanup(() => js.timers.clearInterval(id))
+       |}""".stripMargin
+
+  val lifecycleEffectCleanupExample: String =
+    """|val id = State[Option[Int]](None)
+       |
+       |effect(id) { idOpt =>
+       |  idOpt.foreach { currentId =>
+       |    val ws = new WebSocket(s"wss://api.example.com/feed/$currentId")
+       |    onCleanup(() => ws.close())
+       |  }
+       |}""".stripMargin
+
+  // ── Control Flow ──────────────────────────────────────────────────────────
+
+  val controlFlowCondExample: String =
+    """|<script lang="scala">
+       |  val loggedIn = State(false)
+       |</script>
+       |
+       |{loggedIn.map { logged =>
+       |  if logged then
+       |    <p>Welcome back!</p>
+       |  else
+       |    <a href="/login">Sign in</a>
+       |}}""".stripMargin
+
+  val controlFlowListExample: String =
+    """|<script lang="scala">
+       |  case class Item(id: Int, name: String)
+       |  val items = State(List(Item(1, "Apple"), Item(2, "Banana")))
+       |</script>
+       |
+       |<ul>
+       |  {items.map(_.map((item: Item) =>
+       |    <li>{item.id}: {item.name}</li>
+       |  ))}
+       |</ul>""".stripMargin
+
+  val controlFlowKeyBlockExample: String =
+    """|<melt:key this={selectedId}>
+       |  <DetailPanel id={selectedId} />
+       |</melt:key>""".stripMargin
+
+  val controlFlowEmptyExample: String =
+    """|{items.map { list =>
+       |  if list.isEmpty then
+       |    <p class="empty">No items yet.</p>
+       |  else
+       |    <ul>{list.map((item: Item) => <li>{item.name}</li>)}</ul>
+       |}}""".stripMargin
+
+  // ── Special Elements ──────────────────────────────────────────────────────
+
+  val specialHeadExample: String =
+    """|<melt:head>
+       |  <title>{pageTitle}</title>
+       |  <meta name="description" content={description} />
+       |</melt:head>""".stripMargin
+
+  val specialWindowBodyExample: String =
+    """|<melt:window
+       |  onkeydown={e => handleKey(e)}
+       |  onresize={_ => recalcLayout()}
+       |/>
+       |
+       |<melt:body
+       |  onmousedown={e => trackClick(e)}
+       |/>""".stripMargin
+
+  val specialBoundaryExample: String =
+    """|<melt:boundary>
+       |  <melt:pending>
+       |    <p>Loading...</p>
+       |  </melt:pending>
+       |  <melt:failed let:error>
+       |    <p>Error: {error.message}</p>
+       |  </melt:failed>
+       |  <AsyncComponent />
+       |</melt:boundary>""".stripMargin
+
+  val specialElementExample: String =
+    """|<script lang="scala">
+       |  val tag = State("div")
+       |</script>
+       |
+       |<melt:element this={tag} class="wrapper">
+       |  {children}
+       |</melt:element>""".stripMargin
+
+  val specialSnippetExample: String =
+    """|<script lang="scala">
+       |  // snippets are defined in the template section below
+       |</script>
+       |
+       |{#snippet badge(label: String)}
+       |  <span class="badge">{label}</span>
+       |{/snippet}
+       |
+       |<div>
+       |  {@render badge("New")}
+       |  {@render badge("Hot")}
+       |</div>""".stripMargin
+
+  // ── Transitions ───────────────────────────────────────────────────────────
+
+  val transitionsTweenExample: String =
+    """|<script lang="scala">
+       |  import melt.runtime.motion.Tween
+       |
+       |  val opacity = Tween(0.0, duration = 400)
+       |  opacity.subscribe { v => /* reactive DOM updates via effect */ }
+       |</script>
+       |
+       |<button onclick={_ => opacity.set(1.0)}>Fade in</button>
+       |<button onclick={_ => opacity.set(0.0)}>Fade out</button>""".stripMargin
+
+  val transitionsSpringExample: String =
+    """|import melt.runtime.motion.Spring
+       |
+       |val smooth = Spring(0.0, stiffness = 0.15, damping = 0.8)
+       |smooth.set(100.0)""".stripMargin
+
+  val transitionsCssExample: String =
+    """|<!-- Template -->
+       |<div class="panel" class:open={isOpen}>
+       |  {children}
+       |</div>
+       |
+       |<!-- Style -->
+       |<style>
+       |  .panel {
+       |    max-height: 0;
+       |    overflow: hidden;
+       |    transition: max-height 0.3s ease;
+       |  }
+       |  .panel.open { max-height: 500px; }
+       |</style>""".stripMargin
+
+  // ── Trusted HTML ──────────────────────────────────────────────────────────
+
+  val trustedHtmlXssExample: String =
+    """|val userInput = "<script>alert('xss')</script>"
+       |// ...
+       |<p>{userInput}</p>
+       |// Renders: <p>&lt;script&gt;...&lt;/p>  ← SAFE""".stripMargin
+
+  val trustedHtmlUnsafeExample: String =
+    """|<script lang="scala">
+       |  import melt.runtime.TrustedHtml
+       |
+       |  // Only use for content you trust!
+       |  val richContent = TrustedHtml.unsafe("<strong>Bold</strong> text")
+       |</script>
+       |
+       |<div bind:html={richContent}></div>""".stripMargin
+
+  val trustedHtmlSanitizeExample: String =
+    """|import melt.runtime.TrustedHtml
+       |
+       |val safeHtml = TrustedHtml.sanitize(
+       |  userMarkdown,
+       |  html => mySanitizer.clean(html)  // your sanitizer here
+       |)""".stripMargin
+
+  val trustedUrlExample: String =
+    """|import melt.runtime.TrustedUrl
+       |
+       |val link = TrustedUrl.unsafe("https://example.com")
+       |// ...
+       |<a href={link}>Visit</a>""".stripMargin
+
+  // ── CSS ───────────────────────────────────────────────────────────────────
+
+  val cssScopedCardMelt: String =
+    """|<div class="card"><p>Content</p></div>
+       |<style>
+       |  /* Only applies to elements in THIS component */
+       |  .card { border: 1px solid #ccc; }
+       |  p     { color: grey; }
+       |</style>""".stripMargin
+
+  val cssGeneratedHtml: String =
+    """|<div class="card" data-melt-abc123>
+       |  <p data-melt-abc123>Content</p>
+       |</div>""".stripMargin
+
+  val cssDynamicStyleExample: String =
+    """|<script lang="scala">
+       |  val hue = State(200)
+       |</script>
+       |
+       |<div style:background-color={"hsl(" + hue + ", 60%, 50%)"}></div>
+       |<input type="range" bind:value={hue} min="0" max="360" />""".stripMargin
+
+  val cssCustomPropExample: String =
+    """|<script lang="scala">
+       |  val progress = State(0.0)
+       |</script>
+       |
+       |<div class="bar" style:--progress={progress + "%"}></div>
+       |
+       |<style>
+       |  .bar::before {
+       |    width: var(--progress);
+       |    background: var(--accent);
+       |  }
+       |</style>""".stripMargin
+
+  val cssScssExample: String =
+    """|<style lang="scss">
+       |  $primary: #d6526a;
+       |
+       |  .card {
+       |    &:hover { background: lighten($primary, 40%); }
+       |    &__title { color: $primary; }
+       |  }
+       |</style>""".stripMargin
+
+  // ── Testing ───────────────────────────────────────────────────────────────
+
+  val testingDepExample: String =
+    """libraryDependencies += "io.github.takapi327" %%% "melt-testkit" % "0.1.0-SNAPSHOT" % Test"""
+
+  val testingCounterSpec: String =
+    """|import melt.testkit.*
+       |
+       |class CounterSpec extends MeltSuite:
+       |
+       |  test("counter starts at zero") {
+       |    val c = mount(Counter(Counter.Props()))
+       |    assertEquals(c.text("h1"), "0")
+       |  }
+       |
+       |  test("increment button updates count") {
+       |    val c = mount(Counter(Counter.Props()))
+       |    c.click("button:first-child")
+       |    assertEquals(c.text("h1"), "1")
+       |  }
+       |
+       |  test("reset returns to zero") {
+       |    val c = mount(Counter(Counter.Props()))
+       |    c.click("button:first-child")
+       |    c.click("button:last-child")
+       |    assertEquals(c.text("h1"), "0")
+       |  }""".stripMargin
+
+  // ── Routing ───────────────────────────────────────────────────────────────
+
+  val routingDepExample: String =
+    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s" % "0.1.0-SNAPSHOT""""
+
+  val routingMainScala: String =
+    """|import meltkit.*
+       |import scala.concurrent.Future
+       |import scala.concurrent.ExecutionContext.Implicits.global
+       |
+       |val app = MeltKit[Future]()
+       |
+       |// Static route
+       |app.get("") { ctx =>
+       |  Future.successful(ctx.render(Home(Home.Props())))
+       |}
+       |
+       |// Dynamic route with a path parameter
+       |private val id = param[String]("id")
+       |
+       |app.get("users" / id) { ctx =>
+       |  val userId = ctx.params.id
+       |  Future.successful(ctx.render(UserPage(UserPage.Props(id = userId))))
+       |}""".stripMargin
+
+  val routingPathParamsExample: String =
+    """|private val lang    = param[String]("lang")
+       |private val section = param[String]("section")
+       |
+       |app.get(lang / "guide" / section) { ctx =>
+       |  val l = ctx.params.lang
+       |  val s = ctx.params.section
+       |  Future.successful(ctx.render(GuidePage(GuidePage.Props(lang = l, slug = s))))
+       |}""".stripMargin
+
+  val routingPageOptionsExample: String =
+    """|val opts = PageOptions(
+       |  ssr       = true,         // render on the server
+       |  csr       = true,         // hydrate on the client
+       |  prerender = PrerenderOption.On,  // generate at build time
+       |  entries   = List("/en/guide/introduction", "/ja/guide/introduction")
+       |)
+       |
+       |app.get(lang / "guide" / slug, opts) { ctx => ... }""".stripMargin
+
+  // ── SSR ───────────────────────────────────────────────────────────────────
+
+  val ssrBuildSbt: String =
+    """|// build.sbt (server module)
+       |lazy val server = project
+       |  .enablePlugins(MeltkitPlugin)
+       |  .settings(meltMode := "ssr")
+       |
+       |// build.sbt (client module — for hydration)
+       |lazy val client = project
+       |  .enablePlugins(MeltkitPlugin)
+       |  .settings(meltMode := "spa")""".stripMargin
+
+  val ssrRouteExample: String =
+    """|app.get("blog" / slug, PageOptions(ssr = true, csr = true)) { ctx =>
+       |  fetchPost(ctx.params.slug).map { post =>
+       |    ctx.render(BlogPost(BlogPost.Props(post = post)))
+       |  }
+       |}""".stripMargin
+
+  val ssrPropsExample: String =
+    """|case class Props(title: String, count: Int)
+       |// Codec is derived automatically for case classes with simple types""".stripMargin
+
+  val ssrViteConfig: String =
+    """|// vite.config.mjs
+       |export default defineConfig({
+       |  build: {
+       |    rollupOptions: {
+       |      preserveEntrySignatures: 'exports-only'
+       |    }
+       |  }
+       |})""".stripMargin
+
+  // ── SSG ───────────────────────────────────────────────────────────────────
+
+  val ssgPrerenderExample: String =
+    """|private val langs  = List("en", "ja")
+       |private val guides = List("introduction", "installation", ...)
+       |private val On     = PageOptions(prerender = PrerenderOption.On)
+       |
+       |app.get(
+       |  lang / "guide" / slug,
+       |  On.copy(entries = for l <- langs; g <- guides yield s"/$l/guide/$g")
+       |) { ctx => ... }""".stripMargin
+
+  val ssgMainScala: String =
+    """|import meltkit.ssg.*
+       |
+       |@main def generate(): Unit =
+       |  val config = ServerConfig(
+       |    outputDir = Some("dist"),
+       |    publicDir = Some("public"),
+       |    assetsDir = Some("../dist/assets"),
+       |    manifest  = ViteManifest.fromFile("../dist/.vite/manifest.json"),
+       |    template  = Template.fromResource("index.html")
+       |  )
+       |  SsgGenerator.run(app, config)""".stripMargin
+
+  val ssgRunCmd: String =
+    """sbt "server/runMain generate""""
+
+  val ssgOutputStructure: String =
+    """|dist/
+       |├── index.html
+       |├── en/
+       |│   ├── guide/
+       |│   │   ├── introduction/index.html
+       |│   │   └── ...
+       |│   └── ...
+       |└── assets/
+       |    ├── main.js
+       |    └── main.css""".stripMargin
+
+  // ── Adapters ──────────────────────────────────────────────────────────────
+
+  val adaptersHttp4sDep: String =
+    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s" % "0.1.0-SNAPSHOT""""
+
+  val adaptersHttp4sSetup: String =
+    """|import meltkit.adapter.http4s.Http4sAdapter
+       |import org.http4s.ember.server.EmberServerBuilder
+       |import cats.effect.IO
+       |
+       |val routes = Http4sAdapter.toRoutes[IO](app, config)
+       |
+       |EmberServerBuilder.default[IO]
+       |  .withHttpApp(routes.orNotFound)
+       |  .build
+       |  .useForever""".stripMargin
+
+  val adaptersNodeDep: String =
+    """libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-node" % "0.1.0-SNAPSHOT""""
+
+  val adaptersBrowserDep: String =
+    """libraryDependencies += "io.github.takapi327" %%% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT""""

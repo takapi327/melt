@@ -6,9 +6,11 @@
 
 package docs
 
+import docs.i18n.{ GuideI18n, ApiI18n }
+
 object I18n:
 
-  case class Nav(guide: String, api: String, examples: String, changelog: String)
+  case class Nav(guide: String, api: String, examples: String, changelog: String, playground: String)
 
   case class SidebarSections(intro: String, basics: String, advanced: String, server: String)
 
@@ -40,15 +42,18 @@ object I18n:
     guideLinks:      SidebarLinks,
     apiLinks:        SidebarLinks,
     exampleLinks:    SidebarLinks,
-    home:            Home
+    home:            Home,
+    guide:           GuideI18n,
+    api:             ApiI18n
   )
 
   val en: Dict = Dict(
     nav = Nav(
-      guide     = "Guide",
-      api       = "API Reference",
-      examples  = "Examples",
-      changelog = "Changelog"
+      guide      = "Guide",
+      api        = "API Reference",
+      examples   = "Examples",
+      changelog  = "Changelog",
+      playground = "Playground"
     ),
     sidebarSections = SidebarSections(
       intro    = "Getting Started",
@@ -134,15 +139,18 @@ object I18n:
       demoCardLabel  = "// live preview",
       pageNavNextDir = "Next",
       pageNavNext    = "Quick Start"
-    )
+    ),
+    guide = GuideI18n.en,
+    api   = ApiI18n.en
   )
 
   val ja: Dict = Dict(
     nav = Nav(
-      guide     = "ガイド",
-      api       = "API リファレンス",
-      examples  = "サンプル",
-      changelog = "変更履歴"
+      guide      = "ガイド",
+      api        = "API リファレンス",
+      examples   = "サンプル",
+      changelog  = "変更履歴",
+      playground = "プレイグラウンド"
     ),
     sidebarSections = SidebarSections(
       intro    = "はじめに",
@@ -214,7 +222,9 @@ object I18n:
       demoCardLabel  = "// ライブプレビュー",
       pageNavNextDir = "次へ",
       pageNavNext    = "クイックスタート"
-    )
+    ),
+    guide = GuideI18n.ja,
+    api   = ApiI18n.ja
   )
 
   def apply(lang: String): Dict = if lang == "ja" then ja else en

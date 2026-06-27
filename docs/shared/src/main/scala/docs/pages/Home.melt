@@ -16,36 +16,40 @@ val doubled = count.map(_ * 2)
 
   <!-- Hero -->
   <section class="hero">
-    <svg class="hero-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <defs>
-        <linearGradient id="hero-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#d6526a" />
-          <stop offset="1" stop-color="#5a1820" />
-        </linearGradient>
-      </defs>
-      <path d="M6 4 L6 18 Q6 28 16 28 Q26 28 26 18 L26 4 L21 4 L21 18 Q21 23 16 23 Q11 23 11 18 L11 4 Z" fill="url(#hero-g)" />
-      <circle cx="16" cy="9" r="1.6" fill="#ece4d7" opacity="0.9" />
-    </svg>
-    <h1>M<span class="accent">e</span>lt</h1>
-    <p class="hero-tagline">{t.tagline}</p>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href={base + "/guide/introduction"}>{t.cta1} →</a>
-      <a class="btn btn-ghost" href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer">{t.cta2}</a>
+    <div class="hero-eyebrow">
+      <span class="eyebrow-dot"></span>
+      <span>Scala.js · SFC Framework</span>
     </div>
-    <div class="hero-meta">
-      {t.meta.map((m: String) => <span>{m}</span>)}
+    <h1 class="hero-title">
+      Build reactive UIs<br/>
+      <span class="hero-accent">in pure Scala</span>
+    </h1>
+    <p class="hero-sub">{t.tagline}</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href={base + "/guide/introduction"}>{t.cta1}  →</a>
+      <a class="btn btn-ghost" href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.1c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17a10.9 10.9 0 0 1 5.74 0c2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z"></path>
+        </svg>
+        {t.cta2}
+      </a>
+    </div>
+    <div class="hero-badges">
+      {t.meta.map((m: String) => <span class="badge">{m}</span>)}
     </div>
   </section>
 
   <!-- Features -->
-  <section class="home-section">
-    <div class="section-label">{t.featuresLabel}</div>
-    <h2 class="section-title">{t.featuresTitle}</h2>
-    <p class="section-sub">{t.featuresSub}</p>
+  <section class="section">
+    <div class="section-header">
+      <p class="section-label">{t.featuresLabel}</p>
+      <h2 class="section-title">{t.featuresTitle}</h2>
+      <p class="section-desc">{t.featuresSub}</p>
+    </div>
     <div class="features">
       {t.features.map((f: I18n.HomeFeature) =>
-        <div class="feature">
-          <div class="feature-num">— {f.num}</div>
+        <div class="feature-card">
+          <div class="feature-index">{f.num}</div>
           <h3>{f.title}</h3>
           <p>{f.body}</p>
         </div>
@@ -54,25 +58,30 @@ val doubled = count.map(_ * 2)
   </section>
 
   <!-- Demo -->
-  <section class="home-section">
-    <div class="section-label">{t.demoLabel}</div>
-    <h2 class="section-title">{t.demoTitle}</h2>
-    <p class="section-sub">{t.demoSub}</p>
-    <div class="demo-split">
+  <section class="section">
+    <div class="section-header">
+      <p class="section-label">{t.demoLabel}</p>
+      <h2 class="section-title">{t.demoTitle}</h2>
+      <p class="section-desc">{t.demoSub}</p>
+    </div>
+    <div class="demo">
       <div class="demo-code">
-        <div class="demo-code-header">
-          <span class="demo-code-file">Counter.melt</span>
+        <div class="demo-code-bar">
+          <span class="demo-code-dots">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="demo-code-filename">Counter.melt</span>
         </div>
         <pre class="demo-code-body"><code>{CodeSamples.counterMelt}</code></pre>
       </div>
-      <div class="demo-card">
-        <div class="demo-label">{t.demoCardLabel}</div>
-        <div class="counter-display">{count}</div>
-        <div class="counter-doubled">doubled = <b>{doubled}</b></div>
-        <div class="counter-buttons">
-          <button onclick={_ => count -= 1}>−</button>
-          <button onclick={_ => count += 1}>+</button>
-          <button class="reset" onclick={_ => count.set(0)}>Reset</button>
+      <div class="demo-preview">
+        <p class="demo-preview-label">{t.demoCardLabel}</p>
+        <div class="counter-value">{count}</div>
+        <div class="counter-eq">× 2 = <strong>{doubled}</strong></div>
+        <div class="counter-btns">
+          <button class="counter-btn" onclick={_ => count -= 1}>−</button>
+          <button class="counter-btn" onclick={_ => count += 1}>+</button>
+          <button class="counter-btn counter-btn-reset" onclick={_ => count.set(0)}>Reset</button>
         </div>
       </div>
     </div>
@@ -80,10 +89,9 @@ val doubled = count.map(_ * 2)
 
   <!-- Page nav -->
   <div class="page-nav">
-    <div></div>
-    <a class="page-nav-link next" href={base + "/guide/quick-start"}>
-      <div class="page-nav-dir">{t.pageNavNextDir} →</div>
-      <div class="page-nav-title">{t.pageNavNext}</div>
+    <a class="page-nav-next" href={base + "/guide/quick-start"}>
+      <span class="page-nav-dir">Next →</span>
+      <span class="page-nav-title">{t.pageNavNext}</span>
     </a>
   </div>
 
@@ -91,306 +99,348 @@ val doubled = count.map(_ * 2)
 </Layout>
 
 <style>
-.home {
-  padding: 0;
+.home { padding: 0; }
+
+/* ── Hero ───────────────────────────────────────────────────── */
+.hero {
+  padding: 72px 0 56px;
+  max-width: 660px;
 }
 
-/* ============ Hero ============ */
-.hero {
-  text-align: center;
-  padding: 80px 0 60px;
-}
-.hero-mark {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 28px;
-  display: block;
-}
-.hero h1 {
-  font-family: var(--font-display);
-  font-size: 96px;
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1;
-  margin-bottom: 22px;
-  color: var(--fg);
-}
-.accent { color: var(--wine-text); }
-.hero-tagline {
-  font-size: 20px;
-  color: var(--fg-mute);
-  max-width: 520px;
-  margin: 0 auto 40px;
-  line-height: 1.5;
-}
-.hero-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.btn {
+.hero-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 13px 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.eyebrow-dot {
+  width: 6px; height: 6px;
+  background: var(--accent-text);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: var(--fg);
+  margin-bottom: 20px;
+}
+.hero-accent {
+  color: var(--accent-text);
+}
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 52ch;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  border-radius: 5px;
+  border-radius: var(--r);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all .15s;
+  transition: all 0.15s;
+  text-decoration: none;
 }
 .btn-primary {
-  background: var(--wine);
+  background: var(--accent);
   color: #fff;
-  border-color: var(--wine);
+  border-color: var(--accent);
 }
-.btn-primary:hover { background: #9c2939; border-color: #9c2939; }
+.btn-primary:hover {
+  background: var(--accent-hi);
+  border-color: var(--accent-hi);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(192, 48, 80, 0.3);
+}
 .btn-ghost {
   background: transparent;
+  color: var(--fg-2);
+  border-color: var(--line-2);
+}
+.btn-ghost:hover {
   color: var(--fg);
-  border-color: var(--line);
+  border-color: var(--fg-3);
+  background: var(--bg-elev);
 }
-.btn-ghost:hover { border-color: var(--fg-dim); background: var(--bg-elev); }
 
-.hero-meta {
-  margin-top: 36px;
+.hero-badges {
   display: flex;
-  gap: 28px;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--fg-dim);
-  letter-spacing: 0.04em;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.hero-meta span::before {
-  content: '◆';
-  margin-right: 8px;
-  color: var(--wine);
-  font-size: 8px;
-  vertical-align: middle;
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
 }
 
-/* ============ Sections ============ */
-.home-section {
-  margin-top: 80px;
+/* ── Sections ───────────────────────────────────────────────── */
+.section {
+  margin-top: 72px;
+}
+
+.section-header {
+  margin-bottom: 36px;
+  max-width: 520px;
 }
 .section-label {
   font-family: var(--font-mono);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--wine-text);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.section-label::before {
-  content: '';
-  width: 18px;
-  height: 1px;
-  background: var(--wine);
+  letter-spacing: 0.12em;
+  color: var(--accent-text);
+  margin-bottom: 10px;
 }
 .section-title {
   font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin-bottom: 14px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--fg);
+  margin-bottom: 10px;
 }
-.section-sub {
-  color: var(--fg-mute);
-  max-width: 56ch;
-  margin-bottom: 36px;
-  font-size: 17px;
-  line-height: 1.7;
+.section-desc {
+  font-size: 15px;
+  color: var(--fg-2);
+  line-height: 1.65;
 }
 
-/* ============ Features grid ============ */
+/* ── Features ───────────────────────────────────────────────── */
 .features {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1px;
-  background: var(--line-soft);
-  border: 1px solid var(--line-soft);
-  border-radius: 6px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
-.feature {
+.feature-card {
   background: var(--bg);
-  padding: 28px 26px;
-  transition: background .15s;
+  padding: 26px 24px;
+  transition: background 0.15s;
 }
-.feature:hover { background: var(--bg-elev); }
-.feature-num {
+.feature-card:hover { background: var(--bg-elev); }
+
+.feature-index {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--wine-text);
+  font-size: 10px;
+  color: var(--accent-text);
   letter-spacing: 0.1em;
-  margin-bottom: 14px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  opacity: 0.8;
 }
-.feature h3 {
+.feature-card h3 {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 10px;
   color: var(--fg);
+  margin-bottom: 8px;
 }
-.feature p {
-  font-size: 15px;
-  color: var(--fg-mute);
+.feature-card p {
+  font-size: 14px;
+  color: var(--fg-2);
   line-height: 1.6;
-  margin: 0;
   max-width: none;
+  margin: 0;
 }
 
-/* ============ Demo ============ */
-.demo-split {
+/* ── Demo ───────────────────────────────────────────────────── */
+.demo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  align-items: start;
-}
-.demo-code {
-  background: var(--bg-code);
+  grid-template-columns: 1fr 320px;
+  gap: 1px;
+  background: var(--line);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-lg);
   overflow: hidden;
 }
-.demo-code-header {
+
+.demo-code { background: var(--bg-code); }
+.demo-code-bar {
   display: flex;
   align-items: center;
-  padding: 8px 14px;
-  background: var(--bg-elev);
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--line);
+}
+.demo-code-dots {
+  display: flex;
+  gap: 5px;
+}
+.demo-code-dots span {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+.demo-code-dots span:nth-child(1) { background: #ff5f57; }
+.demo-code-dots span:nth-child(2) { background: #ffbd2e; }
+.demo-code-dots span:nth-child(3) { background: #28c840; }
+
+.demo-code-filename {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-mute);
+  color: var(--fg-3);
+  letter-spacing: 0.02em;
 }
 .demo-code-body {
   margin: 0;
-  padding: 20px;
+  padding: 24px;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.65;
   color: var(--fg);
   overflow-x: auto;
   white-space: pre;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
 }
-.demo-card {
+
+.demo-preview {
   background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 32px 28px;
+  padding: 32px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
   gap: 0;
 }
-.demo-label {
+.demo-preview-label {
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--fg-dim);
-  margin-bottom: 24px;
+  letter-spacing: 0.14em;
+  color: var(--fg-4);
+  margin-bottom: 20px;
   align-self: flex-start;
 }
-.counter-display {
+.counter-value {
   font-family: var(--font-display);
-  font-size: 80px;
-  font-weight: 600;
+  font-size: 72px;
+  font-weight: 700;
   color: var(--fg);
   letter-spacing: -0.04em;
   line-height: 1;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.counter-doubled {
+.counter-eq {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--fg-dim);
-  margin-bottom: 22px;
+  color: var(--fg-3);
+  margin-bottom: 24px;
 }
-.counter-doubled b { color: var(--wine-text); font-weight: 500; }
-.counter-buttons { display: flex; gap: 8px; }
-.counter-buttons button {
+.counter-eq strong { color: var(--accent-text); font-weight: 500; }
+
+.counter-btns { display: flex; gap: 6px; }
+.counter-btn {
   font-family: var(--font-mono);
   font-size: 13px;
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--fg);
-  width: 42px;
-  height: 42px;
-  border-radius: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  width: 38px; height: 38px;
+  border-radius: var(--r-sm);
   cursor: pointer;
-  transition: all .12s;
+  transition: all 0.12s;
 }
-.counter-buttons button:hover {
-  background: var(--wine);
-  border-color: var(--wine);
+.counter-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
-.counter-buttons button.reset:hover {
-  background: var(--bg-card);
-  border-color: var(--fg-dim);
-  color: var(--fg);
-}
-.counter-buttons button.reset {
+.counter-btn-reset {
   width: auto;
   padding: 0 14px;
   font-size: 11px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--fg-dim);
+  color: var(--fg-4);
+}
+.counter-btn-reset:hover {
+  background: var(--bg-code);
+  border-color: var(--fg-4);
+  color: var(--fg-2);
 }
 
-/* ============ Page nav ============ */
+/* ── Page nav ───────────────────────────────────────────────── */
 .page-nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 64px;
-  padding-top: 28px;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 72px;
+  padding-top: 24px;
   border-top: 1px solid var(--line);
 }
-.page-nav-link {
-  display: block;
-  padding: 18px 20px;
+.page-nav-next {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 14px 18px;
   background: var(--bg-elev);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  transition: all .15s;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  transition: all 0.15s;
 }
-.page-nav-link:hover { border-color: var(--wine); background: var(--bg-card); }
-.page-nav-link.next { text-align: right; }
+.page-nav-next:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
 .page-nav-dir {
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--fg-dim);
-  margin-bottom: 6px;
+  letter-spacing: 0.1em;
+  color: var(--fg-3);
 }
 .page-nav-title {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--fg);
 }
 
-/* ============ Responsive ============ */
-@media (max-width: 960px) {
-  .demo-split { grid-template-columns: 1fr; }
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .demo { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
   .features { grid-template-columns: 1fr; }
 }
-@media (max-width: 600px) {
-  .hero h1 { font-size: 60px; }
-  .hero-tagline { font-size: 17px; }
+@media (max-width: 540px) {
+  .hero-title { font-size: 38px; }
+  .hero-sub { font-size: 15px; }
 }
 </style>

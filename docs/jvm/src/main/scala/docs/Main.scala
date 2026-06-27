@@ -10,11 +10,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
 
-import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home }
+import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home, PlaygroundPage }
 import meltkit.*
 import meltkit.ssg.*
 
-private val basePath = ""
+private val basePath = sys.env.getOrElse("MELT_BASE_PATH", "").stripSuffix("/")
 
 private val lang    = param[String]("lang")
 private val guide   = param[String]("guide")
@@ -139,12 +139,23 @@ private def createApp(): MeltKit[Future] =
     )
   }
 
+  app.get(
+    lang / "playground",
+    On.copy(entries = langs.map(l => s"/$l/playground"))
+  ) { ctx =>
+    val l = ctx.params.lang
+    Future.successful(
+      ctx.render(
+        PlaygroundPage(PlaygroundPage.Props(basePath = basePath, lang = l))
+      )
+    )
+  }
+
   app
 
 val app: MeltKit[Future] = createApp()
 
 @main def generate(): Unit =
-  val ssgBasePath  = sys.env.getOrElse("MELT_BASE_PATH", "").stripSuffix("/")
   val manifestPath = "../dist/.vite/manifest.json"
   val manifest     = Try(scala.io.Source.fromFile(manifestPath).mkString)
     .map(ViteManifest.fromString(_))
@@ -156,7 +167,7 @@ val app: MeltKit[Future] = createApp()
     outputDir = Some("docs-dist"),
     publicDir = Some("public"),
     assetsDir = Some("../dist/assets"),
-    basePath  = ssgBasePath,
+    basePath  = basePath,
     manifest  = manifest,
     template  = Template.fromResource("index.html")
   )

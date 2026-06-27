@@ -224,6 +224,14 @@ object MeltPlugin extends AutoPlugin {
         case _ => Seq.empty
       }
     },
+    libraryDependencies += {
+      val v    = pluginVersion
+      val binV = scalaBinaryVersion.value
+      if (hasScalaJSPlugin(thisProject.value))
+        "io.github.takapi327" % s"melt-runtime_sjs1_$binV" % v
+      else
+        "io.github.takapi327" %% "melt-runtime" % v
+    },
     meltCompilerClasspath := update.value.select(
       configurationFilter(MeltCompilerConfig.name)
     ),

@@ -5,22 +5,217 @@ case class Props(basePath: String = "", lang: String = "en")
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="changelog">
-<article class="page">
-  <h1 class="page-title">Changelog</h1>
-  <p class="page-placeholder">Changelog coming soon.</p>
+<article class="changelog-page">
+
+  <div class="doc-page-header">
+    <div class="doc-breadcrumb">Changelog</div>
+    <h1 class="doc-title">Changelog</h1>
+    <p class="doc-lead">All notable changes to Melt are documented here. Melt follows <a href="https://semver.org" target="_blank" rel="noopener noreferrer">semantic versioning</a>.</p>
+  </div>
+
+  <div class="changelog">
+
+    <div class="release">
+      <div class="release-header">
+        <span class="release-version">v0.1.0</span>
+        <span class="release-date">2026-06-07</span>
+        <span class="release-badge release-badge-latest">Latest</span>
+      </div>
+      <p class="release-summary">Initial public release of Melt — a Scala.js SFC framework inspired by Svelte.</p>
+
+      <div class="release-section">
+        <div class="release-section-label">New</div>
+        <ul class="release-list">
+          <li><strong>SFC compiler</strong> — Parse and compile <code>.melt</code> files to Scala 3 DOM code (Scala.js) or HTML string builders (JVM SSR)</li>
+          <li><strong>Reactive runtime</strong> — <code>State[A]</code> and <code>Signal[A]</code> with three-phase update propagation (Pre → Bind → Post)</li>
+          <li><strong>Template syntax</strong> — Full HTML template with <code>{}</code> interpolation, <code>bind:</code> directives, <code>class:</code> and <code>style:</code> directives, event handlers</li>
+          <li><strong>Control flow</strong> — <code>if/else</code>, list rendering with <code>.map()</code>, keyed list reconciliation</li>
+          <li><strong>Components</strong> — Props, children (slots), and component composition</li>
+          <li><strong>Special elements</strong> — <code>&lt;Head&gt;</code>, <code>&lt;Window&gt;</code>, <code>&lt;Body&gt;</code>, <code>&lt;Document&gt;</code>, <code>&lt;Boundary&gt;</code>, <code>&lt;Await&gt;</code></li>
+          <li><strong>Transitions</strong> — Built-in enter/exit animations with configurable easing and duration</li>
+          <li><strong>TrustedHtml</strong> — Type-safe raw HTML injection that prevents accidental XSS</li>
+          <li><strong>CSS scoping</strong> — Component styles automatically scoped with a unique attribute selector</li>
+          <li><strong>SCSS support</strong> — Optional Dart Sass integration via <code>melt-compiler-sass</code></li>
+          <li><strong>SSR &amp; hydration</strong> — Server-render on the JVM, hydrate on the client with HydrationCursor DOM reuse</li>
+          <li><strong>SSG</strong> — Static site generation with <code>meltkitSsgGenerate</code> sbt task</li>
+          <li><strong>MeltKit routing</strong> — Type-safe routing DSL with <code>NamedTuple</code> path parameters (requires Scala 3.8+)</li>
+          <li><strong>Adapters</strong> — Browser SPA, http4s (JVM), Node.js</li>
+          <li><strong>sbt-melt plugin</strong> — Watch, compile, and integrate <code>.melt</code> files into the sbt build pipeline</li>
+          <li><strong>Language Server</strong> — LSP server for IDE support (syntax highlighting, diagnostics)</li>
+          <li><strong>Security checker</strong> — Compile-time warnings for unsafe iframes, forms, and missing <code>rel="noopener"</code></li>
+          <li><strong>A11y checker</strong> — Compile-time warnings for missing ARIA attributes and semantic HTML issues</li>
+          <li><strong>Testkit</strong> — Testing utilities for component rendering and reactivity assertions</li>
+        </ul>
+      </div>
+
+      <div class="release-section">
+        <div class="release-section-label">Architecture</div>
+        <ul class="release-list">
+          <li>Compiler pipeline: Parse → Semantic checks → CSS preprocessing → AST→IR → Static hoist optimization → Code emit</li>
+          <li><code>sbt-melt</code> (compiler layer) and <code>sbt-meltkit</code> (server integration) split into separate plugins</li>
+          <li>CSS parser fully rewritten from regex-based to AST-based with CSS Nesting support</li>
+          <li>Static element hoisting (<code>StaticHoistPass</code>) for improved runtime performance</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="release release-future">
+      <div class="release-header">
+        <span class="release-version">v0.2.0</span>
+        <span class="release-date">Planned</span>
+        <span class="release-badge release-badge-planned">Planned</span>
+      </div>
+      <div class="release-section">
+        <div class="release-section-label">Planned</div>
+        <ul class="release-list">
+          <li>Hot module replacement (HMR) in development mode</li>
+          <li>Snippet and <code>&lt;RenderCall&gt;</code> support in SPA mode</li>
+          <li>Tween and Spring motion primitives</li>
+          <li>Official VS Code extension</li>
+          <li>Incremental compiler support</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
 </article>
 </Layout>
 
 <style>
-.page {
-  padding: 0;
+.changelog-page { padding: 0; }
+
+.doc-page-header {
+  padding-bottom: 28px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid var(--line);
 }
-.page-title {
-  font-size: 2rem;
+.doc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-4);
+  margin-bottom: 12px;
+}
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 1rem;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--fg);
+  margin-bottom: 10px;
 }
-.page-placeholder {
-  color: #718096;
+.doc-lead {
+  font-size: 15px;
+  color: var(--fg-2);
+  line-height: 1.65;
+}
+.doc-lead a { color: var(--accent-text); }
+
+/* ── Releases ─────────────────────────────────────────────────── */
+.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.release {
+  padding: 32px 0;
+  border-bottom: 1px solid var(--line);
+}
+.release:last-child { border-bottom: none; }
+.release-future { opacity: 0.6; }
+
+.release-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.release-version {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+}
+.release-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+  letter-spacing: 0.04em;
+}
+.release-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.release-badge-latest {
+  background: var(--accent-bg);
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+}
+.release-badge-planned {
+  background: var(--bg-card);
+  border-color: var(--line-2);
+  color: var(--fg-4);
+}
+
+.release-summary {
+  font-size: 14px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.release-section {
+  margin-top: 20px;
+}
+.release-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-text);
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+.release-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.release-list li {
+  font-size: 14px;
+  color: var(--fg-2);
+  line-height: 1.55;
+  padding-left: 16px;
+  position: relative;
+}
+.release-list li::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: var(--fg-4);
+}
+.release-list li strong { color: var(--fg); font-weight: 500; }
+.release-list li code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-code);
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--fg-2);
 }
 </style>

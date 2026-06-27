@@ -1,0 +1,79 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).components
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.fileStructH2}</h2>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Greeting.melt
+  </div>
+  <pre><code>{GuideCodes.componentsGreetingMelt}</code></pre>
+</div>
+
+<h2>{t.propsH2}</h2>
+<p>{t.propsIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Button.melt
+  </div>
+  <pre><code>{GuideCodes.componentsButtonMelt}</code></pre>
+</div>
+
+<p>{t.propsAccess}</p>
+
+<pre><code>{GuideCodes.componentsPropsAccess}</code></pre>
+
+<h2>{t.usageH2}</h2>
+<p>{t.usageIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>App.melt
+  </div>
+  <pre><code>{GuideCodes.componentsAppMelt}</code></pre>
+</div>
+
+<h2>{t.childrenH2}</h2>
+<p>{t.childrenIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Card.melt
+  </div>
+  <pre><code>{GuideCodes.componentsCardMelt}</code></pre>
+</div>
+
+<pre><code>{GuideCodes.componentsCardUsage}</code></pre>
+
+{t.defaultsH2.map(h => <h2>{h}</h2>)}
+{t.defaultsText.map(p => <p>{p}</p>)}
+
+<h2>{t.scopedStylesH2}</h2>
+<p>{t.scopedStylesText}</p>
+
+<div class="callout callout-info">
+  <div class="callout-title">{t.noteTitle}</div>
+  <p>{t.noteText}<a href={base + "/guide/css"}>{t.noteLinkText}</a></p>
+</div>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/quick-start"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "クイックスタート" else "Quick Start"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/template-syntax"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "テンプレート構文" else "Template Syntax"}</span>
+  </a>
+</div>

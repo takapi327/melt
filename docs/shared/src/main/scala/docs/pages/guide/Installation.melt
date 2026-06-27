@@ -1,0 +1,81 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).installation
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.prereqH2}</h2>
+<ul>
+  <li>{t.prereq1}</li>
+  <li>{t.prereq2}</li>
+  <li>{t.prereq3}</li>
+  <li>{t.prereq4}</li>
+</ul>
+
+<h2>{t.step1H2}</h2>
+<p>{t.step1Intro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>project/plugins.sbt
+  </div>
+  <pre><code>{GuideCodes.installPluginsSbt}</code></pre>
+</div>
+
+<h2>{t.step2H2}</h2>
+<p>{t.step2Intro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>build.sbt
+  </div>
+  <pre><code>{GuideCodes.installBuildSbt}</code></pre>
+</div>
+
+<h2>{t.step3H2}</h2>
+<p>{t.step3Intro}</p>
+<p><strong>{t.step3Layout}</strong></p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.installProjectLayout}</code></pre>
+</div>
+
+<h2>{t.step4H2}</h2>
+<p>{t.step4Intro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>vite.config.mjs
+  </div>
+  <pre><code>{GuideCodes.installViteConfig}</code></pre>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">{t.snapshotTitle}</div>
+  <p>{t.snapshotText}</p>
+</div>
+
+{t.nextStepTitle.map(title =>
+  <div class="callout callout-tip">
+    <div class="callout-title">{title}</div>
+    <p>{t.nextStepText.getOrElse("")}<a href={base + "/guide/quick-start"}>{t.nextStepLink.getOrElse("")}</a></p>
+  </div>
+)}
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/introduction"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "Melt とは？" else "What is Melt?"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/quick-start"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "クイックスタート" else "Quick Start"}</span>
+  </a>
+</div>

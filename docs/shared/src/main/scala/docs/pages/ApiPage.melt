@@ -1,27 +1,55 @@
 <script lang="scala">
+import docs.I18n
 import docs.components.Layout
+import docs.pages.api.{
+  TemplateSyntaxApi, Runtime, Meltkit, MeltkitSsg, Compiler, SbtPlugin
+}
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+
+val pageTitle  = I18n(props.lang).apiLinks(props.slug)
+val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>
-<article class="page">
-  <h1 class="page-title">{props.slug}</h1>
-  <p class="page-placeholder">API reference coming soon.</p>
+<article class="doc-page">
+  <div class="doc-page-header">
+    <div class="doc-breadcrumb">{breadcrumb}</div>
+    <h1 class="doc-title">{pageTitle}</h1>
+  </div>
+  {if props.slug == "template-syntax" then <TemplateSyntaxApi lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "runtime" then <Runtime lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "meltkit" then <Meltkit lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "meltkit-ssg" then <MeltkitSsg lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "compiler" then <Compiler lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "sbt-plugin" then <SbtPlugin lang={props.lang} basePath={props.basePath} />
+  else <p>{props.slug}</p>
+  }
 </article>
 </Layout>
 
 <style>
-.page {
-  padding: 0;
+.doc-page { padding: 0; }
+
+.doc-page-header {
+  padding-bottom: 28px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid var(--line);
 }
-.page-title {
-  font-size: 2rem;
+.doc-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg-4);
+  margin-bottom: 12px;
+}
+.doc-title {
+  font-family: var(--font-display);
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 1rem;
-  text-transform: capitalize;
-}
-.page-placeholder {
-  color: #718096;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--fg);
 }
 </style>

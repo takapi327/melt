@@ -1,0 +1,159 @@
+<script lang="scala">
+import docs.i18n.{ApiI18n, GuideI18n}
+import docs.ApiCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = ApiI18n(props.lang).sbtPlugin
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.installH2}</h2>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.sbtPluginInstall}</code></pre>
+</div>
+
+<h2>{t.sbtMeltH2}</h2>
+<p>{t.sbtMeltDesc}</p>
+
+<h3>{t.meltPluginSettingsH3}</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.keyH}</th>
+      <th>{t.typeH}</th>
+      <th>{t.defaultH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>meltPackage</code></td>
+      <td><code>String</code></td>
+      <td>{t.meltPackageDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltSourceDirs</code></td>
+      <td><code>Seq[File]</code></td>
+      <td>{t.meltSourceDirsDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltOutputDir</code></td>
+      <td><code>File</code></td>
+      <td>{t.meltOutputDirDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltCodegenMode</code></td>
+      <td><code>String</code></td>
+      <td>{t.meltCodegenModeDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltHydration</code></td>
+      <td><code>Boolean</code></td>
+      <td>{t.meltHydrationDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltHydrationRoot</code></td>
+      <td><code>Option[String]</code></td>
+      <td>{t.meltHydrationRootDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltCompilerClasspath</code></td>
+      <td><code>Seq[File]</code></td>
+      <td>{t.meltCompilerCpDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltStylePreprocessor</code></td>
+      <td><code>Option[String]</code></td>
+      <td>{t.meltStylePreprocessorDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltGenerate</code></td>
+      <td><code>TaskKey[Seq[File]]</code></td>
+      <td>{t.meltGenerateDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.sbtMeltConfig}</code></pre>
+</div>
+
+<h2>{t.sbtMeltkitH2}</h2>
+<p>{t.sbtMeltkitDesc}</p>
+
+<h3>{t.meltkitSettingsH3}</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.keyH}</th>
+      <th>{t.typeH}</th>
+      <th>{t.defaultH}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>meltMode</code></td>
+      <td><code>MeltMode</code></td>
+      <td>{t.meltModeDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltkitViteDistDir</code></td>
+      <td><code>File</code></td>
+      <td>{t.meltkitViteDistDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltkitViteManifestPath</code></td>
+      <td><code>File</code></td>
+      <td>{t.meltkitViteManifestDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltkitSsgPages</code></td>
+      <td><code>List[SsgPage]</code></td>
+      <td>{t.meltkitSsgPagesDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltkitSsgOutputDir</code></td>
+      <td><code>File</code></td>
+      <td>{t.meltkitSsgOutputDesc}</td>
+    </tr>
+    <tr>
+      <td><code>meltkitSsgGenerate</code></td>
+      <td><code>TaskKey[Unit]</code></td>
+      <td>{t.meltkitSsgGenerateDesc}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.sbtMeltkitConfig}</code></pre>
+</div>
+
+<h2>{t.monorepoH2}</h2>
+<p>{t.monorepoDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.sbtMonorepoSetup}</code></pre>
+</div>
+
+<h2>{t.scssH2}</h2>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.sbtScssSetup}</code></pre>
+</div>
+
+<h2>{t.incrementalH2}</h2>
+<p>{t.incrementalDesc}</p>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/api/compiler"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "コンパイラ API" else "Compiler API"}</span>
+  </a>
+  <span></span>
+</div>

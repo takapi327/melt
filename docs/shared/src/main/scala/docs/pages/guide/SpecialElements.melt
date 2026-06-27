@@ -1,0 +1,98 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).specialElements
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.headH2}</h2>
+<p>{t.headIntro}</p>
+
+<pre><code>{GuideCodes.specialHeadExample}</code></pre>
+
+<h2>{t.windowH2}</h2>
+<p>{t.windowIntro}</p>
+
+<pre><code>{GuideCodes.specialWindowBodyExample}</code></pre>
+
+<p>{t.windowOutro}</p>
+
+<h2>{t.boundaryH2}</h2>
+<p>{t.boundaryIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.specialBoundaryExample}</code></pre>
+</div>
+
+<h2>{t.elementH2}</h2>
+<p>{t.elementIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.specialElementExample}</code></pre>
+</div>
+
+{t.documentH2.map(h => <h2>{h}</h2>)}
+{t.documentIntro.map(p => <p>{p}</p>)}
+
+<h2>{t.snippetsH2}</h2>
+<p>{t.snippetsIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.specialSnippetExample}</code></pre>
+</div>
+
+{t.tableElemH.map(elemH =>
+  <table>
+    <thead>
+      <tr>
+        <th>{elemH}</th>
+        <th>{t.tableMountH.getOrElse("")}</th>
+        <th>{t.tableUseH.getOrElse("")}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>melt:head</code></td>
+        <td><code>document.head</code></td>
+        <td>{if props.lang == "ja" then "タイトル・メタタグ" else "Title, meta tags"}</td>
+      </tr>
+      <tr>
+        <td><code>melt:window</code></td>
+        <td><code>window</code></td>
+        <td>{if props.lang == "ja" then "グローバルイベント" else "Global events"}</td>
+      </tr>
+      <tr>
+        <td><code>melt:body</code></td>
+        <td><code>document.body</code></td>
+        <td>{if props.lang == "ja" then "ボディイベント" else "Body events"}</td>
+      </tr>
+      <tr>
+        <td><code>melt:boundary</code></td>
+        <td>inline</td>
+        <td>{if props.lang == "ja" then "エラーバウンダリ" else "Error boundary"}</td>
+      </tr>
+      <tr>
+        <td><code>melt:element</code></td>
+        <td>inline</td>
+        <td>{if props.lang == "ja" then "動的タグ名" else "Dynamic tag name"}</td>
+      </tr>
+    </tbody>
+  </table>
+)}
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/control-flow"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "制御フロー" else "Control Flow"}</span>
+  </a>
+  <a class="doc-nav-next" href={base + "/guide/transitions"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "トランジション" else "Transitions"}</span>
+  </a>
+</div>

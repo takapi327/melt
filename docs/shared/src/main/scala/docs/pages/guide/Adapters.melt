@@ -1,0 +1,112 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).adapters
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.http4sH2}</h2>
+<p>{t.http4sIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>build.sbt
+  </div>
+  <pre><code>{GuideCodes.adaptersHttp4sDep}</code></pre>
+</div>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Main.scala
+  </div>
+  <pre><code>{GuideCodes.adaptersHttp4sSetup}</code></pre>
+</div>
+
+<h2>{t.nodeH2}</h2>
+<p>{t.nodeIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>build.sbt
+  </div>
+  <pre><code>{GuideCodes.adaptersNodeDep}</code></pre>
+</div>
+
+<h2>{t.browserH2}</h2>
+<p>{t.browserIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>build.sbt
+  </div>
+  <pre><code>{GuideCodes.adaptersBrowserDep}</code></pre>
+</div>
+
+<h2>{t.cmpH2}</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>{t.adapterH}</th>
+      <th>{t.platformH}</th>
+      <th>SSR</th>
+      <th>SSG</th>
+      <th>SPA</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>meltkit-adapter-http4s</code></td>
+      <td>JVM</td>
+      <td>Yes</td>
+      <td>Yes</td>
+      <td>{t.viaVite}</td>
+    </tr>
+    <tr>
+      <td><code>meltkit-adapter-node</code></td>
+      <td>Node.js</td>
+      <td>Yes</td>
+      <td>Yes</td>
+      <td>{t.viaVite}</td>
+    </tr>
+    <tr>
+      <td><code>meltkit-adapter-browser</code></td>
+      <td>Browser</td>
+      <td>No</td>
+      <td>No</td>
+      <td>Yes</td>
+    </tr>
+  </tbody>
+</table>
+
+{t.choiceH2.map(h => <h2>{h}</h2>)}
+
+{t.choiceLi1Pre.map(li1Pre =>
+  <ul>
+    <li>{li1Pre}<code>{t.choiceLi1Kit.getOrElse("")}</code></li>
+    {t.choiceLi2Pre.map(li2Pre => <li>{li2Pre}<code>{t.choiceLi2Kit.getOrElse("")}</code></li>)}
+    {t.choiceLi3Pre.map(li3Pre => <li>{li3Pre}<code>{t.choiceLi3Kit.getOrElse("")}</code></li>)}
+    {t.choiceLi4Pre.map(li4Pre => <li>{li4Pre}</li>)}
+  </ul>
+)}
+
+{t.multiTitle.map(title =>
+  <div class="callout callout-tip">
+    <div class="callout-title">{title}</div>
+    <p>{t.multiText.getOrElse("")}</p>
+  </div>
+)}
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/ssg"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "静的サイト生成" else "SSG"}</span>
+  </a>
+  <span></span>
+</div>
