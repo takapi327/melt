@@ -1,14 +1,14 @@
 import scala.language.implicitConversions
 
-import sbt._
-import sbt.Keys._
+import sbt.{given, *}
+import sbt.Keys.*
 
 import sbtcrossproject.CrossProject
 
-import de.heikoseeberger.sbtheader.AutomateHeaderPlugin
+import sbtheader.AutomateHeaderPlugin
 
-import BuildSettings._
-import ScalaVersions._
+import BuildSettings.*
+import ScalaVersions.*
 
 object Implicits {
 
