@@ -37,7 +37,15 @@ private[meltkit] class NodeHttpBinding(
     val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
     val nonce   = config.cspConfig.map(_ => CspNonce.generate())
 
-    val rawBody: Future[String] = readBody(req)
+    // Reject oversize bodies early based on the declared Content-Length,
+    // before consuming the (bounded) request stream.
+    val contentLength = hdrs.get("content-length").flatMap(_.toLongOption)
+    if contentLength.exists(_ > config.maxRequestBodyBytes) then
+      res.writeHead(413, js.Dictionary("Content-Type" -> "text/plain"))
+      res.end("Payload Too Large")
+      return
+
+    val rawBody: Future[String] = readBody(req, config.maxRequestBodyBytes)
 
     val isHead       = method == "HEAD"
     val routeMethod  = if isHead then "GET" else method
@@ -150,12 +158,23 @@ private[meltkit] class NodeHttpBinding(
     sb.append(s"; SameSite=${ c.options.sameSite }")
     sb.result()
 
-  private def readBody(req: IncomingMessage): Future[String] =
+  private def readBody(req: IncomingMessage, maxBytes: Long): Future[String] =
     val promise = Promise[String]()
     val chunks  = new StringBuilder
-    req.on("data", (chunk: js.Any) => chunks.append(chunk.toString))
-    req.on("end", (_: js.Any) => promise.success(chunks.result()))
-    req.on("error", (err: js.Any) => promise.failure(new RuntimeException(err.toString)))
+    var total   = 0L
+    req.on(
+      "data",
+      (chunk: js.Any) =>
+        // `chunk` is a Buffer; `.length` is its byte size.
+        total += chunk.asInstanceOf[js.Dynamic].length.asInstanceOf[Int].toLong
+        if total > maxBytes then
+          if !promise.isCompleted then
+            promise.failure(new RuntimeException(s"Request body exceeds limit of $maxBytes bytes"))
+          req.asInstanceOf[js.Dynamic].destroy()
+        else chunks.append(chunk.toString)
+    )
+    req.on("end", (_: js.Any) => if !promise.isCompleted then promise.success(chunks.result()))
+    req.on("error", (err: js.Any) => if !promise.isCompleted then promise.failure(new RuntimeException(err.toString)))
     promise.future
 
   private def parseHeaders(dict: js.Dictionary[String]): Map[String, String] =

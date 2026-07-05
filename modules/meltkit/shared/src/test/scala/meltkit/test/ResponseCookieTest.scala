@@ -34,11 +34,16 @@ class ResponseCookieTest extends munit.FunSuite:
   test("CookieOptions default path is /"):
     assertEquals(CookieOptions().path, "/")
 
-  test("CookieOptions default httpOnly is false"):
-    assertEquals(CookieOptions().httpOnly, false)
+  test("CookieOptions default httpOnly is true (fail-safe against XSS cookie theft)"):
+    assertEquals(CookieOptions().httpOnly, true)
 
-  test("CookieOptions default secure is false"):
+  test("CookieOptions default secure is false (so local HTTP dev is not broken)"):
     assertEquals(CookieOptions().secure, false)
+
+  test("CookieOptions.session preset is HttpOnly + Secure + SameSite=Lax"):
+    assertEquals(CookieOptions.session.httpOnly, true)
+    assertEquals(CookieOptions.session.secure, true)
+    assertEquals(CookieOptions.session.sameSite, "Lax")
 
   test("CookieOptions default maxAge is None"):
     assertEquals(CookieOptions().maxAge, None)

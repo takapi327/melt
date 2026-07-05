@@ -39,22 +39,27 @@ trait ServerAdapter[F[_]]:
   * @param publicDir     optional public directory copied verbatim to `outputDir`
   * @param cleanOutput   when `true`, `outputDir` is deleted and recreated before SSG generation
   * @param quiet         when `true`, per-page SSG progress messages are suppressed
+  * @param maxRequestBodyBytes maximum accepted request body size in bytes. Requests whose
+  *                      `Content-Length` exceeds this are rejected with `413 Payload Too Large`,
+  *                      and the body reader is bounded to this size so a chunked or dishonest
+  *                      client cannot exhaust memory. Default: 10 MiB.
   */
 case class ServerConfig(
-  host:          String            = "0.0.0.0",
-  port:          Int               = 3000,
-  template:      Template,
-  manifest:      ViteManifest      = ViteManifest.empty,
-  basePath:      String            = "",
-  cspConfig:     Option[CspConfig] = None,
-  clientDistDir: Option[String]    = None,
-  defaultTitle:  String            = "",
-  defaultLang:   String            = "en",
-  outputDir:     Option[String]    = None,
-  assetsDir:     Option[String]    = None,
-  publicDir:     Option[String]    = None,
-  cleanOutput:   Boolean           = true,
-  quiet:         Boolean           = false
+  host:                String            = "0.0.0.0",
+  port:                Int               = 3000,
+  template:            Template,
+  manifest:            ViteManifest      = ViteManifest.empty,
+  basePath:            String            = "",
+  cspConfig:           Option[CspConfig] = None,
+  clientDistDir:       Option[String]    = None,
+  defaultTitle:        String            = "",
+  defaultLang:         String            = "en",
+  outputDir:           Option[String]    = None,
+  assetsDir:           Option[String]    = None,
+  publicDir:           Option[String]    = None,
+  cleanOutput:         Boolean           = true,
+  quiet:               Boolean           = false,
+  maxRequestBodyBytes: Long              = 10L * 1024 * 1024
 )
 
 /** A handle to a running server.

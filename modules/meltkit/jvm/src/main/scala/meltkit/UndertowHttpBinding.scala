@@ -45,7 +45,14 @@ private[meltkit] class UndertowHttpBinding(
       val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
       val nonce   = config.cspConfig.map(_ => CspNonce.generate())
 
-      val rawBody: Future[String] = Future(readBody(exchange.getInputStream))
+      // Reject oversize bodies early based on the declared Content-Length,
+      // before scheduling the (bounded) body read.
+      val contentLength = hdrs.get("content-length").flatMap(_.toLongOption)
+      if contentLength.exists(_ > config.maxRequestBodyBytes) then
+        sendText(exchange, 413, "Payload Too Large")
+        return
+
+      val rawBody: Future[String] = Future(readBody(exchange.getInputStream, config.maxRequestBodyBytes))
 
       val isHead       = method == "HEAD"
       val routeMethod  = if isHead then "GET" else method
@@ -170,8 +177,15 @@ private[meltkit] class UndertowHttpBinding(
     sb.append(s"; SameSite=${ c.options.sameSite }")
     sb.result()
 
-  private def readBody(is: InputStream): String =
-    try new String(is.readAllBytes(), "UTF-8")
+  private def readBody(is: InputStream, maxBytes: Long): String =
+    try
+      // Read at most maxBytes+1 so an oversize body (e.g. chunked with no
+      // Content-Length, or a client lying about it) cannot exhaust memory.
+      val cap   = math.min(maxBytes + 1L, Int.MaxValue.toLong).toInt
+      val bytes = is.readNBytes(cap)
+      if bytes.length.toLong > maxBytes then
+        throw new IllegalStateException(s"Request body exceeds limit of $maxBytes bytes")
+      new String(bytes, "UTF-8")
     finally is.close()
 
   private def parseHeaders(exchange: HttpServerExchange): Map[String, String] =
