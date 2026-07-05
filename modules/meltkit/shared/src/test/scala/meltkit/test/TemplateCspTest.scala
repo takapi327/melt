@@ -168,3 +168,34 @@ class TemplateCspTest extends munit.FunSuite:
     val html = template.render(result, manifest, title = "", lang = "en", basePath = "", vars = Map.empty, nonce = None)
     assert(html.contains("""<style id="scope-abc">"""), s"Expected plain <style> tag without nonce: $html")
     assert(!html.contains("nonce="), s"Expected no nonce attribute when nonce is None: $html")
+
+  // ── Hardening: escape trusted-but-defended values (memo vuln-07 follow-up) ──
+
+  test("render attribute-escapes a nonce so it cannot break out of the attribute"):
+    val template = Template.fromString("<html><body>%melt.body%</body></html>")
+    val evil     = """x" onload="alert(1)"""
+    val html     = template.render(
+      resultWithComponent,
+      manifest,
+      title    = "",
+      lang     = "en",
+      basePath = "/assets",
+      vars     = Map.empty,
+      nonce    = Some(evil)
+    )
+    assert(!html.contains("""onload="alert(1)""""), s"nonce broke out of the attribute: $html")
+    assert(html.contains("&quot;"), s"Expected the nonce quote to be entity-escaped: $html")
+
+  test("render JSON-encodes the hydration import() path"):
+    val template = Template.fromString("<html><body>%melt.body%</body></html>")
+    val html     = template.render(
+      resultWithComponent,
+      manifest,
+      title    = "",
+      lang     = "en",
+      basePath = "/assets",
+      vars     = Map.empty,
+      nonce    = None
+    )
+    // The import argument must be a quoted JS string literal, not bare text.
+    assert(html.contains("""import("/assets/app-hash.js")"""), s"Expected JSON-quoted import path: $html")

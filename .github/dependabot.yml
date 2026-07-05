@@ -1,0 +1,35 @@
+# Dependabot configuration for automated dependency update PRs.
+#
+# Covers the ecosystems Dependabot supports natively: GitHub Actions and npm
+# (pnpm workspaces included). Scala / sbt dependencies are handled separately
+# by Scala Steward (see .github/workflows/scala-steward.yml).
+version: 2
+updates:
+  # GitHub Actions used by ci.yml / deploy-docs.yml / clean.yml / release.yml.
+  # Keeps pinned action major versions current (addresses version drift between
+  # workflows, e.g. checkout/setup-java lagging in deploy-docs.yml).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # pnpm workspace at the repo root (root, docs, packages/*, examples/*).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns: ["*"]
+
+  # VS Code extension — standalone npm project, not part of the pnpm workspace.
+  - package-ecosystem: "npm"
+    directory: "/editors/vscode"
+    schedule:
+      interval: "weekly"
+    groups:
+      vscode:
+        patterns: ["*"]

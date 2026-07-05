@@ -6,6 +6,7 @@
 
 package meltkit
 
+import melt.runtime.json.SimpleJson
 import melt.runtime.render.RenderResult
 import melt.runtime.Escape
 
@@ -168,19 +169,27 @@ final class Template private[meltkit] (private val raw: String):
 
     val strippedBase = basePath.stripSuffix("/")
 
+    // Chunk paths come from the Vite manifest (build output, normally trusted),
+    // but we still attribute-escape them as defence in depth so a crafted path
+    // cannot break out of the href attribute.
     val stylesheets = cssChunks
-      .map(f => s"""<link rel="stylesheet" href="$strippedBase/$f">""")
+      .map(f => s"""<link rel="stylesheet" href="${ Escape.attr(s"$strippedBase/$f") }">""")
       .mkString("\n")
 
     val preloads = jsChunks
-      .map(f => s"""<link rel="modulepreload" href="$strippedBase/$f">""")
+      .map(f => s"""<link rel="modulepreload" href="${ Escape.attr(s"$strippedBase/$f") }">""")
       .mkString("\n")
 
-    val nonceAttr = nonce.fold("")(n => s""" nonce="$n"""")
+    // The nonce is server-generated (CspNonce, 128-bit), but escape it too so a
+    // future caller passing an untrusted value cannot inject an attribute.
+    val nonceAttr = nonce.fold("")(n => s""" nonce="${ Escape.attr(n) }"""")
     val bootstrap = result.components.toList.distinct
       .flatMap { moduleId =>
         manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
-          s"""<script type="module"$nonceAttr>import("$strippedBase/$entryChunk").then(m => m.hydrate?.())</script>"""
+          // JSON-encode the import path so it is safely quoted in the JS
+          // context (also escapes `</` to avoid closing the <script> element).
+          val importArg = SimpleJson.encString(s"$strippedBase/$entryChunk")
+          s"""<script type="module"$nonceAttr>import($importArg).then(m => m.hydrate?.())</script>"""
         }
       }
       .mkString("\n")
@@ -211,8 +220,9 @@ final class Template private[meltkit] (private val raw: String):
     // Inject component-scoped CSS from result.css once here so that
     // sub-component CSS merged via ServerRenderer.merge is never duplicated.
     // Nonce is added so that strict CSP `style-src 'nonce-...'` policies allow
-    // these inline <style> blocks.
-    val nonceAttr = nonce.fold("")(n => s""" nonce="$n"""")
+    // these inline <style> blocks. Attribute-escaped as defence in depth
+    // (consistent with the bootstrap-script nonce above).
+    val nonceAttr = nonce.fold("")(n => s""" nonce="${ Escape.attr(n) }"""")
     val cssHtml   = result.css.toList
       .sortBy(_.scopeId)
       .map(e => s"""<style id="${ e.scopeId }"$nonceAttr>${ e.code }</style>""")

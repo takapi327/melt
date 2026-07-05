@@ -18,6 +18,19 @@ import org.scalajs.dom
   */
 object Boundary:
 
+  /** @param fallback UI shown when `children` throws. Receives the caught
+    *                 [[Throwable]] and a `retry` callback.
+    *
+    *                 '''Security note''': the throwable's message may contain
+    *                 attacker-influenced text (e.g. a rejected input echoed by a
+    *                 downstream error). Build the fallback UI with DOM APIs /
+    *                 text nodes, or run the message through
+    *                 [[Escape.html]] before assigning it to `innerHTML`. Do not
+    *                 interpolate `e.getMessage` into raw HTML.
+    * @param onError  side-effecting error callback (logging, metrics). Same
+    *                 caution applies if the message is forwarded anywhere that
+    *                 renders HTML.
+    */
   case class Props(
     children: () => dom.Element,
     pending:  Option[() => dom.Element]              = None,
