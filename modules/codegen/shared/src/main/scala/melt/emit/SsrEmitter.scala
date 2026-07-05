@@ -290,7 +290,7 @@ object SsrEmitter:
     val baseClass    = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
 
     val condParts = classToggles.map { case (name, expr) => s"""(if ($expr) " $name" else "")""" }
-    val dynPart   = dynamicClass.map(d => s""" " " + ($d)""")
+    val dynPart   = dynamicClass.map(d => s""" " " + Escape.attr($d)""")
 
     if condParts.isEmpty && dynPart.isEmpty then
       val combined = escapeStr(s""" class="$baseClass"""")
@@ -762,7 +762,7 @@ object SsrEmitter:
     stmts += s"""_sb ++= "<$tag""""
 
     val condParts = classToggles.map { case (name, expr) => s"""(if ($expr) " $name" else "")""" }
-    val dynPart   = dynamicClass.map(d => s""" " " + ($d)""")
+    val dynPart   = dynamicClass.map(d => s""" " " + Escape.attr($d)""")
     if condParts.isEmpty && dynPart.isEmpty then stmts += s"""_sb ++= " class=\\"${ escapeStr(baseClass) }\\"""""
     else
       val allParts = (dynPart.toList ++ condParts).mkString(" + ")

@@ -112,6 +112,31 @@ object Escape:
           ""
         else escapeAttrInner(s)
 
+  /** Validates a URL value's protocol for DOM `setAttribute` use.
+    *
+    * This is the client-side counterpart of [[url]]: it applies the same
+    * protocol validation (blocking `javascript:`, `vbscript:`, `data:` HTML,
+    * … via the shared `isDangerousUrl` check) but, unlike [[url]], returns the
+    * value verbatim without HTML-entity escaping — the DOM `setAttribute` API
+    * takes a raw string and does not require attribute-context escaping.
+    * Applying it here keeps SSR (`Escape.url`) and hydration/SPA
+    * (`Bind.attr`) consistent so client-side rebinding cannot re-introduce a
+    * dangerous URL that the server stripped. `TrustedUrl` bypasses the check.
+    */
+  def urlForDom(value: Any): String =
+    value match
+      case null           => ""
+      case None           => ""
+      case Some(inner)    => urlForDom(inner)
+      case tu: TrustedUrl => tu.value
+      case other          =>
+        val s = other.toString
+        if s == null then ""
+        else if isDangerousUrl(s) then
+          MeltWarnings.warn(s"Blocked dangerous URL: ${ truncate(s, 80) }")
+          ""
+        else s
+
   // ── Internal helpers ───────────────────────────────────────────────────
 
   /** Normalises `value` to `Option[String]` while honouring the `Trusted*`

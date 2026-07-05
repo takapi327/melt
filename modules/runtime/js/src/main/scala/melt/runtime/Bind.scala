@@ -73,13 +73,13 @@ object Bind:
     )
 
   def attr(el: dom.Element, name: String, v: State[?]): Unit =
-    el.setAttribute(name, v.value.toString)
-    val cancel = v.subscribe(a => el.setAttribute(name, a.toString))
+    setAttr(el, name, v.value)
+    val cancel = v.subscribe(a => setAttr(el, name, a))
     Cleanup.register(cancel)
 
   def attr(el: dom.Element, name: String, signal: Signal[?]): Unit =
-    el.setAttribute(name, signal.value.toString)
-    val cancel = signal.subscribe(a => el.setAttribute(name, a.toString))
+    setAttr(el, name, signal.value)
+    val cancel = signal.subscribe(a => setAttr(el, name, a))
     Cleanup.register(cancel)
 
   /** Static attribute binding (fallback).
@@ -93,7 +93,19 @@ object Bind:
         // Set DOM property directly for boolean properties
         el.asInstanceOf[scalajs.js.Dynamic].updateDynamic(name)(b)
       case _ =>
-        el.setAttribute(name, value.toString)
+        setAttr(el, name, value)
+
+  /** Sets an attribute, applying URL-protocol validation when `(tag, name)`
+    * is a URL attribute (`href`, `src`, …).
+    *
+    * The tag is read from the live element (`el.tagName`) so this works for
+    * both statically- and dynamically-tagged elements, and matches the
+    * server's `Escape.url` decision (both delegate to `UrlAttributes`). Non-URL
+    * attributes are set verbatim; `setAttribute` needs no entity escaping.
+    */
+  private def setAttr(el: dom.Element, name: String, raw: Any): Unit =
+    if UrlAttributes.isUrlAttribute(el.tagName, name) then el.setAttribute(name, Escape.urlForDom(raw))
+    else el.setAttribute(name, if raw == null then "" else raw.toString)
 
   // ── Class attribute ────────────────────────────────────────────────────
 

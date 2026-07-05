@@ -337,3 +337,42 @@ class EscapeSpec extends FunSuite:
   test("Escape.cssValue also escapes newline (via escapeAttrInner)") {
     assertEquals(Escape.cssValue("10px\n"), "10px&#10;")
   }
+
+  // ── urlForDom (client-side setAttribute counterpart of url) ────────────
+
+  test("Escape.urlForDom blocks javascript:") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.urlForDom("javascript:alert(1)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.urlForDom blocks whitespace/tab-bypass javascript:") {
+    MeltWarnings.mute()
+    try
+      assertEquals(Escape.urlForDom("  javascript:alert(1)"), "")
+      assertEquals(Escape.urlForDom("java\tscript:alert(1)"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.urlForDom blocks data:image/svg+xml") {
+    MeltWarnings.mute()
+    try assertEquals(Escape.urlForDom("data:image/svg+xml,<svg onload=alert(1)>"), "")
+    finally MeltWarnings.resetHandler()
+  }
+
+  test("Escape.urlForDom returns safe URLs verbatim (no entity escaping)") {
+    // Unlike Escape.url, the DOM setAttribute path must NOT entity-escape:
+    // ampersands stay literal so the browser receives the intended value.
+    assertEquals(Escape.urlForDom("https://example.com/p?a=1&b=2"), "https://example.com/p?a=1&b=2")
+    assertEquals(Escape.urlForDom("/page"), "/page")
+    assertEquals(Escape.urlForDom("data:image/png;base64,iVBORw0KGgo="), "data:image/png;base64,iVBORw0KGgo=")
+  }
+
+  test("Escape.urlForDom(null / None) is empty string") {
+    assertEquals(Escape.urlForDom(null), "")
+    assertEquals(Escape.urlForDom(None), "")
+  }
+
+  test("Escape.urlForDom bypasses validation for TrustedUrl") {
+    assertEquals(Escape.urlForDom(TrustedUrl.unsafe("javascript:trusted()")), "javascript:trusted()")
+  }

@@ -97,6 +97,13 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Escape.attr(props.t)"), code)
   }
 
+  test("dynamic class binding is escaped with Escape.attr (vuln-06)") {
+    // Regression: class={expr} was concatenated raw into the quoted class
+    // attribute, allowing attribute breakout XSS. It must go through Escape.attr.
+    val code = compile("""<div class={props.cls}>x</div>""")
+    assert(code.contains("Escape.attr(props.cls)"), code)
+  }
+
   test("event handlers are stripped in SSR") {
     val code = compile("""<button onclick={handler}>+</button>""")
     assert(!code.contains("addEventListener"), code)
