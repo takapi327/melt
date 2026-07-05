@@ -16,7 +16,7 @@ import org.scalajs.dom
 class BindUrlAttrSpec extends munit.FunSuite:
 
   override def beforeEach(context: BeforeEach): Unit = MeltWarnings.mute()
-  override def afterEach(context: AfterEach): Unit   = MeltWarnings.resetHandler()
+  override def afterEach(context:  AfterEach):  Unit = MeltWarnings.resetHandler()
 
   test("Bind.attr strips javascript: from <a href>") {
     val a = dom.document.createElement("a")
