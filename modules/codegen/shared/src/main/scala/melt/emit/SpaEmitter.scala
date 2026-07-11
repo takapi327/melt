@@ -98,8 +98,14 @@ object SpaEmitter:
 
     // ── apply() signature ─────────────────────────────────────────────────
     val hasChildren = templateHasChildrenRef(ir.template)
+    // The field-forwarding overload is only emitted for non-children components:
+    // a children component's props-based apply already carries a `children`
+    // default, and Scala forbids two overloads both having default arguments.
+    val emitFieldApply = !hasChildren && ir.propsType.exists(_.fieldForwardApplyFields.nonEmpty)
     ir.propsType match
-      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple && pt.typeParams.isEmpty =>
+      // When a field-forwarding overload is also emitted, the props-based apply
+      // must NOT carry a default (Scala forbids two overloads both defaulting).
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple && pt.typeParams.isEmpty && !emitFieldApply =>
         if hasChildren then
           tracker ++= s"  def apply(props: ${ pt.typeName } = ${ pt.typeName }(), children: () => dom.Node = () => dom.document.createDocumentFragment()): dom.Element = {\n"
         else tracker ++= s"  def apply(props: ${ pt.typeName } = ${ pt.typeName }()): dom.Element = {\n"
@@ -152,6 +158,9 @@ object SpaEmitter:
     tracker ++= "    melt.runtime.Lifecycle.register(_result, _owner)\n"
     tracker ++= "    _result\n"
     tracker ++= "  }\n\n"
+
+    // ── field-forwarding apply(field = ...) overload ──────────────────────
+    if emitFieldApply then ir.propsType.foreach(pt => emitFieldForwardApply(tracker, pt))
 
     // ── mount() ───────────────────────────────────────────────────────────
     ir.propsType match
@@ -976,6 +985,18 @@ object SpaEmitter:
         }
       case _ => false
     }
+
+  /** Emits a field-forwarding `apply(field = ..., ...)` overload that constructs
+    * `Props` and delegates to `apply(props)`, so call sites can write
+    * `Component(basePath = x, lang = y)` in addition to `Component(Props(...))`.
+    * No-op unless `Props` is a plain (non-generic) case class we can parse.
+    */
+  private def emitFieldForwardApply(tracker: LineTracker, pt: IrPropsType): Unit =
+    val fields = pt.fieldForwardApplyFields
+    if fields.nonEmpty then
+      val params    = fields.map(f => f.default.fold(s"${ f.name }: ${ f.tpe }")(d => s"${ f.name }: ${ f.tpe } = $d"))
+      val propsArgs = fields.map(f => s"${ f.name } = ${ f.name }").mkString(", ")
+      tracker ++= s"  def apply(${ params.mkString(", ") }): dom.Element = apply(Props($propsArgs))\n\n"
 
   private def escapeStr(s: String): String =
     s.replace("\\", "\\\\")

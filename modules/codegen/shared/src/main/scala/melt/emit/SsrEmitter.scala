@@ -69,8 +69,12 @@ object SsrEmitter:
     }
 
     val hasChildren = templateHasChildrenRef(ir.template)
-    val _tp         = ir.propsType.map(_.typeParams).getOrElse("")
-    tracker ++= s"  def apply$_tp(${ renderParams(ir.propsType, hasChildren) }): RenderResult = {\n"
+    // The field-forwarding overload is only emitted for non-children components:
+    // a children component's props-based apply already carries a `children`
+    // default, and Scala forbids two overloads both having default arguments.
+    val emitFieldApply = !hasChildren && ir.propsType.exists(_.fieldForwardApplyFields.nonEmpty)
+    val _tp            = ir.propsType.map(_.typeParams).getOrElse("")
+    tracker ++= s"  def apply$_tp(${ renderParams(ir.propsType, hasChildren, emitFieldApply) }): RenderResult = {\n"
     tracker ++= "    val renderer = ServerRenderer()\n"
     val moduleId = kebabCase(ir.objectName)
     tracker ++= s"""    renderer.trackComponent("$moduleId")\n"""
@@ -103,6 +107,7 @@ object SsrEmitter:
     tracker ++= s"""    renderer.push(HydrationMarkers.close("$moduleId"))\n"""
     tracker ++= "\n    renderer.result()\n"
     tracker ++= "  }\n"
+    if emitFieldApply then ir.propsType.foreach(pt => emitFieldForwardApply(tracker, pt))
     tracker ++= "}\n"
 
     val entries        = tracker.mappings()
@@ -867,12 +872,29 @@ object SsrEmitter:
     tracker ++= s"      ($argList)\n"
     tracker += '\n'
 
-  private def renderParams(propsType: Option[IrPropsType], hasChildren: Boolean): String =
+  /** Emits a field-forwarding `apply(field = ..., ...)` overload that constructs
+    * `Props` and delegates to `apply(props)`, so call sites can write
+    * `Component(basePath = x, lang = y)` in addition to `Component(Props(...))`.
+    * No-op unless `Props` is a plain (non-generic) case class we can parse.
+    */
+  private def emitFieldForwardApply(tracker: LineTracker, pt: IrPropsType): Unit =
+    val fields = pt.fieldForwardApplyFields
+    if fields.nonEmpty then
+      val params    = fields.map(f => f.default.fold(s"${ f.name }: ${ f.tpe }")(d => s"${ f.name }: ${ f.tpe } = $d"))
+      val propsArgs = fields.map(f => s"${ f.name } = ${ f.name }").mkString(", ")
+      tracker ++= s"  def apply(${ params.mkString(", ") }): RenderResult = apply(Props($propsArgs))\n"
+
+  private def renderParams(propsType: Option[IrPropsType], hasChildren: Boolean, emitFieldApply: Boolean): String =
     val propsPart = propsType match
-      case Some(pt) if pt.typeParams.nonEmpty                 => s"props: ${ pt.typeName }"
-      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple => s"props: ${ pt.typeName } = ${ pt.typeName }()"
-      case Some(pt)                                           => s"props: ${ pt.typeName }"
-      case None                                               => ""
+      case Some(pt) if pt.typeParams.nonEmpty => s"props: ${ pt.typeName }"
+      // When a field-forwarding apply overload is also emitted, the props-based
+      // apply must NOT carry a default — Scala forbids two overloads of the same
+      // method both having default arguments. The field overload provides the
+      // zero-arg / partial entry points instead.
+      case Some(pt) if pt.allHaveDefaults && !pt.isNamedTuple && !emitFieldApply =>
+        s"props: ${ pt.typeName } = ${ pt.typeName }()"
+      case Some(pt) => s"props: ${ pt.typeName }"
+      case None     => ""
     val childrenPart =
       if hasChildren then "children: () => RenderResult = () => RenderResult.empty"
       else ""

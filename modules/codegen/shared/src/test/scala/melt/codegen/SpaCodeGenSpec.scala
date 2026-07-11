@@ -701,6 +701,19 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("children: () => dom.Node"), code)
   }
 
+  test("case class Props gets a field-forwarding apply overload") {
+    val code = compile(
+      """|<script lang="scala">
+         |case class Props(basePath: String = "", lang: String = "en")
+         |</script>
+         |<div>{props.lang}</div>""".stripMargin
+    )
+    // Both invocation styles are supported: App(App.Props(...)) and App(basePath = ..., lang = ...)
+    assert(code.contains("def apply(props: Props"), code) // existing props-based apply preserved
+    assert(code.contains("""def apply(basePath: String = "", lang: String = "en"): dom.Element ="""), code)
+    assert(code.contains("apply(Props(basePath = basePath, lang = lang))"), code)
+  }
+
   test("no-props component omits Props constructor") {
     val code = compile("<div><Divider /></div>")
     assert(code.contains("Divider()"), code)
@@ -1859,14 +1872,23 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("def apply["), code)
   }
 
-  test("all-defaults Props: apply() and mount() have default argument so zero-arg call compiles") {
+  test("all-defaults Props: field overload + mount default keep zero-arg calls compiling") {
     val src =
       """<script lang="scala">
         |case class Props(label: String = "hello", count: Int = 0)
         |</script>
         |<span>{props.label}</span>""".stripMargin
     val code = compile(src, name = "Badge")
-    assert(code.contains("def apply(props: Props = Props()): dom.Element"), code)
+    // props-based apply loses its default (a field overload is also emitted), but
+    // the field overload with defaults keeps `Badge()` / `Badge(label = "x")` working.
+    assert(code.contains("def apply(props: Props): dom.Element"), code)
+    assert(
+      code.contains(
+        """def apply(label: String = "hello", count: Int = 0): dom.Element = apply(Props(label = label, count = count))"""
+      ),
+      code
+    )
+    // mount keeps its own default (it is not overloaded, so no conflict).
     assert(code.contains("def mount(target: dom.Element, props: Props = Props())"), code)
   }
 

@@ -72,7 +72,113 @@ case class IrPropsType(
   scriptDecl:       String, // the props declaration text
   isNamedTuple:     Boolean                = false, // true when Props is a Named Tuple
   namedTupleFields: List[(String, String)] = Nil    // (fieldName, typeStr) for factory generation
-)
+):
+
+  /** Parsed fields of a `case class Props(...)` declaration, used by the emitters
+    * to generate a field-forwarding `apply(field = ..., ...)` overload alongside
+    * the `apply(props: Props)` one.
+    *
+    * Returns `Nil` (feature disabled — falls back to `apply(props)` only) for
+    * named tuples, generic Props, aliases, or when the declaration cannot be
+    * parsed cleanly. The conservative fallback guarantees no invalid code is
+    * ever emitted.
+    */
+  def fieldForwardApplyFields: List[IrPropsField] =
+    if isNamedTuple || typeParams.nonEmpty then Nil
+    else IrPropsType.parseCaseClassFields(scriptDecl)
+
+/** A `case class Props` field: `name: tpe = default`. */
+case class IrPropsField(name: String, tpe: String, default: Option[String])
+
+object IrPropsType:
+
+  /** Parses the parameter list of a `case class Props(...)` declaration.
+    * Returns `Nil` if the declaration is not a parenthesised parameter list or
+    * any parameter cannot be cleanly split into `name: type [= default]`.
+    */
+  def parseCaseClassFields(scriptDecl: String): List[IrPropsField] =
+    val open = scriptDecl.indexOf('(')
+    if open < 0 then Nil
+    else
+      val close = matchingParen(scriptDecl, open)
+      if close <= open then Nil
+      else
+        val params = splitTopLevel(scriptDecl.substring(open + 1, close), ',').map(_.trim).filter(_.nonEmpty)
+        val parsed = params.map(parseField)
+        if params.isEmpty || parsed.contains(None) then Nil else parsed.flatten
+
+  private def parseField(p: String): Option[IrPropsField] =
+    val colon = p.indexOf(':') // name is a simple identifier — first ':' separates it
+    if colon <= 0 then None
+    else
+      val name = p.substring(0, colon).trim
+      val rest = p.substring(colon + 1).trim
+      if !isSimpleIdent(name) then None
+      else
+        val eq = topLevelAssignIndex(rest)
+        if eq < 0 then Some(IrPropsField(name, rest, None))
+        else
+          val tpe  = rest.substring(0, eq).trim
+          val dflt = rest.substring(eq + 1).trim
+          if tpe.isEmpty || dflt.isEmpty then None else Some(IrPropsField(name, tpe, Some(dflt)))
+
+  private def isSimpleIdent(s: String): Boolean =
+    s.nonEmpty && (s.head.isLetter || s.head == '_') && s.forall(c => c.isLetterOrDigit || c == '_')
+
+  /** Index of the matching `)` for the `(` at `open`, or -1. */
+  private def matchingParen(s: String, open: Int): Int =
+    if open < 0 || open >= s.length || s.charAt(open) != '(' then -1
+    else
+      var depth = 0
+      var i     = open
+      while i < s.length do
+        s.charAt(i) match
+          case '(' => depth += 1
+          case ')' =>
+            depth -= 1
+            if depth == 0 then return i
+          case _ => ()
+        i += 1
+      -1
+
+  /** Splits `s` on top-level (depth-0) occurrences of `sep`, respecting nesting
+    * of `()`, `[]`, and `{}`.
+    */
+  private def splitTopLevel(s: String, sep: Char): List[String] =
+    val out   = List.newBuilder[String]
+    val sb    = new StringBuilder
+    var depth = 0
+    var i     = 0
+    while i < s.length do
+      val c = s.charAt(i)
+      c match
+        case '(' | '[' | '{'     => depth += 1; sb += c
+        case ')' | ']' | '}'     => depth -= 1; sb += c
+        case `sep` if depth == 0 => out += sb.toString; sb.clear()
+        case _                   => sb += c
+      i += 1
+    out += sb.toString
+    out.result()
+
+  /** Index of the `=` that starts the default value (depth 0, and not part of
+    * `==`, `=>`, `<=`, `>=`, or `!=`), or -1 if there is no default.
+    */
+  private def topLevelAssignIndex(s: String): Int =
+    var depth = 0
+    var i     = 0
+    while i < s.length do
+      val c = s.charAt(i)
+      c match
+        case '(' | '[' | '{'   => depth += 1
+        case ')' | ']' | '}'   => depth -= 1
+        case '=' if depth == 0 =>
+          val prev = if i > 0 then s.charAt(i - 1) else ' '
+          val next = if i + 1 < s.length then s.charAt(i + 1) else ' '
+          val isOp = next == '=' || next == '>' || prev == '<' || prev == '>' || prev == '!' || prev == '='
+          if !isOp then return i
+        case _ => ()
+      i += 1
+    -1
 
 case class IrStyle(
   scopedCss: String, // already CSS-scoped via CssScoper

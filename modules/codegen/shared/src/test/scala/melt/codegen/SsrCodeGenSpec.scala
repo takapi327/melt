@@ -259,7 +259,11 @@ class SsrCodeGenSpec extends munit.FunSuite:
         |<div>{props.name}</div>""".stripMargin
     val code = compile(src)
     assert(code.contains("import melt.runtime.json.PropsCodec"), code)
-    assert(code.contains("props: Props = Props()"), code)
+    // A field-forwarding overload is emitted, so the props-based apply drops its
+    // default (Scala forbids two overloads both having defaults); the field
+    // overload provides the zero-arg / partial entry points instead.
+    assert(code.contains("def apply(props: Props)"), code)
+    assert(code.contains("""def apply(name: String = "world"): RenderResult = apply(Props(name = name))"""), code)
   }
 
   // ── CSS ────────────────────────────────────────────────────────────────
@@ -448,6 +452,33 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
   }
 
+  test("case class Props gets a field-forwarding apply overload") {
+    val code = compile(
+      """|<script lang="scala">
+         |case class Props(basePath: String = "", lang: String = "en")
+         |</script>
+         |<div>{props.lang}</div>""".stripMargin
+    )
+    // Both invocation styles are supported: App(App.Props(...)) and App(basePath = ..., lang = ...)
+    assert(code.contains("def apply(props: Props"), code) // existing props-based apply preserved
+    assert(code.contains("""def apply(basePath: String = "", lang: String = "en"): RenderResult ="""), code)
+    assert(code.contains("apply(Props(basePath = basePath, lang = lang))"), code)
+  }
+
+  test("field-forwarding apply is skipped for children components") {
+    // A children component's props-based apply already carries a `children`
+    // default; Scala forbids two overloads both defaulting, so no field overload
+    // is emitted for them (they are invoked via `<Comp>...</Comp>` anyway).
+    val code = compile(
+      """|<script lang="scala">
+         |case class Props(title: String = "")
+         |</script>
+         |<section>{children}</section>""".stripMargin
+    )
+    assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
+    assert(!code.contains("apply(Props(title = title))"), code)
+  }
+
   test("no {children} in template does not add children parameter") {
     val code = compile("<div><p>hello</p></div>")
     assert(!code.contains("children"), code)
@@ -460,6 +491,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
         |</script>
         |<div>{children}</div>""".stripMargin
     val code = compile(src)
+    // children components keep the props default (no field overload is emitted).
     assert(code.contains("props: Props = Props()"), code)
     assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
   }
