@@ -8,18 +8,16 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
-import cats.effect.IO
+import melt.runtime.json.PropsCodec
 
+import cats.effect.IO
+import meltkit.*
+import meltkit.adapter.http4s.Http4sAdapter
+import meltkit.adapter.http4s.Http4sAdapter.given
 import org.http4s.{ Header, Headers, Method, Status, Uri }
 import org.http4s.Request as HttpRequest
 import org.http4s.Response as HttpResponse
 import org.typelevel.ci.*
-
-import melt.runtime.json.PropsCodec
-
-import meltkit.*
-import meltkit.adapter.http4s.Http4sAdapter
-import meltkit.adapter.http4s.Http4sAdapter.given
 
 /** Regression coverage for `app.page(...)` form-action dispatch.
   *
@@ -40,7 +38,7 @@ class FormActionDispatchTest extends CatsEffectSuite:
   private def postsApp: MeltKit[IO] =
     val app = MeltKit[IO]()
     app.page("posts")(
-      render = (_, _: Option[ActionForm]) => throw new AssertionError("render should not be called"),
+      render  = (_, _: Option[ActionForm]) => throw new AssertionError("render should not be called"),
       actions = {
         case ("save", _)    => IO.pure(ActionResult.Redirect("/saved"))
         case ("publish", _) => IO.pure(ActionResult.Success(ActionForm("published")))
