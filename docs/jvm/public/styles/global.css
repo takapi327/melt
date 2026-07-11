@@ -366,32 +366,52 @@ a { color: inherit; text-decoration: none; }
   padding: 16px 20px !important;
 }
 
-/* ── Callout boxes ──────────────────────────────────────────── */
+/* ── Callout boxes (GitHub-style alerts) ─────────────────────── */
 .callout {
-  border: 1px solid var(--line-2);
-  border-left: 3px solid var(--line-2);
-  padding: 14px 18px;
+  --callout-color: var(--line-2);
+  padding: 8px 16px;
   margin: 24px 0;
-  border-radius: var(--r);
-  background: var(--bg-elev);
+  border-left: 4px solid var(--callout-color);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: transparent;
   font-size: 14px;
   line-height: 1.65;
 }
-.callout p { color: var(--fg-2); margin: 4px 0 0; font-size: inherit; }
+.callout p { color: var(--fg); margin: 4px 0 0; font-size: inherit; }
 .callout-title {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 5px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--callout-color);
 }
-.callout.callout-tip  { border-color: #d4e8da; border-left-color: #5aaa70; background: #f4faf6; }
-.callout.callout-tip  .callout-title { color: #4a8a5a; }
-.callout.callout-info { border-color: var(--accent-line); border-left-color: var(--accent); background: var(--accent-bg); }
-.callout.callout-info .callout-title { color: var(--accent-text); }
-.callout.callout-warn { border-color: #f0e4c0; border-left-color: #c8a030; background: #fdf8ec; }
-.callout.callout-warn .callout-title { color: #a07820; }
+.callout-title::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask: var(--callout-icon) center / 16px 16px no-repeat;
+  mask: var(--callout-icon) center / 16px 16px no-repeat;
+}
+.callout.callout-info {
+  --callout-color: #0969da;
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z'/%3E%3C/svg%3E");
+}
+.callout.callout-tip {
+  --callout-color: #1a7f37;
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.454-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z'/%3E%3C/svg%3E");
+}
+.callout.callout-warn {
+  --callout-color: #9a6700;
+  --callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] .callout.callout-info { --callout-color: #4493f8; }
+:root[data-theme="dark"] .callout.callout-tip  { --callout-color: #3fb950; }
+:root[data-theme="dark"] .callout.callout-warn { --callout-color: #d29922; }
 
 /* ── Doc page navigation ────────────────────────────────────── */
 .doc-nav {
