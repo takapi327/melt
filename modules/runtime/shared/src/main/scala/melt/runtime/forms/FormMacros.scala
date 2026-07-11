@@ -23,18 +23,26 @@ private[forms] object FormMacros:
 
     def bail(term: Term): Nothing =
       report.errorAndAbort(
-        s"nameOf expects a simple field selector such as `_.email`, but got: ${ term.show }"
+        s"nameOf expects a field selector such as `_.email` or a nested `_.address.city`, but got: ${ term.show }"
       )
 
-    // Unwrap the inlined lambda down to the `x.field` access and return `field`.
-    def extract(term: Term): String =
-      term match
-        case Inlined(_, _, inner)               => extract(inner)
-        case Block(List(defDef: DefDef), _)     => defDef.rhs.fold(bail(term))(extract) // lambda body
-        case Block(Nil, inner)                  => extract(inner)
-        case Typed(inner, _)                    => extract(inner)
-        case Select(Ident(_), name)             => name                                 // x.field
-        case Apply(Select(Ident(_), name), Nil) => name                                 // x.field (getter)
-        case _                                  => bail(term)
+    // Only case-class fields form the path — a method call like `_.email.trim`
+    // is rejected so the derived name always matches a real (decodable) field.
+    def isField(sel: Select): Boolean = sel.symbol.flags.is(Flags.CaseAccessor)
 
-    Expr(extract(selector.asTerm))
+    // Unwrap the inlined lambda and collect the chain of field accesses, so
+    // `_.email` -> ["email"] and `_.address.city` -> ["address", "city"].
+    def segments(term: Term): List[String] =
+      term match
+        case Inlined(_, _, inner)                     => segments(inner)
+        case Block(List(defDef: DefDef), _)           => defDef.rhs.fold(bail(term))(segments) // lambda body
+        case Block(Nil, inner)                        => segments(inner)
+        case Typed(inner, _)                          => segments(inner)
+        case Ident(_)                                 => Nil                                   // the lambda parameter
+        case sel @ Select(qual, name) if isField(sel) => segments(qual) :+ name                // x.field / x.a.b
+        case Apply(sel @ Select(qual, name), Nil) if isField(sel) => segments(qual) :+ name // getter form
+        case _                                                    => bail(term)
+
+    val path = segments(selector.asTerm)
+    if path.isEmpty then bail(selector.asTerm)
+    Expr(path.mkString("."))

@@ -11,6 +11,9 @@ import melt.runtime.json.PropsCodec
 // Top-level so `compileErrors` can reference it in the negative test below.
 case class NameOfForm(email: String, password: String, errors: List[String] = Nil) derives PropsCodec
 
+case class NameOfAddress(city: String, zip: String) derives PropsCodec
+case class NameOfUser(name: String, address: NameOfAddress) derives PropsCodec
+
 class FormNameOfSpec extends munit.FunSuite:
 
   private val form = Form(NameOfForm("", ""))
@@ -19,6 +22,13 @@ class FormNameOfSpec extends munit.FunSuite:
     assertEquals(form.nameOf(_.email), "email")
     assertEquals(form.nameOf(_.password), "password")
     assertEquals(form.nameOf(_.errors), "errors")
+  }
+
+  test("nameOf builds a dotted path for a nested selector") {
+    val user = Form(NameOfUser("", NameOfAddress("", "")))
+    assertEquals(user.nameOf(_.name), "name")
+    assertEquals(user.nameOf(_.address.city), "address.city")
+    assertEquals(user.nameOf(_.address.zip), "address.zip")
   }
 
   test("nameOf yields exactly the case-class field name FormDataDecoder reads") {

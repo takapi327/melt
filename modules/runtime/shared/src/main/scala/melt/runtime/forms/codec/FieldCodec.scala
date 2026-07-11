@@ -41,8 +41,8 @@ object FieldCodec:
   /** Builds a codec from a decode and an encode function. */
   def from[A](dec: (String, List[String]) => Either[String, A])(enc: A => List[String]): FieldCodec[A] =
     new FieldCodec[A]:
-      def decode(name: String, values: List[String]): Either[String, A] = dec(name, values)
-      def encode(value: A):                           List[String]       = enc(value)
+      def decode(name:  String, values: List[String]): Either[String, A] = dec(name, values)
+      def encode(value: A):                            List[String]      = enc(value)
 
   /** A required scalar field: decode fails when absent or malformed. */
   private def scalar[A](tpe: String)(parse: String => Option[A])(render: A => String): FieldCodec[A] =

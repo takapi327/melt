@@ -42,7 +42,7 @@ class FieldCodecSpec extends munit.FunSuite:
 
   test("a custom FieldCodec via eimap round-trips decode/encode"):
     given FieldCodec[Email] = FieldCodec[String].eimap(Email.parse)(_.value)
-    val c = FieldCodec[Email]
+    val c                   = FieldCodec[Email]
     assertEquals(c.decode("email", List("a@b.com")), Right(Email("a@b.com")))
     assert(c.decode("email", List("nope")).isLeft)
     // symmetry: what encode renders decodes back to the same value

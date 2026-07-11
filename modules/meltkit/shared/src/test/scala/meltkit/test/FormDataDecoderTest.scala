@@ -17,6 +17,10 @@ class FormDataDecoderTest extends munit.FunSuite:
   case class OptionalForm(name: String, bio: Option[String]) derives FormDataDecoder
   case class ListForm(name: String, tags: List[String]) derives FormDataDecoder
 
+  case class Address(city: String, zip: String) derives FormDataDecoder
+  case class User(name: String, address: Address) derives FormDataDecoder
+  case class Company(name: String, hq: Address) derives FormDataDecoder
+
   // ── derived: basic ────────────────────────────────────────────────────────
 
   test("decodes all fields present"):
@@ -118,3 +122,27 @@ class FormDataDecoderTest extends munit.FunSuite:
     val decoder = summon[meltkit.codec.BodyDecoder[LoginForm]]
     val result  = decoder.decode("username=bob")
     assert(result.isLeft)
+
+  // ── nested case classes (hierarchical keys) ───────────────────────────────
+
+  test("decodes a nested case class from `field.subfield` keys"):
+    val result = FormDataDecoder[User].decode(
+      FormData.parse("name=alice&address.city=Tokyo&address.zip=100-0001").toOption.get
+    )
+    assertEquals(result, Right(User("alice", Address("Tokyo", "100-0001"))))
+
+  test("a missing nested field errors with the prefixed path"):
+    val result = FormDataDecoder[User].decode(
+      FormData.parse("name=alice&address.city=Tokyo").toOption.get
+    )
+    assert(result.isLeft)
+    result.left.toOption.get match
+      case BodyError.ValidationError(errors) =>
+        assert(errors.exists(e => e.contains("address") && e.contains("zip")), errors.toString)
+      case other => fail(s"Expected ValidationError, got $other")
+
+  test("decodes a differently-named nested field"):
+    val result = FormDataDecoder[Company].decode(
+      FormData.parse("name=Acme&hq.city=Tokyo&hq.zip=100-0001").toOption.get
+    )
+    assertEquals(result, Right(Company("Acme", Address("Tokyo", "100-0001"))))

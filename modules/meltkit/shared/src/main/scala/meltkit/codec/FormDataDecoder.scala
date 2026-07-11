@@ -41,22 +41,25 @@ object FormDataDecoder:
   /** Derives a [[FormDataDecoder]] for a product type (case class) using
     * Scala 3's `Mirror.ProductOf`.
     *
-    * Each field is read from `FormData.get(fieldName)` and decoded via
-    * [[FormFieldDecoder]]. Missing required fields and type conversion
-    * errors are accumulated into [[BodyError.ValidationError]].
+    * Each field is decoded by field name. A scalar / custom field uses a
+    * [[FormFieldDecoder]] (read from `FormData.get(fieldName)`); a field whose
+    * type is itself a case class with a [[FormDataDecoder]] is decoded from
+    * hierarchical keys — `FormData.scoped(fieldName)` strips the `fieldName.`
+    * prefix and recurses. Errors are accumulated into
+    * [[BodyError.ValidationError]].
     *
     * {{{
-    * case class CreateTodo(text: String, priority: Int) derives FormDataDecoder
+    * case class Address(city: String, zip: String) derives FormDataDecoder
+    * case class User(name: String, address: Address) derives FormDataDecoder
+    * // decodes name=…&address.city=…&address.zip=…
     * }}}
     */
   inline def derived[A](using m: scala.deriving.Mirror.ProductOf[A]): FormDataDecoder[A] =
     val labels   = constValueLabels[m.MirroredElemLabels]
-    val decoders = summonFieldDecoders[m.MirroredElemTypes]
+    val decoders = summonSlotDecoders[m.MirroredElemTypes]
     instance { form =>
       val results: List[Either[String, Any]] = labels.zip(decoders).map { (label, dec) =>
-        dec.asInstanceOf[FormFieldDecoder[Any]].decode(label, form) match
-          case Right(v)  => Right(v)
-          case Left(msg) => Left(msg)
+        dec(label, form)
       }
       val errors = results.collect { case Left(e) => e }
       if errors.nonEmpty then Left(BodyError.ValidationError(errors))
@@ -72,11 +75,25 @@ object FormDataDecoder:
       case _: (head *: tail) =>
         scala.compiletime.constValue[head].asInstanceOf[String] :: constValueLabels[tail]
 
-  private inline def summonFieldDecoders[T <: Tuple]: List[FormFieldDecoder[?]] =
+  /** One decoder per field, dispatching scalar/custom fields to a
+    * [[FormFieldDecoder]] and nested case-class fields to a scoped
+    * [[FormDataDecoder]].
+    */
+  private inline def summonSlotDecoders[T <: Tuple]: List[(String, FormData) => Either[String, Any]] =
     inline scala.compiletime.erasedValue[T] match
       case _: EmptyTuple     => Nil
       case _: (head *: tail) =>
-        scala.compiletime.summonInline[FormFieldDecoder[head]] :: summonFieldDecoders[tail]
+        slotDecoder[head] :: summonSlotDecoders[tail]
+
+  private inline def slotDecoder[A]: (String, FormData) => Either[String, Any] =
+    scala.compiletime.summonFrom {
+      // a scalar or user-provided field type
+      case ffd: FormFieldDecoder[A] =>
+        (name, form) => ffd.decode(name, form)
+      // a nested case class: decode from the `name.`-prefixed sub-form
+      case fdd: FormDataDecoder[A] =>
+        (name, form) => fdd.decode(form.scoped(name)).left.map(err => s"$name.${ err.message }")
+    }
 
   /** When a [[FormDataDecoder]][A] is in scope, a [[BodyDecoder]][A] is
     * automatically derived.
