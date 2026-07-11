@@ -9,6 +9,7 @@ package meltkit
 import scala.collection.mutable.ListBuffer
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.json.PropsCodec
 import melt.runtime.render.RenderResult
 
 import meltkit.codec.BodyDecoder
@@ -221,6 +222,87 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   /** Registers a hook from a simple function. */
   def use(fn: (RequestEvent[F], Resolve[F]) => F[Response]): Unit =
     _hooks += ServerHook(fn)
+
+  // ── Pages with form actions ────────────────────────────────────────────
+
+  /** Registers a page with form actions (SvelteKit-style, progressively enhanced).
+    *
+    * `GET` renders the page with `form = None`. `POST` runs the named form action
+    * (`?/name` in the URL query; empty string = default action) and responds
+    * based on the [[ActionResult]] and on whether the request is a client
+    * `use:enhance` fetch (detected via the `x-melt-enhance` header):
+    *
+    *   - '''native POST''' (JS off / no enhance): `Redirect` → 303, `Failure` →
+    *     re-render the page with `Some(data)` + status, `Success` → re-render.
+    *   - '''enhance fetch''': the `ActionResult` serialized as a JSON envelope
+    *     (see [[ActionResult.toJson]]); the client updates its form state.
+    *
+    * The same action powers both, so validation logic is written once.
+    *
+    * {{{
+    * app.page(lang / "login")(
+    *   render  = (ctx, form) => LoginPage(LoginPage.Props(lang = ctx.params.lang, form = form)),
+    *   actions = Map("" -> { ctx =>
+    *     ctx.body.form[LoginForm].map {
+    *       case Right(f) if f.email.contains("@") => ActionResult.Redirect("/dashboard")
+    *       case Right(f)                          => fail(422, f.copy(errors = List(FieldError("email", "invalid"))))
+    *       case Left(e)                           => fail(400, LoginForm(errors = List(FieldError("_", e.message))))
+    *     }
+    *   })
+    * )
+    * }}}
+    *
+    * @param render  builds the page component from the context and the optional
+    *                form result (`None` on GET, `Some(data)` on POST re-render)
+    * @param actions named form actions keyed by action name (`""` = default)
+    */
+  def page[P <: AnyNamedTuple, A](spec: PathSpec[P], options: PageOptions = PageOptions())(
+    render:  (MeltContext[F, P, Unit, RenderResult], Option[A]) => RenderResult,
+    actions: Map[String, ServerMeltContext[F, P, Unit, RenderResult] => F[ActionResult[A]]]
+  )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
+    if options != PageOptions() then _pageOptions(spec.segments) = options
+
+    registerServer("GET", spec) { ctx =>
+      pure.pure(ctx.render(render(ctx, None)))
+    }
+
+    registerServer("POST", spec) { ctx =>
+      actions.get(actionKey(ctx)) match
+        case None =>
+          pure.pure(Response.badRequest("Unknown form action"))
+        case Some(action) =>
+          functor.map(action(ctx)) { result =>
+            if isEnhanceRequest(ctx) then PlainResponse(200, "application/json", ActionResult.toJson(result))
+            else
+              result match
+                case ActionResult.Redirect(loc, seeOther) =>
+                  if seeOther then Response.seeOther(loc) else Response.redirect(loc)
+                case ActionResult.Failure(status, data) => ctx.render(render(ctx, Some(data)), status)
+                case ActionResult.Success(data)         => ctx.render(render(ctx, Some(data)))
+          }
+    }
+
+  /** [[page]] with a string path (no path parameters).
+    *
+    * (No `options` parameter — Scala forbids two overloads both having default
+    * arguments. For [[PageOptions]] use the `PathSpec` overload.)
+    */
+  def page[A](path: String)(
+    render:  (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
+    actions: Map[String, ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[ActionResult[A]]]
+  )(using Pure[F], Functor[F], PropsCodec[A]): Unit =
+    page(PathSpec.fromString(path))(render, actions)
+
+  /** Extracts the named-action key from the `?/name` query convention.
+    * `POST /login?/register` parses to a query param whose key is `/register`;
+    * the action name is that key with the leading `/` removed (empty = default).
+    */
+  private def actionKey[P <: AnyNamedTuple](ctx: ServerMeltContext[F, P, Unit, RenderResult]): String =
+    ctx.queryParams.keys.find(_.startsWith("/")).map(_.drop(1)).getOrElse("")
+
+  /** True when the request is a client `use:enhance` fetch (wants a JSON envelope). */
+  private def isEnhanceRequest[P <: AnyNamedTuple](ctx: ServerMeltContext[F, P, Unit, RenderResult]): Boolean =
+    ctx.header("x-melt-enhance").exists(_.equalsIgnoreCase("true"))
 
   private[meltkit] def hooks: List[ServerHook[F]] = _hooks.toList
 
