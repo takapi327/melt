@@ -6,6 +6,7 @@
 
 package melt.runtime.forms
 
+import melt.runtime.forms.codec.FieldEncoder
 import melt.runtime.HtmlAttrs
 
 /** Spread helper for a text input, deriving both `name` and the seeded `value`
@@ -24,10 +25,10 @@ import melt.runtime.HtmlAttrs
   * need to make it reactive (unlike error displays, which use `form.data`).
   */
 extension [A](form: Form[A])
-  inline def text[B](inline selector: A => B): HtmlAttrs =
+  inline def text[B](inline selector: A => B)(using encoder: FieldEncoder[B]): HtmlAttrs =
     HtmlAttrs(
       Map(
         "name"  -> form.nameOf(selector),
-        "value" -> selector(form.data.value).toString
+        "value" -> encoder.encodeValue(selector(form.data.value))
       )
     )

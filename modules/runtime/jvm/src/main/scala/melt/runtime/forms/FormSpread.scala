@@ -6,6 +6,8 @@
 
 package melt.runtime.forms
 
+import melt.runtime.forms.codec.FieldEncoder
+
 /** SSR (JVM) mirror of the client `form.text` spread helper.
   *
   * Returns the `name` + seeded `value` as a `Map[String, Any]`, which the SSR
@@ -14,8 +16,8 @@ package melt.runtime.forms
   * call so a crossProject `.melt` compiles for SSR and hydration alike.
   */
 extension [A](form: Form[A])
-  inline def text[B](inline selector: A => B): Map[String, Any] =
+  inline def text[B](inline selector: A => B)(using encoder: FieldEncoder[B]): Map[String, Any] =
     Map(
       "name"  -> form.nameOf(selector),
-      "value" -> selector(form.data.value).toString
+      "value" -> encoder.encodeValue(selector(form.data.value))
     )
