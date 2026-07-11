@@ -1,5 +1,5 @@
 <script lang="scala">
-import melt.runtime.forms.Form
+import melt.runtime.forms.{ Form, text }
 import meltkit.enhance
 
 case class Props(form: Option[LoginForm] = None)
@@ -20,7 +20,10 @@ val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
   <form method="post" use:enhance={form}>
     <label>
       Email
-      <input name="email" type="email" value={form.data.value.email}/>
+      <!-- `{...form.text(_.email)}` spreads both `name` and the seeded `value`
+           from one type-checked selector: a typo like `_.emial` is a compile
+           error, and `name` always matches the field the server decodes. -->
+      <input {...form.text(_.email)} type="email"/>
     </label>
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
          reactive source (Bind.show), so the error re-renders when the enhance
@@ -29,7 +32,7 @@ val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
 
     <label>
       Password
-      <input name="password" type="password"/>
+      <input name={form.nameOf(_.password)} type="password"/>
     </label>
 
     <button type="submit" disabled={form.submitting}>

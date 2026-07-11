@@ -1,5 +1,5 @@
 <script lang="scala">
-import melt.runtime.forms.Form
+import melt.runtime.forms.{ Form, text }
 import meltkit.enhance
 
 case class Props(form: Option[PostForm] = None)
@@ -21,12 +21,12 @@ val form = Form(props.form.getOrElse(PostForm("", "", Nil)))
   <form method="post" use:enhance={form}>
     <label>
       Title
-      <input name="title" value={form.data.value.title}/>
+      <input {...form.text(_.title)}/>
     </label>
 
     <label>
       Body
-      <input name="body" value={form.data.value.body}/>
+      <input {...form.text(_.body)}/>
     </label>
 
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
