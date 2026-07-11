@@ -1574,6 +1574,14 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("Bind.inputValue("), code)
   }
 
+  test("textarea {expr} content compiles to a text-node child (one-way seed)") {
+    val code = compile("""<textarea>{content}</textarea>""")
+    assert(code.contains("""Hydrating.element("textarea")""") || code.contains("""createElement("textarea")"""), code)
+    // the expression becomes the textarea's child text, not a Bind.textareaValue
+    assert(code.contains("Hydrating.text(content"), code)
+    assert(!code.contains("Bind.textareaValue("), code)
+  }
+
   test("bind:value on select emits Bind.selectValue after option children") {
     val code = compile(
       """<select bind:value={choice}>

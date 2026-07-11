@@ -11,24 +11,34 @@ import scala.collection.mutable
 import melt.{ CompileError, NodePositions }
 import melt.ast.*
 
-/** Compile-time check for `{expr}` interpolation inside HTML raw-text
-  * elements (`<script>`, `<style>`, `<textarea>`, `<title>`) — see
-  * `docs/melt-ssr-design.md` §12.1.6.
+/** Compile-time check for `{expr}` interpolation inside HTML ''raw text''
+  * elements (`<script>`, `<style>`) — see `docs/melt-ssr-design.md` §12.1.6.
   *
-  * Inside raw-text elements the HTML parser does not recognise child
-  * tags or entity references, which means any form of escaping is
-  * structurally ineffective. The checker therefore emits a compile
-  * error on any `TemplateNode.Expression` / `InlineTemplate` found in
-  * those positions.
+  * The HTML tokenizer distinguishes two kinds of text-only elements:
   *
-  * '''Exception''': `<title>` directly inside `<melt:head>` is special —
-  * `ServerRenderer.head.title` takes care of escaping it properly, so the
-  * checker skips `<title>` whose parent is `Head`.
+  *   - '''raw text''' (`<script>`, `<style>`): character references are ''not''
+  *     recognised, so the content cannot be escaped — `</script>` cannot be
+  *     represented without ending the element. Interpolation is therefore
+  *     banned here.
+  *   - '''escapable raw text''' (`<textarea>`, `<title>`): character references
+  *     ''are'' recognised, so the content is safely escapable. Interpolation is
+  *     allowed — the SSR emitter renders it through `Escape.html` (mirroring
+  *     Svelte, whose SSR "Textarea Trap" XSS came precisely from ''forgetting''
+  *     to escape here). `<textarea>{expr}</textarea>` seeds the textarea content;
+  *     `bind:value` remains available for two-way binding.
+  *
+  * '''Exception''': `<title>` interpolation is still restricted to
+  * `<melt:head>`, where `ServerRenderer.head.title` escapes it — a bare
+  * `<title>` outside the head is not a meaningful place for dynamic content.
   */
 object RawTextInterpolationChecker:
 
+  /** Elements whose content is genuinely non-escapable. `<title>` is included so
+    * that dynamic titles are routed through `<melt:head>`; `<textarea>` is
+    * intentionally absent (its content is escapable and handled by `Escape.html`).
+    */
   private val rawTextTags: Set[String] =
-    Set("script", "style", "textarea", "title")
+    Set("script", "style", "title")
 
   def check(
     ast:               MeltFile,
@@ -72,7 +82,6 @@ object RawTextInterpolationChecker:
                   (if tagLower == "script" then
                      "Use a JSON data attribute and parse it from your client-side code instead."
                    else if tagLower == "style" then "Move dynamic values to attribute bindings (e.g. style={...})."
-                   else if tagLower == "textarea" then "Use `bind:value={...}` to populate the textarea content."
                    else "Wrap the element in `<melt:head>` to allow dynamic titles."),
                 line     = span.absoluteLine(templateSource, templateStartLine),
                 column   = span.column(templateSource),
