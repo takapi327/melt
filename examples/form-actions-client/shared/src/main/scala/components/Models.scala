@@ -20,3 +20,12 @@ import meltkit.codec.FormDataDecoder
   *   - `derives PropsCodec`      — serialize for hydration + the enhance envelope.
   */
 case class LoginForm(email: String, password: String, errors: List[String]) derives FormDataDecoder, PropsCodec
+
+/** The shared form-state type for the post editor (named-actions demo).
+  *
+  * One form with two submit buttons (`?/save`, `?/publish`) drives two named
+  * actions that both operate on the same `PostForm`. `errors` carries validation
+  * output; it is absent from the POST body, so it decodes to an empty list and
+  * the server fills it via `copy(errors = ...)` on a validation failure.
+  */
+case class PostForm(title: String, body: String, errors: List[String] = Nil) derives FormDataDecoder, PropsCodec

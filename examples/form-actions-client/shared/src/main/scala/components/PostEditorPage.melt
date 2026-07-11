@@ -1,0 +1,56 @@
+<script lang="scala">
+import melt.runtime.forms.Form
+import meltkit.enhance
+
+case class Props(form: Option[PostForm] = None)
+
+// One reactive Form shared by both submit buttons. Reactivity comes from passing
+// a State/Signal (subscribes), not a `.value` (reads once): `disabled={form.submitting}`
+// passes the State, and `if form.data.value.… then …` makes `form.data` the
+// reactive source of the conditional (see the error display below).
+val form = Form(props.form.getOrElse(PostForm("", "", Nil)))
+</script>
+
+<main class="editor">
+  <h1>New post</h1>
+
+  <!-- One <form>, two submit buttons. Each button's `formaction="?/name"`
+       targets a different named action on the server; the empty form action
+       means both post to this same page. Works natively with JS disabled, and
+       `use:enhance` upgrades it (honouring the clicked button's formaction). -->
+  <form method="post" use:enhance={form}>
+    <label>
+      Title
+      <input name="title" value={form.data.value.title}/>
+    </label>
+
+    <label>
+      Body
+      <input name="body" value={form.data.value.body}/>
+    </label>
+
+    <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
+         reactive source (Bind.show), so a validation Failure (e.g. a too-short
+         body on Publish) re-renders this without a page reload. -->
+    {if form.data.value.errors.nonEmpty then <p class="error">{form.data.value.errors.head}</p> else <span></span>}
+
+    <div class="actions">
+      <button type="submit" formaction="?/save" disabled={form.submitting}>
+        Save draft
+      </button>
+      <button type="submit" formaction="?/publish" disabled={form.submitting}>
+        Publish
+      </button>
+    </div>
+  </form>
+</main>
+
+<style>
+.editor { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
+.editor label { display: block; margin: 0.75rem 0; }
+.editor input, .editor textarea { display: block; width: 100%; padding: 0.5rem; }
+.editor textarea { min-height: 8rem; }
+.actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+.error { color: #c0392b; margin: 0.25rem 0; }
+button[disabled] { opacity: 0.6; }
+</style>

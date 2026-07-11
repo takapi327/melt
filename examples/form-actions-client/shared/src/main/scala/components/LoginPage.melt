@@ -4,8 +4,10 @@ import meltkit.enhance
 
 case class Props(form: Option[LoginForm] = None)
 
-// Seed a reactive Form from the SSR/hydration `form` prop. Read reactively via
-// `form.data.value.*` (must contain `.value` to be treated as reactive).
+// Seed a reactive Form from the SSR/hydration `form` prop. Reactivity comes from
+// passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
+// `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
+// `if form.data.value.… then …` conditional whose source is `form.data`.
 val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
 </script>
 
@@ -20,17 +22,24 @@ val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
       Email
       <input name="email" type="email" value={form.data.value.email}/>
     </label>
-    {form.data.value.errors.headOption.map(msg => <p class="error">{msg}</p>)}
+    <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
+         reactive source (Bind.show), so the error re-renders when the enhance
+         result updates form.data — without a page reload. -->
+    {if form.data.value.errors.nonEmpty then <p class="error">{form.data.value.errors.head}</p> else <span></span>}
 
     <label>
       Password
       <input name="password" type="password"/>
     </label>
 
-    <button type="submit" disabled={form.submitting.value}>
-      {if form.submitting.value then "Signing in…" else "Sign in"}
+    <button type="submit" disabled={form.submitting}>
+      {form.submitting.map(busy => if busy then "Signing in…" else "Sign in")}
     </button>
   </form>
+
+  <p class="hint">
+    Or try the <a href="/posts">post editor</a> (named-actions demo) →
+  </p>
 </main>
 
 <style>
@@ -38,5 +47,6 @@ val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
 .login label { display: block; margin: 0.75rem 0; }
 .login input { display: block; width: 100%; padding: 0.5rem; }
 .error { color: #c0392b; margin: 0.25rem 0; }
+.hint { margin-top: 1.5rem; font-size: 0.9rem; color: #555; }
 button[disabled] { opacity: 0.6; }
 </style>
