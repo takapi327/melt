@@ -692,6 +692,15 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""createElement("p")"""), code)
   }
 
+  test("{children} forwarded into a nested component still adds the children parameter") {
+    // Regression: templateHasChildrenRef did not recurse into a nested
+    // component's slot, so `<Layout>{children}</Layout>` (SvelteKit-style layout
+    // forwarding) failed to generate the `children` parameter while the emitter
+    // still referenced `children()`.
+    val code = compile("<Layout>{children}</Layout>")
+    assert(code.contains("children: () => dom.Node"), code)
+  }
+
   test("no-props component omits Props constructor") {
     val code = compile("<div><Divider /></div>")
     assert(code.contains("Divider()"), code)

@@ -439,6 +439,15 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("renderer.merge(children())"), code)
   }
 
+  test("{children} forwarded into a nested component still adds the children parameter") {
+    // Regression: templateHasChildrenRef did not recurse into a nested
+    // component's slot, so `<Layout>{children}</Layout>` (SvelteKit-style layout
+    // forwarding) failed to generate the `children` parameter while the emitter
+    // still referenced `children()`.
+    val code = compile("<Layout>{children}</Layout>")
+    assert(code.contains("children: () => RenderResult = () => RenderResult.empty"), code)
+  }
+
   test("no {children} in template does not add children parameter") {
     val code = compile("<div><p>hello</p></div>")
     assert(!code.contains("children"), code)

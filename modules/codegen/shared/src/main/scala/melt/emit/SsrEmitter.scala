@@ -837,7 +837,18 @@ object SsrEmitter:
         f.exists(fb => templateHasChildrenRef(fb.children))
       case IrNode.IrKeyBlock(_, c)      => templateHasChildrenRef(c)
       case IrNode.IrSnippetDef(_, _, c) => templateHasChildrenRef(c)
-      case _                            => false
+      // `{children}` may be forwarded into a nested component's slot
+      // (e.g. `<Layout>{children}</Layout>`), a dynamic element, or an inline
+      // template fragment — recurse into all of them so the `children`
+      // parameter is generated consistently with the emitter.
+      case IrNode.IrComponent(_, _, cs, _, _, _) => cs.exists(slot => templateHasChildrenRef(slot.nodes))
+      case IrNode.IrDynamicElement(_, _, c, _)   => templateHasChildrenRef(c)
+      case IrNode.IrInlineTemplate(parts)        =>
+        parts.exists {
+          case IrInlineTemplatePart.Html(ns) => templateHasChildrenRef(ns)
+          case _                             => false
+        }
+      case _ => false
     }
 
   // ── Props helpers ──────────────────────────────────────────────────────────
