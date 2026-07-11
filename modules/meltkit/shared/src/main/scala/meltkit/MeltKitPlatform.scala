@@ -239,59 +239,110 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     *
     * The same action powers both, so validation logic is written once.
     *
+    * Named actions are a partial function over `(actionName, ctx)`: each case
+    * matches the `?/name` action (`""` = default) and binds the context, so all
+    * cases share one flat block. Single-action pages use the `action` overload
+    * instead — no name to match.
+    *
     * {{{
-    * app.page(lang / "login")(
-    *   render  = (ctx, form) => LoginPage(LoginPage.Props(lang = ctx.params.lang, form = form)),
-    *   actions = Map("" -> { ctx =>
-    *     ctx.body.form[LoginForm].map {
-    *       case Right(f) if f.email.contains("@") => ActionResult.Redirect("/dashboard")
-    *       case Right(f)                          => fail(422, f.copy(errors = List(FieldError("email", "invalid"))))
-    *       case Left(e)                           => fail(400, LoginForm(errors = List(FieldError("_", e.message))))
-    *     }
-    *   })
+    * // named actions (?/login, ?/register) — one flat partial function
+    * app.page(lang / "auth")(
+    *   render  = (ctx, form) => AuthPage(AuthPage.Props(lang = ctx.params.lang, form = form)),
+    *   actions = {
+    *     case ("login", ctx)    => ctx.body.form[LoginForm].map { ... }
+    *     case ("register", ctx) => ctx.body.form[RegisterForm].map { ... }
+    *   }
     * )
     * }}}
     *
     * @param render  builds the page component from the context and the optional
     *                form result (`None` on GET, `Some(data)` on POST re-render)
-    * @param actions named form actions keyed by action name (`""` = default)
+    * @param actions form actions as a partial function over `(name, ctx)`
+    *                (`""` = default action); an unmatched name responds 400
+    *
+    * Action pages carry no [[PageOptions]] (they are dynamic POST handlers, not
+    * prerender candidates); the four overloads are distinguished purely by path
+    * type (`PathSpec` vs `String`) and by the named argument `actions` vs
+    * `action`, so no overload needs a default argument.
     */
-  def page[P <: AnyNamedTuple, A](spec: PathSpec[P], options: PageOptions = PageOptions())(
+  def page[P <: AnyNamedTuple, A](spec: PathSpec[P])(
     render:  (MeltContext[F, P, Unit, RenderResult], Option[A]) => RenderResult,
-    actions: Map[String, ServerMeltContext[F, P, Unit, RenderResult] => F[ActionResult[A]]]
+    actions: PartialFunction[(String, ServerMeltContext[F, P, Unit, RenderResult]), F[ActionResult[A]]]
   )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
-    if options != PageOptions() then _pageOptions(spec.segments) = options
+    registerActionPage(spec, render, ctx => actions.lift((actionKey(ctx), ctx)))
 
+  /** [[page]] with a single default action (no named-action dispatch).
+    *
+    * For the common one-form page: `POST` always runs `action`, regardless of any
+    * `?/name` in the query.
+    *
+    * {{{
+    * app.page("")(
+    *   render = (_, form) => LoginPage(LoginPage.Props(form = form)),
+    *   action = ctx => ctx.body.form[LoginForm].map {
+    *     case Right(f) if f.email.contains("@") => ActionResult.Redirect("/dashboard")
+    *     case Right(f)                          => fail(422, f.copy(errors = List("invalid")))
+    *     case Left(e)                           => fail(400, LoginForm("", "", List(e.message)))
+    *   }
+    * )
+    * }}}
+    */
+  def page[P <: AnyNamedTuple, A](spec: PathSpec[P])(
+    render: (MeltContext[F, P, Unit, RenderResult], Option[A]) => RenderResult,
+    action: ServerMeltContext[F, P, Unit, RenderResult] => F[ActionResult[A]]
+  )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
+    registerActionPage(spec, render, ctx => Some(action(ctx)))
+
+  /** [[page]] (named actions) with a string path (no path parameters). */
+  def page[A](path: String)(
+    render:  (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
+    actions: PartialFunction[(String, ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult]), F[ActionResult[A]]]
+  )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
+    registerActionPage(PathSpec.fromString(path), render, ctx => actions.lift((actionKey(ctx), ctx)))
+
+  /** [[page]] (single default action) with a string path (no path parameters). */
+  def page[A](path: String)(
+    render: (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
+    action: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[ActionResult[A]]
+  )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
+    registerActionPage(PathSpec.fromString(path), render, ctx => Some(action(ctx)))
+
+  /** Shared registration for the two [[page]] families: `GET` renders with
+    * `form = None`; `POST` resolves the action via `dispatch` (`None` → 400) and
+    * responds through [[runAction]].
+    */
+  private def registerActionPage[P <: AnyNamedTuple, A](
+    spec:     PathSpec[P],
+    render:   (MeltContext[F, P, Unit, RenderResult], Option[A]) => RenderResult,
+    dispatch: ServerMeltContext[F, P, Unit, RenderResult] => Option[F[ActionResult[A]]]
+  )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
     registerServer("GET", spec) { ctx =>
       pure.pure(ctx.render(render(ctx, None)))
     }
-
     registerServer("POST", spec) { ctx =>
-      actions.get(actionKey(ctx)) match
-        case None =>
-          pure.pure(Response.badRequest("Unknown form action"))
-        case Some(action) =>
-          functor.map(action(ctx)) { result =>
-            if isEnhanceRequest(ctx) then PlainResponse(200, "application/json", ActionResult.toJson(result))
-            else
-              result match
-                case ActionResult.Redirect(loc, seeOther) =>
-                  if seeOther then Response.seeOther(loc) else Response.redirect(loc)
-                case ActionResult.Failure(status, data) => ctx.render(render(ctx, Some(data)), status)
-                case ActionResult.Success(data)         => ctx.render(render(ctx, Some(data)))
-          }
+      dispatch(ctx) match
+        case Some(result) => runAction(ctx, result, render)
+        case None         => pure.pure(Response.badRequest("Unknown form action"))
     }
 
-  /** [[page]] with a string path (no path parameters).
-    *
-    * (No `options` parameter — Scala forbids two overloads both having default
-    * arguments. For [[PageOptions]] use the `PathSpec` overload.)
+  /** Maps a resolved [[ActionResult]] to a response: an `x-melt-enhance` fetch
+    * gets the JSON envelope; a native POST gets a 303 redirect (`Redirect`) or a
+    * re-render with the form data (`Failure` with status / `Success`).
     */
-  def page[A](path: String)(
-    render:  (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
-    actions: Map[String, ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[ActionResult[A]]]
-  )(using Pure[F], Functor[F], PropsCodec[A]): Unit =
-    page(PathSpec.fromString(path))(render, actions)
+  private def runAction[P <: AnyNamedTuple, A](
+    ctx:    ServerMeltContext[F, P, Unit, RenderResult],
+    result: F[ActionResult[A]],
+    render: (MeltContext[F, P, Unit, RenderResult], Option[A]) => RenderResult
+  )(using functor: Functor[F], codec: PropsCodec[A]): F[Response] =
+    functor.map(result) { r =>
+      if isEnhanceRequest(ctx) then PlainResponse(200, "application/json", ActionResult.toJson(r))
+      else
+        r match
+          case ActionResult.Redirect(loc, seeOther) =>
+            if seeOther then Response.seeOther(loc) else Response.redirect(loc)
+          case ActionResult.Failure(status, data) => ctx.render(render(ctx, Some(data)), status)
+          case ActionResult.Success(data)         => ctx.render(render(ctx, Some(data)))
+    }
 
   /** Extracts the named-action key from the `?/name` query convention.
     * `POST /login?/register` parses to a query param whose key is `/register`;

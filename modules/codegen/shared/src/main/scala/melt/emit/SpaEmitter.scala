@@ -222,9 +222,25 @@ object SpaEmitter:
       // ── Hoisted element reference ─────────────────────────────────────────
       case IrNode.IrHoistRef(id, tag) =>
         val v = ctr.nextEl()
-        buf ++= s"""${ indent }if Hydrating.isActive then Hydrating.element("$tag")\n"""
-        buf ++= s"${ indent }val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
-        v
+        parentVar match
+          case Some(p) =>
+            // Capture the hydrating state BEFORE claiming. `Hydrating.element`
+            // advances the cursor; when this hoisted node is the LAST child its
+            // cursor becomes null, flipping `Hydrating.isActive` to false. The
+            // usual caller-emitted `if !Hydrating.isActive then parent.appendChild`
+            // would then wrongly append the *clone* alongside the already-claimed
+            // SSR node — a visible duplicate. Guard the append on the pre-claim
+            // state and handle it here (return "" so the caller does not append).
+            val hy = s"${ v }_hy"
+            buf ++= s"${ indent }val $hy = Hydrating.isActive\n"
+            buf ++= s"""${ indent }if $hy then Hydrating.element("$tag")\n"""
+            buf ++= s"${ indent }val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
+            buf ++= s"${ indent }if !$hy then $p.appendChild($v)\n"
+            ""
+          case None =>
+            buf ++= s"""${ indent }if Hydrating.isActive then Hydrating.element("$tag")\n"""
+            buf ++= s"${ indent }val $v = $id.cloneNode(true).asInstanceOf[dom.Element]\n"
+            v
 
       // ── Static element ────────────────────────────────────────────────────
       case IrNode.IrStaticElement(tag, irNs, attrs, children, scopeId) =>

@@ -2353,3 +2353,30 @@ class SpaCodeGenSpec extends munit.FunSuite:
     // Both imports should be collected (order: module first, instance second)
     assertEquals(result.errors, Nil)
   }
+
+  test("trailing hoisted element guards its append on the pre-claim hydrating state") {
+    // A static <a> after a dynamic <p> is hoisted and is the LAST child. Claiming
+    // it during hydration advances the cursor to null, flipping Hydrating.isActive
+    // to false. If the clone's append were guarded by `if !Hydrating.isActive`
+    // (evaluated AFTER the claim), the clone would be appended alongside the
+    // already-claimed SSR node — a visible duplicate. The append must instead be
+    // guarded by the state captured BEFORE the claim.
+    val src =
+      """<script lang="scala">
+        |val count = State(0)
+        |</script>
+        |<div>
+        |  <p>{count.value}</p>
+        |  <a href="/x">link</a>
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("cloneNode(true)"), s"expected a hoisted element:\n$code")
+    // pre-claim capture into a local
+    assert(code.contains("_hy = Hydrating.isActive"), s"expected pre-claim capture:\n$code")
+    // the hoisted clone's append is guarded by the captured local, not a fresh
+    // (post-claim) `Hydrating.isActive` read
+    assert(
+      raw"""if !\w+_hy then \w+\.appendChild""".r.findFirstIn(code).isDefined,
+      s"expected append guarded by captured state:\n$code"
+    )
+  }
