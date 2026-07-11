@@ -507,7 +507,7 @@ object GuideCodes:
        |  val richContent = TrustedHtml.unsafe("<strong>Bold</strong> text")
        |</script>
        |
-       |<div bind:html={richContent}></div>""".stripMargin
+       |<div bind:innerHTML={richContent}></div>""".stripMargin
 
   val trustedHtmlSanitizeExample: String =
     """|import melt.runtime.TrustedHtml
@@ -650,12 +650,12 @@ object GuideCodes:
     """|// build.sbt (server module)
        |lazy val server = project
        |  .enablePlugins(MeltkitPlugin)
-       |  .settings(meltMode := "ssr")
+       |  .settings(meltMode := Some(Http4s))
        |
        |// build.sbt (client module — for hydration)
        |lazy val client = project
        |  .enablePlugins(MeltkitPlugin)
-       |  .settings(meltMode := "spa")""".stripMargin
+       |  .settings(meltMode := Some(Browser))""".stripMargin
 
   val ssrRouteExample: String =
     """|app.get("blog" / slug, PageOptions(ssr = true, csr = true)) { ctx =>
@@ -691,14 +691,17 @@ object GuideCodes:
        |) { ctx => ... }""".stripMargin
 
   val ssgMainScala: String =
-    """|import meltkit.ssg.*
+    """|import meltkit.*
+       |import meltkit.ssg.*
+       |import meltkit.syntax.*
+       |import java.nio.file.Path
        |
        |@main def generate(): Unit =
        |  val config = ServerConfig(
        |    outputDir = Some("dist"),
        |    publicDir = Some("public"),
        |    assetsDir = Some("../dist/assets"),
-       |    manifest  = ViteManifest.fromFile("../dist/.vite/manifest.json"),
+       |    manifest  = ViteManifest.fromFile(Path.of("../dist/.vite/manifest.json")),
        |    template  = Template.fromResource("index.html")
        |  )
        |  SsgGenerator.run(app, config)""".stripMargin
@@ -728,7 +731,7 @@ object GuideCodes:
        |import org.http4s.ember.server.EmberServerBuilder
        |import cats.effect.IO
        |
-       |val routes = Http4sAdapter.toRoutes[IO](app, config)
+       |val routes = Http4sAdapter.routes[IO](app)
        |
        |EmberServerBuilder.default[IO]
        |  .withHttpApp(routes.orNotFound)

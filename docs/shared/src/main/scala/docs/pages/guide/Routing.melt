@@ -55,7 +55,7 @@ val base = props.basePath + "/" + props.lang
         <td>{t.ctxRenderDesc.getOrElse("")}</td>
       </tr>
       <tr>
-        <td><code>ctx.html(...)</code></td>
+        <td><code>ctx.text(...)</code></td>
         <td>{t.ctxHtmlDesc.getOrElse("")}</td>
       </tr>
       <tr>

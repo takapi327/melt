@@ -131,7 +131,7 @@ val base = props.basePath + "/" + props.lang
       <td>{t.specialBoundaryDesc}</td>
     </tr>
     <tr>
-      <td><code>melt:await</code></td>
+      <td><code>melt:element</code></td>
       <td>{t.specialAwaitDesc}</td>
     </tr>
   </tbody>

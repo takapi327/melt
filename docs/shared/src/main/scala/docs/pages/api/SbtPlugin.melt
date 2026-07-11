@@ -37,12 +37,12 @@ val base = props.basePath + "/" + props.lang
       <td>{t.meltPackageDesc}</td>
     </tr>
     <tr>
-      <td><code>meltSourceDirs</code></td>
+      <td><code>meltSourceDirectories</code></td>
       <td><code>Seq[File]</code></td>
       <td>{t.meltSourceDirsDesc}</td>
     </tr>
     <tr>
-      <td><code>meltOutputDir</code></td>
+      <td><code>meltOutputDirectory</code></td>
       <td><code>File</code></td>
       <td>{t.meltOutputDirDesc}</td>
     </tr>
@@ -62,13 +62,8 @@ val base = props.basePath + "/" + props.lang
       <td>{t.meltHydrationRootDesc}</td>
     </tr>
     <tr>
-      <td><code>meltCompilerClasspath</code></td>
-      <td><code>Seq[File]</code></td>
-      <td>{t.meltCompilerCpDesc}</td>
-    </tr>
-    <tr>
       <td><code>meltStylePreprocessor</code></td>
-      <td><code>Option[String]</code></td>
+      <td><code>Option[StylePreprocessor]</code></td>
       <td>{t.meltStylePreprocessorDesc}</td>
     </tr>
     <tr>
@@ -99,7 +94,7 @@ val base = props.basePath + "/" + props.lang
   <tbody>
     <tr>
       <td><code>meltMode</code></td>
-      <td><code>MeltMode</code></td>
+      <td><code>Option[MeltMode]</code></td>
       <td>{t.meltModeDesc}</td>
     </tr>
     <tr>
@@ -111,21 +106,6 @@ val base = props.basePath + "/" + props.lang
       <td><code>meltkitViteManifestPath</code></td>
       <td><code>File</code></td>
       <td>{t.meltkitViteManifestDesc}</td>
-    </tr>
-    <tr>
-      <td><code>meltkitSsgPages</code></td>
-      <td><code>List[SsgPage]</code></td>
-      <td>{t.meltkitSsgPagesDesc}</td>
-    </tr>
-    <tr>
-      <td><code>meltkitSsgOutputDir</code></td>
-      <td><code>File</code></td>
-      <td>{t.meltkitSsgOutputDesc}</td>
-    </tr>
-    <tr>
-      <td><code>meltkitSsgGenerate</code></td>
-      <td><code>TaskKey[Unit]</code></td>
-      <td>{t.meltkitSsgGenerateDesc}</td>
     </tr>
   </tbody>
 </table>

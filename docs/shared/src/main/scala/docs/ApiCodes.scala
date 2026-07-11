@@ -46,11 +46,11 @@ object ApiCodes:
 
   val templateBindHtml: String =
     """|// Static trusted content
-       |<div bind:html={TrustedHtml.unsafe("<strong>Hello</strong>")}/>
+       |<div bind:innerHTML={TrustedHtml.unsafe("<strong>Hello</strong>")}/>
        |
        |// Reactive trusted content
        |val html = State(TrustedHtml.unsafe("<em>initial</em>"))
-       |<div bind:html={html}/>""".stripMargin
+       |<div bind:innerHTML={html}/>""".stripMargin
 
   val templateIfElse: String =
     """|{if count > 10 then
@@ -93,10 +93,10 @@ object ApiCodes:
     """|val n    = State(0)
        |val list = State(List.empty[String])
        |
-       |n += 1         // State[Int] increment
-       |n -= 1         // decrement
-       |list :+= "a"   // append to list
-       |list = list.value.filter(_.nonEmpty)  // replace""".stripMargin
+       |n += 1                                   // State[Int] increment
+       |n -= 1                                   // decrement
+       |list.append("a")                         // append to list
+       |list.set(list.value.filter(_.nonEmpty))  // replace whole list""".stripMargin
 
   val runtimeOnMount: String =
     """|import melt.runtime.onMount
@@ -126,68 +126,74 @@ object ApiCodes:
 
   val meltkitInstall: String =
     """|// build.sbt
-       |libraryDependencies += "io.github.takapi327" %% "meltkit" % "0.1.0"
+       |libraryDependencies += "io.github.takapi327" %% "meltkit" % "0.1.0-SNAPSHOT"
        |
        |// Pick your adapter:
-       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0"  // Scala.js
-       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0"  // JVM / Node""".stripMargin
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT"  // Scala.js
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0-SNAPSHOT"  // JVM / Node""".stripMargin
 
   val meltkitRoutes: String =
     """|import meltkit.*
        |
-       |val app = MeltKit[IO]:
-       |  get("") { ctx =>
-       |    ctx.html(AppPage(AppPage.Props()))
-       |  }
+       |val app = MeltKit[IO]()
        |
-       |  val lang = param[String]("lang")
-       |  get(lang) { ctx =>
-       |    val l = ctx.params.lang
-       |    ctx.html(AppPage(AppPage.Props(lang = l)))
-       |  }
+       |app.get("") { ctx =>
+       |  ctx.render(AppPage(AppPage.Props()))
+       |}
        |
-       |  val slug = param[String]("slug")
-       |  get(lang / "guide" / slug) { ctx =>
-       |    ctx.html(GuidePage(GuidePage.Props(lang = ctx.params.lang, slug = ctx.params.slug)))
-       |  }""".stripMargin
+       |val lang = param[String]("lang")
+       |app.get(lang) { ctx =>
+       |  val l = ctx.params.lang
+       |  ctx.render(AppPage(AppPage.Props(lang = l)))
+       |}
+       |
+       |val slug = param[String]("slug")
+       |app.get(lang / "guide" / slug) { ctx =>
+       |  ctx.render(GuidePage(GuidePage.Props(lang = ctx.params.lang, slug = ctx.params.slug)))
+       |}""".stripMargin
 
   val meltkitPathParams: String =
     """|val lang = param[String]("lang")
        |val id   = param[Int]("id")
        |
-       |get(lang / "posts" / id) { ctx =>
+       |app.get(lang / "posts" / id) { ctx =>
        |  val language: String = ctx.params.lang
        |  val postId:   Int    = ctx.params.id
        |  ctx.json(fetchPost(postId))
        |}""".stripMargin
 
   val meltkitHttpMethods: String =
-    """|val app = MeltKit[IO]:
-       |  get("api/users")    { ctx => ctx.json(getUsers()) }
-       |  post("api/users")   { ctx => ctx.json(createUser(ctx.body)) }
-       |  put("api/users/1")  { ctx => ctx.json(updateUser(ctx.body)) }
-       |  delete("api/users/1") { ctx => ctx.json(deleteUser()) }""".stripMargin
+    """|val app = MeltKit[IO]()
+       |
+       |app.get("api/users")      { ctx => ctx.json(getUsers()) }
+       |app.post("api/users")     { ctx => ctx.json(createUser(ctx.body)) }
+       |app.put("api/users/1")    { ctx => ctx.json(updateUser(ctx.body)) }
+       |app.delete("api/users/1") { ctx => ctx.json(deleteUser()) }""".stripMargin
 
   val meltkitMiddleware: String =
-    """|val app = MeltKit[IO]:
-       |  use { (ctx, next) =>
-       |    // runs before every route
-       |    println(s"Request: ${ctx.request.method} ${ctx.request.path}")
-       |    next(ctx)
-       |  }
+    """|val app = MeltKit[IO]()
        |
-       |  get("protected") { ctx =>
-       |    if ctx.locals.get(AuthKey).isEmpty
-       |    then ctx.redirect("/login")
-       |    else ctx.html(ProtectedPage())
-       |  }""".stripMargin
+       |app.use { (event, resolve) =>
+       |  // runs before every route
+       |  println(s"Request: ${event.method} ${event.requestPath}")
+       |  resolve()
+       |}
+       |
+       |app.get("protected") { ctx =>
+       |  if ctx.locals.get(AuthKey).isEmpty
+       |  then ctx.redirect("/login")
+       |  else ctx.render(ProtectedPage())
+       |}""".stripMargin
 
   val meltkitViteManifest: String =
-    """|val manifest = ViteManifest.load("public/dist/.vite/manifest.json")
-       |// Returns Some(ViteManifest) in prod, None in dev""".stripMargin
+    """|// From a manifest file (JVM / Node — requires import meltkit.syntax.*)
+       |val manifest = ViteManifest.fromFile("public/dist/.vite/manifest.json")
+       |
+       |// Or parse a manifest string directly
+       |val manifest2 = ViteManifest.fromString(jsonText)""".stripMargin
 
   val meltkitLocals: String =
-    """|val UserKey = LocalKey[User]("user")
+    """|val UserKey = LocalKey.make[User]
        |
        |// In middleware:
        |ctx.locals.set(UserKey, currentUser)
@@ -198,36 +204,55 @@ object ApiCodes:
   // ── MeltKit SSG ──────────────────────────────────────────────────────────────
 
   val ssgStep1: String =
-    """|// build.sbt
-       |.settings(
-       |  meltMode := MeltMode.SSG
-       |)""".stripMargin
+    """|import meltkit.*
+       |
+       |// Opt each route into prerendering with PageOptions
+       |val On = PageOptions(prerender = PrerenderOption.On)
+       |
+       |app.get("", On)                        { ctx => ctx.render(HomePage()) }
+       |app.get("en/guide/introduction", On)   { ctx => ctx.render(GuidePage()) }
+       |app.get("en/guide/installation", On)   { ctx => ctx.render(GuidePage()) }""".stripMargin
 
   val ssgStep2: String =
-    """|.settings(
-       |  meltkitSsgPages := List(
-       |    SsgPage("/"),
-       |    SsgPage("/en/guide/introduction"),
-       |    SsgPage("/en/guide/installation"),
-       |    SsgPage("/ja/guide/introduction")
+    """|import meltkit.ssg.*
+       |
+       |@main def generate(): Unit =
+       |  val config = ServerConfig(
+       |    template  = Template.fromResource("index.html"),
+       |    manifest  = ViteManifest.fromFile("dist/.vite/manifest.json"),
+       |    outputDir = Some("dist"),
+       |    publicDir = Some("public"),
+       |    assetsDir = Some("../dist/assets")
        |  )
-       |)""".stripMargin
+       |  SsgGenerator.run(app, config)""".stripMargin
 
-  val ssgStep3: String = "sbt myProject/meltkitSsgGenerate"
+  val ssgStep3: String = "sbt \"server/runMain generate\""
 
   val ssgPageExample: String =
-    """|SsgPage("/en/guide/introduction")
-       |SsgPage("/en/guide/introduction", outFile = "en/guide/introduction/index.html")""".stripMargin
+    """|// Static route — one file derived from the path segments
+       |app.get("en/guide/introduction", PageOptions(prerender = PrerenderOption.On)) { ctx => ... }
+       |
+       |// Dynamic route — supply concrete paths via entries
+       |app.get(lang / "guide" / slug, PageOptions(
+       |  prerender = PrerenderOption.On,
+       |  entries   = List("/en/guide/introduction", "/ja/guide/introduction")
+       |)) { ctx => ... }""".stripMargin
 
   val ssgDynamicPages: String =
-    """|meltkitSsgPages := {
-       |  val langs  = List("en", "ja")
-       |  val guides = List("introduction", "installation", "quick-start")
-       |  for lang <- langs; slug <- guides
-       |  yield SsgPage(s"/$lang/guide/$slug")
-       |}""".stripMargin
+    """|val On = PageOptions(prerender = PrerenderOption.On)
+       |
+       |val langs  = List("en", "ja")
+       |val guides = List("introduction", "installation", "quick-start")
+       |
+       |app.get(lang / "guide" / slug, On.copy(
+       |  entries = for l <- langs; g <- guides yield s"/$l/guide/$g"
+       |)) { ctx => ... }""".stripMargin
 
-  val ssgOutputDir: String = "meltkitSsgOutputDir := baseDirectory.value / \"dist\""
+  val ssgOutputDir: String =
+    """|ServerConfig(
+       |  template  = Template.fromResource("index.html"),
+       |  outputDir = Some("dist")   // where the static HTML files are written
+       |)""".stripMargin
 
   val ssgHydration: String =
     """|// index.html
@@ -237,14 +262,14 @@ object ApiCodes:
 
   val ssgDeploy: String =
     """|# Example: deploy to GitHub Pages
-       |sbt meltkitSsgGenerate
-       |cp -r target/ssg/* docs/""".stripMargin
+       |sbt "server/runMain generate"
+       |cp -r dist/* docs/""".stripMargin
 
   // ── Compiler ─────────────────────────────────────────────────────────────────
 
   val compilerExample: String =
     """|import melt.MeltCompiler
-       |import melt.MeltCompiler.Config
+       |import melt.CompileMode
        |
        |val source = \"\"\"
        |  <script lang="scala">
@@ -253,22 +278,30 @@ object ApiCodes:
        |  <p>Hello, {props.name}!</p>
        |\"\"\".stripMargin
        |
-       |val config = Config(
-       |  componentName = "Greeting",
-       |  pkg           = "components",
-       |  mode          = "spa"   // "spa" | "ssr" | "auto"
+       |val result = MeltCompiler.compile(
+       |  source     = source,
+       |  filename   = "Greeting.melt",
+       |  objectName = "Greeting",
+       |  pkg        = "components",
+       |  mode       = CompileMode.SPA   // SPA | SSR
        |)
        |
-       |val result = MeltCompiler.compile(source, config)
        |result.warnings.foreach(w => println("[warn] " + w.message))
-       |println(result.code)""".stripMargin
+       |result.scalaCode.foreach(println)""".stripMargin
 
   val compilerWarning: String =
-    """|case class MeltWarning(
+    """|case class CompileResult(
+       |  scalaCode: Option[String],
+       |  scopedCss: Option[String],
+       |  errors:    List[CompileError],
+       |  warnings:  List[CompileWarning]
+       |)
+       |
+       |case class CompileWarning(
        |  message:  String,
-       |  severity: Severity,  // Error | Warning | Info
-       |  line:     Option[Int],
-       |  column:   Option[Int]
+       |  line:     Int,
+       |  column:   Int,
+       |  filename: String
        |)""".stripMargin
 
   val compilerAstTypes: String =
@@ -287,8 +320,8 @@ object ApiCodes:
 
   val sbtPluginInstall: String =
     """|// project/plugins.sbt
-       |addSbtPlugin("io.github.takapi327" % "sbt-melt"    % "0.1.0")
-       |addSbtPlugin("io.github.takapi327" % "sbt-meltkit" % "0.1.0")""".stripMargin
+       |addSbtPlugin("io.github.takapi327" % "sbt-melt"    % "0.1.0-SNAPSHOT")
+       |addSbtPlugin("io.github.takapi327" % "sbt-meltkit" % "0.1.0-SNAPSHOT")""".stripMargin
 
   val sbtMeltConfig: String =
     """|// build.sbt
@@ -304,7 +337,7 @@ object ApiCodes:
     """|lazy val server = (project in file("server"))
        |  .enablePlugins(MeltkitPlugin)
        |  .settings(
-       |    meltMode := MeltMode.SSR,
+       |    meltMode := Some(Http4s),   // Browser | Node | Http4s
        |    meltkitViteDistDir := (client / baseDirectory).value / "dist"
        |  )""".stripMargin
 
@@ -315,7 +348,7 @@ object ApiCodes:
 
   val sbtScssSetup: String =
     """|// project/plugins.sbt
-       |addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0")
+       |addSbtPlugin("io.github.takapi327" % "sbt-melt" % "0.1.0-SNAPSHOT")
        |
        |// build.sbt
        |meltStylePreprocessor := Some(SassPreprocessor)""".stripMargin

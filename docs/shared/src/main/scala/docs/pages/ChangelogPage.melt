@@ -35,9 +35,9 @@ case class Props(basePath: String = "", lang: String = "en")
           <li><strong>Transitions</strong> — Built-in enter/exit animations with configurable easing and duration</li>
           <li><strong>TrustedHtml</strong> — Type-safe raw HTML injection that prevents accidental XSS</li>
           <li><strong>CSS scoping</strong> — Component styles automatically scoped with a unique attribute selector</li>
-          <li><strong>SCSS support</strong> — Optional Dart Sass integration via <code>melt-compiler-sass</code></li>
+          <li><strong>SCSS support</strong> — Optional Dart Sass integration via <code>melt-sass-preprocessor</code></li>
           <li><strong>SSR &amp; hydration</strong> — Server-render on the JVM, hydrate on the client with HydrationCursor DOM reuse</li>
-          <li><strong>SSG</strong> — Static site generation with <code>meltkitSsgGenerate</code> sbt task</li>
+          <li><strong>SSG</strong> — Static site generation via <code>SsgGenerator.run</code></li>
           <li><strong>MeltKit routing</strong> — Type-safe routing DSL with <code>NamedTuple</code> path parameters (requires Scala 3.8+)</li>
           <li><strong>Adapters</strong> — Browser SPA, http4s (JVM), Node.js</li>
           <li><strong>sbt-melt plugin</strong> — Watch, compile, and integrate <code>.melt</code> files into the sbt build pipeline</li>

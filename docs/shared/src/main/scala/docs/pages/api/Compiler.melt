@@ -30,7 +30,7 @@ val base = props.basePath + "/" + props.lang
   </thead>
   <tbody>
     <tr>
-      <td><code>componentName</code></td>
+      <td><code>objectName</code></td>
       <td><code>String</code></td>
       <td>{t.componentNameDesc}</td>
     </tr>
@@ -41,7 +41,7 @@ val base = props.basePath + "/" + props.lang
     </tr>
     <tr>
       <td><code>mode</code></td>
-      <td><code>String</code></td>
+      <td><code>CompileMode</code></td>
       <td>{t.modeDesc}</td>
     </tr>
     <tr>
@@ -50,13 +50,8 @@ val base = props.basePath + "/" + props.lang
       <td>{t.hydrationDesc}</td>
     </tr>
     <tr>
-      <td><code>hydrationRoot</code></td>
-      <td><code>Option[String]</code></td>
-      <td>{t.hydrationRootDesc}</td>
-    </tr>
-    <tr>
-      <td><code>stylePreprocessor</code></td>
-      <td><code>Option[String]</code></td>
+      <td><code>preprocessor</code></td>
+      <td><code>StylePreprocessor</code></td>
       <td>{t.stylePreprocessorDesc}</td>
     </tr>
   </tbody>

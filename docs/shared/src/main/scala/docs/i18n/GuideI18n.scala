@@ -785,7 +785,7 @@ object GuideI18n:
       scssH2        = "SCSS support",
       scssIntro     = "Add lang=\"scss\" to the style block and enable the SCSS preprocessor in your sbt config:",
       dartTitle     = "SCSS requires Dart Sass",
-      dartText      = "The melt-compiler-sass module wraps Dart Sass. Add it to your JVM classpath and set meltStylePreprocessor := Some(SassPreprocessor) in your sbt config.",
+      dartText      = "The melt-sass-preprocessor module wraps Dart Sass. Add it to your JVM classpath and set meltStylePreprocessor := Some(SassPreprocessor) in your sbt config.",
       nestingH2     = None,
       nestingIntro  = None
     ),
@@ -1198,7 +1198,7 @@ object GuideI18n:
       scssH2        = "SCSS サポート",
       scssIntro     = "style ブロックに lang=\"scss\" を追加し、sbt の設定で SCSS プリプロセッサを有効化します。",
       dartTitle     = "SCSS には Dart Sass が必要です",
-      dartText      = "melt-compiler-sass モジュールが Dart Sass をラップしています。JVM のクラスパスに追加し、sbt の設定に meltStylePreprocessor := Some(SassPreprocessor) を追記してください。",
+      dartText      = "melt-sass-preprocessor モジュールが Dart Sass をラップしています。JVM のクラスパスに追加し、sbt の設定に meltStylePreprocessor := Some(SassPreprocessor) を追記してください。",
       nestingH2     = Some("CSS Nesting"),
       nestingIntro  = Some("Melt の CSS パーサーは CSS Nesting 仕様をサポートしています。SCSS なしでも入れ子のルールが書けます。")
     ),
@@ -1223,8 +1223,8 @@ object GuideI18n:
       reactiveH2     = Some("リアクティブな状態のアサーション"),
       reactiveIntro  = Some("State を直接変更してレンダリング結果を確認することもできます。"),
       eventH2        = Some("イベントのシミュレーション"),
-      jvmTitle       = Some("テストは JVM で実行される"),
-      jvmText        = Some("testkit は JVM 上で動作するため、ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。")
+      jvmTitle       = Some("テストは Node.js で実行される"),
+      jvmText        = Some("testkit は Node.js 上で jsdom を使って動作するため、実ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。")
     ),
 
     routing = GuideRouting(
@@ -1239,7 +1239,7 @@ object GuideI18n:
       ctxMethodH       = Some("メソッド"),
       ctxDescH         = Some("説明"),
       ctxRenderDesc    = Some("コンポーネントを HTML にレンダリングしてレスポンスを返す"),
-      ctxHtmlDesc      = Some("生の HTML 文字列でレスポンスを返す"),
+      ctxHtmlDesc      = Some("プレーンテキストの文字列でレスポンスを返す"),
       ctxParamsDesc    = Some("パスパラメータへのアクセス"),
       ctxQueryDesc     = Some("クエリパラメータへのアクセス"),
       ctxLocalsDesc    = Some("リクエストスコープのストレージ"),
