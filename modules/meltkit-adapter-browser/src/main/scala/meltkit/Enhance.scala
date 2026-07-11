@@ -12,10 +12,10 @@ import scala.scalajs.js.Thenable.Implicits.given
 
 import org.scalajs.dom
 
-import melt.runtime.Action
 import melt.runtime.dom.{ Conversions, Element }
 import melt.runtime.forms.FormHandle
 import melt.runtime.json.SimpleJson
+import melt.runtime.Action
 
 /** The `use:enhance={form}` action.
   *
@@ -35,18 +35,17 @@ private[meltkit] object Enhance extends Action[FormHandle]:
 
   def apply(el: Element, form: FormHandle): () => Unit =
     val formEl = Conversions.unwrap(el).asInstanceOf[dom.html.Form]
-    val listener: js.Function1[dom.Event, Unit] = { (e: dom.Event) =>
+    val listener: js.Function1[dom.Event, Unit] = (e: dom.Event) =>
       e.preventDefault()
       submit(formEl, form)
-    }
     formEl.addEventListener("submit", listener)
     () => formEl.removeEventListener("submit", listener)
 
   private def submit(formEl: dom.html.Form, form: FormHandle): Unit =
     form.submitting.set(true)
     val init = new dom.RequestInit {}
-    init.method = dom.HttpMethod.POST
-    init.body = serialize(formEl)
+    init.method  = dom.HttpMethod.POST
+    init.body    = serialize(formEl)
     init.headers = js.Dictionary(
       "x-melt-enhance" -> "true",
       "content-type"   -> "application/x-www-form-urlencoded",

@@ -6,8 +6,8 @@
 
 package melt.runtime.forms
 
-import melt.runtime.State
 import melt.runtime.json.{ PropsCodec, SimpleJson }
+import melt.runtime.State
 
 /** Non-generic view of a [[Form]] used by the client `use:enhance` action.
   *
