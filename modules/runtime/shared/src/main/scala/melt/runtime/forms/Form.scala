@@ -95,6 +95,23 @@ final class Form[A](initial: A)(using codec: PropsCodec[A]) extends FormHandle:
       case Some(f) => f(kind, applyDefault)
       case None    => applyDefault()
 
+  /** The HTML `name` for a form input, derived from a type-checked field selector.
+    *
+    * Prevents the input `name` from drifting out of sync with the form type: the
+    * returned string is exactly the case-class field label (what `FormDataDecoder`
+    * reads on the server), and a typo is a compile error instead of a silent
+    * "Missing required field" at request time.
+    *
+    * {{{
+    * <input name={form.nameOf(_.email)} value={form.data.value.email}/>
+    * }}}
+    *
+    * Only a direct field selector (`_.email`) is accepted; anything else (e.g.
+    * `_.email.trim`) fails to compile.
+    */
+  inline def nameOf[B](inline selector: A => B): String =
+    ${ FormMacros.nameOfImpl('selector) }
+
 object Form:
 
   def apply[A](initial: A)(using PropsCodec[A]): Form[A] = new Form(initial)
