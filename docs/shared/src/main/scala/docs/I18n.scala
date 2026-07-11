@@ -6,7 +6,7 @@
 
 package docs
 
-import docs.i18n.{ GuideI18n, ApiI18n }
+import docs.i18n.{ ApiI18n, GuideI18n }
 
 object I18n:
 
