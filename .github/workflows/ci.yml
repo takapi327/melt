@@ -725,7 +725,7 @@ jobs:
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.project }}
           path: targets.tar
@@ -774,7 +774,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Download target directories (3.3.7, compilerJVM)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJVM
 
@@ -784,7 +784,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.3.7, compilerJS)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJS
 
@@ -794,7 +794,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.3.7, compilerNative)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerNative
 
