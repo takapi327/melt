@@ -25,6 +25,19 @@ trait FormHandle:
     */
   def applyResultData(json: SimpleJson.JsonValue): Unit
 
+  /** Invoked by the `enhance` action just before submitting. Return `false` to
+    * cancel the submit (e.g. client-side validation failed). Default: `true`.
+    */
+  def beforeSubmit(): Boolean
+
+  /** Invoked by the `enhance` action once the server responds. `kind` is
+    * `"success" | "failure" | "redirect"`; `applyDefault` runs the built-in
+    * behaviour (update the form / reset / navigate). If no [[Form.onResult]]
+    * handler is registered, `applyDefault` is called automatically. A handler
+    * that never calls `applyDefault` takes full manual control.
+    */
+  def afterResult(kind: String, applyDefault: () => Unit): Unit
+
 /** Reactive form state, seeded from the page's `form` prop.
   *
   * ''Read reactively via `form.data.value`'' — the Melt compiler classifies an
@@ -58,6 +71,29 @@ final class Form[A](initial: A)(using codec: PropsCodec[A]) extends FormHandle:
 
   def applyResultData(json: SimpleJson.JsonValue): Unit =
     data.set(codec.decode(json))
+
+  private var _before: () => Boolean                        = () => true
+  private var _after:  Option[(String, () => Unit) => Unit] = None
+
+  /** Registers a pre-submit hook. Return `false` to cancel (fluent). */
+  def onSubmit(f: () => Boolean): this.type =
+    _before = f
+    this
+
+  /** Registers a result hook that receives the result `kind` and an
+    * `applyDefault` thunk (fluent). Call `applyDefault()` to keep the built-in
+    * behaviour, or omit it to handle the result manually.
+    */
+  def onResult(f: (String, () => Unit) => Unit): this.type =
+    _after = Some(f)
+    this
+
+  def beforeSubmit(): Boolean = _before()
+
+  def afterResult(kind: String, applyDefault: () => Unit): Unit =
+    _after match
+      case Some(f) => f(kind, applyDefault)
+      case None    => applyDefault()
 
 object Form:
 

@@ -37,7 +37,7 @@ private[meltkit] object Enhance extends Action[FormHandle]:
     val formEl = Conversions.unwrap(el).asInstanceOf[dom.html.Form]
     val listener: js.Function1[dom.Event, Unit] = (e: dom.Event) =>
       e.preventDefault()
-      submit(formEl, form)
+      if form.beforeSubmit() then submit(formEl, form)
     formEl.addEventListener("submit", listener)
     () => formEl.removeEventListener("submit", listener)
 
@@ -81,14 +81,29 @@ private[meltkit] object Enhance extends Action[FormHandle]:
       case obj: SimpleJson.JsonValue.Obj =>
         obj.fields.get("type") match
           case Some(SimpleJson.JsonValue.Str("redirect")) =>
-            obj.fields.get("location").collect { case SimpleJson.JsonValue.Str(loc) => loc }.foreach(Router.navigate)
+            form.afterResult(
+              "redirect",
+              () =>
+                obj.fields
+                  .get("location")
+                  .collect { case SimpleJson.JsonValue.Str(loc) => loc }
+                  .foreach(Router.navigate)
+            )
           case Some(SimpleJson.JsonValue.Str("success")) =>
-            obj.fields.get("data").foreach(form.applyResultData)
-            formEl.reset()
-            resetFocus(formEl)
+            form.afterResult(
+              "success",
+              () =>
+                obj.fields.get("data").foreach(form.applyResultData)
+                formEl.reset()
+                resetFocus(formEl)
+            )
           case Some(SimpleJson.JsonValue.Str("failure")) =>
-            obj.fields.get("data").foreach(form.applyResultData)
-            resetFocus(formEl)
+            form.afterResult(
+              "failure",
+              () =>
+                obj.fields.get("data").foreach(form.applyResultData)
+                resetFocus(formEl)
+            )
           case _ => ()
       case _ => ()
 

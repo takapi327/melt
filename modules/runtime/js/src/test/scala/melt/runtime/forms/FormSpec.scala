@@ -39,3 +39,40 @@ class FormSpec extends munit.FunSuite:
     form.submitting.set(true)
     assertEquals(form.submitting.value, true)
   }
+
+  // ── customization hooks (SubmitFunction equivalent) ───────────────────────
+
+  test("beforeSubmit defaults to true and onSubmit can cancel") {
+    val form = Form(LoginForm("", Nil))
+    assertEquals(form.beforeSubmit(), true)
+    form.onSubmit(() => false)
+    assertEquals(form.beforeSubmit(), false)
+  }
+
+  test("afterResult runs applyDefault when no onResult handler is registered") {
+    val form = Form(LoginForm("", Nil))
+    var ran  = false
+    form.afterResult("success", () => ran = true)
+    assertEquals(ran, true)
+  }
+
+  test("onResult takes control: applyDefault runs only if the handler calls it") {
+    val form = Form(LoginForm("", Nil))
+
+    var defaultRan = false
+    form.onResult((_, _) => ()) // handler ignores applyDefault → default suppressed
+    form.afterResult("failure", () => defaultRan = true)
+    assertEquals(defaultRan, false)
+
+    form.onResult((_, applyDefault) => applyDefault()) // handler opts into default
+    form.afterResult("failure", () => defaultRan = true)
+    assertEquals(defaultRan, true)
+  }
+
+  test("onResult receives the result kind") {
+    val form = Form(LoginForm("", Nil))
+    var seen = ""
+    form.onResult((kind, _) => seen = kind)
+    form.afterResult("redirect", () => ())
+    assertEquals(seen, "redirect")
+  }
