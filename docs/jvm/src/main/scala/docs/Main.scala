@@ -54,7 +54,7 @@ private def createApp(): MeltKit[Future] =
   app.get("", On) { ctx =>
     Future.successful(
       ctx.render(
-        Home(Home.Props(basePath = basePath, lang = "en"))
+        Home(basePath = basePath, lang = "en")
       )
     )
   }
@@ -63,7 +63,7 @@ private def createApp(): MeltKit[Future] =
     val l = ctx.params.lang
     Future.successful(
       ctx.render(
-        Home(Home.Props(basePath = basePath, lang = l))
+        Home(basePath = basePath, lang = l)
       )
     )
   }
@@ -76,7 +76,7 @@ private def createApp(): MeltKit[Future] =
     val s = ctx.params.guide
     Future.successful(
       ctx.render(
-        GuidePage(GuidePage.Props(basePath = basePath, lang = l, slug = s))
+        GuidePage(basePath = basePath, lang = l, slug = s)
       )
     )
   }
@@ -84,22 +84,22 @@ private def createApp(): MeltKit[Future] =
   // API reference — one route per page (SvelteKit-style), no in-template slug switch.
   // Each page component wraps itself in <ApiLayout> (see pages/api/*.melt).
   app.get(lang / "api" / "template-syntax", On.copy(entries = langs.map(l => s"/$l/api/template-syntax"))) { ctx =>
-    Future.successful(ctx.render(TemplateSyntaxApi(TemplateSyntaxApi.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(TemplateSyntaxApi(basePath = basePath, lang = ctx.params.lang)))
   }
   app.get(lang / "api" / "runtime", On.copy(entries = langs.map(l => s"/$l/api/runtime"))) { ctx =>
-    Future.successful(ctx.render(Runtime(Runtime.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(Runtime(basePath = basePath, lang = ctx.params.lang)))
   }
   app.get(lang / "api" / "meltkit", On.copy(entries = langs.map(l => s"/$l/api/meltkit"))) { ctx =>
-    Future.successful(ctx.render(Meltkit(Meltkit.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(Meltkit(basePath = basePath, lang = ctx.params.lang)))
   }
   app.get(lang / "api" / "meltkit-ssg", On.copy(entries = langs.map(l => s"/$l/api/meltkit-ssg"))) { ctx =>
-    Future.successful(ctx.render(MeltkitSsg(MeltkitSsg.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(MeltkitSsg(basePath = basePath, lang = ctx.params.lang)))
   }
   app.get(lang / "api" / "compiler", On.copy(entries = langs.map(l => s"/$l/api/compiler"))) { ctx =>
-    Future.successful(ctx.render(Compiler(Compiler.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(Compiler(basePath = basePath, lang = ctx.params.lang)))
   }
   app.get(lang / "api" / "sbt-plugin", On.copy(entries = langs.map(l => s"/$l/api/sbt-plugin"))) { ctx =>
-    Future.successful(ctx.render(SbtPlugin(SbtPlugin.Props(basePath = basePath, lang = ctx.params.lang))))
+    Future.successful(ctx.render(SbtPlugin(basePath = basePath, lang = ctx.params.lang)))
   }
 
   app.get(
@@ -109,7 +109,7 @@ private def createApp(): MeltKit[Future] =
     val l = ctx.params.lang
     Future.successful(
       ctx.render(
-        ExamplesPage(ExamplesPage.Props(basePath = basePath, lang = l))
+        ExamplesPage(basePath = basePath, lang = l)
       )
     )
   }
@@ -122,7 +122,7 @@ private def createApp(): MeltKit[Future] =
     val s = ctx.params.example
     Future.successful(
       ctx.render(
-        ExamplePage(ExamplePage.Props(basePath = basePath, lang = l, slug = s))
+        ExamplePage(basePath = basePath, lang = l, slug = s)
       )
     )
   }
@@ -134,7 +134,7 @@ private def createApp(): MeltKit[Future] =
     val l = ctx.params.lang
     Future.successful(
       ctx.render(
-        ChangelogPage(ChangelogPage.Props(basePath = basePath, lang = l))
+        ChangelogPage(basePath = basePath, lang = l)
       )
     )
   }
@@ -146,7 +146,7 @@ private def createApp(): MeltKit[Future] =
     val l = ctx.params.lang
     Future.successful(
       ctx.render(
-        PlaygroundPage(PlaygroundPage.Props(basePath = basePath, lang = l))
+        PlaygroundPage(basePath = basePath, lang = l)
       )
     )
   }
