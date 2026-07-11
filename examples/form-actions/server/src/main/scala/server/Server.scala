@@ -36,7 +36,7 @@ object Server extends IOApp.Simple:
     app.page("")(
       // annotate `form` so `A` infers as LoginForm (see design §0.10: the API
       // could infer this from `actions` if that parameter came first).
-      render = (_, form: Option[LoginForm]) => LoginPage(LoginPage.Props(form = form)),
+      render  = (_, form: Option[LoginForm]) => LoginPage(LoginPage.Props(form = form)),
       actions = Map("" -> { ctx =>
         ctx.body.form[LoginForm].map {
           case Right(f) if !f.email.contains("@") =>
@@ -58,7 +58,7 @@ object Server extends IOApp.Simple:
     app
 
   def run: IO[Unit] =
-    val app = buildApp()
+    val app    = buildApp()
     val routes = Http4sAdapter
       .ssrRoutes(
         app,
