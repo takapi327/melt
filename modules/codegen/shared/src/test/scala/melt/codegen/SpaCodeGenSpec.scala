@@ -962,6 +962,14 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("autoFocus"), code)
   }
 
+  test("use:enhance={form} wires the form-actions enhance action to the form element") {
+    // `enhance` (meltkit) is an Action[FormHandle]; `form` is a Form[A] <: FormHandle.
+    val code = compile("""<form method="post" use:enhance={form}><button>go</button></form>""")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("enhance"), code)
+    assert(code.contains("form"), code)
+  }
+
   // ── Phase 8: spread on HTML element ────────────────────────────────────
 
   test("spread attribute on HTML element emits apply") {
