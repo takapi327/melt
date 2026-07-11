@@ -135,3 +135,60 @@ class FormActionDispatchTest extends CatsEffectSuite:
         assertEquals(resp.get.status, Status.SeeOther)
         assertEquals(locationOf(resp.get), Some("/done"))
       }
+
+  // ── CSRF / Origin check on the action POST path ──────────────────────────────
+
+  /** [[postsApp]] plus the CSRF hook, to prove it guards the action POST. */
+  private def csrfApp: MeltKit[IO] =
+    val app = MeltKit[IO]()
+    app.use(ServerHook.csrf[IO]())
+    app.page("posts")(
+      render = (_, _: Option[ActionForm]) => throw new AssertionError("render should not be called"),
+      action = _ => IO.pure(ActionResult.Redirect("/saved"))
+    )
+    app
+
+  /** A form POST (urlencoded content type triggers the CSRF check). */
+  private def formPost(uri: String, headers: Header.Raw*): HttpRequest[IO] =
+    HttpRequest[IO](method = Method.POST, uri = Uri.unsafeFromString(uri))
+      .withHeaders(Headers((Header.Raw(ci"content-type", "application/x-www-form-urlencoded") +: headers).toList))
+
+  test("CSRF: action POST with a matching Origin runs the action"):
+    Http4sAdapter
+      .routes(csrfApp)
+      .run(formPost("/posts", Header.Raw(ci"origin", "https://example.com"), Header.Raw(ci"host", "example.com")))
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.SeeOther) // reached the action
+      }
+
+  test("CSRF: action POST with a mismatched Origin is 403"):
+    Http4sAdapter
+      .routes(csrfApp)
+      .run(formPost("/posts", Header.Raw(ci"origin", "https://evil.example"), Header.Raw(ci"host", "example.com")))
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.Forbidden)
+      }
+
+  test("CSRF: action POST with no Origin is 403"):
+    Http4sAdapter
+      .routes(csrfApp)
+      .run(formPost("/posts", Header.Raw(ci"host", "example.com")))
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.Forbidden)
+      }
+
+  test("CSRF: a loopback host accepts an http Origin (local dev)"):
+    Http4sAdapter
+      .routes(csrfApp)
+      .run(formPost("/posts", Header.Raw(ci"origin", "http://localhost:3000"), Header.Raw(ci"host", "localhost:3000")))
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.SeeOther) // loopback → http, so it matches
+      }

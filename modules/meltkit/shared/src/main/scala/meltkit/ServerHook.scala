@@ -146,8 +146,16 @@ object ServerHook:
     val proto = info
       .header("X-Forwarded-Proto")
       .orElse(if host.endsWith(":443") then Some("https") else None)
+      // Plain-HTTP local development (localhost / loopback) has no way to
+      // advertise its scheme, so default it to http; a same-origin dev request
+      // then matches instead of being rejected as an https mismatch.
+      .orElse(if isLoopbackHost(host) then Some("http") else None)
       .getOrElse("https")
     s"$proto://$host"
+
+  private def isLoopbackHost(host: String): Boolean =
+    val name = host.split(':').head
+    name == "localhost" || name == "127.0.0.1" || name == "::1" || name == "[::1]"
 
   private def mergeOptions(outer: ResolveOptions, inner: ResolveOptions): ResolveOptions =
     ResolveOptions(
