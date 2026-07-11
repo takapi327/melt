@@ -1,9 +1,6 @@
 <script lang="scala">
 import docs.I18n
 import docs.components.Layout
-import docs.pages.api.{
-  TemplateSyntaxApi, Runtime, Meltkit, MeltkitSsg, Compiler, SbtPlugin
-}
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
@@ -17,14 +14,7 @@ val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API R
     <div class="doc-breadcrumb">{breadcrumb}</div>
     <h1 class="doc-title">{pageTitle}</h1>
   </div>
-  {if props.slug == "template-syntax" then <TemplateSyntaxApi lang={props.lang} basePath={props.basePath} />
-  else if props.slug == "runtime" then <Runtime lang={props.lang} basePath={props.basePath} />
-  else if props.slug == "meltkit" then <Meltkit lang={props.lang} basePath={props.basePath} />
-  else if props.slug == "meltkit-ssg" then <MeltkitSsg lang={props.lang} basePath={props.basePath} />
-  else if props.slug == "compiler" then <Compiler lang={props.lang} basePath={props.basePath} />
-  else if props.slug == "sbt-plugin" then <SbtPlugin lang={props.lang} basePath={props.basePath} />
-  else <p>{props.slug}</p>
-  }
+  {children}
 </article>
 </Layout>
 

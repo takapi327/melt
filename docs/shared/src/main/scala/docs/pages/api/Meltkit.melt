@@ -2,12 +2,15 @@
 import docs.i18n.{ApiI18n, GuideI18n}
 import docs.ApiCodes
 
+import docs.components.ApiLayout
 case class Props(lang: String = "en", basePath: String = "")
 
 val t    = ApiI18n(props.lang).meltkit
 val nav  = GuideI18n(props.lang).nav
 val base = props.basePath + "/" + props.lang
 </script>
+
+<ApiLayout basePath={props.basePath} lang={props.lang} slug="meltkit">
 
 <p>{t.lead}</p>
 
@@ -178,3 +181,4 @@ val base = props.basePath + "/" + props.lang
     <span class="doc-nav-title">{if props.lang == "ja" then "静的サイト生成" else "Static Site Generation"}</span>
   </a>
 </div>
+</ApiLayout>

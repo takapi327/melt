@@ -2,12 +2,15 @@
 import docs.i18n.{ApiI18n, GuideI18n}
 import docs.ApiCodes
 
+import docs.components.ApiLayout
 case class Props(lang: String = "en", basePath: String = "")
 
 val t    = ApiI18n(props.lang).sbtPlugin
 val nav  = GuideI18n(props.lang).nav
 val base = props.basePath + "/" + props.lang
 </script>
+
+<ApiLayout basePath={props.basePath} lang={props.lang} slug="sbt-plugin">
 
 <p>{t.lead}</p>
 
@@ -137,3 +140,4 @@ val base = props.basePath + "/" + props.lang
   </a>
   <span></span>
 </div>
+</ApiLayout>

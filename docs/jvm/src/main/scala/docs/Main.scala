@@ -10,7 +10,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
 
-import docs.pages.{ ApiPage, ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home, PlaygroundPage }
+import docs.pages.{ ChangelogPage, ExamplePage, ExamplesPage, GuidePage, Home, PlaygroundPage }
+import docs.pages.api.{ Compiler, Meltkit, MeltkitSsg, Runtime, SbtPlugin, TemplateSyntaxApi }
 import meltkit.*
 import meltkit.ssg.*
 
@@ -18,7 +19,6 @@ private val basePath = sys.env.getOrElse("MELT_BASE_PATH", "").stripSuffix("/")
 
 private val lang    = param[String]("lang")
 private val guide   = param[String]("guide")
-private val api     = param[String]("api")
 private val example = param[String]("example")
 
 private val langs  = List("en", "ja")
@@ -43,14 +43,6 @@ private val guides = List(
   "ssr",
   "ssg",
   "adapters"
-)
-private val apis = List(
-  "template-syntax",
-  "runtime",
-  "meltkit",
-  "meltkit-ssg",
-  "compiler",
-  "sbt-plugin"
 )
 private val examples = List("counter", "todo-app")
 
@@ -89,17 +81,25 @@ private def createApp(): MeltKit[Future] =
     )
   }
 
-  app.get(
-    lang / "api" / api,
-    On.copy(entries = for l <- langs; a <- apis yield s"/$l/api/$a")
-  ) { ctx =>
-    val l = ctx.params.lang
-    val s = ctx.params.api
-    Future.successful(
-      ctx.render(
-        ApiPage(ApiPage.Props(basePath = basePath, lang = l, slug = s))
-      )
-    )
+  // API reference — one route per page (SvelteKit-style), no in-template slug switch.
+  // Each page component wraps itself in <ApiLayout> (see pages/api/*.melt).
+  app.get(lang / "api" / "template-syntax", On.copy(entries = langs.map(l => s"/$l/api/template-syntax"))) { ctx =>
+    Future.successful(ctx.render(TemplateSyntaxApi(TemplateSyntaxApi.Props(basePath = basePath, lang = ctx.params.lang))))
+  }
+  app.get(lang / "api" / "runtime", On.copy(entries = langs.map(l => s"/$l/api/runtime"))) { ctx =>
+    Future.successful(ctx.render(Runtime(Runtime.Props(basePath = basePath, lang = ctx.params.lang))))
+  }
+  app.get(lang / "api" / "meltkit", On.copy(entries = langs.map(l => s"/$l/api/meltkit"))) { ctx =>
+    Future.successful(ctx.render(Meltkit(Meltkit.Props(basePath = basePath, lang = ctx.params.lang))))
+  }
+  app.get(lang / "api" / "meltkit-ssg", On.copy(entries = langs.map(l => s"/$l/api/meltkit-ssg"))) { ctx =>
+    Future.successful(ctx.render(MeltkitSsg(MeltkitSsg.Props(basePath = basePath, lang = ctx.params.lang))))
+  }
+  app.get(lang / "api" / "compiler", On.copy(entries = langs.map(l => s"/$l/api/compiler"))) { ctx =>
+    Future.successful(ctx.render(Compiler(Compiler.Props(basePath = basePath, lang = ctx.params.lang))))
+  }
+  app.get(lang / "api" / "sbt-plugin", On.copy(entries = langs.map(l => s"/$l/api/sbt-plugin"))) { ctx =>
+    Future.successful(ctx.render(SbtPlugin(SbtPlugin.Props(basePath = basePath, lang = ctx.params.lang))))
   }
 
   app.get(
