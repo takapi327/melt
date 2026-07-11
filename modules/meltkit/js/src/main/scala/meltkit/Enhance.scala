@@ -17,13 +17,18 @@ import melt.runtime.forms.FormHandle
 import melt.runtime.json.SimpleJson
 import melt.runtime.Action
 
-/** The `use:enhance={form}` action.
+/** The `use:enhance={form}` action (client implementation).
   *
   * Intercepts the native form submit and replays it as a `fetch` that returns an
   * [[ActionResult]] JSON envelope (via the `x-melt-enhance` header), then updates
   * `form` in place without a full-page reload. Removing `use:enhance` leaves a
   * plain `<form method="post">` that still works with JavaScript disabled — the
   * progressive-enhancement floor.
+  *
+  * Lives in `meltkit` (crossProject) so a `.melt` component that `import
+  * meltkit.enhance` compiles for both SSR (JVM, no-op — `use:` is client-only)
+  * and hydration (JS, this implementation). Redirects use a full navigation
+  * (`window.location.assign`) so this depends only on the DOM, not the router.
   *
   * Import it into a `.melt` script: `import meltkit.enhance`.
   */
@@ -87,7 +92,7 @@ private[meltkit] object Enhance extends Action[FormHandle]:
                 obj.fields
                   .get("location")
                   .collect { case SimpleJson.JsonValue.Str(loc) => loc }
-                  .foreach(Router.navigate)
+                  .foreach(dom.window.location.assign)
             )
           case Some(SimpleJson.JsonValue.Str("success")) =>
             form.afterResult(

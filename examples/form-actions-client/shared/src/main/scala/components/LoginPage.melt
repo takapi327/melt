@@ -1,0 +1,42 @@
+<script lang="scala">
+import melt.runtime.forms.Form
+import meltkit.enhance
+
+case class Props(form: Option[LoginForm] = None)
+
+// Seed a reactive Form from the SSR/hydration `form` prop. Read reactively via
+// `form.data.value.*` (must contain `.value` to be treated as reactive).
+val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
+</script>
+
+<main class="login">
+  <h1>Sign in</h1>
+
+  <!-- Plain <form method="post"> works with JS disabled (native POST → PRG /
+       re-render). `use:enhance={form}` upgrades it to a fetch that updates the
+       form in place, with no full reload. -->
+  <form method="post" use:enhance={form}>
+    <label>
+      Email
+      <input name="email" type="email" value={form.data.value.email}/>
+    </label>
+    {form.data.value.errors.headOption.map(msg => <p class="error">{msg}</p>)}
+
+    <label>
+      Password
+      <input name="password" type="password"/>
+    </label>
+
+    <button type="submit" disabled={form.submitting.value}>
+      {if form.submitting.value then "Signing in…" else "Sign in"}
+    </button>
+  </form>
+</main>
+
+<style>
+.login { max-width: 22rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
+.login label { display: block; margin: 0.75rem 0; }
+.login input { display: block; width: 100%; padding: 0.5rem; }
+.error { color: #c0392b; margin: 0.25rem 0; }
+button[disabled] { opacity: 0.6; }
+</style>

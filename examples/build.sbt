@@ -21,7 +21,7 @@ lazy val counter = project
   .in(file("counter"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
+    jsEnv                           := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()),
     libraryDependencies ++= Seq(
       "io.github.takapi327" %% "melt-runtime" % meltVersion,
       "io.github.takapi327" %% "melt-testkit" % meltVersion % Test
@@ -125,7 +125,7 @@ lazy val `reactive-scope` = project
   .in(file("reactive-scope"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
-    jsEnv                           := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
+    jsEnv                           := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv()),
     libraryDependencies ++= Seq(
       "io.github.takapi327" %% "melt-runtime" % meltVersion,
       "io.github.takapi327" %% "melt-testkit" % meltVersion % Test
@@ -238,7 +238,7 @@ lazy val `node-ssr-server` = project
   .settings(
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-    jsEnv                      := new org.scalajs.jsenv.nodejs.NodeJSEnv(),
+    jsEnv                      := Def.uncached(new org.scalajs.jsenv.nodejs.NodeJSEnv()),
     meltMode                   := Some(Node),
     meltkitAssetManifestClient := Some(`ssr-client`.js),
     meltkitViteDistDir         := ssrClientDir / "dist",
@@ -269,6 +269,49 @@ lazy val `jdk-ssr-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`ssr-client`.jvm)
 
+// ── Example: Form actions + progressive enhancement ──────────────────────────
+//
+//   sbt "form-actions-server/run"
+
+lazy val `form-actions-client` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("form-actions-client"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    meltHydration                   := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+
+lazy val formActionsClientDir = file("form-actions-client")
+lazy val `form-actions-server` = project
+  .in(file("form-actions/server"))
+  .settings(
+    run / fork := true,
+    libraryDependencies ++= Seq(
+      "io.github.takapi327" %% "meltkit-adapter-http4s" % meltVersion,
+      "org.http4s"          %% "http4s-ember-server"    % "0.23.33",
+      "org.http4s"          %% "http4s-dsl"             % "0.23.33",
+      "io.circe"            %% "circe-generic"          % "0.14.9"
+    ),
+    meltkitAssetManifestClient := Some(`form-actions-client`.js),
+    meltkitViteDistDir         := formActionsClientDir / "dist",
+    meltkitViteManifestPath    := formActionsClientDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`form-actions-client`.jvm)
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -293,7 +336,10 @@ lazy val root = project
     `ssr-client`.js,
     `http4s-ssr-server`,
     `node-ssr-server`,
-    `jdk-ssr-server`
+    `jdk-ssr-server`,
+    `form-actions-client`.jvm,
+    `form-actions-client`.js,
+    `form-actions-server`
   )
   .settings(
     crossScalaVersions := Seq.empty

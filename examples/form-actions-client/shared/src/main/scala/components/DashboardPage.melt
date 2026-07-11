@@ -1,0 +1,13 @@
+<script lang="scala">
+case class Props(email: String = "")
+</script>
+
+<main class="dashboard">
+  <h1>Welcome{if props.email.nonEmpty then s", ${ props.email }" else ""}!</h1>
+  <p>You are signed in. (Reached via 303 Post/Redirect/Get after a successful action.)</p>
+  <a href="/">Sign out</a>
+</main>
+
+<style>
+.dashboard { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
+</style>
