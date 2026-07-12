@@ -599,6 +599,53 @@ object GuideCodes:
        |    assertEquals(c.text("h1"), "0")
        |  }""".stripMargin
 
+  val testingFormProbe: String =
+    """|import meltkit.adapter.http4s.FormProbe
+       |import meltkit.adapter.http4s.Http4sAdapter.given
+       |
+       |val probe = FormProbe(app)
+       |
+       |// native redirect (Post/Redirect/Get)
+       |probe.submit("login", fields = Map("email" -> "a@b.com", "password" -> "secret")).map { r =>
+       |  assertEquals(r.status, 303)
+       |  assertEquals(r.location, Some("/dashboard"))
+       |}
+       |
+       |// use:enhance → JSON envelope; named action via ?/publish
+       |probe.submit("posts", action = "publish", enhance = true).map(r => assert(r.contains("\"redirect\"")))
+       |
+       |// CSRF: a cross-site Origin (≠ Host) is rejected
+       |probe.submit("login", origin = Some("https://evil.example"), host = Some("localhost:3000"))
+       |     .map(r => assertEquals(r.status, 403))""".stripMargin
+
+  val testingFormEnhance: String =
+    """|import melt.testkit.*
+       |
+       |class LoginSpec extends MeltSuite:
+       |  test("a validation failure shows the error without a reload") {
+       |    val page = mount(LoginPage(LoginPage.Props()))
+       |    val body = EnhanceResult.failure(422, "{\"errors\":[\"invalid email\"]}")
+       |    val stub = FetchStub.install(body = body)
+       |    page.userEvent.submit("form")
+       |    // ...await the microtask, then:
+       |    assertEquals(page.text(".error"), "invalid email")
+       |    stub.restore()
+       |  }""".stripMargin
+
+  val testingFormCodec: String =
+    """|import melt.runtime.forms.codec.FieldCodec
+       |import meltkit.FormData
+       |import meltkit.codec.FormDataDecoder
+       |
+       |// a codec round-trips: decode(encode(a)) == a
+       |assertEquals(FieldCodec[Email].roundTrip(Email("a@b.com")), Right(Email("a@b.com")))
+       |
+       |// a form body decodes to the case class
+       |assertEquals(
+       |  FormDataDecoder[LoginForm].decode(FormData.parse("email=a@b.com&password=x").toOption.get),
+       |  Right(LoginForm("a@b.com", "x"))
+       |)""".stripMargin
+
   // ── Routing ───────────────────────────────────────────────────────────────
 
   val routingDepExample: String =

@@ -343,27 +343,35 @@ case class GuideCss(
 // ── Testing ───────────────────────────────────────────────────────────────────
 
 case class GuideTesting(
-  lead:          String,
-  setupH2:       String,
-  setupIntro:    String,
-  writingH2:     String,
-  apiH2:         String,
-  methodH:       String,
-  descH:         String,
-  mountDesc:     String,
-  textDesc:      String,
-  clickDesc:     String,
-  inputDesc:     String,
-  existsDesc:    String,
-  findAllDesc:   String,
-  getByTextDesc: String,
-  getByRoleDesc: String,
-  waitForDesc:   String,
-  reactiveH2:    Option[String],
-  reactiveIntro: Option[String],
-  eventH2:       Option[String],
-  jvmTitle:      Option[String],
-  jvmText:       Option[String]
+  lead:           String,
+  setupH2:        String,
+  setupIntro:     String,
+  writingH2:      String,
+  apiH2:          String,
+  methodH:        String,
+  descH:          String,
+  mountDesc:      String,
+  textDesc:       String,
+  clickDesc:      String,
+  inputDesc:      String,
+  existsDesc:     String,
+  findAllDesc:    String,
+  getByTextDesc:  String,
+  getByRoleDesc:  String,
+  waitForDesc:    String,
+  reactiveH2:     Option[String],
+  reactiveIntro:  Option[String],
+  eventH2:        Option[String],
+  jvmTitle:       Option[String],
+  jvmText:        Option[String],
+  formH2:         String,
+  formIntro:      String,
+  formServerH3:   String,
+  formServerDesc: String,
+  formClientH3:   String,
+  formClientDesc: String,
+  formCodecH3:    String,
+  formCodecDesc:  String
 )
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -893,7 +901,19 @@ object GuideI18n:
       reactiveIntro = None,
       eventH2       = None,
       jvmTitle      = None,
-      jvmText       = None
+      jvmText       = None,
+      formH2        = "Testing form actions",
+      formIntro     =
+        "Form actions are tested at three layers, each with a helper so no HTTP server or real browser is needed.",
+      formServerH3   = "Server: FormProbe",
+      formServerDesc =
+        "FormProbe(app) drives an app's routes in memory (reusing the http4s adapter, so real query parsing, the CSRF hook and action dispatch all run). submit(...) returns a ProbeResponse (status/body/location); origin and host can differ to emulate a cross-site attack.",
+      formClientH3   = "Client: use:enhance",
+      formClientDesc =
+        "FetchStub installs a fetch that returns an EnhanceResult envelope (jsdom ships none); userEvent.submit fires the form's submit event. Together they exercise the enhance fetch and assert the reactive form state.",
+      formCodecH3   = "Codecs",
+      formCodecDesc =
+        "FieldCodec[A].roundTrip(value) checks decode(encode(a)) == a, and FormDataDecoder[A].decode(FormData.parse(query)) decodes a raw body — assert with your own framework."
     ),
 
     routing = GuideRouting(
@@ -1380,7 +1400,18 @@ object GuideI18n:
       reactiveIntro = Some("State を直接変更してレンダリング結果を確認することもできます。"),
       eventH2       = Some("イベントのシミュレーション"),
       jvmTitle      = Some("テストは Node.js で実行される"),
-      jvmText = Some("testkit は Node.js 上で jsdom を使って動作するため、実ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。")
+      jvmText   = Some("testkit は Node.js 上で jsdom を使って動作するため、実ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。"),
+      formH2    = "フォームアクションのテスト",
+      formIntro = "フォームアクションは 3 つの層でテストでき、それぞれヘルパがあるので HTTP サーバも実ブラウザも不要です。",
+      formServerH3   = "サーバ: FormProbe",
+      formServerDesc =
+        "FormProbe(app) はアプリの routes をインメモリで実行します（http4s アダプタを再利用するので、実クエリ解析・CSRF フック・アクションのディスパッチがすべて走ります）。submit(...) は ProbeResponse（status/body/location）を返し、origin と host を別々に指定してクロスサイト攻撃を再現できます。",
+      formClientH3   = "クライアント: use:enhance",
+      formClientDesc =
+        "FetchStub は EnhanceResult エンベロープを返す fetch を設置し（jsdom は fetch を持たない）、userEvent.submit がフォームの submit を発火します。両者で enhance の fetch を動かし、リアクティブなフォーム状態を検証します。",
+      formCodecH3   = "コーデック",
+      formCodecDesc =
+        "FieldCodec[A].roundTrip(value) は decode(encode(a)) == a を検証し、FormDataDecoder[A].decode(FormData.parse(query)) は生のボディをデコードします。アサーションは各自のフレームワークで行います。"
     ),
 
     routing = GuideRouting(

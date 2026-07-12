@@ -91,6 +91,30 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
+<h2>{t.formH2}</h2>
+<p>{t.formIntro}</p>
+
+<h3>{t.formServerH3}</h3>
+<p>{t.formServerDesc}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.testingFormProbe}</code></pre>
+</div>
+
+<h3>{t.formClientH3}</h3>
+<p>{t.formClientDesc}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.testingFormEnhance}</code></pre>
+</div>
+
+<h3>{t.formCodecH3}</h3>
+<p>{t.formCodecDesc}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.testingFormCodec}</code></pre>
+</div>
+
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/css"}>
     <span class="doc-nav-dir">{nav.prev}</span>
