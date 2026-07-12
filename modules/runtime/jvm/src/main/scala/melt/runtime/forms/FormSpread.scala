@@ -21,3 +21,19 @@ extension [A](form: Form[A])
       "name"  -> form.nameOf(selector),
       "value" -> encoder.encodeValue(selector(form.data.value))
     )
+
+  /** SSR mirror of the client `form.checkbox`. */
+  inline def checkbox(inline selector: A => Boolean): Map[String, Any] =
+    ControlAttrs.checkbox(form.nameOf(selector), selector(form.data.value))
+
+  /** SSR mirror of the client `form.radio`. */
+  inline def radio[B](inline selector: A => B, option: B)(using encoder: FieldEncoder[B]): Map[String, Any] =
+    ControlAttrs.radio(form.nameOf(selector), encoder.encodeValue(option), selector(form.data.value) == option)
+
+  /** SSR mirror of the client `form.select`. */
+  inline def select[B](inline selector: A => B): Map[String, Any] =
+    ControlAttrs.select(form.nameOf(selector))
+
+  /** SSR mirror of the client `form.option`. */
+  inline def option[B](inline selector: A => B, opt: B)(using encoder: FieldEncoder[B]): Map[String, Any] =
+    ControlAttrs.option(encoder.encodeValue(opt), selector(form.data.value) == opt)

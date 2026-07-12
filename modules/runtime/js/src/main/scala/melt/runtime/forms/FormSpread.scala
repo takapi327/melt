@@ -32,3 +32,32 @@ extension [A](form: Form[A])
         "value" -> encoder.encodeValue(selector(form.data.value))
       )
     )
+
+  /** `<input type="checkbox" {...form.checkbox(_.remember)}/>` — name + `checked`
+    * from a Boolean field (`value="true"` so a checked box decodes as `true`).
+    */
+  inline def checkbox(inline selector: A => Boolean): HtmlAttrs =
+    strAttrs(ControlAttrs.checkbox(form.nameOf(selector), selector(form.data.value)))
+
+  /** `<input type="radio" {...form.radio(_.role, Role.Admin)}/>` — name + value +
+    * `checked` when the field currently equals this option.
+    */
+  inline def radio[B](inline selector: A => B, option: B)(using encoder: FieldEncoder[B]): HtmlAttrs =
+    strAttrs(
+      ControlAttrs.radio(form.nameOf(selector), encoder.encodeValue(option), selector(form.data.value) == option)
+    )
+
+  /** `<select {...form.select(_.role)}>` — sets `name`; the chosen option is
+    * marked by [[option]].
+    */
+  inline def select[B](inline selector: A => B): HtmlAttrs =
+    strAttrs(ControlAttrs.select(form.nameOf(selector)))
+
+  /** `<option {...form.option(_.role, Role.Admin)}>` — value + `selected` when the
+    * field currently equals this option.
+    */
+  inline def option[B](inline selector: A => B, opt: B)(using encoder: FieldEncoder[B]): HtmlAttrs =
+    strAttrs(ControlAttrs.option(encoder.encodeValue(opt), selector(form.data.value) == opt))
+
+private inline def strAttrs(attrs: Map[String, Any]): HtmlAttrs =
+  HtmlAttrs(attrs.map { case (k, v) => k -> v.toString })

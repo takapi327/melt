@@ -62,10 +62,10 @@ object FieldCodec:
   given FieldCodec[Boolean] =
     from { (name, values) =>
       values.headOption match
-        case None                                 => Right(false) // absent checkbox
-        case Some("true") | Some("1")             => Right(true)
-        case Some("false") | Some("0") | Some("") => Right(false)
-        case Some(v)                              => Left(s"Field '$name' is not a valid boolean: $v")
+        case None                                  => Right(false) // absent checkbox
+        case Some("true") | Some("1") | Some("on") => Right(true)  // "on" = default checkbox value
+        case Some("false") | Some("0") | Some("")  => Right(false)
+        case Some(v)                               => Left(s"Field '$name' is not a valid boolean: $v")
     }(b => List(b.toString))
 
   /** Optional field: absent decodes to `None`, `None` encodes to no value. */
