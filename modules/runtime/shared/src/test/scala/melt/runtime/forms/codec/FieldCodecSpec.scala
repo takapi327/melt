@@ -49,3 +49,10 @@ class FieldCodecSpec extends munit.FunSuite:
     val e = Email("a@b.com")
     assertEquals(c.decode("email", c.encode(e)), Right(e))
     assertEquals(c.encodeValue(e), "a@b.com")
+
+  test("roundTrip verifies a codec law (decode(encode(a)) == a)"):
+    given FieldCodec[Email] = FieldCodec[String].eimap(Email.parse)(_.value)
+    assertEquals(FieldCodec[String].roundTrip("hi"), Right("hi"))
+    assertEquals(FieldCodec[Int].roundTrip(42), Right(42))
+    assertEquals(FieldCodec[Boolean].roundTrip(true), Right(true))
+    assertEquals(FieldCodec[Email].roundTrip(Email("a@b.com")), Right(Email("a@b.com")))

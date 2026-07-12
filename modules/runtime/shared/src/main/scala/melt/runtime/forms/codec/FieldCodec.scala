@@ -34,6 +34,11 @@ trait FieldCodec[A] extends FieldEncoder[A], FieldDecoder[A]:
   def eimap[B](f: A => Either[String, B])(g: B => A): FieldCodec[B] =
     FieldCodec.from((n, vs) => self.decode(n, vs).flatMap(f))(b => self.encode(g(b)))
 
+  /** Encodes then decodes a value — a codec-law check for tests. Succeeds with the
+    * original value when the two directions agree (`decode(encode(a)) == Right(a)`).
+    */
+  def roundTrip(value: A): Either[String, A] = decode("field", encode(value))
+
 object FieldCodec:
 
   def apply[A](using c: FieldCodec[A]): FieldCodec[A] = c
