@@ -76,8 +76,8 @@ object FetchStub:
 
   /** Builds the recorded [[Call]] from the fetch arguments. */
   private def readCall(input: js.Any, init: js.Any): Call =
-    val url = input.toString
-    val d   = init.asInstanceOf[js.Dynamic]
+    val url    = input.toString
+    val d      = init.asInstanceOf[js.Dynamic]
     val method =
       if js.isUndefined(d) || js.isUndefined(d.method) then "GET" else d.method.toString
     val body =
@@ -98,9 +98,9 @@ object FetchStub:
   private def fakeResponse(status: Int, body: String): dom.Response =
     js.Dynamic
       .literal(
-        status = status,
+        status     = status,
         statusText = "",
-        ok = status >= 200 && status < 300,
-        text = () => js.Promise.resolve[String](body)
+        ok         = status >= 200 && status < 300,
+        text       = () => js.Promise.resolve[String](body)
       )
       .asInstanceOf[dom.Response]

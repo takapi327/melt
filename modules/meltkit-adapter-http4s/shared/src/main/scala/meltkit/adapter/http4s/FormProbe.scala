@@ -8,20 +8,18 @@ package meltkit.adapter.http4s
 
 import cats.effect.Async
 import cats.syntax.all.*
-
+import meltkit.ServerMeltKitPlatform
 import org.http4s.*
 import org.typelevel.ci.*
-
-import meltkit.ServerMeltKitPlatform
 
 /** The outcome of a [[FormProbe]] request: the raw status, body and (lower-cased)
   * headers, so a test can assert without http4s types.
   */
 final case class ProbeResponse(status: Int, body: String, headers: Map[String, String]):
-  def location:   Option[String] = headers.get("location")
-  def isOk:       Boolean        = status >= 200 && status < 300
-  def isRedirect: Boolean        = status >= 300 && status < 400
-  def contains(text: String): Boolean = body.contains(text)
+  def location:               Option[String] = headers.get("location")
+  def isOk:                   Boolean        = status >= 200 && status < 300
+  def isRedirect:             Boolean        = status >= 300 && status < 400
+  def contains(text: String): Boolean        = body.contains(text)
 
 /** Drives a [[meltkit.MeltKit]] app's routes (and form actions) in memory,
   * without binding a server — the server-side counterpart of the client
@@ -58,11 +56,11 @@ final class FormProbe[F[_]: Async: meltkit.Defer](app: ServerMeltKitPlatform[F])
     */
   def submit(
     path:    String,
-    action:  String              = "",
+    action:  String = "",
     fields:  Map[String, String] = Map.empty,
-    enhance: Boolean             = false,
-    origin:  Option[String]      = None,
-    host:    Option[String]      = None
+    enhance: Boolean = false,
+    origin:  Option[String] = None,
+    host:    Option[String] = None
   ): F[ProbeResponse] =
     val query   = if action.isEmpty then "" else s"?/$action"
     val request = Request[F](Method.POST, uri(path + query)).withEntity(UrlForm(fields.toSeq*))

@@ -8,10 +8,9 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
-import cats.effect.IO
-
 import melt.runtime.json.PropsCodec
 
+import cats.effect.IO
 import meltkit.*
 import meltkit.adapter.http4s.FormProbe
 import meltkit.adapter.http4s.Http4sAdapter.given
@@ -19,9 +18,7 @@ import meltkit.codec.FormDataDecoder
 
 class FormProbeTest extends CatsEffectSuite:
 
-  case class LoginForm(email: String, password: String, errors: List[String] = Nil)
-    derives FormDataDecoder,
-      PropsCodec
+  case class LoginForm(email: String, password: String, errors: List[String] = Nil) derives FormDataDecoder, PropsCodec
 
   /** A login page whose action validates the email; `render` throws so the tests
     * assert it is never reached on the redirect/enhance paths they exercise.
@@ -59,7 +56,7 @@ class FormProbeTest extends CatsEffectSuite:
   test("probe drives named actions via the ?/action query"):
     val app = MeltKit[IO]()
     app.page("posts")(
-      render = (_, _: Option[LoginForm]) => throw new AssertionError("render should not be called"),
+      render  = (_, _: Option[LoginForm]) => throw new AssertionError("render should not be called"),
       actions = {
         case ("save", _)    => IO.pure(ActionResult.Redirect("/result/draft"))
         case ("publish", _) => IO.pure(ActionResult.Redirect("/result/published"))
@@ -86,9 +83,9 @@ class FormProbeTest extends CatsEffectSuite:
                 "login",
                 fields = Map("email" -> "a@b.com"),
                 origin = Some("https://evil.example"),
-                host = Some("localhost:3000")
+                host   = Some("localhost:3000")
               )
     yield
-      assertEquals(noOrigin.status, 403)  // missing Origin
-      assertEquals(matching.status, 303)  // same-origin → action runs
-      assertEquals(evil.status, 403)      // Origin ≠ server → rejected
+      assertEquals(noOrigin.status, 403) // missing Origin
+      assertEquals(matching.status, 303) // same-origin → action runs
+      assertEquals(evil.status, 403)     // Origin ≠ server → rejected
