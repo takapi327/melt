@@ -19,7 +19,9 @@ import meltkit.codec.FormDataDecoder
   *   - `derives FormDataDecoder` — parse the urlencoded POST body into this type.
   *   - `derives PropsCodec`      — serialize for hydration + the enhance envelope.
   */
-case class LoginForm(email: String, password: String, errors: List[String]) derives FormDataDecoder, PropsCodec
+case class LoginForm(email: String, password: String, remember: Boolean = false, errors: List[String] = Nil)
+  derives FormDataDecoder,
+          PropsCodec
 
 /** The shared form-state type for the post editor (named-actions demo).
   *
@@ -28,4 +30,6 @@ case class LoginForm(email: String, password: String, errors: List[String]) deri
   * output; it is absent from the POST body, so it decodes to an empty list and
   * the server fills it via `copy(errors = ...)` on a validation failure.
   */
-case class PostForm(title: String, body: String, errors: List[String] = Nil) derives FormDataDecoder, PropsCodec
+case class PostForm(title: String, body: String, visibility: String = "public", errors: List[String] = Nil)
+  derives FormDataDecoder,
+          PropsCodec

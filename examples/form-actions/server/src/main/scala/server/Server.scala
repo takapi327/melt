@@ -45,6 +45,11 @@ object Server extends IOApp.Simple:
   private def buildApp(): MeltKit[IO] =
     val app = MeltKit[IO]()
 
+    // CSRF protection: rejects state-changing form POSTs whose `Origin` does not
+    // match the server (SvelteKit-style). This guards both the native and the
+    // use:enhance submit; loopback hosts default to http so it works in local dev.
+    app.use(ServerHook.csrf[IO]())
+
     // Single default action: one form, so `action = ctx => …` (no named-action
     // dispatch). Annotate `form` so `A` infers as LoginForm (see design §0.10:
     // the API could infer this from `action` if that parameter came first).
@@ -59,7 +64,7 @@ object Server extends IOApp.Simple:
           case Right(_) =>
             ActionResult.Redirect("/dashboard")
           case Left(err) =>
-            fail(400, LoginForm("", "", List(err.message)))
+            fail(400, LoginForm("", "", errors = List(err.message)))
         }
     )
 

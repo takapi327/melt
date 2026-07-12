@@ -1,5 +1,5 @@
 <script lang="scala">
-import melt.runtime.forms.{ Form, text }
+import melt.runtime.forms.*
 import meltkit.enhance
 
 case class Props(form: Option[PostForm] = None)
@@ -8,7 +8,7 @@ case class Props(form: Option[PostForm] = None)
 // a State/Signal (subscribes), not a `.value` (reads once): `disabled={form.submitting}`
 // passes the State, and `if form.data.value.… then …` makes `form.data` the
 // reactive source of the conditional (see the error display below).
-val form = Form(props.form.getOrElse(PostForm("", "", Nil)))
+val form = Form(props.form.getOrElse(PostForm("", "", errors = Nil)))
 </script>
 
 <main class="editor">
@@ -26,7 +26,19 @@ val form = Form(props.form.getOrElse(PostForm("", "", Nil)))
 
     <label>
       Body
-      <input {...form.text(_.body)}/>
+      <!-- textarea content is one-way seeded via child interpolation (now allowed
+           — escapable raw text, HTML-escaped on SSR). name from the selector. -->
+      <textarea name={form.nameOf(_.body)}>{form.data.value.body}</textarea>
+    </label>
+
+    <label>
+      Visibility
+      <!-- <select> gets the name; each <option> is marked selected when it
+           matches the current field value (all type-checked via _.visibility). -->
+      <select {...form.select(_.visibility)}>
+        <option {...form.option(_.visibility, "public")}>public</option>
+        <option {...form.option(_.visibility, "private")}>private</option>
+      </select>
     </label>
 
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the

@@ -1,5 +1,5 @@
 <script lang="scala">
-import melt.runtime.forms.{ Form, text }
+import melt.runtime.forms.*
 import meltkit.enhance
 
 case class Props(form: Option[LoginForm] = None)
@@ -8,7 +8,7 @@ case class Props(form: Option[LoginForm] = None)
 // passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
 // `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
 // `if form.data.value.… then …` conditional whose source is `form.data`.
-val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
+val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 </script>
 
 <main class="login">
@@ -33,6 +33,11 @@ val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
     <label>
       Password
       <input name={form.nameOf(_.password)} type="password"/>
+    </label>
+
+    <label class="checkbox">
+      <input {...form.checkbox(_.remember)}/>
+      Remember me
     </label>
 
     <button type="submit" disabled={form.submitting}>
