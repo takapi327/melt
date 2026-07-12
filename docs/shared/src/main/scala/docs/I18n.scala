@@ -82,7 +82,8 @@ object I18n:
         "routing"          -> "Routing",
         "ssr"              -> "SSR",
         "ssg"              -> "SSG",
-        "adapters"         -> "Adapters"
+        "adapters"         -> "Adapters",
+        "form-actions"     -> "Form Actions"
       )
     ),
     apiLinks = SidebarLinks(
@@ -179,7 +180,8 @@ object I18n:
         "routing"          -> "ルーティング",
         "ssr"              -> "SSR",
         "ssg"              -> "SSG",
-        "adapters"         -> "アダプター"
+        "adapters"         -> "アダプター",
+        "form-actions"     -> "フォームアクション"
       )
     ),
     apiLinks = SidebarLinks(

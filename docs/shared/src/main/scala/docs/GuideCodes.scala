@@ -743,3 +743,134 @@ object GuideCodes:
 
   val adaptersBrowserDep: String =
     """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT""""
+
+  // ── Form Actions ────────────────────────────────────────────────────────────
+
+  val formActionsServerSingle: String =
+    """|import meltkit.*
+       |
+       |case class LoginForm(email: String, password: String, errors: List[String] = Nil)
+       |  derives FormDataDecoder, PropsCodec
+       |
+       |// One form → one default `action`. GET renders with `form = None`;
+       |// POST runs `action`, which returns an ActionResult.
+       |app.page("login")(
+       |  render = (_, form) => LoginPage(LoginPage.Props(form = form)),
+       |  action = ctx =>
+       |    ctx.body.form[LoginForm].map {
+       |      case Right(f) if !f.email.contains("@") =>
+       |        fail(422, f.copy(errors = List("Enter a valid email address")))
+       |      case Right(_)  => ActionResult.Redirect("/dashboard")   // 303 PRG
+       |      case Left(err) => fail(400, LoginForm("", "", List(err.message)))
+       |    }
+       |)""".stripMargin
+
+  val formActionsServerNamed: String =
+    """|// Multiple submit buttons on one form:
+       |//   <button formaction="?/save">   /   <button formaction="?/publish">
+       |// `actions` is a partial function over (actionName, ctx); both cases
+       |// share the same PostForm.
+       |app.page("posts")(
+       |  render  = (_, form) => PostEditorPage(PostEditorPage.Props(form = form)),
+       |  actions = {
+       |    case ("save", ctx) =>
+       |      ctx.body.form[PostForm].map {
+       |        case Right(_)  => ActionResult.Redirect("/result/draft")
+       |        case Left(err) => fail(400, PostForm("", "", List(err.message)))
+       |      }
+       |    case ("publish", ctx) =>
+       |      ctx.body.form[PostForm].map {
+       |        case Right(f) if f.body.length < 10 =>
+       |          fail(422, f.copy(errors = List("Body is too short to publish")))
+       |        case Right(_)  => ActionResult.Redirect("/result/published")
+       |        case Left(err) => fail(400, PostForm("", "", List(err.message)))
+       |      }
+       |  }
+       |)""".stripMargin
+
+  val formActionsControls: String =
+    """|<!-- text input: name + seeded value -->
+       |<input {...form.text(_.email)} type="email"/>
+       |
+       |<!-- checkbox: name + checked (from a Boolean field) -->
+       |<input {...form.checkbox(_.remember)}/>
+       |
+       |<!-- radio: value + checked when the field equals this option -->
+       |<input {...form.radio(_.role, "admin")}/> Admin
+       |<input {...form.radio(_.role, "user")}/> User
+       |
+       |<!-- select + option: name on the select, selected on the matching option -->
+       |<select {...form.select(_.role)}>
+       |  <option {...form.option(_.role, "admin")}>admin</option>
+       |  <option {...form.option(_.role, "user")}>user</option>
+       |</select>
+       |
+       |<!-- textarea: one-way child interpolation (escaped on SSR) -->
+       |<textarea name={form.nameOf(_.bio)}>{form.data.value.bio}</textarea>""".stripMargin
+
+  val formActionsCustomCodec: String =
+    """|import melt.runtime.forms.codec.FieldCodec
+       |
+       |enum Role:
+       |  case Admin, User
+       |
+       |// One codec drives both server decode and form.text encode.
+       |given FieldCodec[Role] = FieldCodec[String].eimap {
+       |  case "admin" => Right(Role.Admin)
+       |  case "user"  => Right(Role.User)
+       |  case other   => Left(s"invalid role: $other")
+       |}(_.toString.toLowerCase)
+       |
+       |// A wrapper type via a single field selector:
+       |case class Email(value: String)
+       |given FieldCodec[Email] =
+       |  FieldCodec[String].eimap(s =>
+       |    if s.contains("@") then Right(Email(s)) else Left("invalid email")
+       |  )(_.value)
+       |
+       |// Now usable in a form type:
+       |case class SignupForm(email: Email, role: Role) derives FormDataDecoder, PropsCodec
+       |
+       |// Nested case classes decode from hierarchical `field.subfield` keys:
+       |case class Address(city: String, zip: String) derives FormDataDecoder, PropsCodec
+       |case class User(name: String, address: Address) derives FormDataDecoder, PropsCodec
+       |// <input name="address.city"/> etc. — or name={form.nameOf(_.address.city)}""".stripMargin
+
+  val formActionsCsrf: String =
+    """|import meltkit.*
+       |
+       |// Reject state-changing form POSTs whose Origin does not match the server.
+       |app.use(ServerHook.csrf[IO]())
+       |
+       |// Allow extra origins (e.g. a separate front-end host):
+       |app.use(ServerHook.csrf[IO](CsrfConfig(trustedOrigins = Set("https://app.example.com"))))""".stripMargin
+
+  val formActionsClient: String =
+    """|<script lang="scala">
+       |import melt.runtime.forms.{ Form, text }
+       |import meltkit.enhance
+       |
+       |case class Props(form: Option[LoginForm] = None)
+       |
+       |val form = Form(props.form.getOrElse(LoginForm("", "", Nil)))
+       |</script>
+       |
+       |<!-- Plain <form method="post"> works with JS disabled (native POST → PRG).
+       |     use:enhance upgrades it to a fetch that updates `form` in place. -->
+       |<form method="post" use:enhance={form}>
+       |  <!-- `{...form.text(_.email)}` spreads `name` + the seeded `value` from
+       |       one type-checked selector; `_.emial` is a compile error, and the
+       |       name always matches the field the server decodes. -->
+       |  <input {...form.text(_.email)} type="email"/>
+       |
+       |  <!-- Reactivity: pass a State/Signal (subscribes), not a `.value`
+       |       (reads once). The `if form.data.value.… then` conditional makes
+       |       `form.data` the reactive source, so validation errors re-render. -->
+       |  {if form.data.value.errors.nonEmpty then
+       |     <p class="error">{form.data.value.errors.head}</p>
+       |   else <span></span>}
+       |
+       |  <button type="submit" disabled={form.submitting}>
+       |    {form.submitting.map(busy => if busy then "Signing in…" else "Sign in")}
+       |  </button>
+       |</form>""".stripMargin

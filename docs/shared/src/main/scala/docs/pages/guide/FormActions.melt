@@ -1,0 +1,99 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).formActions
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.howH2}</h2>
+<p>{t.howIntro}</p>
+<ol>
+  <li>{t.step1}</li>
+  <li>{t.step2}</li>
+  <li>{t.step3}</li>
+</ol>
+
+<h2>{t.serverH2}</h2>
+<p>{t.serverIntro}</p>
+
+<h3>{t.singleH3}</h3>
+<p>{t.singleIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.formActionsServerSingle}</code></pre>
+</div>
+
+<h3>{t.namedH3}</h3>
+<p>{t.namedIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.formActionsServerNamed}</code></pre>
+</div>
+
+<h2>{t.resultH2}</h2>
+<p>{t.resultIntro}</p>
+<ul>
+  <li>{t.resultSuccess}</li>
+  <li>{t.resultFailure}</li>
+  <li>{t.resultRedirect}</li>
+</ul>
+
+<h2>{t.clientH2}</h2>
+<p>{t.clientIntro}</p>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>LoginPage.melt
+  </div>
+  <pre><code>{GuideCodes.formActionsClient}</code></pre>
+</div>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.nameOfTitle}</div>
+  <p>{t.nameOfText}</p>
+</div>
+
+<h2>{t.controlsH2}</h2>
+<p>{t.controlsIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.formActionsControls}</code></pre>
+</div>
+
+<h2>{t.customH2}</h2>
+<p>{t.customIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.formActionsCustomCodec}</code></pre>
+</div>
+
+<h2>{t.csrfH2}</h2>
+<p>{t.csrfIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.formActionsCsrf}</code></pre>
+</div>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.reactivityTitle}</div>
+  <p>{t.reactivityText}</p>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">{t.progressiveTitle}</div>
+  <p>{t.progressiveText}</p>
+</div>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/adapters"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "アダプター" else "Adapters"}</span>
+  </a>
+  <span></span>
+</div>
