@@ -962,6 +962,14 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("autoFocus"), code)
   }
 
+  test("use:enhance={form} wires the form-actions enhance action to the form element") {
+    // `enhance` (meltkit) is an Action[FormHandle]; `form` is a Form[A] <: FormHandle.
+    val code = compile("""<form method="post" use:enhance={form}><button>go</button></form>""")
+    assert(code.contains("Bind.action("), code)
+    assert(code.contains("enhance"), code)
+    assert(code.contains("form"), code)
+  }
+
   // ── Phase 8: spread on HTML element ────────────────────────────────────
 
   test("spread attribute on HTML element emits apply") {
@@ -1564,6 +1572,14 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("dom.html.TextArea"), code)
     assert(!code.contains("dom.html.Input"), code)
     assert(!code.contains("Bind.inputValue("), code)
+  }
+
+  test("textarea {expr} content compiles to a text-node child (one-way seed)") {
+    val code = compile("""<textarea>{content}</textarea>""")
+    assert(code.contains("""Hydrating.element("textarea")""") || code.contains("""createElement("textarea")"""), code)
+    // the expression becomes the textarea's child text, not a Bind.textareaValue
+    assert(code.contains("Hydrating.text(content"), code)
+    assert(!code.contains("Bind.textareaValue("), code)
   }
 
   test("bind:value on select emits Bind.selectValue after option children") {
@@ -2344,4 +2360,31 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val result = MeltCompiler.compile(src, "App.melt", "App", "")
     // Both imports should be collected (order: module first, instance second)
     assertEquals(result.errors, Nil)
+  }
+
+  test("trailing hoisted element guards its append on the pre-claim hydrating state") {
+    // A static <a> after a dynamic <p> is hoisted and is the LAST child. Claiming
+    // it during hydration advances the cursor to null, flipping Hydrating.isActive
+    // to false. If the clone's append were guarded by `if !Hydrating.isActive`
+    // (evaluated AFTER the claim), the clone would be appended alongside the
+    // already-claimed SSR node — a visible duplicate. The append must instead be
+    // guarded by the state captured BEFORE the claim.
+    val src =
+      """<script lang="scala">
+        |val count = State(0)
+        |</script>
+        |<div>
+        |  <p>{count.value}</p>
+        |  <a href="/x">link</a>
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("cloneNode(true)"), s"expected a hoisted element:\n$code")
+    // pre-claim capture into a local
+    assert(code.contains("_hy = Hydrating.isActive"), s"expected pre-claim capture:\n$code")
+    // the hoisted clone's append is guarded by the captured local, not a fresh
+    // (post-claim) `Hydrating.isActive` read
+    assert(
+      raw"""if !\w+_hy then \w+\.appendChild""".r.findFirstIn(code).isDefined,
+      s"expected append guarded by captured state:\n$code"
+    )
   }

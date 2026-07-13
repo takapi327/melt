@@ -9,9 +9,9 @@ import sbtheader.AutomateHeaderPlugin
 import BuildSettings.*
 import ScalaVersions.*
 
-object Implicits {
+object Implicits:
 
-  implicit class CrossProjectOps(private val project: CrossProject) extends AnyVal {
+  implicit class CrossProjectOps(private val project: CrossProject) extends AnyVal:
 
     def module(_name: String, projectDescription: String): CrossProject =
       project
@@ -36,8 +36,6 @@ object Implicits {
       project
         .settings(commonSettings)
         .enablePlugins(AutomateHeaderPlugin)
-  }
 
   implicit def builderOps(builder: CrossProject.Builder): CrossProjectOps =
     new CrossProjectOps(builder.build())
-}

@@ -47,6 +47,30 @@ final class UserEvent(
     fire(el, mouseEvent("mouseup"))
     fire(el, mouseEvent("click"))
 
+  // ── submit ──────────────────────────────────────────────────────────────────
+
+  /** Simulates submitting the `<form>` matching `selector` (or the form owning a
+    * matched control), dispatching a cancelable, bubbling `submit` event — what
+    * `use:enhance` listens for. Pass a `submitter` selector to emulate clicking a
+    * specific `<button formaction="?/name">`, whose `formaction` the enhance
+    * action reads.
+    *
+    * Throws [[NoSuchElementException]] if no element matches or after unmount.
+    */
+  def submit(selector: String, submitter: String = ""): Unit =
+    val el   = require(selector)
+    val form =
+      if el.tagName.equalsIgnoreCase("form") then el
+      else el.asInstanceOf[js.Dynamic].form.asInstanceOf[dom.Element]
+    val event = new dom.Event(
+      "submit",
+      new dom.EventInit:
+        bubbles    = true
+        cancelable = true
+    )
+    if submitter.nonEmpty then event.asInstanceOf[js.Dynamic].submitter = require(submitter)
+    fire(form, event)
+
   // ── typeText ──────────────────────────────────────────────────────────────
 
   /** Simulates typing `text` into the first element matching `selector`.

@@ -365,6 +365,16 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("""Escape.attr(userText)"""), code)
   }
 
+  test("textarea {expr} content is emitted as body content, HTML-escaped") {
+    // one-way child content (seed), distinct from bind:value; must be escaped so
+    // a `</textarea>` in the value cannot break out (the Svelte "Textarea Trap").
+    val code = compile("""<textarea>{userText}</textarea>""")
+    assert(code.contains("""renderer.push("<textarea")"""), code)
+    assert(code.contains("""renderer.push("</textarea>")"""), code)
+    assert(code.contains("renderer.push(Escape.html(userText))"), code)
+    assert(!code.contains("""Escape.attr(userText)"""), code)
+  }
+
   test("select bind:value marks the matching option as selected (static value)") {
     val src =
       """<select bind:value={choice}>

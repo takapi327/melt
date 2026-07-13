@@ -1,0 +1,18 @@
+<script lang="scala">
+// `action` echoes which named action ran ("draft" from ?/save, "published" from
+// ?/publish), passed through the redirect target `/result/:action`.
+case class Props(action: String = "")
+</script>
+
+<main class="result">
+  <h1>
+    {if props.action == "published" then "Post published!" else "Draft saved"}
+  </h1>
+  <p>Reached via 303 Post/Redirect/Get after the <code>{ props.action }</code> action.</p>
+  <a href="/posts">Write another</a>
+</main>
+
+<style>
+.result { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
+.result code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }
+</style>

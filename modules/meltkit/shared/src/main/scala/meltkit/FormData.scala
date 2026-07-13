@@ -54,6 +54,14 @@ final case class FormData(fields: Map[String, List[String]]):
   def has(name: String): Boolean =
     fields.contains(name)
 
+  /** Extracts a nested sub-form: keys prefixed with `prefix.` are kept with the
+    * prefix stripped, so `address.city` becomes `city`. Enables decoding nested
+    * case classes from hierarchical field names.
+    */
+  def scoped(prefix: String): FormData =
+    val dot = prefix + "."
+    FormData(fields.collect { case (k, v) if k.startsWith(dot) => k.drop(dot.length) -> v })
+
 object FormData:
 
   val empty: FormData = FormData(Map.empty)

@@ -185,6 +185,31 @@ object ApiCodes:
        |  else ctx.render(ProtectedPage())
        |}""".stripMargin
 
+  val meltkitFormActions: String =
+    """|import meltkit.*
+       |
+       |app.use(ServerHook.csrf[IO]())   // reject cross-origin form POSTs
+       |
+       |// single default action
+       |app.page("login")(
+       |  render = (_, form) => LoginPage(LoginPage.Props(form = form)),
+       |  action = ctx =>
+       |    ctx.body.form[LoginForm].map {
+       |      case Right(f) if f.email.contains("@") => ActionResult.Redirect("/dashboard")
+       |      case Right(f)                          => fail(422, f.copy(errors = List("invalid email")))
+       |      case Left(e)                           => fail(400, LoginForm("", "", errors = List(e.message)))
+       |    }
+       |)
+       |
+       |// named actions: one form, `formaction="?/save"` / `?/publish`
+       |app.page("posts")(
+       |  render  = (_, form) => PostEditorPage(PostEditorPage.Props(form = form)),
+       |  actions = {
+       |    case ("save", ctx)    => ctx.body.form[PostForm].map(_ => ActionResult.Redirect("/result/draft"))
+       |    case ("publish", ctx) => ctx.body.form[PostForm].map(_ => ActionResult.Redirect("/result/published"))
+       |  }
+       |)""".stripMargin
+
   val meltkitViteManifest: String =
     """|// From a manifest file (JVM / Node — requires import meltkit.syntax.*)
        |val manifest = ViteManifest.fromFile("public/dist/.vite/manifest.json")

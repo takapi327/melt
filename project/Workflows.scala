@@ -1,12 +1,12 @@
-import sbt._
+import sbt.*
 
-import sbtghactions.GenerativePlugin.autoImport._
+import sbtghactions.GenerativePlugin.autoImport.*
 import sbtghactions.UseRef
 
-import JavaVersions._
-import ScalaVersions._
+import JavaVersions.*
+import ScalaVersions.*
 
-object Workflows {
+object Workflows:
 
   /** Condition used to gate artifact upload/download steps to tag-push releases only. */
   private val publishCond: String =
@@ -93,4 +93,3 @@ object Workflows {
       javas  = List(JavaSpec.corretto(java17), JavaSpec.corretto(java21))
     )
   )
-}

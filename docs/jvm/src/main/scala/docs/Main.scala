@@ -42,7 +42,8 @@ private val guides = List(
   "routing",
   "ssr",
   "ssg",
-  "adapters"
+  "adapters",
+  "form-actions"
 )
 private val examples = List("counter", "todo-app")
 

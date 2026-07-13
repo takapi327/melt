@@ -8,7 +8,7 @@ import sbtheader.HeaderPlugin.autoImport.*
 import sbtheader.HeaderPlugin.autoImport.HeaderPattern.commentBetween
 import ScalaVersions.*
 
-object BuildSettings {
+object BuildSettings:
 
   val customCommentStyle: CommentStyle =
     CommentStyle(
@@ -51,7 +51,7 @@ object BuildSettings {
   )
 
   /** Helper for sbt plugin projects. */
-  object MeltSbtPluginProject {
+  object MeltSbtPluginProject:
     def apply(name: String, dir: String): Project =
       Project(name, file(dir))
         .settings(scalaVersion := scala38)
@@ -59,5 +59,3 @@ object BuildSettings {
         .settings(commonSettings)
         .settings(scriptedSettings)
         .enablePlugins(SbtPlugin, AutomateHeaderPlugin)
-  }
-}

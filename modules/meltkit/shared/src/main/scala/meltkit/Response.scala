@@ -179,6 +179,16 @@ object Response:
       Map("Location" -> location)
     )
 
+  /** `303 See Other` — the correct redirect after a form POST (Post/Redirect/Get).
+    *
+    * Unlike 302, 303 explicitly tells the browser to issue a `GET` for the
+    * target, so refreshing the destination never re-submits the form. Same
+    * relative-path / open-redirect protection as [[redirect]].
+    */
+  def seeOther(location: String): PlainResponse =
+    requireRelativePath(location)
+    PlainResponse(303, "text/plain", "", Map("Location" -> location))
+
   /** Throws [[IllegalArgumentException]] if `path` is not a safe relative path.
     *
     * Uses an allowlist approach: only paths starting with `/` (but not `//` or `/\`)

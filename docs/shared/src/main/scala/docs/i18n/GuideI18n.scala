@@ -343,27 +343,35 @@ case class GuideCss(
 // ── Testing ───────────────────────────────────────────────────────────────────
 
 case class GuideTesting(
-  lead:          String,
-  setupH2:       String,
-  setupIntro:    String,
-  writingH2:     String,
-  apiH2:         String,
-  methodH:       String,
-  descH:         String,
-  mountDesc:     String,
-  textDesc:      String,
-  clickDesc:     String,
-  inputDesc:     String,
-  existsDesc:    String,
-  findAllDesc:   String,
-  getByTextDesc: String,
-  getByRoleDesc: String,
-  waitForDesc:   String,
-  reactiveH2:    Option[String],
-  reactiveIntro: Option[String],
-  eventH2:       Option[String],
-  jvmTitle:      Option[String],
-  jvmText:       Option[String]
+  lead:           String,
+  setupH2:        String,
+  setupIntro:     String,
+  writingH2:      String,
+  apiH2:          String,
+  methodH:        String,
+  descH:          String,
+  mountDesc:      String,
+  textDesc:       String,
+  clickDesc:      String,
+  inputDesc:      String,
+  existsDesc:     String,
+  findAllDesc:    String,
+  getByTextDesc:  String,
+  getByRoleDesc:  String,
+  waitForDesc:    String,
+  reactiveH2:     Option[String],
+  reactiveIntro:  Option[String],
+  eventH2:        Option[String],
+  jvmTitle:       Option[String],
+  jvmText:        Option[String],
+  formH2:         String,
+  formIntro:      String,
+  formServerH3:   String,
+  formServerDesc: String,
+  formClientH3:   String,
+  formClientDesc: String,
+  formCodecH3:    String,
+  formCodecDesc:  String
 )
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -457,6 +465,42 @@ case class GuideAdapters(
   multiText:    Option[String]
 )
 
+// ── Form Actions ────────────────────────────────────────────────────────────────
+
+case class GuideFormActions(
+  lead:             String,
+  howH2:            String,
+  howIntro:         String,
+  step1:            String,
+  step2:            String,
+  step3:            String,
+  serverH2:         String,
+  serverIntro:      String,
+  singleH3:         String,
+  singleIntro:      String,
+  namedH3:          String,
+  namedIntro:       String,
+  resultH2:         String,
+  resultIntro:      String,
+  resultSuccess:    String,
+  resultFailure:    String,
+  resultRedirect:   String,
+  clientH2:         String,
+  clientIntro:      String,
+  nameOfTitle:      String,
+  nameOfText:       String,
+  controlsH2:       String,
+  controlsIntro:    String,
+  customH2:         String,
+  customIntro:      String,
+  csrfH2:           String,
+  csrfIntro:        String,
+  reactivityTitle:  String,
+  reactivityText:   String,
+  progressiveTitle: String,
+  progressiveText:  String
+)
+
 // ── Top-level Guide container ─────────────────────────────────────────────────
 
 case class GuideI18n(
@@ -480,7 +524,8 @@ case class GuideI18n(
   routing:         GuideRouting,
   ssr:             GuideSsr,
   ssg:             GuideSsg,
-  adapters:        GuideAdapters
+  adapters:        GuideAdapters,
+  formActions:     GuideFormActions
 )
 
 object GuideI18n:
@@ -856,7 +901,19 @@ object GuideI18n:
       reactiveIntro = None,
       eventH2       = None,
       jvmTitle      = None,
-      jvmText       = None
+      jvmText       = None,
+      formH2        = "Testing form actions",
+      formIntro     =
+        "Form actions are tested at three layers, each with a helper so no HTTP server or real browser is needed.",
+      formServerH3   = "Server: FormProbe",
+      formServerDesc =
+        "FormProbe(app) drives an app's routes in memory (reusing the http4s adapter, so real query parsing, the CSRF hook and action dispatch all run). submit(...) returns a ProbeResponse (status/body/location); origin and host can differ to emulate a cross-site attack.",
+      formClientH3   = "Client: use:enhance",
+      formClientDesc =
+        "FetchStub installs a fetch that returns an EnhanceResult envelope (jsdom ships none); userEvent.submit fires the form's submit event. Together they exercise the enhance fetch and assert the reactive form state.",
+      formCodecH3   = "Codecs",
+      formCodecDesc =
+        "FieldCodec[A].roundTrip(value) checks decode(encode(a)) == a, and FormDataDecoder[A].decode(FormData.parse(query)) decodes a raw body — assert with your own framework."
     ),
 
     routing = GuideRouting(
@@ -948,6 +1005,57 @@ object GuideI18n:
       choiceLi4Pre = None,
       multiTitle   = None,
       multiText    = None
+    ),
+
+    formActions = GuideFormActions(
+      lead =
+        "Form actions let a single declaration handle a form both ways: a plain POST that works with JavaScript disabled, and a fetch-based upgrade (use:enhance) that updates the page in place. The same server logic serves both.",
+      howH2    = "Progressive enhancement",
+      howIntro = "A form action is built on three layers, each a strict superset of the one below it:",
+      step1    =
+        "A plain <form method=\"post\"> submits natively and the server responds with a redirect (Post/Redirect/Get) or a re-render — this works with no JavaScript at all.",
+      step2 =
+        "Adding use:enhance intercepts the submit and replays it as a fetch, updating the form state in place with no full-page reload.",
+      step3 =
+        "The server action is written once; it detects an enhance request via a header and returns a JSON envelope instead of a redirect/HTML.",
+      serverH2    = "Server: page actions",
+      serverIntro =
+        "Register a page with app.page. GET renders the page (form = None); POST runs an action that returns an ActionResult.",
+      singleH3    = "Single default action",
+      singleIntro =
+        "For a one-form page, pass a single action = ctx => …. The submitted body is decoded with ctx.body.form[A]:",
+      namedH3    = "Named actions",
+      namedIntro =
+        "For multiple submit buttons on one form (formaction=\"?/name\"), pass actions as a partial function over (actionName, ctx). All cases share the same form type:",
+      resultH2    = "ActionResult",
+      resultIntro =
+        "An action returns an ActionResult, which drives both the native response and the enhance envelope:",
+      resultSuccess = "Success(data) — re-render (native) or update the form (enhance).",
+      resultFailure =
+        "Failure(status, data), via the fail(status, data) helper — a validation failure carrying the form back with errors.",
+      resultRedirect =
+        "Redirect(location) — a 303 Post/Redirect/Get on the native path; a client-side navigation under enhance.",
+      clientH2    = "Client: use:enhance",
+      clientIntro =
+        "Import meltkit.enhance and bind it with use:enhance={form}, where form is a Form primitive seeded from the hydration props. Removing use:enhance leaves a working native form — the progressive-enhancement floor.",
+      nameOfTitle = "Type-safe field names",
+      nameOfText  =
+        "The input name is the one string not checked against the form type. Derive it from a selector: {...form.text(_.email)} spreads both the name and the seeded value, or name={form.nameOf(_.email)} for the name alone. A typo (_.emial) is a compile error, and the name always matches the exact field the server's FormDataDecoder reads.",
+      controlsH2    = "All form controls",
+      controlsIntro =
+        "Every control has a type-checked spread helper that seeds it from the field: form.text (input), form.checkbox (checked from a Boolean), form.radio(_.f, option) and form.select/form.option (value + checked/selected on match). A <textarea> uses child interpolation for its content. All reuse the same FieldCodec:",
+      customH2    = "Custom field types",
+      customIntro =
+        "Fields are decoded/encoded by a FieldCodec. String, Int, Long, Double, Boolean, Option and List are built in; add your own domain types by mapping an existing codec with imap/eimap. One FieldCodec drives both the server decode and the form.text value, so a custom type round-trips correctly. Nested case classes decode from hierarchical `field.subfield` keys, and nameOf/text accept nested selectors (form.nameOf(_.address.city)):",
+      csrfH2    = "CSRF protection",
+      csrfIntro =
+        "Guard your actions against cross-site form submissions with the CSRF hook. For any state-changing form POST it requires the request Origin to match the server (rejecting others with 403); it covers both the native and the use:enhance submit, and loopback hosts default to http so it works in local development:",
+      reactivityTitle = "Reactivity: pass State/Signal, not .value",
+      reactivityText  =
+        "Melt makes an attribute, list, or conditional reactive by OVERLOAD: pass a State/Signal (it subscribes) rather than a plain .value (read once). So use disabled={form.submitting} (not .value), and drive the error display from a conditional whose source is form.data — otherwise a validation Failure updates the state but the DOM never re-renders.",
+      progressiveTitle = "Works without JavaScript",
+      progressiveText  =
+        "Because the native <form> path is the foundation, the form still submits and validates with JavaScript disabled. use:enhance is a pure upgrade — never a requirement."
     )
   )
 
@@ -1292,7 +1400,18 @@ object GuideI18n:
       reactiveIntro = Some("State を直接変更してレンダリング結果を確認することもできます。"),
       eventH2       = Some("イベントのシミュレーション"),
       jvmTitle      = Some("テストは Node.js で実行される"),
-      jvmText = Some("testkit は Node.js 上で jsdom を使って動作するため、実ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。")
+      jvmText   = Some("testkit は Node.js 上で jsdom を使って動作するため、実ブラウザなしで高速にテストできます。DOM 操作のシミュレーションは testkit が内部的に処理します。"),
+      formH2    = "フォームアクションのテスト",
+      formIntro = "フォームアクションは 3 つの層でテストでき、それぞれヘルパがあるので HTTP サーバも実ブラウザも不要です。",
+      formServerH3   = "サーバ: FormProbe",
+      formServerDesc =
+        "FormProbe(app) はアプリの routes をインメモリで実行します（http4s アダプタを再利用するので、実クエリ解析・CSRF フック・アクションのディスパッチがすべて走ります）。submit(...) は ProbeResponse（status/body/location）を返し、origin と host を別々に指定してクロスサイト攻撃を再現できます。",
+      formClientH3   = "クライアント: use:enhance",
+      formClientDesc =
+        "FetchStub は EnhanceResult エンベロープを返す fetch を設置し（jsdom は fetch を持たない）、userEvent.submit がフォームの submit を発火します。両者で enhance の fetch を動かし、リアクティブなフォーム状態を検証します。",
+      formCodecH3   = "コーデック",
+      formCodecDesc =
+        "FieldCodec[A].roundTrip(value) は decode(encode(a)) == a を検証し、FormDataDecoder[A].decode(FormData.parse(query)) は生のボディをデコードします。アサーションは各自のフレームワークで行います。"
     ),
 
     routing = GuideRouting(
@@ -1381,6 +1500,49 @@ object GuideI18n:
       choiceLi4Pre = Some(""),
       multiTitle   = Some("複数アダプターの組み合わせ"),
       multiText    = Some("開発時は Node.js アダプターで素早く起動し、プロダクションでは http4s にデプロイするような環境別の切り替えも可能です。")
+    ),
+
+    formActions = GuideFormActions(
+      lead =
+        "フォームアクションは、1 つの宣言でフォームを両方の形で扱えるようにします。JavaScript 無効でも動くネイティブ POST と、その場でページを更新する fetch ベースの拡張（use:enhance）です。同じサーバロジックが両方に対応します。",
+      howH2    = "プログレッシブエンハンスメント",
+      howIntro = "フォームアクションは 3 つの層で構成され、上の層は下の層の厳密な上位集合です。",
+      step1    =
+        "素の <form method=\"post\"> はネイティブに送信され、サーバはリダイレクト（Post/Redirect/Get）または再描画で応答します。これは JavaScript が一切なくても動作します。",
+      step2       = "use:enhance を付けると submit を横取りして fetch として再送し、ページ全体をリロードせずにフォーム状態をその場で更新します。",
+      step3       = "サーバのアクションは 1 回だけ書きます。ヘッダで enhance リクエストを検知し、リダイレクト／HTML の代わりに JSON エンベロープを返します。",
+      serverH2    = "サーバ: ページアクション",
+      serverIntro = "app.page でページを登録します。GET はページを描画し（form = None）、POST は ActionResult を返すアクションを実行します。",
+      singleH3    = "単一のデフォルトアクション",
+      singleIntro = "1 フォームのページなら、単一の action = ctx => … を渡します。送信ボディは ctx.body.form[A] でデコードします。",
+      namedH3     = "名前付きアクション",
+      namedIntro  =
+        "1 つのフォームに複数の submit ボタン（formaction=\"?/name\"）がある場合、actions を (アクション名, ctx) のタプルに対する部分関数として渡します。すべてのケースは同じフォーム型を共有します。",
+      resultH2       = "ActionResult",
+      resultIntro    = "アクションは ActionResult を返し、これがネイティブ応答と enhance エンベロープの両方を決定します。",
+      resultSuccess  = "Success(data) — 再描画（ネイティブ）またはフォーム更新（enhance）。",
+      resultFailure  = "Failure(status, data)（fail(status, data) ヘルパー経由）— バリデーション失敗。エラー付きでフォームを返します。",
+      resultRedirect = "Redirect(location) — ネイティブ経路では 303 Post/Redirect/Get、enhance ではクライアント側ナビゲーション。",
+      clientH2       = "クライアント: use:enhance",
+      clientIntro    =
+        "meltkit.enhance をインポートし、use:enhance={form} でバインドします。form は hydration の props から生成した Form プリミティブです。use:enhance を外せば動作するネイティブフォームが残ります（プログレッシブエンハンスメントの土台）。",
+      nameOfTitle = "型安全なフィールド名",
+      nameOfText  =
+        "input の name はフォーム型と照合されない唯一の文字列です。セレクタから導出しましょう。{...form.text(_.email)} は name と初期 value をまとめて展開し、name={form.nameOf(_.email)} は name だけを返します。タイポ（_.emial）はコンパイルエラーになり、name はサーバの FormDataDecoder が読むフィールドと必ず一致します。",
+      controlsH2    = "すべてのフォームコントロール",
+      controlsIntro =
+        "各コントロールに型チェック済みの spread ヘルパーがあり、フィールドから初期化します。form.text（input）、form.checkbox（Boolean から checked）、form.radio(_.f, option)、form.select / form.option（value + 一致時に checked/selected）。<textarea> は子コンテンツ補間で内容を入れます。すべて同じ FieldCodec を再利用します。",
+      customH2    = "カスタムフィールド型",
+      customIntro =
+        "フィールドは FieldCodec でデコード/エンコードされます。String・Int・Long・Double・Boolean・Option・List は組み込みで、独自ドメイン型は既存コーデックを imap/eimap でマップして追加します。1 つの FieldCodec がサーバのデコードと form.text の value の両方を駆動するので、カスタム型も正しく往復します。ネストした case class は階層キー（field.subfield）でデコードされ、nameOf/text はネストしたセレクタ（form.nameOf(_.address.city)）を受け付けます。",
+      csrfH2    = "CSRF 保護",
+      csrfIntro =
+        "CSRF フックでクロスサイトのフォーム送信からアクションを守ります。状態を変更するフォーム POST に対し、リクエストの Origin がサーバと一致することを要求し（不一致は 403）、ネイティブと use:enhance の両方の送信をカバーします。ループバックホストは http を既定とするのでローカル開発でもそのまま動きます。",
+      reactivityTitle = "リアクティビティ: .value ではなく State/Signal を渡す",
+      reactivityText  =
+        "Melt は属性・リスト・条件を「オーバーロードで」リアクティブにします。プレーンな .value（一度きり）ではなく State/Signal を渡すと subscribe されます。よって disabled={form.submitting}（.value を付けない）とし、エラー表示は form.data を source とする条件式で駆動します。そうしないと、バリデーション Failure で状態は更新されても DOM が再描画されません。",
+      progressiveTitle = "JavaScript 無しでも動く",
+      progressiveText  = "ネイティブ <form> 経路が土台なので、JavaScript を無効にしてもフォームは送信・検証されます。use:enhance は純粋な拡張であり、必須ではありません。"
     )
   )
 

@@ -35,9 +35,13 @@ class SemanticCheckersSpec extends munit.FunSuite:
     assert(result.errors.nonEmpty || !result.scalaCode.exists(_.contains("${ c }")))
   }
 
-  test("expression inside <textarea> is a compile error") {
+  test("expression inside <textarea> is allowed and escaped (escapable raw text)") {
+    // Unlike <script>/<style>, <textarea> is escapable raw text: interpolation is
+    // valid as long as the content is HTML-escaped (which the SSR emitter does),
+    // so `</textarea>` injection cannot break out.
     val result = compileSsr("""<textarea>{ text }</textarea>""")
-    assert(result.errors.nonEmpty, result.errors)
+    assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors }")
+    assert(result.scalaCode.exists(_.contains("Escape.html(text)")), result.scalaCode)
   }
 
   test("expression inside <title> outside melt:head is a compile error") {
