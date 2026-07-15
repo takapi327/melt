@@ -43,7 +43,8 @@ private val guides = List(
   "ssr",
   "ssg",
   "adapters",
-  "form-actions"
+  "form-actions",
+  "server-functions"
 )
 private val examples = List("counter", "todo-app")
 

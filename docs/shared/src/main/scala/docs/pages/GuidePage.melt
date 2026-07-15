@@ -5,7 +5,7 @@ import docs.pages.guide.{
   Introduction, Installation, QuickStart, Components, TemplateSyntax,
   Reactivity, Computed, Effects, Events, LifecyclePage, ControlFlow,
   SpecialElements, Transitions, TrustedHtml as HtmlPage, Css, Testing, Routing,
-  Ssr, Ssg, Adapters, FormActions
+  Ssr, Ssg, Adapters, FormActions, ServerFunctions
 }
 
 case class Props(basePath: String = "", lang: String = "en", slug: String = "")
@@ -41,6 +41,7 @@ val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
   else if props.slug == "ssg" then <Ssg lang={props.lang} basePath={props.basePath} />
   else if props.slug == "adapters" then <Adapters lang={props.lang} basePath={props.basePath} />
   else if props.slug == "form-actions" then <FormActions lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "server-functions" then <ServerFunctions lang={props.lang} basePath={props.basePath} />
   else <p>{props.slug}</p>
   }
 </article>

@@ -95,5 +95,8 @@ val base = props.basePath + "/" + props.lang
     <span class="doc-nav-dir">{nav.prev}</span>
     <span class="doc-nav-title">{if props.lang == "ja" then "アダプター" else "Adapters"}</span>
   </a>
-  <span></span>
+  <a class="doc-nav-next" href={base + "/guide/server-functions"}>
+    <span class="doc-nav-dir">{nav.next}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "サーバー関数" else "Server Functions"}</span>
+  </a>
 </div>

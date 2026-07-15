@@ -501,6 +501,26 @@ case class GuideFormActions(
   progressiveText:  String
 )
 
+// ── Server Functions ────────────────────────────────────────────────────────
+
+case class GuideServerFunctions(
+  lead:             String,
+  queryH2:          String,
+  queryIntro:       String,
+  commandH2:        String,
+  commandIntro:     String,
+  singleFlightH2:   String,
+  singleFlightIntro: String,
+  optimisticH2:     String,
+  optimisticIntro:  String,
+  issuesH2:         String,
+  issuesIntro:      String,
+  serverOnlyTitle:  String,
+  serverOnlyText:   String,
+  handlerTitle:     String,
+  handlerText:      String
+)
+
 // ── Top-level Guide container ─────────────────────────────────────────────────
 
 case class GuideI18n(
@@ -525,7 +545,8 @@ case class GuideI18n(
   ssr:             GuideSsr,
   ssg:             GuideSsg,
   adapters:        GuideAdapters,
-  formActions:     GuideFormActions
+  formActions:     GuideFormActions,
+  serverFunctions: GuideServerFunctions
 )
 
 object GuideI18n:
@@ -1056,6 +1077,31 @@ object GuideI18n:
       progressiveTitle = "Works without JavaScript",
       progressiveText  =
         "Because the native <form> path is the foundation, the form still submits and validates with JavaScript disabled. use:enhance is a pure upgrade — never a requirement."
+    ),
+    serverFunctions = GuideServerFunctions(
+      lead =
+        "Server functions are type-safe calls from a component to server code. One shared contract — ServerFn.query for reads and ServerFn.command for mutations — is implemented on the server with app.serve and called from the client, so the input and output types can never drift between the two sides. The wire format is JSON produced by the value's PropsCodec, so no extra codec is needed.",
+      queryH2    = "query — reactive reads",
+      queryIntro =
+        "ServerFn.query defines a read. Calling it returns a Query whose state is a Signal[Async[Out]] (Loading / Done / Failed) rendered with a match. Seed it from a page-loader prop so SSR shows the data and the client hydrates with no loading flash or redundant fetch; refresh() re-runs it on demand.",
+      commandH2    = "command — mutations",
+      commandIntro =
+        "ServerFn.command defines a mutation, called from an event handler as a Future. A non-2xx response fails the Future with a ServerFnException.",
+      singleFlightH2    = "Single-flight",
+      singleFlightIntro =
+        "A mutation can refresh related queries in the same round-trip: dispatch(in).updates(query).run() runs the mutation and re-runs the requested queries on the server, piggybacking their new values on the response so the client updates them in one trip.",
+      optimisticH2    = "Optimistic updates",
+      optimisticIntro =
+        "optimistic(query)(f) applies an expected change the moment run() fires — before the server responds — then reconciles with the authoritative value from the same round-trip on success, or rolls back automatically on failure.",
+      issuesH2    = "Per-field form issues",
+      issuesIntro =
+        "A form model can carry per-field validation issues as errors: Map[String, List[String]]. On a validation failure the action returns the data with the map filled in, and the component shows each message next to its input — the SvelteKit fields.x.issues() equivalent.",
+      serverOnlyTitle = "Server-only by construction",
+      serverOnlyText  =
+        "The implementation passed to app.serve only ever compiles on the server. On the JVM it can reference java.sql / secrets that Scala.js cannot compile at all, so a database client can never leak into the browser bundle — a structural guarantee, not a lint rule.",
+      handlerTitle = "Commands run in event handlers",
+      handlerText  =
+        "dispatch / optimistic / run are client-only and belong inside event handlers, which are stripped from SSR output — so a shared component still compiles for the JVM. Queries (seeded / refresh) and the Async match render on both platforms. A .run() needs an ExecutionContext in scope (import scala.concurrent.ExecutionContext.Implicits.global)."
     )
   )
 
@@ -1543,6 +1589,31 @@ object GuideI18n:
         "Melt は属性・リスト・条件を「オーバーロードで」リアクティブにします。プレーンな .value（一度きり）ではなく State/Signal を渡すと subscribe されます。よって disabled={form.submitting}（.value を付けない）とし、エラー表示は form.data を source とする条件式で駆動します。そうしないと、バリデーション Failure で状態は更新されても DOM が再描画されません。",
       progressiveTitle = "JavaScript 無しでも動く",
       progressiveText  = "ネイティブ <form> 経路が土台なので、JavaScript を無効にしてもフォームは送信・検証されます。use:enhance は純粋な拡張であり、必須ではありません。"
+    ),
+    serverFunctions = GuideServerFunctions(
+      lead =
+        "サーバー関数は、コンポーネントからサーバーコードを型安全に呼び出す仕組みです。1 つの共有契約（読み取りは ServerFn.query、変更は ServerFn.command）をサーバーで app.serve により実装し、クライアントから呼び出します。入力・出力の型は両サイドでずれることがありません。ワイヤ形式は値の PropsCodec が生成する JSON なので、追加のコーデックは不要です。",
+      queryH2    = "query — リアクティブな読み取り",
+      queryIntro =
+        "ServerFn.query は読み取りを定義します。呼び出すと Query が返り、その state は Signal[Async[Out]]（Loading / Done / Failed）で、match で描画します。ページローダーの prop から seed すれば、SSR がデータを描画し、クライアントはローディングのちらつきや再取得なしで hydration します。refresh() で任意に再取得できます。",
+      commandH2    = "command — 変更",
+      commandIntro =
+        "ServerFn.command は変更を定義し、イベントハンドラから Future として呼び出します。2xx 以外の応答は Future を ServerFnException で失敗させます。",
+      singleFlightH2    = "single-flight（単一往復）",
+      singleFlightIntro =
+        "変更は同じ往復で関連 query を更新できます。dispatch(in).updates(query).run() は変更を実行し、要求された query をサーバーで再実行して新しい値をレスポンスに相乗りさせ、クライアントは 1 往復でそれらを更新します。",
+      optimisticH2    = "楽観的更新",
+      optimisticIntro =
+        "optimistic(query)(f) は run() 実行の瞬間に（サーバー応答を待たず）期待する変更を先に反映し、成功時は同じ往復の確定値でリコンサイル、失敗時は自動でロールバックします。",
+      issuesH2    = "フィールドごとの検証イシュー",
+      issuesIntro =
+        "フォームモデルは errors: Map[String, List[String]] としてフィールドごとの検証イシューを保持できます。検証失敗時、アクションはこのマップを埋めたデータを返し、コンポーネントは各メッセージを対応する入力の隣に表示します（SvelteKit の fields.x.issues() 相当）。",
+      serverOnlyTitle = "構造的に server-only",
+      serverOnlyText  =
+        "app.serve に渡す実装はサーバーでしかコンパイルされません。JVM では Scala.js がコンパイルできない java.sql やシークレットを参照できるため、DB クライアントがブラウザバンドルに混入することは決してありません。lint ルールではなく構造的な保証です。",
+      handlerTitle = "command はイベントハンドラ内で実行",
+      handlerText  =
+        "dispatch / optimistic / run はクライアント専用で、SSR 出力から除去されるイベントハンドラ内に置きます。そのため共有コンポーネントも JVM でコンパイルできます。query（seeded / refresh）と Async の match は両プラットフォームで描画されます。.run() にはスコープ内に ExecutionContext が必要です（import scala.concurrent.ExecutionContext.Implicits.global）。"
     )
   )
 
