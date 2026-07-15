@@ -505,6 +505,13 @@ case class GuideFormActions(
 
 case class GuideServerFunctions(
   lead:             String,
+  whatH2:           String,
+  whatProblem:      String,
+  whatModel:        String,
+  whatServerOnly:   String,
+  whatKinds:        String,
+  contractH2:       String,
+  contractIntro:    String,
   queryH2:          String,
   queryIntro:       String,
   commandH2:        String,
@@ -1080,7 +1087,19 @@ object GuideI18n:
     ),
     serverFunctions = GuideServerFunctions(
       lead =
-        "Server functions are type-safe calls from a component to server code. One shared contract — ServerFn.query for reads and ServerFn.command for mutations — is implemented on the server with app.serve and called from the client, so the input and output types can never drift between the two sides. The wire format is JSON produced by the value's PropsCodec, so no extra codec is needed.",
+        "A server function is a function you write once on the server and call directly from your components — as if it were local — even though it always runs on the server. Melt generates the HTTP endpoint and the client fetch for you and keeps the argument and result types in sync, so you never hand-write an endpoint, a fetch call, or a JSON codec just to move data between the browser and the server.",
+      whatH2 = "What is a server function?",
+      whatProblem =
+        "Normally, getting data between the browser and the server means writing three things and keeping them in step by hand: an HTTP endpoint on the server, a fetch call on the client, and the request/response types. Rename one field and you fix it in three places — and nothing warns you when they drift apart.",
+      whatModel =
+        "A server function collapses that into one declaration. You define it once, call it like an ordinary function, and it runs on the server. This is the classic RPC (remote procedure call) idea: the call looks local but executes on the server, and the framework handles the network plumbing — the request is still there, just packaged as a function call.",
+      whatServerOnly =
+        "Because the body runs only on the server, it can freely use your database and secrets: they never reach the browser bundle. And because the contract is a single shared definition, the argument and result types cannot drift between the two sides.",
+      whatKinds =
+        "Melt has two kinds. A query reads data and gives you a reactive result with loading/error state; a command mutates data and is called from an event handler. Everything else — seeding, single-flight refresh, optimistic updates, per-field form issues — builds on those two.",
+      contractH2    = "The contract",
+      contractIntro =
+        "Define the functions in a shared file, compiled for both the server and the client, so both sides agree on the same types. ServerFn.query is a read; ServerFn.command is a mutation. The string is the endpoint's logical name.",
       queryH2    = "query — reactive reads",
       queryIntro =
         "ServerFn.query defines a read. Calling it returns a Query whose state is a Signal[Async[Out]] (Loading / Done / Failed) rendered with a match. Seed it from a page-loader prop so SSR shows the data and the client hydrates with no loading flash or redundant fetch; refresh() re-runs it on demand.",
@@ -1592,7 +1611,19 @@ object GuideI18n:
     ),
     serverFunctions = GuideServerFunctions(
       lead =
-        "サーバー関数は、コンポーネントからサーバーコードを型安全に呼び出す仕組みです。1 つの共有契約（読み取りは ServerFn.query、変更は ServerFn.command）をサーバーで app.serve により実装し、クライアントから呼び出します。入力・出力の型は両サイドでずれることがありません。ワイヤ形式は値の PropsCodec が生成する JSON なので、追加のコーデックは不要です。",
+        "サーバー関数とは、サーバー側に一度だけ書いた関数を、あたかもローカル関数のようにコンポーネントから直接呼び出せる仕組みです。実際の処理は常にサーバーで実行されます。HTTP エンドポイントとクライアントの fetch は Melt が生成し、引数と戻り値の型を両サイドで一致させ続けます。データをブラウザとサーバーの間でやり取りするためだけにエンドポイントや fetch、JSON コーデックを手書きする必要はありません。",
+      whatH2 = "サーバー関数とは？",
+      whatProblem =
+        "通常、ブラウザとサーバーの間でデータをやり取りするには、3 つのものを書いて手作業で整合させ続ける必要があります。サーバーの HTTP エンドポイント、クライアントの fetch 呼び出し、そしてリクエスト／レスポンスの型です。フィールド名を 1 つ変えれば 3 箇所を直すことになり、ずれても何も警告してくれません。",
+      whatModel =
+        "サーバー関数は、これを 1 つの宣言に畳み込みます。一度定義すれば、普通の関数のように呼び出せ、処理はサーバーで実行されます。これは古くからある RPC（リモートプロシージャコール）の考え方です。呼び出しはローカルに見えますが実際はサーバーで実行され、ネットワークの配管はフレームワークが担います（リクエストは無くなったわけではなく、関数呼び出しとして包まれているだけです）。",
+      whatServerOnly =
+        "本体はサーバーでしか実行されないため、データベースやシークレットを自由に使えます。それらがブラウザバンドルに混入することはありません。また契約は 1 つの共有定義なので、引数と戻り値の型が両サイドでずれることはありません。",
+      whatKinds =
+        "Melt には 2 種類あります。query はデータを読み取り、ローディング／エラー状態を持つリアクティブな結果を返します。command はデータを変更し、イベントハンドラから呼び出します。それ以外（seed、single-flight による再取得、楽観的更新、フィールドごとのフォームイシュー）は、すべてこの 2 つの上に成り立ちます。",
+      contractH2    = "契約（コントラクト）",
+      contractIntro =
+        "関数は共有ファイルに定義します。サーバーとクライアントの両方でコンパイルされるので、両サイドが同じ型に合意します。ServerFn.query は読み取り、ServerFn.command は変更です。文字列はエンドポイントの論理名です。",
       queryH2    = "query — リアクティブな読み取り",
       queryIntro =
         "ServerFn.query は読み取りを定義します。呼び出すと Query が返り、その state は Signal[Async[Out]]（Loading / Done / Failed）で、match で描画します。ページローダーの prop から seed すれば、SSR がデータを描画し、クライアントはローディングのちらつきや再取得なしで hydration します。refresh() で任意に再取得できます。",

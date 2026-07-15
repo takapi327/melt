@@ -924,6 +924,16 @@ object GuideCodes:
 
   // ── Server Functions ────────────────────────────────────────────────────────
 
+  val serverFunctionsWhy: String =
+    """|// Without server functions — three things kept in sync by hand:
+       |app.get("api/posts") { ctx => postRepo.all.map(ctx.ok(_)) }   // 1. endpoint
+       |Fetch("/api/posts").flatMap(_.text()).map(decode[List[Post]]) // 2. fetch + 3. types
+       |
+       |// With a server function — one contract, called like a local function:
+       |val list = ServerFn.query[Unit, List[Post]]("posts.list")  // shared
+       |app.serve(list) { (_, ctx) => postRepo.all }               // server
+       |val posts = list.seeded(props.posts)                       // client — done""".stripMargin
+
   val serverFunctionsContract: String =
     """|// shared: one type-safe contract, compiled for both server and client
        |object Api:

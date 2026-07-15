@@ -11,6 +11,20 @@ val base = props.basePath + "/" + props.lang
 
 <p>{t.lead}</p>
 
+<h2>{t.whatH2}</h2>
+<p>{t.whatProblem}</p>
+<p>{t.whatModel}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsWhy}</code></pre>
+</div>
+
+<p>{t.whatServerOnly}</p>
+<p>{t.whatKinds}</p>
+
+<h2>{t.contractH2}</h2>
+<p>{t.contractIntro}</p>
+
 <div class="code-block">
   <pre><code>{GuideCodes.serverFunctionsContract}</code></pre>
 </div>
