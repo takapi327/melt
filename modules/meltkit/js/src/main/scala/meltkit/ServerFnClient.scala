@@ -159,9 +159,10 @@ private object ServerFnClient:
       }
     }
     // Roll back as part of settling this future, so any downstream callback
-    // observes the restored state on failure (non-2xx or network error).
+    // observes the restored state on failure (non-2xx or network error). Undo in
+    // reverse so stacked optimistic updates on the same query restore correctly.
     result.transform { outcome =>
-      if outcome.isFailure then rollbacks.foreach(_())
+      if outcome.isFailure then rollbacks.reverse.foreach(_())
       outcome
     }
 
