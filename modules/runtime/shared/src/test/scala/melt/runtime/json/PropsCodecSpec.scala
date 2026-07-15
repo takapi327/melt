@@ -44,6 +44,9 @@ class PropsCodecSpec extends FunSuite:
   final case class Todo(id: String, text: String, done: Boolean) derives PropsCodec
   final case class TodoList(title: String, items: List[Todo]) derives PropsCodec
 
+  // A form model carrying per-field validation issues (the field-issues use case).
+  final case class Signup(email: String, errors: Map[String, List[String]] = Map.empty) derives PropsCodec
+
   // ── Primitive round-trip ─────────────────────────────────────────────
 
   test("primitives round-trip through encode/decode"):
@@ -110,3 +113,20 @@ class PropsCodecSpec extends FunSuite:
       codec.decode(SimpleJson.parse("""{"s":42,"i":1,"l":2,"d":3,"f":4,"b":true}"""))
     }
     assert(ex.getMessage.contains("expected String"), ex.getMessage)
+
+  // ── Map (per-field issues, Transport gap) ────────────────────────────
+
+  test("Map[String, V] round-trips as a JSON object"):
+    val codec  = summon[PropsCodec[Map[String, List[String]]]]
+    val issues = Map("email" -> List("invalid"), "password" -> List("too short", "required"))
+    assertEquals(codec.decode(SimpleJson.parse(codec.encodeToString(issues))), issues)
+
+  test("empty Map encodes to {} and null decodes to empty"):
+    val codec = summon[PropsCodec[Map[String, Int]]]
+    assertEquals(codec.encodeToString(Map.empty), "{}")
+    assertEquals(codec.decode(SimpleJson.JsonValue.Null), Map.empty[String, Int])
+
+  test("a form model with a per-field issues map derives and round-trips"):
+    val codec = summon[PropsCodec[Signup]]
+    val form  = Signup("bad", Map("email" -> List("must contain @")))
+    assertEquals(codec.decode(SimpleJson.parse(codec.encodeToString(form))), form)
