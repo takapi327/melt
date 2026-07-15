@@ -256,14 +256,24 @@ object AstToIr:
     else if code.endsWith(".now()") then code.dropRight(6)
     else code
 
-  /** Extracts a reactive source identifier (for Bind.show overload selection). */
+  /** Extracts a reactive source identifier (for Bind.show overload selection).
+    *
+    * Handles both conditional forms whose scrutinee reads a reactive cell:
+    *   - `if src.value ...` / `if !src.value ...` / `if src then ...`
+    *   - `src.value match { ... }` — the natural way to render an ADT such as
+    *     [[melt.runtime.Async]] (`case Loading => … case Done(x) => …`).
+    * In every case the leading identifier chain before `.value`/`.now()` (e.g.
+    * `posts.state`) becomes the `Bind.show` source that is subscribed to.
+    */
   private[melt] def extractReactiveSource(code: String): Option[ScalaExpr] =
-    val trimmed   = code.trim
-    val ifValueRe = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.(?:value|now\(\))""".r
-    val ifBareRe  = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\s+then\b""".r
+    val trimmed      = code.trim
+    val ifValueRe    = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\.(?:value|now\(\))""".r
+    val ifBareRe     = """^if\s+!?([a-zA-Z_][a-zA-Z0-9_.]*)\s+then\b""".r
+    val matchValueRe = """^([a-zA-Z_][a-zA-Z0-9_.]*)\.(?:value|now\(\))\s+match\b""".r
     ifValueRe
       .findFirstMatchIn(trimmed)
       .map(m => ScalaExpr(m.group(1)))
+      .orElse(matchValueRe.findFirstMatchIn(trimmed).map(m => ScalaExpr(m.group(1))))
       .orElse(ifBareRe.findFirstMatchIn(trimmed).map(m => ScalaExpr(m.group(1))))
 
   // ── Attr lowering ─────────────────────────────────────────────────────────
