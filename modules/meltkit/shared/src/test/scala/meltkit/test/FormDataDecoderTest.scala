@@ -16,6 +16,8 @@ class FormDataDecoderTest extends munit.FunSuite:
   case class CheckboxForm(name: String, agree: Boolean) derives FormDataDecoder
   case class OptionalForm(name: String, bio: Option[String]) derives FormDataDecoder
   case class ListForm(name: String, tags: List[String]) derives FormDataDecoder
+  // A form model carrying a server-populated per-field issues map.
+  case class IssueForm(title: String, errors: Map[String, List[String]] = Map.empty) derives FormDataDecoder
 
   case class Address(city: String, zip: String) derives FormDataDecoder
   case class User(name: String, address: Address) derives FormDataDecoder
@@ -29,25 +31,29 @@ class FormDataDecoderTest extends munit.FunSuite:
     )
     assertEquals(result, Right(LoginForm("alice", "secret")))
 
-  test("returns ValidationError for missing required field"):
+  test("a per-field issues map field derives and decodes to empty from a submission"):
+    val result = FormDataDecoder[IssueForm].decode(FormData.parse("title=hello").toOption.get)
+    assertEquals(result, Right(IssueForm("hello", Map.empty)))
+
+  test("returns FieldErrors keyed by the missing required field"):
     val result = FormDataDecoder[LoginForm].decode(
       FormData.parse("username=alice").toOption.get
     )
     assert(result.isLeft)
     result.left.toOption.get match
-      case BodyError.ValidationError(errors) =>
-        assert(errors.exists(_.contains("password")))
-      case other => fail(s"Expected ValidationError, got $other")
+      case BodyError.FieldErrors(byField) =>
+        assert(byField.contains("password"), byField.toString)
+        assert(!byField.contains("username"), byField.toString)
+      case other => fail(s"Expected FieldErrors, got $other")
 
-  test("accumulates multiple errors"):
+  test("accumulates errors for every failing field"):
     val result = FormDataDecoder[LoginForm].decode(FormData.empty)
     assert(result.isLeft)
     result.left.toOption.get match
-      case BodyError.ValidationError(errors) =>
-        assert(errors.size >= 2)
-        assert(errors.exists(_.contains("username")))
-        assert(errors.exists(_.contains("password")))
-      case other => fail(s"Expected ValidationError, got $other")
+      case BodyError.FieldErrors(byField) =>
+        assert(byField.contains("username"), byField.toString)
+        assert(byField.contains("password"), byField.toString)
+      case other => fail(s"Expected FieldErrors, got $other")
 
   // ── derived: Int ──────────────────────────────────────────────────────────
 
@@ -63,9 +69,9 @@ class FormDataDecoderTest extends munit.FunSuite:
     )
     assert(result.isLeft)
     result.left.toOption.get match
-      case BodyError.ValidationError(errors) =>
-        assert(errors.exists(_.contains("count")))
-      case other => fail(s"Expected ValidationError, got $other")
+      case BodyError.FieldErrors(byField) =>
+        assert(byField.contains("count"), byField.toString)
+      case other => fail(s"Expected FieldErrors, got $other")
 
   // ── derived: Boolean ──────────────────────────────────────────────────────
 
@@ -137,9 +143,11 @@ class FormDataDecoderTest extends munit.FunSuite:
     )
     assert(result.isLeft)
     result.left.toOption.get match
-      case BodyError.ValidationError(errors) =>
-        assert(errors.exists(e => e.contains("address") && e.contains("zip")), errors.toString)
-      case other => fail(s"Expected ValidationError, got $other")
+      case BodyError.FieldErrors(byField) =>
+        // the nested failure is keyed under the parent field, message carries the path
+        assert(byField.contains("address"), byField.toString)
+        assert(byField("address").exists(e => e.contains("address") && e.contains("zip")), byField.toString)
+      case other => fail(s"Expected FieldErrors, got $other")
 
   test("decodes a differently-named nested field"):
     val result = FormDataDecoder[Company].decode(

@@ -46,7 +46,8 @@ object FormDataDecoder:
     * type is itself a case class with a [[FormDataDecoder]] is decoded from
     * hierarchical keys — `FormData.scoped(fieldName)` strips the `fieldName.`
     * prefix and recurses. Errors are accumulated into
-    * [[BodyError.ValidationError]].
+    * [[BodyError.FieldErrors]], keyed by the field they came from, so an action
+    * can surface each issue next to its input.
     *
     * {{{
     * case class Address(city: String, zip: String) derives FormDataDecoder
@@ -58,13 +59,14 @@ object FormDataDecoder:
     val labels   = constValueLabels[m.MirroredElemLabels]
     val decoders = summonSlotDecoders[m.MirroredElemTypes]
     instance { form =>
-      val results: List[Either[String, Any]] = labels.zip(decoders).map { (label, dec) =>
-        dec(label, form)
+      val results: List[(String, Either[String, Any])] = labels.zip(decoders).map { (label, dec) =>
+        label -> dec(label, form)
       }
-      val errors = results.collect { case Left(e) => e }
-      if errors.nonEmpty then Left(BodyError.ValidationError(errors))
+      val fieldErrors: Map[String, List[String]] =
+        results.collect { case (label, Left(e)) => label -> List(e) }.toMap
+      if fieldErrors.nonEmpty then Left(BodyError.FieldErrors(fieldErrors))
       else
-        val values = results.collect { case Right(v) => v }
+        val values = results.collect { case (_, Right(v)) => v }
         val tuple  = Tuple.fromArray(values.toArray)
         Right(m.fromTuple(tuple.asInstanceOf[m.MirroredElemTypes]))
     }
