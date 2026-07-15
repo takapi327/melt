@@ -1,0 +1,58 @@
+<script lang="scala">
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import meltkit.*
+
+case class Props(posts: List[Post] = Nil)
+
+// Seed the reactive query from the SSR/hydration `posts` prop (the page loader).
+// The server renders the list as Async.Done and the client hydrates from the same
+// prop — no loading flash, no redundant initial fetch. `refresh()` and the
+// single-flight mutations below keep it live afterwards.
+val posts = Api.list.seeded(props.posts)
+
+// Derive the plain item list from the query's Async state, for reactive list
+// rendering. `items` re-emits whenever a mutation settles the query.
+val items = posts.state.map(_.toOption.getOrElse(Nil))
+</script>
+
+<main class="posts">
+  <h1>Posts</h1>
+  <p><a href="/new">Write a post →</a></p>
+
+  <!-- reactive conditional: `posts.state` is the source, so this re-renders as
+       the query moves Loading → Done. -->
+  {if posts.state.value.isLoading then <p class="loading">Loading…</p> else <span></span>}
+
+  <!-- reactive list over the derived `items` signal -->
+  <ul>
+    {items.value.map(p =>
+      <li>
+        <span class="title">{p.title}</span>
+        <span class="likes">♥ {p.likes.toString}</span>
+        <!-- single-flight + optimistic: bump the like count immediately, send one
+             request that both likes and refreshes the list, and roll back on
+             failure. The call lives in the handler (stripped from SSR), so the
+             JS-only `dispatch`/`optimistic`/`run` never compile for JVM. -->
+        <button class="like" onclick={ _ =>
+          Api.like.dispatch(p.id)
+            .optimistic(posts)(list => for x <- list yield if x.id == p.id then x.copy(likes = x.likes + 1) else x)
+            .run()
+        }>Like</button>
+        <button class="remove" onclick={ _ => Api.remove.dispatch(p.id).updates(posts).run() }>Delete</button>
+      </li>
+    )}
+  </ul>
+
+  <button class="reload" onclick={ _ => posts.refresh() }>Reload</button>
+</main>
+
+<style>
+.posts { max-width: 32rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
+.posts ul { list-style: none; padding: 0; }
+.posts li { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.title { flex: 1; }
+.likes { color: #c0392b; min-width: 3rem; }
+.error, .loading { color: #666; }
+button { cursor: pointer; }
+</style>
