@@ -29,15 +29,15 @@ class ServerFnClientTest extends munit.FunSuite:
   // stub is never a bare global read (which would throw when undefined).
   private def globalThis: js.Dynamic = js.Dynamic.global.globalThis
 
-  private var original: js.Any = null
-  private var lastUrl: String  = null
+  private var original: js.Any     = null
+  private var lastUrl:  String     = null
   private var lastInit: js.Dynamic = null
 
   /** Installs a `fetch` stub returning `status`/`body`, recording the request. */
   private def installFetch(status: Int, body: String): Unit =
     original = globalThis.selectDynamic("fetch").asInstanceOf[js.Any]
-    val stub: js.Function2[String, js.Dynamic, js.Promise[js.Any]] = { (url, init) =>
-      lastUrl = url
+    val stub: js.Function2[String, js.Dynamic, js.Promise[js.Any]] = (url, init) =>
+      lastUrl  = url
       lastInit = init
       // A real (empty) Headers so scala-js-dom's `jsIterator()` — which reads
       // `[Symbol.iterator]` — works when meltkit.Fetch walks the response headers.
@@ -51,7 +51,6 @@ class ServerFnClientTest extends munit.FunSuite:
       )
       res.updateDynamic("text")(() => js.Promise.resolve[String](body))
       js.Promise.resolve[js.Any](res)
-    }
     globalThis.updateDynamic("fetch")(stub)
 
   private def restoreFetch(): Unit =

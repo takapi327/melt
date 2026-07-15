@@ -63,8 +63,8 @@ object Server extends IOApp.Simple:
         ctx.body.form[NewPost].flatMap {
           case Right(f) =>
             val issues = Map.newBuilder[String, List[String]]
-            if f.title.trim.isEmpty then issues += "title"    -> List("Title is required")
-            if f.body.trim.length < 10 then issues += "body"  -> List("Body must be at least 10 characters")
+            if f.title.trim.isEmpty then issues += "title"   -> List("Title is required")
+            if f.body.trim.length < 10 then issues += "body" -> List("Body must be at least 10 characters")
             val errs = issues.result()
             if errs.nonEmpty then IO.pure(fail(422, f.copy(errors = errs)))
             else
@@ -80,8 +80,8 @@ object Server extends IOApp.Simple:
 
   def run: IO[Unit] =
     for
-      store  <- Ref.of[IO, List[Post]](List(Post(1, "Hello Melt", 3), Post(2, "Server Functions", 7)))
-      nextId <- Ref.of[IO, Int](3)
+      store   <- Ref.of[IO, List[Post]](List(Post(1, "Hello Melt", 3), Post(2, "Server Functions", 7)))
+      nextId  <- Ref.of[IO, Int](3)
       httpApp <- Http4sAdapter
                    .ssrRoutes(
                      buildApp(store, nextId),

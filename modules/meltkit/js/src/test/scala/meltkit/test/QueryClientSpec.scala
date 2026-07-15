@@ -22,14 +22,14 @@ class QueryClientSpec extends munit.FunSuite:
 
   private def globalThis: js.Dynamic = js.Dynamic.global.globalThis
 
-  private var original: js.Any = null
-  private var fetchCalls: Int  = 0
+  private var original:   js.Any = null
+  private var fetchCalls: Int    = 0
 
   /** Installs a `fetch` stub returning `status`/`body`, counting invocations. */
   private def installFetch(status: Int, body: String): Unit =
-    original = globalThis.selectDynamic("fetch").asInstanceOf[js.Any]
+    original   = globalThis.selectDynamic("fetch").asInstanceOf[js.Any]
     fetchCalls = 0
-    val stub: js.Function2[String, js.Dynamic, js.Promise[js.Any]] = { (_, _) =>
+    val stub: js.Function2[String, js.Dynamic, js.Promise[js.Any]] = (_, _) =>
       fetchCalls += 1
       val res = js.Dynamic.literal(
         status  = status,
@@ -38,7 +38,6 @@ class QueryClientSpec extends munit.FunSuite:
       )
       res.updateDynamic("text")(() => js.Promise.resolve[String](body))
       js.Promise.resolve[js.Any](res)
-    }
     globalThis.updateDynamic("fetch")(stub)
 
   private def restoreFetch(): Unit = globalThis.updateDynamic("fetch")(original)
@@ -47,7 +46,7 @@ class QueryClientSpec extends munit.FunSuite:
   private def settled[A](q: meltkit.Query[A]): Future[Async[A]] =
     if !q.state.value.isLoading then Future.successful(q.state.value)
     else
-      val p = Promise[Async[A]]()
+      val p     = Promise[Async[A]]()
       val unsub = q.state.subscribe { a => if !a.isLoading then p.trySuccess(a) }
       p.future.map { a => unsub(); a }
 
@@ -126,7 +125,7 @@ class QueryClientSpec extends munit.FunSuite:
     installFetch(200, """{"result":3,"updates":[{"name":"posts.list","args":"null","value":[1,2,3]}]}""")
     val list  = ServerFn.query[Unit, List[Int]]("posts.list")
     val like  = ServerFn.command[Int, Int]("posts.like")
-    val posts = list.seeded(List(1, 2))          // seeded → starts Done, no auto-fetch
+    val posts = list.seeded(List(1, 2)) // seeded → starts Done, no auto-fetch
     like.dispatch(3).updates(posts).run().map { result =>
       assertEquals(result, 3)
       assertEquals(posts.state.value, Async.Done(List(1, 2, 3)))
@@ -155,8 +154,8 @@ class QueryClientSpec extends munit.FunSuite:
     val like  = ServerFn.command[Int, Int]("posts.like")
     val posts = list.seeded(List(1, 2))
     val fut   = like.dispatch(3).optimistic(posts)(_ :+ 99).run()
-    assertEquals(posts.state.value, Async.Done(List(1, 2, 99)))   // optimistic shown
+    assertEquals(posts.state.value, Async.Done(List(1, 2, 99))) // optimistic shown
     fut.failed.map { _ =>
-      assertEquals(posts.state.value, Async.Done(List(1, 2)))     // rolled back to pre-mutation value
+      assertEquals(posts.state.value, Async.Done(List(1, 2))) // rolled back to pre-mutation value
       restoreFetch()
     }

@@ -50,7 +50,7 @@ extension [In, Out](fn: CommandFn[In, Out])
       }
     }
 
-  def dispatch(in: In): Mutation[In, Out]                  = new Mutation(fn, in)
+  def dispatch(in:         In):          Mutation[In, Out] = new Mutation(fn, in)
   def dispatch()(using ev: Unit =:= In): Mutation[In, Out] = new Mutation(fn, ev(()))
 
 /** A single-flight mutation: declares the queries to refresh from the mutation's
@@ -63,7 +63,7 @@ extension [In, Out](fn: CommandFn[In, Out])
   * }}}
   */
 final class Mutation[In, Out] private[meltkit] (fn: CommandFn[In, Out], in: In):
-  private var refresh:   List[Query[?]]         = Nil
+  private var refresh:   List[Query[?]]           = Nil
   private var optimisms: List[() => (() => Unit)] = Nil
 
   /** Declares queries to refresh from the mutation's response (single-flight). */
@@ -83,7 +83,7 @@ final class Mutation[In, Out] private[meltkit] (fn: CommandFn[In, Out], in: In):
     * }}}
     */
   def optimistic[A](query: Query[A])(f: A => A): Mutation[In, Out] =
-    refresh = refresh :+ query
+    refresh   = refresh :+ query
     optimisms = optimisms :+ (() => query.applyOptimistic(f))
     this
 
@@ -107,8 +107,8 @@ extension [In, Out](fn: QueryFn[In, Out])
     q
   def apply()(using ev: Unit =:= In): Query[Out] = apply(ev(()))
 
-  def seeded(in: In, seed: Out): Query[Out]                   = ServerFnClient.build(fn, in, Async.Done(seed))
-  def seeded(seed: Out)(using ev: Unit =:= In): Query[Out]   = seeded(ev(()), seed)
+  def seeded(in:   In, seed:      Out):         Query[Out] = ServerFnClient.build(fn, in, Async.Done(seed))
+  def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = seeded(ev(()), seed)
 
 private object ServerFnClient:
 
@@ -142,7 +142,7 @@ private object ServerFnClient:
     refresh:   List[Query[?]],
     optimisms: List[() => (() => Unit)]
   )(using ExecutionContext): Future[Out] =
-    val rollbacks   = optimisms.map(_())                     // apply optimistic now, keep undo thunks
+    val rollbacks   = optimisms.map(_()) // apply optimistic now, keep undo thunks
     val url         = fn.endpoint.url(PathSpec.emptyValue)
     val inputJson   = fn.inCodec.encodeToString(in)
     val refreshJson = refresh
@@ -196,8 +196,8 @@ private object ServerFnClient:
   def runQuery[In, Out](fn: QueryFn[In, Out], url: String, body: String, q: Query[Out]): Unit =
     q.setLoading()
     given ExecutionContext = queue
-    val key = s"$url\n$body"
-    val raw = inFlight.getOrElseUpdate(
+    val key                = s"$url\n$body"
+    val raw                = inFlight.getOrElseUpdate(
       key, {
         val f = postJson(url, body).flatMap(res => res.text().toFuture.map(text => (res.status, res.ok, text)))
         f.onComplete(_ => inFlight.remove(key))

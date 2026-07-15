@@ -9,7 +9,6 @@ package meltkit.adapter.http4s.test
 import munit.CatsEffectSuite
 
 import cats.effect.IO
-
 import meltkit.*
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
@@ -73,10 +72,10 @@ class ServerFnDispatchTest extends CatsEffectSuite:
   // ── single-flight: mutation re-runs requested queries in one round-trip ─────
 
   test("single-flight: a mutation runs, then re-runs a requested query and piggybacks its value"):
-    val list = ServerFn.query[Unit, List[Int]]("posts.list")
-    val like = ServerFn.command[Int, Int]("posts.like")
+    val list  = ServerFn.query[Unit, List[Int]]("posts.list")
+    val like  = ServerFn.command[Int, Int]("posts.like")
     var store = List(1, 2)
-    val app  = MeltKit[IO]()
+    val app   = MeltKit[IO]()
     app.serve(list) { (_, _) => IO(store) }
     app.serve(like) { (n, _) => IO { store = store :+ n; store.size } }
 
@@ -85,17 +84,22 @@ class ServerFnDispatchTest extends CatsEffectSuite:
     val req  = Request[IO](method = Method.POST, uri = uri"/_melt/fn/posts.like")
       .withEntity(body)
       .putHeaders(Header.Raw(ci"X-Melt-Sf", "1"))
-    Http4sAdapter.routes(app).run(req).value.flatMap { resp =>
-      assert(resp.isDefined)
-      assertEquals(resp.get.status, Status.Ok)
-      resp.get.as[String]
-    }.map { text =>
-      // mutation ran first (size 3), then the refreshed list is piggybacked
-      assert(text.contains("\"result\":3"), text)
-      assert(text.contains("\"name\":\"posts.list\""), text)
-      assert(text.contains("\"args\":\"null\""), text)
-      assert(text.contains("\"value\":[1,2,3]"), text)
-    }
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        assertEquals(resp.get.status, Status.Ok)
+        resp.get.as[String]
+      }
+      .map { text =>
+        // mutation ran first (size 3), then the refreshed list is piggybacked
+        assert(text.contains("\"result\":3"), text)
+        assert(text.contains("\"name\":\"posts.list\""), text)
+        assert(text.contains("\"args\":\"null\""), text)
+        assert(text.contains("\"value\":[1,2,3]"), text)
+      }
 
   test("single-flight with an empty refresh list returns just the result"):
     val like = ServerFn.command[Int, Int]("posts.like")

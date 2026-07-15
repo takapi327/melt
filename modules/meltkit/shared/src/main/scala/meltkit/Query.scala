@@ -6,8 +6,8 @@
 
 package meltkit
 
-import melt.runtime.json.{ PropsCodec, SimpleJson }
 import melt.runtime.{ Async, Signal, State }
+import melt.runtime.json.{ PropsCodec, SimpleJson }
 
 /** The reactive result of a [[QueryFn]] invocation.
   *
@@ -73,6 +73,6 @@ final class Query[Out] private[meltkit] (
   def set(value: Out): Unit = _state.set(Async.Done(value))
 
   // ── Runtime-internal transitions, driven by the client fetch ────────────────
-  private[meltkit] def setLoading(): Unit         = _state.set(Async.Loading)
-  private[meltkit] def setDone(value: Out): Unit  = _state.set(Async.Done(value))
-  private[meltkit] def setFailed(e: Throwable): Unit = _state.set(Async.Failed(e))
+  private[meltkit] def setLoading():              Unit = _state.set(Async.Loading)
+  private[meltkit] def setDone(value: Out):       Unit = _state.set(Async.Done(value))
+  private[meltkit] def setFailed(e:   Throwable): Unit = _state.set(Async.Failed(e))
