@@ -182,6 +182,13 @@ object Http4sAdapter:
   given [F[_]: cats.Applicative]: meltkit.Pure[F] with
     override def pure[A](a: A): F[A] = cats.Applicative[F].pure(a)
 
+  /** Bridges cats [[cats.FlatMap]] to [[meltkit.FlatMap]] so that
+    * [[meltkit.ServerMeltKitPlatform.serve]] works with any `F` that has a cats
+    * `FlatMap` instance (e.g. `cats.effect.IO`).
+    */
+  given [F[_]: cats.FlatMap]: meltkit.FlatMap[F] with
+    override def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = cats.FlatMap[F].flatMap(fa)(f)
+
   /** Bridges cats-effect [[cats.effect.kernel.Sync]] to [[meltkit.Defer]].
     *
     * Any `F` that has a cats-effect `Sync` instance (e.g. `cats.effect.IO`) gets
