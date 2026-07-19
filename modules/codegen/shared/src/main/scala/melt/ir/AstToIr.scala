@@ -213,7 +213,8 @@ object AstToIr:
     code.contains(".keyed(") && code.contains(".map(")
 
   private def isUnkeyedList(code: String): Boolean =
-    code.contains(".map(") && containsDomConstruction(afterLastDotMap(code))
+    val maps = topLevelDotMapIndices(code)
+    maps.nonEmpty && containsDomConstruction(code.substring(maps.last + 5))
 
   private def isConditionalDom(code: String): Boolean =
     (code.startsWith("if ") || code.startsWith("if(") || code.contains(" match")) &&
@@ -229,12 +230,37 @@ object AstToIr:
   private def returnsDomDirectly(code: String): Boolean =
     code.contains("createElement") || code.contains("createElementNS")
 
-  private def afterLastDotMap(code: String): String =
-    val idx = code.lastIndexOf(".map(")
-    if idx < 0 then "" else code.substring(idx + 5)
+  /** Indices of every `.map(` whose call is at the top level of `code` (bracket
+    * depth 0) — i.e. a map applied to the whole receiver, not one nested inside
+    * the render lambda (`xs.map(x => x.tags.map(...))`) or an event handler
+    * (`onclick={_ => xs.map(...)}`). Brackets inside string literals are already
+    * neutralised by [[ScalaTextUtils.stripStringLiterals]] on the caller's input.
+    */
+  private def topLevelDotMapIndices(code: String): List[Int] =
+    val result = scala.collection.mutable.ListBuffer.empty[Int]
+    var depth  = 0
+    var i      = 0
+    while i < code.length do
+      val c = code(i)
+      if c == '(' || c == '[' || c == '{' then
+        depth += 1
+        i += 1
+      else if c == ')' || c == ']' || c == '}' then
+        depth -= 1
+        i += 1
+      else if depth == 0 && code.startsWith(".map(", i) then
+        result += i
+        i += 4 // advance past ".map" only; the "(" is counted on the next step
+      else i += 1
+    result.toList
 
   private def buildUnkeyedList(code: String): IrNode.IrList =
-    val dotMap    = code.lastIndexOf(".map(")
+    // Split at the last TOP-LEVEL `.map(` (the list's own map), computed on the
+    // string-literal-stripped form so nested/handler `.map(` and quoted brackets
+    // don't misplace the boundary. Indices apply to `code` because stripping is
+    // length-preserving.
+    val topLevel  = topLevelDotMapIndices(ScalaTextUtils.stripStringLiterals(code))
+    val dotMap    = topLevel.lastOption.getOrElse(code.lastIndexOf(".map("))
     val rawSource = code.substring(0, dotMap).trim
     val source    = stripValueSuffix(rawSource)
     val fnBody    = code.substring(dotMap + 5, code.length - 1).trim

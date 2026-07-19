@@ -188,6 +188,17 @@ class AstToIrSpec extends munit.FunSuite:
       case None      => fail("Expected Some")
   }
 
+  test("a nested `.map(` inside a list item does not misplace the list split") {
+    // The list source is `items`; the render body has its OWN `.map(` (as in an
+    // event handler). The split must use the top-level `.map(`, not the last one.
+    val code = """items.value.map(p => { val u = xs.map(_ + 1); dom.document.createElement("li") })"""
+    AstToIr.lowerExpression(code) match
+      case IrNode.IrList(source, fnBody) =>
+        assertEquals(source.code, "items")
+        assert(fnBody.code.contains("xs.map("), fnBody.code)
+      case other => fail(s"Expected IrList, got $other")
+  }
+
   test("a `signal.value match` over an ADT lowers to a reactive IrConditional") {
     AstToIr.lowerExpression(
       "posts.state.value match { case Async.Loading => dom.document.createElement(\"p\") case Async.Done(xs) => dom.document.createElement(\"ul\") }"

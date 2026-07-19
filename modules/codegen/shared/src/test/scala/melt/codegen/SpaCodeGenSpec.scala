@@ -924,6 +924,17 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("Bind.show"), code)
   }
 
+  test("a list item whose handler contains `.map(` still lists over the right source") {
+    // Regression: the list's `.map(` must be found at the top level, not the
+    // nested `.map(` inside the button's onclick (which previously broke codegen).
+    val src =
+      """<ul>{items.value.map(p =>
+        |  <li><button onclick={_ => { val _ = tags.map(t => t.length).sum; () }}>{p}</button></li>
+        |)}</ul>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("Bind.list(items,"), code)
+  }
+
   test("match over a chained reactive .value emits reactive Bind.show(source, …) — powers Async queries") {
     // Mirrors the ServerFn query API: `posts.state: Signal[Async[List[..]]]`.
     val src =
