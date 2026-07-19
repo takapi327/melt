@@ -975,8 +975,7 @@ object GuideCodes:
        |// the list; the like count bumps immediately and rolls back on failure.
        |<button onclick={_ =>
        |  Api.like.dispatch(post.id)
-       |    .optimistic(posts)(list =>
-       |      for p <- list yield if p.id == post.id then p.copy(likes = p.likes + 1) else p)
+       |    .optimistic(posts)(_.map(p => if p.id == post.id then p.copy(likes = p.likes + 1) else p))
        |    .run()
        |}>Like</button>""".stripMargin
 

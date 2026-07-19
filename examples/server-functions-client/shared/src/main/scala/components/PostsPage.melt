@@ -36,7 +36,7 @@ val items = posts.state.map(_.toOption.getOrElse(Nil))
              JS-only `dispatch`/`optimistic`/`run` never compile for JVM. -->
         <button class="like" onclick={ _ =>
           Api.like.dispatch(p.id)
-            .optimistic(posts)(list => for x <- list yield if x.id == p.id then x.copy(likes = x.likes + 1) else x)
+            .optimistic(posts)(list => list.map(x => if x.id == p.id then x.copy(likes = x.likes + 1) else x))
             .run()
         }>Like</button>
         <button class="remove" onclick={ _ => Api.remove.dispatch(p.id).updates(posts).run() }>Delete</button>
