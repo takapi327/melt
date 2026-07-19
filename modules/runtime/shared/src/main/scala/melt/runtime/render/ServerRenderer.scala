@@ -31,6 +31,12 @@ import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, TrustedHtml, UrlA
   */
 final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Config.default):
 
+  // Marks an SSR render pass as active for its whole lifetime (construction →
+  // result()). A component's script — including any reactive query call — runs in
+  // this window, so the client query runner can read [[ServerRenderer.isRendering]]
+  // to avoid a loopback fetch during server-side rendering.
+  ServerRenderer.enter()
+
   private val bodyBuf        = new StringBuilder
   private val headBuf        = new StringBuilder
   private val cssSet         = mutable.LinkedHashSet.empty[CssEntry]
@@ -374,6 +380,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     * exercised.
     */
   def result(): RenderResult =
+    ServerRenderer.exit()
     val metaHtml = metaTagMap
       .map {
         case (name, content) =>
@@ -425,6 +432,27 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     if s.length <= max then s else s.substring(0, max) + "..."
 
 object ServerRenderer:
+
+  // ── SSR render-scope flag ──────────────────────────────────────────────────
+  // Counts nested active render passes. A component's script runs between a
+  // renderer's construction and its `result()`, so `isRendering` is true then.
+  // On the browser a `ServerRenderer` is never constructed, so it stays false;
+  // on the JVM/Node SSR server it is true during rendering. Single-threaded per
+  // request, so a plain counter is safe. A never-decremented leak (e.g. a render
+  // that throws before `result()`) only keeps the *server* from issuing a
+  // loopback fetch — which is always the desired SSR behaviour anyway.
+  private var _renderDepth: Int = 0
+
+  /** True while a server-side render pass is in progress.
+    *
+    * The client query runner reads this to avoid a loopback HTTP fetch during
+    * SSR (which would fail on Node's relative-URL fetch and is never wanted on
+    * the server): seed the query from a loader prop for SSR data instead.
+    */
+  def isRendering: Boolean = _renderDepth > 0
+
+  private[render] def enter(): Unit = _renderDepth += 1
+  private[render] def exit():  Unit = if _renderDepth > 0 then _renderDepth -= 1
 
   /** Per-renderer configuration. */
   final case class Config(

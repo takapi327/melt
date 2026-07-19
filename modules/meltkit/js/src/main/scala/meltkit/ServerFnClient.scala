@@ -14,6 +14,7 @@ import scala.util.{ Failure, Success }
 import org.scalajs.dom
 
 import melt.runtime.json.SimpleJson
+import melt.runtime.render.ServerRenderer
 import melt.runtime.Async
 
 /** Client-side invocation of server functions.
@@ -195,7 +196,15 @@ private object ServerFnClient:
   /** Runs a query request and drives the [[Query]]'s reactive state, coalescing
     * identical concurrent requests. */
   def runQuery[In, Out](fn: QueryFn[In, Out], url: String, body: String, q: Query[Out]): Unit =
-    q.setLoading()
+    // Never loopback-fetch during a server-side render pass (Node SSR runs this
+    // JS branch): leave the query at its initial state and let it resolve after
+    // hydration on the client. Seed the query for SSR data instead.
+    if ServerRenderer.isRendering then ()
+    else
+      q.setLoading()
+      runQueryNow(fn, url, body, q)
+
+  private def runQueryNow[In, Out](fn: QueryFn[In, Out], url: String, body: String, q: Query[Out]): Unit =
     given ExecutionContext = queue
     val key                = s"$url\n$body"
     val raw                = inFlight.getOrElseUpdate(

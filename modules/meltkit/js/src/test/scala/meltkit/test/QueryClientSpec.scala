@@ -50,6 +50,25 @@ class QueryClientSpec extends munit.FunSuite:
       val unsub = q.state.subscribe { a => if !a.isLoading then p.trySuccess(a) }
       p.future.map { a => unsub(); a }
 
+  test("a query does not loopback-fetch during SSR (ServerRenderer active)"):
+    installFetch(200, "[1,2,3]")
+    // Simulate a server-side render pass: while a ServerRenderer is live, an
+    // eager query must not fetch (it would loopback to the server). Seed instead.
+    val renderer = melt.runtime.render.ServerRenderer()
+    val list     = ServerFn.query[Unit, List[Int]]("posts.list")
+    val q        = list()
+    renderer.result() // leave the render scope (query already decided)
+    assertEquals(q.state.value, Async.Loading)
+    assertEquals(fetchCalls, 0, "no fetch during server-side rendering")
+    // outside a render pass, a fresh query fetches normally
+    val q2 = list()
+    assert(q2.state.value.isLoading)
+    settled(q2).map { a =>
+      assertEquals(a, Async.Done(List(1, 2, 3)))
+      assertEquals(fetchCalls, 1)
+      restoreFetch()
+    }
+
   test("a query starts Loading, then resolves to Done with the decoded value"):
     installFetch(200, "[1,2,3]")
     val list = ServerFn.query[Unit, List[Int]]("posts.list")
