@@ -76,3 +76,26 @@ class FormSpec extends munit.FunSuite:
     form.afterResult("redirect", () => ())
     assertEquals(seen, "redirect")
   }
+
+  test("onSuccess runs only on a successful result, alongside the default") {
+    val form       = Form(LoginForm("", Nil))
+    var successes  = 0
+    var defaultRan = false
+    form.onSuccess(() => successes += 1)
+
+    form.afterResult("failure", () => ())
+    form.afterResult("redirect", () => ())
+    assertEquals(successes, 0, "onSuccess must not run on failure/redirect")
+
+    form.afterResult("success", () => defaultRan = true)
+    assertEquals(successes, 1)
+    assertEquals(defaultRan, true, "default behaviour still runs")
+  }
+
+  test("multiple onSuccess callbacks run in registration order") {
+    val form = Form(LoginForm("", Nil))
+    val log  = scala.collection.mutable.ListBuffer.empty[Int]
+    form.onSuccess(() => log += 1).onSuccess(() => log += 2)
+    form.afterResult("success", () => ())
+    assertEquals(log.toList, List(1, 2))
+  }
