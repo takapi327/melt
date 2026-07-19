@@ -999,3 +999,10 @@ object GuideCodes:
        |{if form.data.value.errors.contains("title") then
        |   <p class="error">{form.data.value.errors("title").head}</p>
        | else <span></span>}""".stripMargin
+
+  val serverFunctionsInvalidate: String =
+    """|// Refresh queries when the form succeeds — the list reflects the new post.
+       |val posts = Api.list.seeded(props.posts)
+       |val form  = Form(props.form.getOrElse(NewPost("", ""))).invalidates(posts)
+       |
+       |<form method="post" use:enhance={form}>…</form>""".stripMargin

@@ -63,6 +63,13 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.serverFunctionsIssues}</code></pre>
 </div>
 
+<h2>{t.invalidateH2}</h2>
+<p>{t.invalidateIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsInvalidate}</code></pre>
+</div>
+
 <div class="callout callout-tip">
   <div class="callout-title">{t.serverOnlyTitle}</div>
   <p>{t.serverOnlyText}</p>
