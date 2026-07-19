@@ -32,8 +32,8 @@ class FormInvalidationSpec extends munit.FunSuite:
     assertEquals(refreshed, 1, "the query refreshes on success")
 
   test("invalidates refreshes every declared query"):
-    var a = 0
-    var b = 0
+    var a    = 0
+    var b    = 0
     val form = Form(DraftForm("")).invalidates(probeQuery(() => a += 1), probeQuery(() => b += 1))
     form.afterResult("success", () => ())
     assertEquals((a, b), (1, 1))
