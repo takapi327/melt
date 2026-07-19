@@ -504,28 +504,28 @@ case class GuideFormActions(
 // ── Server Functions ────────────────────────────────────────────────────────
 
 case class GuideServerFunctions(
-  lead:             String,
-  whatH2:           String,
-  whatProblem:      String,
-  whatModel:        String,
-  whatServerOnly:   String,
-  whatKinds:        String,
-  contractH2:       String,
-  contractIntro:    String,
-  queryH2:          String,
-  queryIntro:       String,
-  commandH2:        String,
-  commandIntro:     String,
-  singleFlightH2:   String,
+  lead:              String,
+  whatH2:            String,
+  whatProblem:       String,
+  whatModel:         String,
+  whatServerOnly:    String,
+  whatKinds:         String,
+  contractH2:        String,
+  contractIntro:     String,
+  queryH2:           String,
+  queryIntro:        String,
+  commandH2:         String,
+  commandIntro:      String,
+  singleFlightH2:    String,
   singleFlightIntro: String,
-  optimisticH2:     String,
-  optimisticIntro:  String,
-  issuesH2:         String,
-  issuesIntro:      String,
-  serverOnlyTitle:  String,
-  serverOnlyText:   String,
-  handlerTitle:     String,
-  handlerText:      String
+  optimisticH2:      String,
+  optimisticIntro:   String,
+  issuesH2:          String,
+  issuesIntro:       String,
+  serverOnlyTitle:   String,
+  serverOnlyText:    String,
+  handlerTitle:      String,
+  handlerText:       String
 )
 
 // ── Top-level Guide container ─────────────────────────────────────────────────
@@ -1088,7 +1088,7 @@ object GuideI18n:
     serverFunctions = GuideServerFunctions(
       lead =
         "A server function is a function you write once on the server and call directly from your components — as if it were local — even though it always runs on the server. Melt generates the HTTP endpoint and the client fetch for you and keeps the argument and result types in sync, so you never hand-write an endpoint, a fetch call, or a JSON codec just to move data between the browser and the server.",
-      whatH2 = "What is a server function?",
+      whatH2      = "What is a server function?",
       whatProblem =
         "Normally, getting data between the browser and the server means writing three things and keeping them in step by hand: an HTTP endpoint on the server, a fetch call on the client, and the request/response types. Rename one field and you fix it in three places — and nothing warns you when they drift apart.",
       whatModel =
@@ -1612,7 +1612,7 @@ object GuideI18n:
     serverFunctions = GuideServerFunctions(
       lead =
         "サーバー関数とは、サーバー側に一度だけ書いた関数を、あたかもローカル関数のようにコンポーネントから直接呼び出せる仕組みです。実際の処理は常にサーバーで実行されます。HTTP エンドポイントとクライアントの fetch は Melt が生成し、引数と戻り値の型を両サイドで一致させ続けます。データをブラウザとサーバーの間でやり取りするためだけにエンドポイントや fetch、JSON コーデックを手書きする必要はありません。",
-      whatH2 = "サーバー関数とは？",
+      whatH2      = "サーバー関数とは？",
       whatProblem =
         "通常、ブラウザとサーバーの間でデータをやり取りするには、3 つのものを書いて手作業で整合させ続ける必要があります。サーバーの HTTP エンドポイント、クライアントの fetch 呼び出し、そしてリクエスト／レスポンスの型です。フィールド名を 1 つ変えれば 3 箇所を直すことになり、ずれても何も警告してくれません。",
       whatModel =
