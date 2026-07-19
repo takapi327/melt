@@ -924,6 +924,19 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("Bind.show"), code)
   }
 
+  test("match over a chained reactive .value emits reactive Bind.show(source, …) — powers Async queries") {
+    // Mirrors the ServerFn query API: `posts.state: Signal[Async[List[..]]]`.
+    val src =
+      """<div>{posts.state.value match
+        |  case Async.Loading    => <p>Loading…</p>
+        |  case Async.Failed(e)  => <p>error</p>
+        |  case Async.Done(xs)   => <ul><li>ok</li></ul>
+        |}</div>""".stripMargin
+    val code = compile(src)
+    // reactive two-arg overload: subscribes to `posts.state`, re-renders on change
+    assert(code.contains("Bind.show(posts.state,"), code)
+  }
+
   // ── Phase 6: bind:group radio vs checkbox ─────────────────────────────────
 
   test("bind:group on radio emits Bind.radioGroup") {

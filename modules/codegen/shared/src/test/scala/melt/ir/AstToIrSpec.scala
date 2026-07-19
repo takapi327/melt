@@ -180,6 +180,24 @@ class AstToIrSpec extends munit.FunSuite:
     assertEquals(result, None)
   }
 
+  test("extractReactiveSource from `src.value match` extracts the chained source") {
+    AstToIr.extractReactiveSource(
+      "posts.state.value match { case Async.Loading => dom.document.createElement(\"p\") }"
+    ) match
+      case Some(src) => assertEquals(src.code, "posts.state")
+      case None      => fail("Expected Some")
+  }
+
+  test("a `signal.value match` over an ADT lowers to a reactive IrConditional") {
+    AstToIr.lowerExpression(
+      "posts.state.value match { case Async.Loading => dom.document.createElement(\"p\") case Async.Done(xs) => dom.document.createElement(\"ul\") }"
+    ) match
+      case IrNode.IrConditional(Some(src), body) =>
+        assertEquals(src.code, "posts.state")
+        assert(body.code.contains("match"))
+      case other => fail(s"Expected reactive IrConditional, got $other")
+  }
+
   // ── detectPropsType (Named Tuple Props auto-detection) ─────────────────────
 
   test("detectPropsType: case class Props — detected without props= attribute") {

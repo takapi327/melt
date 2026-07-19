@@ -59,6 +59,13 @@ trait PropsCodec[A]:
 
 object PropsCodec:
 
+  /** Codec for `Unit`, encoded as JSON `null`. Lets a server function declare
+    * no input (`ServerFn.command[Unit, Out]`) while keeping the wire format
+    * symmetric. */
+  given propsCodecUnit: PropsCodec[Unit] with
+    def encode(v: Unit, buf: StringBuilder): Unit = buf ++= "null"
+    def decode(j: SimpleJson.JsonValue):     Unit = ()
+
   given propsCodecString: PropsCodec[String] with
     def encode(v: String, buf: StringBuilder): Unit   = buf ++= SimpleJson.encString(v)
     def decode(j: SimpleJson.JsonValue):       String = j match
@@ -144,6 +151,26 @@ object PropsCodec:
       case SimpleJson.JsonValue.Arr(items) => items.map(inner.decode)
       case SimpleJson.JsonValue.Null       => Nil
       case other                           => typeMismatch("Seq", other)
+
+  /** Codec for a string-keyed map, encoded as a JSON object. Enables form models
+    * to carry per-field validation issues (`errors: Map[String, List[String]]`)
+    * and closes a Transport gap (design §7). Iteration order is not canonicalised,
+    * so avoid `Map` in query arguments that feed request-coalescing keys. */
+  given propsCodecMap[V](using inner: PropsCodec[V]): PropsCodec[Map[String, V]] with
+    def encode(v: Map[String, V], buf: StringBuilder): Unit =
+      buf += '{'
+      var first = true
+      v.foreach { (k, value) =>
+        if first then first = false else buf += ','
+        buf ++= SimpleJson.encString(k)
+        buf += ':'
+        inner.encode(value, buf)
+      }
+      buf += '}'
+    def decode(j: SimpleJson.JsonValue): Map[String, V] = j match
+      case o: SimpleJson.JsonValue.Obj => o.fields.map((k, vv) => k -> inner.decode(vv))
+      case SimpleJson.JsonValue.Null   => Map.empty
+      case other                       => typeMismatch("Map", other)
 
   /** Automatic derivation for any product type (case class / Tuple).
     *

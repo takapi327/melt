@@ -10,9 +10,11 @@ import scala.collection.mutable.ListBuffer
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.json.PropsCodec
+import melt.runtime.json.SimpleJson
 import melt.runtime.render.RenderResult
 
 import meltkit.codec.BodyDecoder
+import meltkit.codec.BodyEncoder
 import meltkit.codec.PathParamDecoder
 
 /** Adapter-supplied factory that constructs a [[MeltContext]] for each request.
@@ -170,6 +172,25 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   // ── Page Options ──────────────────────────────────────────────────────
 
   private val _pageOptions = scala.collection.mutable.Map[List[PathSegment], PageOptions]()
+
+  // ── Server function registry (single-flight refresh) ──────────────────────
+  // name → (argsJson, ctx) => F[Some(encoded result JSON)], or F[None] when the
+  // argument fails to decode (that refresh is then skipped, not surfaced as an
+  // invalid update). ONLY queries are registered — never commands — so a client
+  // cannot name a mutation in a refresh list and have it run.
+  private val _serverFnImpls =
+    scala.collection.mutable
+      .Map[String, (String, ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]) => F[Option[String]]]()
+
+  // Every served function name, for duplicate-registration detection.
+  private val _serverFnNames = scala.collection.mutable.Set.empty[String]
+
+  /** 415 for a server-function request whose Content-Type is not JSON. */
+  private val unsupportedMediaType: Response =
+    PlainResponse(415, "text/plain; charset=utf-8", "Server functions require Content-Type: application/json")
+
+  private def isJsonRequest(ctx: ServerMeltContext[F, PathSpec.Empty, ?, RenderResult]): Boolean =
+    ctx.header("content-type").exists(_.split(";")(0).trim.equalsIgnoreCase("application/json"))
 
   /** Returns the [[PageOptions]] for a route registered with a [[PageOptions]] argument, if any. */
   def pageOptionsFor(segments: List[PathSegment]): Option[PageOptions] =
@@ -534,6 +555,140 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
           Some(() => functor.map(handler(ctx))(lift.lift))
         else None
     addRoute(Route(ep.method, ep.spec.segments, tryHandle))
+
+  /** Registers the server-side implementation of a server function — a
+    * [[CommandFn]] or a [[QueryFn]].
+    *
+    * The request body is read, decoded into `In` with the function's
+    * [[melt.runtime.json.PropsCodec]], and passed to `impl` along with the
+    * [[ServerMeltContext]] (for session/cookies/headers). The `Out` result is
+    * encoded back to JSON. A body that fails to decode yields `400 Bad Request`
+    * without ever invoking `impl`.
+    *
+    * `impl` may reference JVM-only resources (database clients, secrets); because
+    * `serve` is only ever called from server code, that implementation never
+    * reaches the browser bundle.
+    *
+    * {{{
+    * val like = ServerFn.command[PostId, Int]("posts.like")
+    * app.serve(like) { (id, ctx) => postRepo.incLike(id) }
+    * }}}
+    */
+  def serve[In, Out](fn: ServerFnContract[In, Out])(
+    impl: (In, ServerMeltContext[F, PathSpec.Empty, In, RenderResult]) => F[Out]
+  )(using functor: Functor[F], flatMap: FlatMap[F], pure: Pure[F], recover: Recover[F]): Unit =
+    val outEnc = fn.endpoint.responseEncoder
+    val inDec  = fn.endpoint.bodyDecoder
+
+    // Fail fast on a duplicate name: routing is first-match but the refresh
+    // registry is a map (last-write), so a collision would behave inconsistently.
+    if !_serverFnNames.add(fn.name) then
+      throw new IllegalArgumentException(
+        s"Duplicate server function name: '${ fn.name }'. Each ServerFn.query/command must have a unique name."
+      )
+
+    // Register for single-flight refresh — QUERIES ONLY. A command must never be
+    // reachable via the refresh registry: it re-runs a function by name with the
+    // caller's context and would otherwise let a client trigger arbitrary
+    // mutations (and bypass per-route hooks). A refresh whose argument fails to
+    // decode yields `None` (that update is skipped, not surfaced).
+    fn match
+      case _: QueryFn[?, ?] =>
+        _serverFnImpls(fn.name) = (argsJson, sfCtx) =>
+          inDec.decode(argsJson) match
+            case Right(in) =>
+              functor.map(
+                impl(in, sfCtx.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, In, RenderResult]])
+              )(out => Some(outEnc.encode(out)))
+            case Left(_) => pure.pure(None)
+      case _ => () // commands are not refreshable
+
+    on(fn.endpoint) { ctx =>
+      // Require application/json so a cross-site "simple request" (text/plain or
+      // form-encoded, which needs no CORS preflight) cannot invoke a mutation.
+      if !isJsonRequest(ctx) then pure.pure(unsupportedMediaType)
+      else
+        flatMap.flatMap(ctx.body.text) { raw =>
+          ctx.header("x-melt-sf") match
+            case Some(_) => singleFlight(fn, impl, outEnc, raw, ctx)
+            case None    =>
+              inDec.decode(raw) match
+                case Right(in) => functor.map(impl(in, ctx))(out => ctx.ok(out)(using outEnc): Response)
+                case Left(err) => pure.pure(ctx.badRequest(err): Response)
+        }
+    }
+
+  /** Handles a single-flight mutation request: runs the mutation, then re-runs
+    * every requested query with the same context and returns
+    * `{ "result": <out>, "updates": [ { name, args, value } ] }` — so one
+    * round-trip both mutates and refreshes the client's reactive queries. */
+  private def singleFlight[In, Out](
+    fn:     ServerFnContract[In, Out],
+    impl:   (In, ServerMeltContext[F, PathSpec.Empty, In, RenderResult]) => F[Out],
+    outEnc: BodyEncoder[Out],
+    raw:    String,
+    ctx:    ServerMeltContext[F, PathSpec.Empty, In, RenderResult]
+  )(using functor: Functor[F], flatMap: FlatMap[F], pure: Pure[F], recover: Recover[F]): F[Response] =
+    val envelope =
+      try
+        SimpleJson.parse(raw) match
+          case o: SimpleJson.JsonValue.Obj => Some(o)
+          case _                           => None
+      catch case _: IllegalArgumentException => None
+
+    envelope match
+      case None    => pure.pure(ctx.badRequest(BodyError.DecodeError("Invalid single-flight envelope")): Response)
+      case Some(o) =>
+        val input = o.fields.getOrElse("input", SimpleJson.JsonValue.Null)
+        val in    =
+          try Right(fn.inCodec.decode(input))
+          catch case _: IllegalArgumentException => Left(())
+        in match
+          case Left(_)   => pure.pure(ctx.badRequest(BodyError.DecodeError("Invalid request body")): Response)
+          case Right(in) =>
+            val refreshes = parseRefreshRequests(o)
+            val sfCtx     = ctx.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]]
+            flatMap.flatMap(impl(in, ctx)) { out =>
+              val resultJson = outEnc.encode(out)
+              // Isolate each refresh: a query that fails (or names an unknown /
+              // non-query function, or has an undecodable arg) is skipped — it
+              // never fails the whole request, whose mutation is already committed.
+              val updateFs: List[F[Option[String]]] = refreshes.map { (name, argsJson) =>
+                _serverFnImpls.get(name) match
+                  case Some(h) =>
+                    functor.map(recover.attempt(h(argsJson, sfCtx))) {
+                      case Right(Some(v)) => Some(updateEntry(name, argsJson, v))
+                      case _              => None
+                    }
+                  case None => pure.pure(None)
+              }
+              functor.map(sequenceF(updateFs)) { entries =>
+                val updates = entries.flatten.mkString("[", ",", "]")
+                ctx.json(s"""{"result":$resultJson,"updates":$updates}"""): Response
+              }
+            }
+
+  /** Reads the `refresh` array of `{ name, args }` (args is the query's argument
+    * JSON, carried as a string) from a single-flight envelope. */
+  private def parseRefreshRequests(o: SimpleJson.JsonValue.Obj): List[(String, String)] =
+    o.fields.get("refresh") match
+      case Some(SimpleJson.JsonValue.Arr(items)) =>
+        items
+          .collect {
+            case r: SimpleJson.JsonValue.Obj =>
+              (r.getString("name"), r.getString("args"))
+          }
+          .collect { case (Some(n), Some(a)) => (n, a) }
+      case _ => Nil
+
+  /** Builds one update entry; `value` is already-encoded JSON, embedded raw. */
+  private def updateEntry(name: String, args: String, value: String): String =
+    s"""{"name":${ SimpleJson.encString(name) },"args":${ SimpleJson.encString(args) },"value":$value}"""
+
+  private def sequenceF[A](fs: List[F[A]])(using flatMap: FlatMap[F], pure: Pure[F]): F[List[A]] =
+    fs.foldRight(pure.pure(List.empty[A])) { (fa, acc) =>
+      flatMap.flatMap(fa)(a => flatMap.flatMap(acc)(as => pure.pure(a :: as)))
+    }
 
 /** Extracts a [[Response]] from a handler output `Out`.
   *

@@ -182,6 +182,20 @@ object Http4sAdapter:
   given [F[_]: cats.Applicative]: meltkit.Pure[F] with
     override def pure[A](a: A): F[A] = cats.Applicative[F].pure(a)
 
+  /** Bridges cats [[cats.FlatMap]] to [[meltkit.FlatMap]] so that
+    * [[meltkit.ServerMeltKitPlatform.serve]] works with any `F` that has a cats
+    * `FlatMap` instance (e.g. `cats.effect.IO`).
+    */
+  given [F[_]: cats.FlatMap]: meltkit.FlatMap[F] with
+    override def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = cats.FlatMap[F].flatMap(fa)(f)
+
+  /** Bridges cats [[cats.ApplicativeError]] to [[meltkit.Recover]] so that
+    * single-flight refreshes can be isolated on any `F` with error handling
+    * (e.g. `cats.effect.IO`).
+    */
+  given [F[_]](using ae: cats.ApplicativeError[F, Throwable]): meltkit.Recover[F] with
+    override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = ae.attempt(fa)
+
   /** Bridges cats-effect [[cats.effect.kernel.Sync]] to [[meltkit.Defer]].
     *
     * Any `F` that has a cats-effect `Sync` instance (e.g. `cats.effect.IO`) gets

@@ -21,8 +21,21 @@ enum BodyError:
   /** The body was parsed successfully but failed constraint validation. */
   case ValidationError(errors: List[String])
 
+  /** Like [[ValidationError]] but with each message associated to the field it
+    * came from (SvelteKit's per-field `issues()` parity). Produced by
+    * [[meltkit.codec.FormDataDecoder]] so an action can surface issues next to
+    * the offending input. */
+  case FieldErrors(byField: Map[String, List[String]])
+
 object BodyError:
   extension (e: BodyError)
     def message: String = e match
       case DecodeError(msg, _)   => msg
       case ValidationError(errs) => errs.mkString(", ")
+      case FieldErrors(byField)  => byField.map((f, es) => s"$f: ${ es.mkString(", ") }").mkString("; ")
+
+    /** All error messages as a flat list, regardless of the error variant. */
+    def messages: List[String] = e match
+      case DecodeError(msg, _)   => List(msg)
+      case ValidationError(errs) => errs
+      case FieldErrors(byField)  => byField.values.flatten.toList

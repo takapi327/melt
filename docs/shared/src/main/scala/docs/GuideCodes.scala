@@ -921,3 +921,82 @@ object GuideCodes:
        |    {form.submitting.map(busy => if busy then "Signing in…" else "Sign in")}
        |  </button>
        |</form>""".stripMargin
+
+  // ── Server Functions ────────────────────────────────────────────────────────
+
+  val serverFunctionsWhy: String =
+    """|// Without server functions — three things kept in sync by hand:
+       |app.get("api/posts") { ctx => postRepo.all.map(ctx.ok(_)) }   // 1. endpoint
+       |Fetch("/api/posts").flatMap(_.text()).map(decode[List[Post]]) // 2. fetch + 3. types
+       |
+       |// With a server function — one contract, called like a local function:
+       |val list = ServerFn.query[Unit, List[Post]]("posts.list")  // shared
+       |app.serve(list) { (_, ctx) => postRepo.all }               // server
+       |val posts = list.seeded(props.posts)                       // client — done""".stripMargin
+
+  val serverFunctionsContract: String =
+    """|// shared: one type-safe contract, compiled for both server and client
+       |object Api:
+       |  val list = ServerFn.query[Unit, List[Post]]("posts.list")
+       |  val like = ServerFn.command[Int, Post]("posts.like")""".stripMargin
+
+  val serverFunctionsServe: String =
+    """|// server (JVM): implement each function. `impl` may use a DB or secrets —
+       |// it never reaches the browser bundle.
+       |app.serve(Api.list) { (_, ctx)  => postRepo.all }
+       |app.serve(Api.like) { (id, ctx) => postRepo.incLike(id) }
+       |
+       |// loader: seed the query as a page prop
+       |app.get("") { ctx =>
+       |  postRepo.all.map(posts => ctx.render(PostsPage(PostsPage.Props(posts = posts))))
+       |}""".stripMargin
+
+  val serverFunctionsClient: String =
+    """|<script lang="scala">
+       |import melt.runtime.Async
+       |import meltkit.*
+       |
+       |case class Props(posts: List[Post] = Nil)
+       |
+       |// Seeded from the loader prop: SSR renders the list, the client hydrates
+       |// it as Async.Done with no flash and no extra fetch.
+       |val posts = Api.list.seeded(props.posts)
+       |</script>
+       |
+       |{posts.state.value match
+       |  case Async.Loading    => <p>Loading…</p>
+       |  case Async.Failed(e)  => <p class="error">{e.getMessage}</p>
+       |  case Async.Done(list) => <ul>{list.map(p => <li>{p.title}</li>)}</ul>
+       |}
+       |<button onclick={_ => posts.refresh()}>Reload</button>""".stripMargin
+
+  val serverFunctionsSingleFlight: String =
+    """|// In an event handler. One round-trip both likes the post and refreshes
+       |// the list; the like count bumps immediately and rolls back on failure.
+       |<button onclick={_ =>
+       |  Api.like.dispatch(post.id)
+       |    .optimistic(posts)(list =>
+       |      for p <- list yield if p.id == post.id then p.copy(likes = p.likes + 1) else p)
+       |    .run()
+       |}>Like</button>""".stripMargin
+
+  val serverFunctionsIssues: String =
+    """|// A form model carrying per-field issues (Map[String, List[String]]).
+       |case class NewPost(title: String, body: String, errors: Map[String, List[String]] = Map.empty)
+       |  derives FormDataDecoder, PropsCodec
+       |
+       |// server action: return per-field messages on failure
+       |app.page("new")(
+       |  render = (_, form: Option[NewPost]) => NewPostPage(NewPostPage.Props(form = form)),
+       |  action = ctx => ctx.body.form[NewPost].flatMap {
+       |    case Right(f) if f.title.trim.isEmpty =>
+       |      IO.pure(fail(422, f.copy(errors = Map("title" -> List("Title is required")))))
+       |    case Right(f) => save(f).as(ActionResult.Redirect("/"))
+       |    case Left(e)  => IO.pure(fail(400, NewPost("", "", Map("_form" -> e.messages))))
+       |  }
+       |)
+       |
+       |// component: show each field's issue next to its input
+       |{if form.data.value.errors.contains("title") then
+       |   <p class="error">{form.data.value.errors("title").head}</p>
+       | else <span></span>}""".stripMargin

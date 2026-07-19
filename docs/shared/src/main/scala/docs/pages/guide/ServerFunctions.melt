@@ -1,0 +1,82 @@
+<script lang="scala">
+import docs.i18n.GuideI18n
+import docs.GuideCodes
+
+case class Props(lang: String = "en", basePath: String = "")
+
+val t    = GuideI18n(props.lang).serverFunctions
+val nav  = GuideI18n(props.lang).nav
+val base = props.basePath + "/" + props.lang
+</script>
+
+<p>{t.lead}</p>
+
+<h2>{t.whatH2}</h2>
+<p>{t.whatProblem}</p>
+<p>{t.whatModel}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsWhy}</code></pre>
+</div>
+
+<p>{t.whatServerOnly}</p>
+<p>{t.whatKinds}</p>
+
+<h2>{t.contractH2}</h2>
+<p>{t.contractIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsContract}</code></pre>
+</div>
+
+<h2>{t.queryH2}</h2>
+<p>{t.queryIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsServe}</code></pre>
+</div>
+
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>PostsPage.melt
+  </div>
+  <pre><code>{GuideCodes.serverFunctionsClient}</code></pre>
+</div>
+
+<h2>{t.commandH2}</h2>
+<p>{t.commandIntro}</p>
+
+<h2>{t.singleFlightH2}</h2>
+<p>{t.singleFlightIntro}</p>
+
+<h2>{t.optimisticH2}</h2>
+<p>{t.optimisticIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsSingleFlight}</code></pre>
+</div>
+
+<h2>{t.issuesH2}</h2>
+<p>{t.issuesIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.serverFunctionsIssues}</code></pre>
+</div>
+
+<div class="callout callout-tip">
+  <div class="callout-title">{t.serverOnlyTitle}</div>
+  <p>{t.serverOnlyText}</p>
+</div>
+
+<div class="callout callout-info">
+  <div class="callout-title">{t.handlerTitle}</div>
+  <p>{t.handlerText}</p>
+</div>
+
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/form-actions"}>
+    <span class="doc-nav-dir">{nav.prev}</span>
+    <span class="doc-nav-title">{if props.lang == "ja" then "フォームアクション" else "Form Actions"}</span>
+  </a>
+  <span></span>
+</div>

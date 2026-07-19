@@ -312,6 +312,49 @@ lazy val `form-actions-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`form-actions-client`.jvm)
 
+// ── Example: Type-safe Server Functions (query/command/single-flight/optimistic) ─
+//
+//   sbt "server-functions-server/run"
+
+lazy val `server-functions-client` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("server-functions-client"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    meltHydration                   := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+
+lazy val serverFunctionsClientDir  = file("server-functions-client")
+lazy val `server-functions-server` = project
+  .in(file("server-functions/server"))
+  .settings(
+    run / fork := true,
+    libraryDependencies ++= Seq(
+      "io.github.takapi327" %% "meltkit-adapter-http4s" % meltVersion,
+      "org.http4s"          %% "http4s-ember-server"    % "0.23.33",
+      "org.http4s"          %% "http4s-dsl"             % "0.23.33",
+      "io.circe"            %% "circe-generic"          % "0.14.9"
+    ),
+    meltkitAssetManifestClient := Some(`server-functions-client`.js),
+    meltkitViteDistDir         := serverFunctionsClientDir / "dist",
+    meltkitViteManifestPath    := serverFunctionsClientDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`server-functions-client`.jvm)
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -339,7 +382,10 @@ lazy val root = project
     `jdk-ssr-server`,
     `form-actions-client`.jvm,
     `form-actions-client`.js,
-    `form-actions-server`
+    `form-actions-server`,
+    `server-functions-client`.jvm,
+    `server-functions-client`.js,
+    `server-functions-server`
   )
   .settings(
     crossScalaVersions := Seq.empty

@@ -42,3 +42,11 @@ object FieldDecoder:
 
   /** Every [[FieldCodec]] is also a decoder. */
   given [A](using codec: FieldCodec[A]): FieldDecoder[A] = codec
+
+  /** A string-keyed map field is treated as server-populated output — e.g. the
+    * per-field validation issues a form model carries back
+    * (`errors: Map[String, List[String]]`). A flat form submission never contains
+    * it, so it decodes to an empty map (mirroring how a `List` field decodes to
+    * `Nil` when absent). The server fills it in on the response. */
+  given [V]: FieldDecoder[Map[String, V]] with
+    def decode(name: String, values: List[String]): Either[String, Map[String, V]] = Right(Map.empty)

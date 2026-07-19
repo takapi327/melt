@@ -501,6 +501,33 @@ case class GuideFormActions(
   progressiveText:  String
 )
 
+// ── Server Functions ────────────────────────────────────────────────────────
+
+case class GuideServerFunctions(
+  lead:              String,
+  whatH2:            String,
+  whatProblem:       String,
+  whatModel:         String,
+  whatServerOnly:    String,
+  whatKinds:         String,
+  contractH2:        String,
+  contractIntro:     String,
+  queryH2:           String,
+  queryIntro:        String,
+  commandH2:         String,
+  commandIntro:      String,
+  singleFlightH2:    String,
+  singleFlightIntro: String,
+  optimisticH2:      String,
+  optimisticIntro:   String,
+  issuesH2:          String,
+  issuesIntro:       String,
+  serverOnlyTitle:   String,
+  serverOnlyText:    String,
+  handlerTitle:      String,
+  handlerText:       String
+)
+
 // ── Top-level Guide container ─────────────────────────────────────────────────
 
 case class GuideI18n(
@@ -525,7 +552,8 @@ case class GuideI18n(
   ssr:             GuideSsr,
   ssg:             GuideSsg,
   adapters:        GuideAdapters,
-  formActions:     GuideFormActions
+  formActions:     GuideFormActions,
+  serverFunctions: GuideServerFunctions
 )
 
 object GuideI18n:
@@ -1056,6 +1084,43 @@ object GuideI18n:
       progressiveTitle = "Works without JavaScript",
       progressiveText  =
         "Because the native <form> path is the foundation, the form still submits and validates with JavaScript disabled. use:enhance is a pure upgrade — never a requirement."
+    ),
+    serverFunctions = GuideServerFunctions(
+      lead =
+        "A server function is a function you write once on the server and call directly from your components — as if it were local — even though it always runs on the server. Melt generates the HTTP endpoint and the client fetch for you and keeps the argument and result types in sync, so you never hand-write an endpoint, a fetch call, or a JSON codec just to move data between the browser and the server.",
+      whatH2      = "What is a server function?",
+      whatProblem =
+        "Normally, getting data between the browser and the server means writing three things and keeping them in step by hand: an HTTP endpoint on the server, a fetch call on the client, and the request/response types. Rename one field and you fix it in three places — and nothing warns you when they drift apart.",
+      whatModel =
+        "A server function collapses that into one declaration. You define it once, call it like an ordinary function, and it runs on the server. This is the classic RPC (remote procedure call) idea: the call looks local but executes on the server, and the framework handles the network plumbing — the request is still there, just packaged as a function call.",
+      whatServerOnly =
+        "Because the body runs only on the server, it can freely use your database and secrets: they never reach the browser bundle. And because the contract is a single shared definition, the argument and result types cannot drift between the two sides.",
+      whatKinds =
+        "Melt has two kinds. A query reads data and gives you a reactive result with loading/error state; a command mutates data and is called from an event handler. Everything else — seeding, single-flight refresh, optimistic updates, per-field form issues — builds on those two.",
+      contractH2    = "The contract",
+      contractIntro =
+        "Define the functions in a shared file, compiled for both the server and the client, so both sides agree on the same types. ServerFn.query is a read; ServerFn.command is a mutation. The string is the endpoint's logical name.",
+      queryH2    = "query — reactive reads",
+      queryIntro =
+        "ServerFn.query defines a read. Calling it returns a Query whose state is a Signal[Async[Out]] (Loading / Done / Failed) rendered with a match. Seed it from a page-loader prop so SSR shows the data and the client hydrates with no loading flash or redundant fetch; refresh() re-runs it on demand.",
+      commandH2    = "command — mutations",
+      commandIntro =
+        "ServerFn.command defines a mutation, called from an event handler as a Future. A non-2xx response fails the Future with a ServerFnException.",
+      singleFlightH2    = "Single-flight",
+      singleFlightIntro =
+        "A mutation can refresh related queries in the same round-trip: dispatch(in).updates(query).run() runs the mutation and re-runs the requested queries on the server, piggybacking their new values on the response so the client updates them in one trip.",
+      optimisticH2    = "Optimistic updates",
+      optimisticIntro =
+        "optimistic(query)(f) applies an expected change the moment run() fires — before the server responds — then reconciles with the authoritative value from the same round-trip on success, or rolls back automatically on failure.",
+      issuesH2    = "Per-field form issues",
+      issuesIntro =
+        "A form model can carry per-field validation issues as errors: Map[String, List[String]]. On a validation failure the action returns the data with the map filled in, and the component shows each message next to its input — the SvelteKit fields.x.issues() equivalent.",
+      serverOnlyTitle = "Server-only by construction",
+      serverOnlyText  =
+        "The implementation passed to app.serve only ever compiles on the server. On the JVM it can reference java.sql / secrets that Scala.js cannot compile at all, so a database client can never leak into the browser bundle — a structural guarantee, not a lint rule.",
+      handlerTitle = "Commands run in event handlers",
+      handlerText  =
+        "dispatch / optimistic / run are client-only and belong inside event handlers, which are stripped from SSR output — so a shared component still compiles for the JVM. Queries (seeded / refresh) and the Async match render on both platforms. A .run() needs an ExecutionContext in scope (import scala.concurrent.ExecutionContext.Implicits.global)."
     )
   )
 
@@ -1543,6 +1608,43 @@ object GuideI18n:
         "Melt は属性・リスト・条件を「オーバーロードで」リアクティブにします。プレーンな .value（一度きり）ではなく State/Signal を渡すと subscribe されます。よって disabled={form.submitting}（.value を付けない）とし、エラー表示は form.data を source とする条件式で駆動します。そうしないと、バリデーション Failure で状態は更新されても DOM が再描画されません。",
       progressiveTitle = "JavaScript 無しでも動く",
       progressiveText  = "ネイティブ <form> 経路が土台なので、JavaScript を無効にしてもフォームは送信・検証されます。use:enhance は純粋な拡張であり、必須ではありません。"
+    ),
+    serverFunctions = GuideServerFunctions(
+      lead =
+        "サーバー関数とは、サーバー側に一度だけ書いた関数を、あたかもローカル関数のようにコンポーネントから直接呼び出せる仕組みです。実際の処理は常にサーバーで実行されます。HTTP エンドポイントとクライアントの fetch は Melt が生成し、引数と戻り値の型を両サイドで一致させ続けます。データをブラウザとサーバーの間でやり取りするためだけにエンドポイントや fetch、JSON コーデックを手書きする必要はありません。",
+      whatH2      = "サーバー関数とは？",
+      whatProblem =
+        "通常、ブラウザとサーバーの間でデータをやり取りするには、3 つのものを書いて手作業で整合させ続ける必要があります。サーバーの HTTP エンドポイント、クライアントの fetch 呼び出し、そしてリクエスト／レスポンスの型です。フィールド名を 1 つ変えれば 3 箇所を直すことになり、ずれても何も警告してくれません。",
+      whatModel =
+        "サーバー関数は、これを 1 つの宣言に畳み込みます。一度定義すれば、普通の関数のように呼び出せ、処理はサーバーで実行されます。これは古くからある RPC（リモートプロシージャコール）の考え方です。呼び出しはローカルに見えますが実際はサーバーで実行され、ネットワークの配管はフレームワークが担います（リクエストは無くなったわけではなく、関数呼び出しとして包まれているだけです）。",
+      whatServerOnly =
+        "本体はサーバーでしか実行されないため、データベースやシークレットを自由に使えます。それらがブラウザバンドルに混入することはありません。また契約は 1 つの共有定義なので、引数と戻り値の型が両サイドでずれることはありません。",
+      whatKinds =
+        "Melt には 2 種類あります。query はデータを読み取り、ローディング／エラー状態を持つリアクティブな結果を返します。command はデータを変更し、イベントハンドラから呼び出します。それ以外（seed、single-flight による再取得、楽観的更新、フィールドごとのフォームイシュー）は、すべてこの 2 つの上に成り立ちます。",
+      contractH2    = "契約（コントラクト）",
+      contractIntro =
+        "関数は共有ファイルに定義します。サーバーとクライアントの両方でコンパイルされるので、両サイドが同じ型に合意します。ServerFn.query は読み取り、ServerFn.command は変更です。文字列はエンドポイントの論理名です。",
+      queryH2    = "query — リアクティブな読み取り",
+      queryIntro =
+        "ServerFn.query は読み取りを定義します。呼び出すと Query が返り、その state は Signal[Async[Out]]（Loading / Done / Failed）で、match で描画します。ページローダーの prop から seed すれば、SSR がデータを描画し、クライアントはローディングのちらつきや再取得なしで hydration します。refresh() で任意に再取得できます。",
+      commandH2    = "command — 変更",
+      commandIntro =
+        "ServerFn.command は変更を定義し、イベントハンドラから Future として呼び出します。2xx 以外の応答は Future を ServerFnException で失敗させます。",
+      singleFlightH2    = "single-flight（単一往復）",
+      singleFlightIntro =
+        "変更は同じ往復で関連 query を更新できます。dispatch(in).updates(query).run() は変更を実行し、要求された query をサーバーで再実行して新しい値をレスポンスに相乗りさせ、クライアントは 1 往復でそれらを更新します。",
+      optimisticH2    = "楽観的更新",
+      optimisticIntro =
+        "optimistic(query)(f) は run() 実行の瞬間に（サーバー応答を待たず）期待する変更を先に反映し、成功時は同じ往復の確定値でリコンサイル、失敗時は自動でロールバックします。",
+      issuesH2    = "フィールドごとの検証イシュー",
+      issuesIntro =
+        "フォームモデルは errors: Map[String, List[String]] としてフィールドごとの検証イシューを保持できます。検証失敗時、アクションはこのマップを埋めたデータを返し、コンポーネントは各メッセージを対応する入力の隣に表示します（SvelteKit の fields.x.issues() 相当）。",
+      serverOnlyTitle = "構造的に server-only",
+      serverOnlyText  =
+        "app.serve に渡す実装はサーバーでしかコンパイルされません。JVM では Scala.js がコンパイルできない java.sql やシークレットを参照できるため、DB クライアントがブラウザバンドルに混入することは決してありません。lint ルールではなく構造的な保証です。",
+      handlerTitle = "command はイベントハンドラ内で実行",
+      handlerText  =
+        "dispatch / optimistic / run はクライアント専用で、SSR 出力から除去されるイベントハンドラ内に置きます。そのため共有コンポーネントも JVM でコンパイルできます。query（seeded / refresh）と Async の match は両プラットフォームで描画されます。.run() にはスコープ内に ExecutionContext が必要です（import scala.concurrent.ExecutionContext.Implicits.global）。"
     )
   )
 
