@@ -123,3 +123,41 @@ class SemanticCheckersSpec extends munit.FunSuite:
     assert(result.errors.nonEmpty, result.errors)
     assert(result.errors.head.message.contains("bind:videoHeight"), result.errors.head.message)
   }
+
+  // ── <melt:await> boundary placement (async SSR, T2.0) ───────────────────
+
+  test("<melt:await> at a static position is allowed") {
+    val result = compileSsr(
+      """<div>
+        |  <melt:await value={posts}>
+        |    { case Async.Done(xs) => <span>ok</span> }
+        |    <melt:pending><p>Loading…</p></melt:pending>
+        |  </melt:await>
+        |</div>""".stripMargin
+    )
+    assert(result.errors.isEmpty, result.errors.map(_.message))
+  }
+
+  test("<melt:await> inside a conditional is a compile error") {
+    val result = compileSsr(
+      """<div>
+        |  { if show then <melt:await value={posts}>
+        |      { case Async.Done(xs) => <span>ok</span> }
+        |    </melt:await> else <p>hidden</p> }
+        |</div>""".stripMargin
+    )
+    assert(result.errors.nonEmpty, "expected a placement error")
+    assert(result.errors.exists(_.message.contains("<melt:await>")), result.errors.map(_.message))
+  }
+
+  test("a nested <melt:await> inside another's handler is a compile error") {
+    val result = compileSsr(
+      """<melt:await value={outer}>
+        |  { case Async.Done(a) => <melt:await value={inner}>
+        |      { case Async.Done(b) => <span>nested</span> }
+        |    </melt:await> }
+        |</melt:await>""".stripMargin
+    )
+    assert(result.errors.nonEmpty, "expected a nesting error")
+    assert(result.errors.exists(_.message.contains("<melt:await>")), result.errors.map(_.message))
+  }

@@ -9,6 +9,7 @@ package melt
 import melt.analysis.{
   A11yChecker,
   AttrNameChecker,
+  AwaitBoundaryChecker,
   BindingContextChecker,
   EffectDepsChecker,
   MalformedExpressionChecker,
@@ -100,6 +101,13 @@ object MeltCompiler:
               templateSource    = result.templateSource,
               templateStartLine = result.templateStartLine,
               positions         = result.positions
+            ) ++
+            AwaitBoundaryChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
             )
 
         val securityErrors = SecurityChecker.checkErrors(ast, source).map {
