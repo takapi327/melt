@@ -30,12 +30,12 @@ class JvmRenderAsyncTest extends munit.FunSuite:
 
   private def ctxWith(app: MeltKit[Future]): JvmMeltContext[Future, PathSpec.Empty, Unit] =
     new JvmMeltContext[Future, PathSpec.Empty, Unit](
-      params = PathSpec.emptyValue,
+      params      = PathSpec.emptyValue,
       requestPath = "/await",
       bodyDecoder = summon[BodyDecoder[Unit]],
-      rawBody = Future.successful(""),
+      rawBody     = Future.successful(""),
       templateOpt = Some(template),
-      app = Some(app)
+      app         = Some(app)
     )
 
   /** Mirrors generated `<melt:await>` SSR code. */
@@ -75,11 +75,13 @@ class JvmRenderAsyncTest extends munit.FunSuite:
     val app = MeltKit[Future]()
     app.serve(list) { (_, _) => Future.successful(Nil) }
 
-    ctxWith(app).renderAsync {
-      val r = ServerRenderer()
-      r.push("<main>static</main>")
-      r.result()
-    }.map { resp =>
-      assert(resp.body.contains("<main>static</main>"), resp.body)
-      assert(!resp.body.contains("data-melt-queries"), resp.body)
-    }
+    ctxWith(app)
+      .renderAsync {
+        val r = ServerRenderer()
+        r.push("<main>static</main>")
+        r.result()
+      }
+      .map { resp =>
+        assert(resp.body.contains("<main>static</main>"), resp.body)
+        assert(!resp.body.contains("data-melt-queries"), resp.body)
+      }
