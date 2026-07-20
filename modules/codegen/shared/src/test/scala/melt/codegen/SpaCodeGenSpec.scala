@@ -2412,3 +2412,23 @@ class SpaCodeGenSpec extends munit.FunSuite:
       s"expected append guarded by captured state:\n$code"
     )
   }
+
+  // ── <melt:await> (client = reactive on the query state) ──────────────────
+
+  test("melt:await binds to the query state with a Loading arm from pending") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span>
+        |    case Async.Failed(e) => <span>fail</span> }
+        |  <melt:pending><p>Loading…</p></melt:pending>
+        |</melt:await>""".stripMargin
+    val code = compile(src)
+    // reactive binding on the query's Async signal
+    assert(code.contains("Bind.show(posts.state,"), code)
+    assert(code.contains("posts.state.value match"), code)
+    // pending supplies the Loading branch (user need not write a Loading arm)
+    assert(code.contains("case _root_.melt.runtime.Async.Loading =>"), code)
+    assert(code.contains("Loading…"), code)
+    // handler is applied as a partial function to the settled state
+    assert(code.contains(".applyOrElse(_a,"), code)
+  }

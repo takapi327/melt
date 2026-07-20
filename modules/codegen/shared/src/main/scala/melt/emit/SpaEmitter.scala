@@ -498,6 +498,33 @@ object SpaEmitter:
             buf ++= s"${ indent }$wVar.appendChild($fragVar)\n"
             wVar
 
+      // ── <melt:await> async boundary (client = reactive on the query state) ──
+      case IrNode.IrAwait(valueExpr, handler, pending, _) =>
+        val anchor = ctr.nextTxt()
+        parentVar match
+          case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
+          case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
+
+        // The handler `{ case Async.Done(x) => <html> … }` reconstructed as a
+        // DOM-returning partial function; the `pending` slot supplies the Loading
+        // branch (so the user need not write a Loading arm). The body re-reads the
+        // reactive query state, so `x` stays fully typed.
+        val handlerPf   = reconstructInlineExpr(handler, indent + "      ", ns, nodePos)
+        val pendingExpr = pending match
+          case Some(pNodes) =>
+            reconstructInlineExpr(List(IrInlineTemplatePart.Html(pNodes)), indent + "      ", ns, nodePos)
+          case None => "dom.document.createTextNode(\"\")"
+
+        buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
+        buf ++= s"${ indent }  Bind.show(${ valueExpr.code }.state, _ => {\n"
+        buf ++= s"${ indent }    ${ valueExpr.code }.state.value match {\n"
+        buf ++= s"${ indent }      case _root_.melt.runtime.Async.Loading => $pendingExpr\n"
+        buf ++= s"${ indent }      case _a => ({ $handlerPf }).applyOrElse(_a, (_: Any) => dom.document.createTextNode(\"\"))\n"
+        buf ++= s"${ indent }    }\n"
+        buf ++= s"${ indent }  }, $anchor)\n"
+        buf ++= s"${ indent }}\n"
+        ""
+
       // ── <melt:key> ────────────────────────────────────────────────────────
       case IrNode.IrKeyBlock(keyExpr, children) =>
         val idx       = ctr.nextChildIdx()
@@ -721,6 +748,21 @@ object SpaEmitter:
     ns:        String,
     nodePos:   IrNodePositions = IrNodePositions.empty
   ): String =
+    // Re-classify the reconstructed expression and emit it
+    val irNode = AstToIr.lowerExpression(reconstructInlineExpr(parts, indent, ns, nodePos))
+    emitNode(irNode, buf, indent, ctr, isRoot, parentVar, ns, nodePos)
+
+  /** Reconstructs an inline-template part list into a single Scala expression string,
+    * with each `Html` fragment lowered to a self-contained DOM-building block (a single
+    * node, or a `DocumentFragment` for multiple). `Code` parts are emitted verbatim, so
+    * the result preserves any surrounding Scala syntax (e.g. a `{ case … => <html> }`
+    * partial function). Used by [[emitInlineTemplate]] and the `<melt:await>` handler. */
+  private def reconstructInlineExpr(
+    parts:   List[IrInlineTemplatePart],
+    indent:  String,
+    ns:      String,
+    nodePos: IrNodePositions
+  ): String =
     val exprBuf = new StringBuilder
     parts.foreach {
       case IrInlineTemplatePart.Code(code) =>
@@ -760,9 +802,7 @@ object SpaEmitter:
             }
             exprBuf ++= s"{\n${ innerBuf.result() }${ indent }  _frag\n${ indent }}"
     }
-    // Re-classify the reconstructed expression and emit it
-    val irNode = AstToIr.lowerExpression(exprBuf.toString)
-    emitNode(irNode, buf, indent, ctr, isRoot, parentVar, ns, nodePos)
+    exprBuf.toString
 
   /** Emits a `val _childrenN = () => { ... }` lambda. Returns the variable name. */
   private def emitChildrenLambda(
@@ -999,6 +1039,13 @@ object SpaEmitter:
           case IrInlineTemplatePart.Html(ns) => templateHasChildrenRef(ns)
           case _                             => false
         }
+      case IrNode.IrAwait(_, handler, p, f) =>
+        handler.exists {
+          case IrInlineTemplatePart.Html(ns) => templateHasChildrenRef(ns)
+          case _                             => false
+        } ||
+        p.exists(templateHasChildrenRef) ||
+        f.exists(fb => templateHasChildrenRef(fb.children))
       case _ => false
     }
 

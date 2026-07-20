@@ -212,6 +212,9 @@ object SsrEmitter:
       case IrNode.IrBoundary(children, _, _, _) =>
         children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap))
 
+      case IrNode.IrAwait(valueExpr, handler, pending, _) =>
+        emitAwaitSSR(valueExpr, handler, pending, buf, indent, scopeId, nodePos, hoistedMap)
+
       case IrNode.IrKeyBlock(_, children) =>
         children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap))
 
@@ -541,6 +544,53 @@ object SsrEmitter:
         buf ++= s"""${ pad }renderer.push("<!--[melt:dyn-->")\n"""
         buf ++= s"${ pad }renderer.push($expr)\n"
         buf ++= s"""${ pad }renderer.push("<!--]melt:dyn-->")\n"""
+
+  // ── <melt:await> async-SSR boundary ─────────────────────────────────────────
+
+  /** Emits a `<melt:await>` boundary for blocking async SSR.
+    *
+    * At render time this pushes a marker span (`<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->`)
+    * wrapping the `pending` fallback, then registers the resolved-branch renderer with
+    * the ambient [[meltkit.SsrRenderScope]]. The adapter later resolves each registered
+    * query in-process and splices the resulting fragment over the marker span.
+    *
+    * The `handler` — a `{ case Async.Done(x) => <html> … }` partial function whose inline
+    * HTML is lowered to string-building (same transform as [[emitInlineTemplateSSR]]) —
+    * becomes a `PartialFunction[Async[Out], String]`. Loading/unmatched arms fall back to
+    * an empty fragment (the in-place `pending` already covers the pre-resolution view).
+    */
+  private def emitAwaitSSR(
+    valueExpr:  ScalaExpr,
+    handler:    List[IrInlineTemplatePart],
+    pending:    Option[List[IrNode]],
+    buf:        LineTracker,
+    indent:     Int,
+    scopeId:    String,
+    nodePos:    IrNodePositions,
+    hoistedMap: Map[String, IrNode.IrStaticElement]
+  ): Unit =
+    val pad  = " " * indent
+    val ipad = " " * (indent + 2)
+
+    // Lower the handler to a partial-function literal that returns String
+    // (Code parts verbatim; Html parts as `{ val _sb = …; _sb.toString }`).
+    val handlerExpr = new StringBuilder
+    handler.foreach {
+      case IrInlineTemplatePart.Code(code)  => handlerExpr ++= code
+      case IrInlineTemplatePart.Html(nodes) => handlerExpr ++= irNodesToStringExpr(nodes, scopeId, hoistedMap)
+    }
+
+    // Scope `_sbId` in its own block so multiple boundaries don't collide.
+    buf ++= s"$pad{\n"
+    buf ++= s"""$ipad val _sbId = _root_.meltkit.SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")\n"""
+    buf ++= s"""$ipad renderer.push("<!--melt:sb:" + _sbId + "-->")\n"""
+    pending.foreach(_.foreach(c => emitNode(c, buf, indent + 2, scopeId, nodePos, hoistedMap)))
+    buf ++= s"""$ipad renderer.push("<!--/melt:sb:" + _sbId + "-->")\n"""
+    // The handler's outer braces are the interpolation delimiters (stripped by the
+    // parser), so re-wrap the `case …` arms into a partial-function literal.
+    buf ++= s"$ipad _root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
+    buf ++= s"$ipad   RenderResult(({ ${ handlerExpr.toString } }).applyOrElse(a, (_: Any) => \"\"), \"\")))\n"
+    buf ++= s"$pad}\n"
 
   // ── Head emission ──────────────────────────────────────────────────────────
 

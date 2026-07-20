@@ -620,3 +620,25 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(importIdx >= 0, s"Expected renderer.addImport() in:\n$code")
     assert(cssIdx < importIdx, s"addImport() should appear after css.add() in:\n$code")
   }
+
+  // ── <melt:await> (blocking async SSR) ───────────────────────────────────
+
+  test("melt:await emits a suspense marker span + pending fallback + scope registration") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span>
+        |    case Async.Failed(e) => <span>fail</span> }
+        |  <melt:pending><p>Loading…</p></melt:pending>
+        |</melt:await>""".stripMargin
+    val code = compile(src)
+    // request-unique marker id from the ambient scope
+    assert(code.contains("SsrRenderScope.current.map(_.nextId())"), code)
+    // marker span wraps the pending fallback
+    assert(code.contains("""renderer.push("<!--melt:sb:" + _sbId + "-->")"""), code)
+    assert(code.contains("Loading…"), code)
+    assert(code.contains("""renderer.push("<!--/melt:sb:" + _sbId + "-->")"""), code)
+    // the resolved-branch renderer is registered with the ambient scope
+    assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, posts,"), code)
+    // handler is re-wrapped into a partial function returning RenderResult
+    assert(code.contains(".applyOrElse(a,"), code)
+  }

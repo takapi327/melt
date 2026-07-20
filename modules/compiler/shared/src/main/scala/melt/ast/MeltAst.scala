@@ -86,6 +86,26 @@ enum TemplateNode:
     failed:   Option[FailedBlock]
   )
 
+  /** A `<melt:await value={q}>` async-SSR suspense boundary.
+    *
+    * `handler` is the `{ case Async.Done(x) => … case Async.Failed(e) => … }`
+    * partial function (an interpolation with inline HTML, so its parts interleave
+    * `Code` and `Html`). `pending` is the `Loading` fallback. On SSR the boundary
+    * is resolved server-side (in-process) and the resolved branch is spliced in;
+    * on the client the branch renders reactively from the value's `Async` state.
+    *
+    * @param valueExpr the awaitable expression (a `Query` for now), from `value={…}`
+    * @param handler   the `Async => Node/String` partial function (inline-template parts)
+    * @param pending   the `Loading` fallback shown until the boundary resolves
+    * @param failed    optional error block for a caught rendering error
+    */
+  case Await(
+    valueExpr: String,
+    handler:   List[InlineTemplatePart],
+    pending:   Option[PendingBlock],
+    failed:    Option[FailedBlock]
+  )
+
   /** A `<melt:key this={keyExpr}>` block — destroys and re-creates content
     * whenever the key expression changes.
     *

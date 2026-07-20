@@ -164,6 +164,19 @@ object AstToIr:
         val irFailed   = failed.map(f => IrFailedBlock(f.errorVar, f.resetVar, f.children.flatMap(lower)))
         Some(IrNode.IrBoundary(irChildren, irPending, irFailed, onError))
 
+      case TemplateNode.Await(valueExpr, handler, pending, failed) =>
+        // The handler is an inline-template partial function (Code interleaved
+        // with Html), lowered like InlineTemplate so each Emitter renders the
+        // HTML its own way (SSR → string, SPA → dom.Node).
+        val irHandler = handler.map:
+          case melt.ast.InlineTemplatePart.Code(code) =>
+            IrInlineTemplatePart.Code(code)
+          case melt.ast.InlineTemplatePart.Html(nodes) =>
+            IrInlineTemplatePart.Html(nodes.flatMap(lower))
+        val irPending = pending.map(_.children.flatMap(lower))
+        val irFailed  = failed.map(f => IrFailedBlock(f.errorVar, f.resetVar, f.children.flatMap(lower)))
+        Some(IrNode.IrAwait(ScalaExpr(valueExpr), irHandler, irPending, irFailed))
+
       case TemplateNode.KeyBlock(keyExpr, children) =>
         Some(IrNode.IrKeyBlock(ScalaExpr(keyExpr), children.flatMap(lower)))
 

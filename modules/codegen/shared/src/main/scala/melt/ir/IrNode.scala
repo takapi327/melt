@@ -174,6 +174,17 @@ enum IrNode:
     onError:  Option[ScalaExpr]
   )
 
+  /** `<melt:await value={q}>{ case Async.Done(x) => … }<melt:pending>…</melt:pending>`
+    * — an async-SSR suspense boundary. `handler` is the `Async => …` partial
+    * function as inline-template parts (lowered to a `String`-returning PF on SSR,
+    * a `dom.Node`-returning PF on the client). `pending` is the `Loading` fallback. */
+  case IrAwait(
+    valueExpr: ScalaExpr,
+    handler:   List[IrInlineTemplatePart],
+    pending:   Option[List[IrNode]],
+    failed:    Option[IrFailedBlock]
+  )
+
   /** `<melt:key this={keyExpr}>` — destroys and re-mounts on key change */
   case IrKeyBlock(
     keyExpr:  ScalaExpr,

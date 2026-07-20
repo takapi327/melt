@@ -544,6 +544,38 @@ private[parser] final class TemplateParser(
         }
         TemplateNode.Boundary(attrs, mainChildren, pendingOpt, failedOpt)
 
+      case "melt:await" =>
+        // <melt:await value={q}> { case Async.Done(x) => <html> … } <melt:pending>…</melt:pending>
+        // Mirror <melt:boundary>: separate the <melt:pending>/<melt:failed> slots
+        // from the handler body. The handler is the `{ case … }` partial function,
+        // captured as InlineTemplate (it contains inline HTML) or a bare Expression.
+        val pendingOpt = children.collectFirst {
+          case TemplateNode.Element("melt:pending", _, pChildren) =>
+            PendingBlock(pChildren)
+        }
+        val failedOpt = children.collectFirst {
+          case TemplateNode.Element("melt:failed", fAttrs, fChildren) =>
+            val attrNames = fAttrs.collect { case Attr.BooleanAttr(n) => n }
+            val combined  = attrNames.mkString(" ").replace("(", "").replace(")", "")
+            val params    = combined.split(",").map(_.trim).filter(_.nonEmpty)
+            val errorVar  = params.lift(0).getOrElse("error")
+            val resetVar  = params.lift(1).getOrElse("reset")
+            FailedBlock(errorVar, resetVar, fChildren)
+        }
+        val handler = children
+          .collectFirst {
+            case TemplateNode.InlineTemplate(parts) => parts
+            case TemplateNode.Expression(code)      => List(InlineTemplatePart.Code(code))
+          }
+          .getOrElse(Nil)
+        val valueExpr = attrs
+          .collectFirst { case Attr.Dynamic("value", e) => e }
+          .getOrElse {
+            _warnings += (("<melt:await> requires a `value={expr}` attribute", pos))
+            ""
+          }
+        TemplateNode.Await(valueExpr, handler, pendingOpt, failedOpt)
+
       case "melt:key" =>
         val keyExpr = attrs
           .collectFirst {

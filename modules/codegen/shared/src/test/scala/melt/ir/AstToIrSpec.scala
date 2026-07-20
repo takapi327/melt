@@ -363,3 +363,28 @@ class AstToIrSpec extends munit.FunSuite:
     val ir = lower(src)
     assertEquals(ir.fileImports, List("/module.css", "/instance.css"))
   }
+
+  // ── <melt:await> ────────────────────────────────────────────────────────────
+
+  test("melt:await lowers to IrAwait with query value, handler parts and pending") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <ul>{xs.map(p => <li>{p}</li>)}</ul>
+        |    case Async.Failed(e) => <p>{e.getMessage}</p> }
+        |  <melt:pending><p>Loading…</p></melt:pending>
+        |</melt:await>""".stripMargin
+    lower(src).template match
+      case List(IrNode.IrAwait(valueExpr, handler, pending, failed)) =>
+        assertEquals(valueExpr.code, "posts")
+        assert(handler.nonEmpty, "handler parts should be captured")
+        assert(
+          handler.exists {
+            case IrInlineTemplatePart.Code(c) => c.contains("case Async.Done")
+            case _                            => false
+          },
+          s"handler should retain the case arms: $handler"
+        )
+        assert(pending.isDefined, "pending slot should be captured")
+        assertEquals(failed, None)
+      case other => fail(s"Unexpected: $other")
+  }
