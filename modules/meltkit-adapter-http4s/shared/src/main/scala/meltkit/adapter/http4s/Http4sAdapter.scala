@@ -115,7 +115,18 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
           params:      P,
           bodyDecoder: BodyDecoder[B]
         ): MeltContext[F, P, B, RenderResult] =
-          Http4sMeltContext(params, request, bodyDecoder, Some(template), manifest, lang, basePath, locals, nonce)
+          Http4sMeltContext(
+            params,
+            request,
+            bodyDecoder,
+            Some(template),
+            manifest,
+            lang,
+            basePath,
+            locals,
+            nonce,
+            Some(app)
+          )
 
       // Attach the Content-Security-Policy header to the response after the handler completes.
       def withCspHeader(effect: F[Response]): F[Response] =

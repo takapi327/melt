@@ -46,12 +46,13 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   val params:              P,
   private val request:     Request[F],
   private val bodyDecoder: BodyDecoder[B],
-  private val templateOpt: Option[Template] = None,
-  private val manifest:    ViteManifest     = ViteManifest.empty,
-  private val lang:        String           = "en",
-  private val basePath:    String           = "",
-  override val locals:     Locals           = new Locals(),
-  private val nonce:       Option[String]   = None
+  private val templateOpt: Option[Template]                 = None,
+  private val manifest:    ViteManifest                     = ViteManifest.empty,
+  private val lang:        String                           = "en",
+  private val basePath:    String                           = "",
+  override val locals:     Locals                           = new Locals(),
+  private val nonce:       Option[String]                   = None,
+  private val app:         Option[ServerMeltKitPlatform[F]] = None
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private val cachedBody: F[String] =
@@ -127,29 +128,62 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
   override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
-      case None =>
-        throw new IllegalStateException(
-          "ctx.render() requires an Http4sAdapter initialized with a Template. " +
-            "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
-        )
+      case None           => throw missingTemplate
+      case Some(template) => composeResponse(template, Router.withPath(requestPath)(component), status)
+
+  /** Blocking async SSR: evaluate the shell inside a [[SsrRenderScope]], then
+    * resolve each `<melt:await>` boundary in-process (via the app's server-function
+    * registry) and splice the resolved branches over their markers, seeding the
+    * results for hydration. A page with no boundary is just [[render]] lifted. */
+  override def renderAsync(component: => RenderResult): F[Response] =
+    import Http4sAdapter.given // meltkit type-class bridges (Functor/Pure/Recover) for F
+    import cats.effect.implicits.parallelForGenSpawn // derive cats.Parallel[F] from Concurrent[F] for the Parallel bridge
+    templateOpt match
+      case None           => throw missingTemplate
       case Some(template) =>
-        val result    = Router.withPath(requestPath)(component)
-        val augmented =
-          if result.imports.isEmpty then result
-          else
-            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
-            val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
-            result.copy(head = newHead)
-        val html = template.render(
-          augmented,
-          manifest,
-          title    = "",
-          lang     = lang,
-          basePath = basePath,
-          vars     = Map.empty,
-          nonce    = nonce
-        )
-        PlainResponse(status, "text/html; charset=utf-8", html)
+        app match
+          case None =>
+            // No server-function registry wired → nothing to resolve; render synchronously.
+            summon[meltkit.Pure[F]].pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case Some(a) =>
+            val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]])
+            // Each deferred branch re-establishes the request path (the ThreadLocal
+            // is lost once resolution runs in a later F phase).
+            val wrap = new SsrRenderScope.BranchWrap:
+              def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
+            val (result, scope) =
+              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
+            if !scope.nonEmpty then summon[meltkit.Pure[F]].pure(composeResponse(template, result, 200))
+            else
+              summon[meltkit.Functor[F]].map(scope.resolveAll) { resolved =>
+                val body = Http4sMeltContext.spliceAndSeed(result.body, resolved)
+                composeResponse(template, result.copy(body = body), 200)
+              }
+
+  private def missingTemplate: IllegalStateException =
+    new IllegalStateException(
+      "ctx.render() requires an Http4sAdapter initialized with a Template. " +
+        "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
+    )
+
+  /** Resolves `.melt` import tags and composes the page HTML via the [[Template]]. */
+  private def composeResponse(template: Template, result: RenderResult, status: StatusCode): PlainResponse =
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    val html = template.render(
+      augmented,
+      manifest,
+      title    = "",
+      lang     = lang,
+      basePath = basePath,
+      vars     = Map.empty,
+      nonce    = nonce
+    )
+    PlainResponse(status, "text/html; charset=utf-8", html)
 
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))
@@ -174,3 +208,30 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
   override def notFound(message: String = "Not Found"): NotFound =
     Response.notFound(message)
+
+object Http4sMeltContext:
+
+  /** Splices each resolved `<melt:await>` branch over its marker span and appends
+    * the hydration seed as a `<script data-melt-queries>` so the client adopts the
+    * data without refetching. */
+  private[http4s] def spliceAndSeed(body: String, resolved: SsrRenderScope.Resolved): String =
+    var out = body
+    resolved.fragments.foreach { case (id, frag) => out = spliceMarker(out, id, frag.body) }
+    if resolved.seedJson.nonEmpty then
+      // Escape `</` so a string value can never close the <script> element early.
+      val safe = resolved.seedJson.replace("</", "<\\/")
+      out = s"""$out<script type="application/json" data-melt-queries>$safe</script>"""
+    out
+
+  /** Replaces the `<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->` span (marker + pending
+    * fallback) with `replacement`. Leaves the body untouched if the markers are
+    * absent (e.g. the boundary was inside a stripped event handler). */
+  private def spliceMarker(html: String, id: String, replacement: String): String =
+    val open  = s"<!--melt:sb:$id-->"
+    val close = s"<!--/melt:sb:$id-->"
+    val start = html.indexOf(open)
+    if start < 0 then html
+    else
+      val end = html.indexOf(close, start)
+      if end < 0 then html
+      else html.substring(0, start) + replacement + html.substring(end + close.length)

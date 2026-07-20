@@ -35,7 +35,9 @@ object AwaitBoundaryChecker:
     templateStartLine: Int = 1
   ): List[CompileError] =
     val errors = mutable.ListBuffer.empty[CompileError]
-    ast.template.foreach(node => walk(node, insideReactive = false, errors, filename, positions, templateSource, templateStartLine))
+    ast.template.foreach(node =>
+      walk(node, insideReactive = false, errors, filename, positions, templateSource, templateStartLine)
+    )
     errors.toList
 
   private def walk(
@@ -52,10 +54,10 @@ object AwaitBoundaryChecker:
 
     node match
       // Static containers keep the current reactivity context.
-      case TemplateNode.Element(_, _, children)        => children.foreach(descend(_, insideReactive))
-      case TemplateNode.Component(_, _, children)      => children.foreach(descend(_, insideReactive))
-      case TemplateNode.Head(children)                 => children.foreach(descend(_, insideReactive))
-      case TemplateNode.DynamicElement(_, _, children) => children.foreach(descend(_, insideReactive))
+      case TemplateNode.Element(_, _, children)                => children.foreach(descend(_, insideReactive))
+      case TemplateNode.Component(_, _, children)              => children.foreach(descend(_, insideReactive))
+      case TemplateNode.Head(children)                         => children.foreach(descend(_, insideReactive))
+      case TemplateNode.DynamicElement(_, _, children)         => children.foreach(descend(_, insideReactive))
       case TemplateNode.Boundary(_, children, pending, failed) =>
         children.foreach(descend(_, insideReactive))
         pending.foreach(_.children.foreach(descend(_, insideReactive)))
@@ -67,7 +69,7 @@ object AwaitBoundaryChecker:
           case InlineTemplatePart.Html(nodes) => nodes.foreach(descend(_, reactive = true))
           case _                              => ()
         }
-      case TemplateNode.KeyBlock(_, children)     => children.foreach(descend(_, reactive = true))
+      case TemplateNode.KeyBlock(_, children)      => children.foreach(descend(_, reactive = true))
       case TemplateNode.SnippetDef(_, _, children) => children.foreach(descend(_, reactive = true))
 
       case TemplateNode.Await(_, handler, pending, failed) =>

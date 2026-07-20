@@ -30,7 +30,8 @@ import melt.runtime.Async
   * boundary's `renderBranch` captures what it needs and [[resolveAll]] runs later.
   */
 final class SsrRenderScope[F[_]] private[meltkit] (
-  private val resolveQuery: (String, String) => F[Option[String]]
+  private val resolveQuery: (String, String) => F[Option[String]],
+  private val wrapBranch:   SsrRenderScope.BranchWrap = SsrRenderScope.BranchWrap.identity
 ):
 
   private var _counter = 0
@@ -68,19 +69,32 @@ final class SsrRenderScope[F[_]] private[meltkit] (
     recover: Recover[F]
   ): F[SsrRenderScope.Outcome] =
     functor.map(recover.attempt(resolveQuery(s.query.name, s.query.argsJson))) {
+      // Each branch renders inside `wrapBranch`, which re-establishes the request
+      // ambient (e.g. `Router.withPath`) that a deferred F phase would otherwise
+      // have lost — the generated branch HTML may read `Router.currentPath`.
       case Right(Some(json)) =>
-        val fragment =
+        val fragment = wrapBranch {
           try s.renderBranch(Async.Done(s.query.outCodec.decode(SimpleJson.parse(json))))
-          catch
-            case e: Throwable => s.renderBranch(Async.Failed(e))
+          catch case e: Throwable => s.renderBranch(Async.Failed(e))
+        }
         // Only a successfully resolved query is seeded — the client adopts its raw
         // JSON verbatim (decoded with the same codec) and skips its initial fetch.
         SsrRenderScope.Outcome(s.id, fragment, Some(s.query.key -> json))
-      case Right(None) => SsrRenderScope.Outcome(s.id, s.renderBranch(Async.Loading), None) // unregistered → fallback
-      case Left(e)     => SsrRenderScope.Outcome(s.id, s.renderBranch(Async.Failed(e)), None)
+      case Right(None) => SsrRenderScope.Outcome(s.id, wrapBranch(s.renderBranch(Async.Loading)), None)
+      case Left(e)     => SsrRenderScope.Outcome(s.id, wrapBranch(s.renderBranch(Async.Failed(e))), None)
     }
 
 object SsrRenderScope:
+
+  /** Wraps a branch render so the adapter can re-establish request-scoped ambients
+    * (e.g. `Router.withPath`) around it — a by-name SAM, since `(=> A) => A` is not
+    * a valid function type. */
+  private[meltkit] trait BranchWrap:
+    def apply(thunk: => RenderResult): RenderResult
+
+  private[meltkit] object BranchWrap:
+    val identity: BranchWrap = new BranchWrap:
+      def apply(thunk: => RenderResult): RenderResult = thunk
 
   private[meltkit] final case class Suspended[Out](
     id:           String,
@@ -123,11 +137,14 @@ object SsrRenderScope:
   def current: Option[SsrRenderScope[?]] = Option(_current.get)
 
   /** Runs `body` (the shell render) with a fresh scope active, returning the
-    * shell result and the populated scope for the adapter to resolve. */
+    * shell result and the populated scope for the adapter to resolve. `wrapBranch`
+    * lets the adapter re-establish request-scoped ambients around each deferred
+    * branch render (see [[BranchWrap]]). */
   private[meltkit] def withScope[F[_], A](
-    resolveQuery: (String, String) => F[Option[String]]
+    resolveQuery: (String, String) => F[Option[String]],
+    wrapBranch:   BranchWrap = BranchWrap.identity
   )(body: => A): (A, SsrRenderScope[F]) =
-    val scope = new SsrRenderScope[F](resolveQuery)
+    val scope = new SsrRenderScope[F](resolveQuery, wrapBranch)
     val prev  = _current.get
     _current.set(scope)
     try (body, scope)

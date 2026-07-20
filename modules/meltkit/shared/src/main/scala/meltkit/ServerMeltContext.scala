@@ -8,6 +8,8 @@ package meltkit
 
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.render.RenderResult
+
 /** Server-side extension of [[MeltContext]] that adds request-body access.
   *
   * Only server adapters (e.g. `Http4sMeltContext`) implement this trait.
@@ -87,3 +89,29 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * }}}
     */
   def headers: Map[String, String]
+
+  /** Renders a component with **blocking async SSR**: every `<melt:await>` boundary
+    * is resolved server-side (in-process, no HTTP loopback) and its branch is
+    * spliced into the HTML before the response is sent, with the resolved query
+    * results seeded for hydration so the client adopts them without refetching.
+    *
+    * Returns `F[Response]` (unlike the synchronous [[render]]) because resolving a
+    * boundary is effectful. A page with no `<melt:await>` behaves exactly like
+    * [[render]] lifted into `F`.
+    *
+    * Currently implemented by the http4s adapter; other server adapters raise
+    * [[UnsupportedOperationException]] until they gain the async-SSR wiring.
+    */
+  def renderAsync(component: => C): F[Response] =
+    throw new UnsupportedOperationException(
+      "renderAsync (blocking async SSR for <melt:await>) is currently only supported by the http4s adapter."
+    )
+
+/** Makes [[ServerMeltContext.renderAsync]] callable from `app.get` handlers, whose
+  * `ctx` is statically a [[MeltContext]] but is always a server context at runtime. */
+extension [F[_], P <: AnyNamedTuple, B](ctx: MeltContext[F, P, B, RenderResult])
+  def renderAsync(component: => RenderResult): F[Response] =
+    ctx match
+      case s: ServerMeltContext[F, P, B, RenderResult] @unchecked => s.renderAsync(component)
+      case _                                                      =>
+        throw new UnsupportedOperationException("renderAsync requires a server (SSR) context")
