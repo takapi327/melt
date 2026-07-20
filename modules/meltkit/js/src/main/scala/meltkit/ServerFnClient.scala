@@ -8,6 +8,7 @@ package meltkit
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
+import scala.scalajs.js
 import scala.scalajs.js.Thenable.Implicits.given
 import scala.util.{ Failure, Success }
 
@@ -102,16 +103,53 @@ final class Mutation[In, Out] private[meltkit] (fn: CommandFn[In, Out], in: In):
   *     still re-runs the request on demand.
   */
 extension [In, Out](fn: QueryFn[In, Out])
-  def apply(in: In): Query[Out] =
-    val q = ServerFnClient.build(fn, in, Async.Loading)
-    q.refresh()
-    q
-  def apply()(using ev: Unit =:= In): Query[Out] = apply(ev(()))
+  def apply(in:         In):          Query[Out] = ServerFnClient.query(fn, in)
+  def apply()(using ev: Unit =:= In): Query[Out] = ServerFnClient.query(fn, ev(()))
 
   def seeded(in:   In, seed:      Out):         Query[Out] = ServerFnClient.build(fn, in, Async.Done(seed))
   def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = seeded(ev(()), seed)
 
 private object ServerFnClient:
+
+  /** Invokes an eager query, preferring an SSR hydration seed when one is present.
+    *
+    * During hydration, `<melt:await>` boundaries resolved on the server are
+    * serialized into `<script data-melt-queries>` and read into [[hydrationSeed]].
+    * If this query's `name + args` has a seed, the [[Query]] starts already
+    * `Done` and skips the initial fetch — so the client adopts the server-rendered
+    * markup with no loading flash and no redundant round-trip. Otherwise it starts
+    * `Loading` and fetches immediately (`refresh()`). `refresh()` still re-runs the
+    * request on demand in both cases. */
+  def query[In, Out](fn: QueryFn[In, Out], in: In): Query[Out] =
+    val body = fn.inCodec.encodeToString(in)
+    seedFor(s"${ fn.name }\n$body").flatMap { json =>
+      try Some(fn.outCodec.decode(json))
+      catch case _: Throwable => None // malformed seed → fall back to an eager fetch
+    } match
+      case Some(seed) => build(fn, in, Async.Done(seed))
+      case None       =>
+        val q = build(fn, in, Async.Loading)
+        q.refresh()
+        q
+
+  /** SSR-resolved query results keyed by `name + "\n" + argsJson` (matching
+    * [[Query.key]]), read once from the `<script data-melt-queries>` element the
+    * async-SSR adapter injects. Kept for the whole synchronous hydration pass (so
+    * several components sharing a key all adopt the seed), then dropped one tick
+    * later so post-hydration navigations fetch fresh. */
+  private lazy val hydrationSeed: scala.collection.mutable.Map[String, SimpleJson.JsonValue] =
+    val m  = scala.collection.mutable.Map.empty[String, SimpleJson.JsonValue]
+    val el = dom.document.querySelector("script[data-melt-queries]")
+    if el != null then
+      try
+        SimpleJson.parse(el.textContent) match
+          case obj: SimpleJson.JsonValue.Obj => obj.fields.foreach { case (k, v) => m(k) = v }
+          case _                             => ()
+      catch case _: Throwable => ()
+      js.timers.setTimeout(0)(m.clear())
+    m
+
+  private def seedFor(key: String): Option[SimpleJson.JsonValue] = hydrationSeed.get(key)
 
   /** Builds a [[Query]] whose `refresh` re-issues the request, starting from
     * `initial` (`Loading` for an eager query, `Done(seed)` for a seeded one). */

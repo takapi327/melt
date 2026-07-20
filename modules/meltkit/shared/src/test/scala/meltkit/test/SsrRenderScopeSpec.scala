@@ -29,17 +29,17 @@ class SsrRenderScopeSpec extends munit.FunSuite:
   test("resolveAll renders the Done branch from the resolveQuery result"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.successful(Some("42")))
     scope.suspend("m1", query("posts.count", "null"), branch)
-    scope.resolveAll.map(frags => assertEquals(frags("m1").body, "<done>42</done>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<done>42</done>"))
 
   test("a failing query resolves to the Failed branch, not the whole page"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.failed(new RuntimeException("db down")))
     scope.suspend("m1", query("q", "null"), branch)
-    scope.resolveAll.map(frags => assertEquals(frags("m1").body, "<err>db down</err>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<err>db down</err>"))
 
   test("an unregistered query keeps the Loading fallback"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.successful(None))
     scope.suspend("m1", query("missing", "null"), branch)
-    scope.resolveAll.map(frags => assertEquals(frags("m1").body, "<loading/>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<loading/>"))
 
   test("boundaries resolve independently and are keyed by marker id"):
     val scope = new SsrRenderScope[Future]((name, _) =>
@@ -47,10 +47,27 @@ class SsrRenderScopeSpec extends munit.FunSuite:
     )
     scope.suspend("a", query("ok", "null"), branch)
     scope.suspend("b", query("bad", "null"), branch)
-    scope.resolveAll.map { frags =>
-      assertEquals(frags("a").body, "<done>1</done>")
-      assertEquals(frags("b").body, "<err>x</err>")
+    scope.resolveAll.map { r =>
+      assertEquals(r.fragments("a").body, "<done>1</done>")
+      assertEquals(r.fragments("b").body, "<err>x</err>")
     }
+
+  test("resolveAll seeds successfully resolved queries by key, but not failures"):
+    val scope = new SsrRenderScope[Future]((name, _) =>
+      if name == "ok" then Future.successful(Some("7")) else Future.failed(new RuntimeException("x"))
+    )
+    scope.suspend("a", query("ok", "null"), branch)
+    scope.suspend("b", query("bad", "null"), branch)
+    scope.resolveAll.map { r =>
+      // key is `name\nargs`; only the resolved query is seeded (raw JSON verbatim)
+      assert(r.seedJson.contains("\"ok\\nnull\":7"), r.seedJson)
+      assert(!r.seedJson.contains("bad"), r.seedJson)
+    }
+
+  test("resolveAll with no seeds yields an empty seed JSON"):
+    val scope = new SsrRenderScope[Future]((_, _) => Future.successful(None))
+    scope.suspend("m1", query("missing", "null"), branch)
+    scope.resolveAll.map(r => assertEquals(r.seedJson, ""))
 
   test("withScope exposes the current scope during the body and clears it after"):
     assertEquals(SsrRenderScope.current, None)

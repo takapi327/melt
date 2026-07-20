@@ -50,27 +50,34 @@ final class SsrRenderScope[F[_]] private[meltkit] (
   private[meltkit] def nonEmpty: Boolean = _pending.nonEmpty
 
   /** Resolves every boundary concurrently, isolating failures per boundary (a
-    * failed query renders its `Failed` branch, never the whole page). Returns
-    * `markerId -> fragment`. */
+    * failed query renders its `Failed` branch, never the whole page). Returns the
+    * rendered fragments (`markerId -> fragment`) for marker splicing plus the
+    * hydration seed JSON that lets the client adopt the data without refetching. */
   private[meltkit] def resolveAll(using
     functor:  Functor[F],
     recover:  Recover[F],
     parallel: Parallel[F]
-  ): F[Map[String, RenderResult]] =
-    functor.map(parallel.parTraverse(_pending.toList)(s => resolveOne(s)))(_.toMap)
+  ): F[SsrRenderScope.Resolved] =
+    functor.map(parallel.parTraverse(_pending.toList)(s => resolveOne(s))) { outcomes =>
+      val fragments = outcomes.map(o => o.id -> o.fragment).toMap
+      SsrRenderScope.Resolved(fragments, SsrRenderScope.buildSeedJson(outcomes.flatMap(_.seed)))
+    }
 
   private def resolveOne[Out](s: SsrRenderScope.Suspended[Out])(using
     functor: Functor[F],
     recover: Recover[F]
-  ): F[(String, RenderResult)] =
+  ): F[SsrRenderScope.Outcome] =
     functor.map(recover.attempt(resolveQuery(s.query.name, s.query.argsJson))) {
       case Right(Some(json)) =>
         val fragment =
           try s.renderBranch(Async.Done(s.query.outCodec.decode(SimpleJson.parse(json))))
-          catch case e: Throwable => s.renderBranch(Async.Failed(e))
-        s.id -> fragment
-      case Right(None) => s.id -> s.renderBranch(Async.Loading) // not registered → keep fallback
-      case Left(e)     => s.id -> s.renderBranch(Async.Failed(e))
+          catch
+            case e: Throwable => s.renderBranch(Async.Failed(e))
+        // Only a successfully resolved query is seeded — the client adopts its raw
+        // JSON verbatim (decoded with the same codec) and skips its initial fetch.
+        SsrRenderScope.Outcome(s.id, fragment, Some(s.query.key -> json))
+      case Right(None) => SsrRenderScope.Outcome(s.id, s.renderBranch(Async.Loading), None) // unregistered → fallback
+      case Left(e)     => SsrRenderScope.Outcome(s.id, s.renderBranch(Async.Failed(e)), None)
     }
 
 object SsrRenderScope:
@@ -80,6 +87,29 @@ object SsrRenderScope:
     query:        Query[Out],
     renderBranch: Async[Out] => RenderResult
   )
+
+  /** One resolved boundary: its marker id, the rendered fragment to splice, and —
+    * for a successfully resolved query — the `key -> rawResultJson` hydration seed. */
+  private[meltkit] final case class Outcome(
+    id:       String,
+    fragment: RenderResult,
+    seed:     Option[(String, String)]
+  )
+
+  /** The result of [[SsrRenderScope.resolveAll]]: fragments keyed by marker id for
+    * splicing, and the `data-melt-queries` JSON object (empty when nothing seeded). */
+  private[meltkit] final case class Resolved(
+    fragments: Map[String, RenderResult],
+    seedJson:  String
+  )
+
+  /** Builds the `data-melt-queries` JSON object body (`{ "name\nargs": <result>, … }`).
+    * Keys are JSON-escaped; the raw result JSON is spliced verbatim as the value.
+    * Duplicate keys collapse (several boundaries may share one query). Empty → "". */
+  private[meltkit] def buildSeedJson(seeds: List[(String, String)]): String =
+    val deduped = seeds.toMap
+    if deduped.isEmpty then ""
+    else deduped.map { case (k, json) => s"${ SimpleJson.encString(k) }:$json" }.mkString("{", ",", "}")
 
   // Ambient current scope. A plain holder is enough because it is only read
   // during the synchronous shell render (single-threaded on Scala.js; one thread
