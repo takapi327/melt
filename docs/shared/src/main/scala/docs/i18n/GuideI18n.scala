@@ -522,6 +522,8 @@ case class GuideServerFunctions(
   optimisticIntro:   String,
   issuesH2:          String,
   issuesIntro:       String,
+  invalidateH2:      String,
+  invalidateIntro:   String,
   serverOnlyTitle:   String,
   serverOnlyText:    String,
   handlerTitle:      String,
@@ -1115,6 +1117,9 @@ object GuideI18n:
       issuesH2    = "Per-field form issues",
       issuesIntro =
         "A form model can carry per-field validation issues as errors: Map[String, List[String]]. On a validation failure the action returns the data with the map filled in, and the component shows each message next to its input — the SvelteKit fields.x.issues() equivalent.",
+      invalidateH2    = "Refresh queries on form success",
+      invalidateIntro =
+        "Wire a form action back to your reactive queries with Form(…).invalidates(query). When the form submits successfully, each declared query refreshes so the list reflects the change — the SvelteKit invalidate-on-success / TanStack invalidateQueries pattern. It runs on the client only; on the server the refresh is a no-op.",
       serverOnlyTitle = "Server-only by construction",
       serverOnlyText  =
         "The implementation passed to app.serve only ever compiles on the server. On the JVM it can reference java.sql / secrets that Scala.js cannot compile at all, so a database client can never leak into the browser bundle — a structural guarantee, not a lint rule.",
@@ -1639,6 +1644,9 @@ object GuideI18n:
       issuesH2    = "フィールドごとの検証イシュー",
       issuesIntro =
         "フォームモデルは errors: Map[String, List[String]] としてフィールドごとの検証イシューを保持できます。検証失敗時、アクションはこのマップを埋めたデータを返し、コンポーネントは各メッセージを対応する入力の隣に表示します（SvelteKit の fields.x.issues() 相当）。",
+      invalidateH2    = "フォーム成功時に query を再取得",
+      invalidateIntro =
+        "Form(…).invalidates(query) でフォームアクションをリアクティブな query に接続します。フォーム送信が成功すると、宣言した各 query が再取得され、一覧が変更を反映します（SvelteKit の invalidate-on-success / TanStack の invalidateQueries 相当）。クライアントでのみ動作し、サーバーでは再取得は no-op です。",
       serverOnlyTitle = "構造的に server-only",
       serverOnlyText  =
         "app.serve に渡す実装はサーバーでしかコンパイルされません。JVM では Scala.js がコンパイルできない java.sql やシークレットを参照できるため、DB クライアントがブラウザバンドルに混入することは決してありません。lint ルールではなく構造的な保証です。",

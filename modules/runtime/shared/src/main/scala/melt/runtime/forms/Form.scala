@@ -72,12 +72,24 @@ final class Form[A](initial: A)(using codec: PropsCodec[A]) extends FormHandle:
   def applyResultData(json: SimpleJson.JsonValue): Unit =
     data.set(codec.decode(json))
 
-  private var _before: () => Boolean                        = () => true
-  private var _after:  Option[(String, () => Unit) => Unit] = None
+  private var _before:    () => Boolean                                   = () => true
+  private var _after:     Option[(String, () => Unit) => Unit]            = None
+  private val _onSuccess: scala.collection.mutable.ListBuffer[() => Unit] =
+    scala.collection.mutable.ListBuffer.empty
 
   /** Registers a pre-submit hook. Return `false` to cancel (fluent). */
   def onSubmit(f: () => Boolean): this.type =
     _before = f
+    this
+
+  /** Registers a callback to run after a '''successful''' submit, in addition to
+    * the built-in behaviour (unlike [[onResult]], which replaces it). Multiple
+    * callbacks run in registration order. Used e.g. by meltkit's `invalidates` to
+    * refresh queries when a form succeeds. Fires on the client only (SSR never
+    * runs an enhance result). Fluent.
+    */
+  def onSuccess(f: () => Unit): this.type =
+    _onSuccess += f
     this
 
   /** Registers a result hook that receives the result `kind` and an
@@ -94,6 +106,7 @@ final class Form[A](initial: A)(using codec: PropsCodec[A]) extends FormHandle:
     _after match
       case Some(f) => f(kind, applyDefault)
       case None    => applyDefault()
+    if kind == "success" then _onSuccess.foreach(_())
 
   /** The HTML `name` for a form input, derived from a type-checked field selector.
     *
