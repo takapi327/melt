@@ -515,16 +515,32 @@ object SpaEmitter:
             reconstructInlineExpr(List(IrInlineTemplatePart.Html(pNodes)), indent + "      ", ns, nodePos)
           case None => "dom.document.createTextNode(\"\")"
 
+        // Re-indent the reconstructed arms to one consistent column. The handler's
+        // Code parts carry the user's indentation while the Html parts are emitted at
+        // the emitter's, so the raw splice is ragged and trips the layout parser;
+        // explicit braces make the DOM blocks indentation-insensitive, so flattening
+        // to a single column is safe (and keeps `//` comments on their own line).
+        val armIndent   = indent + "      "
+        val handlerArms = handlerPf.linesIterator
+          .map(l => if l.trim.isEmpty then "" else armIndent + l.trim)
+          .filter(_.nonEmpty)
+          .mkString("\n")
+
+        // Loading is the explicit `pending` arm, so if the handler covers Done and
+        // Failed the match already exhausts the sealed `Async` — a `case _` fallback
+        // would be an unreachable case. Emit it only for a partial handler.
+        val handlerCode   = handler.collect { case IrInlineTemplatePart.Code(c) => c }.mkString(" ")
+        val spaExhaustive = handlerCode.contains("Done") && handlerCode.contains("Failed")
+
         buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
         buf ++= s"${ indent }  Bind.show(${ valueExpr.code }.state, _ => {\n"
         // Splice the handler's `case …` arms straight into the match on the (typed)
-        // query state; `pending` supplies the Loading arm and a trailing `case _`
-        // covers anything unmatched. (A partial-function literal as a receiver would
-        // leave its scrutinee type uninferred.)
+        // query state. (A partial-function literal as a receiver would leave its
+        // scrutinee type uninferred.)
         buf ++= s"${ indent }    ${ valueExpr.code }.state.value match {\n"
         buf ++= s"${ indent }      case _root_.melt.runtime.Async.Loading => $pendingExpr\n"
-        buf ++= s"${ indent }      $handlerPf\n"
-        buf ++= s"${ indent }      case _ => dom.document.createTextNode(\"\")\n"
+        buf ++= s"$handlerArms\n"
+        if !spaExhaustive then buf ++= s"$armIndent case _ => dom.document.createTextNode(\"\")\n"
         buf ++= s"${ indent }    }\n"
         buf ++= s"${ indent }  }, $anchor)\n"
         buf ++= s"${ indent }}\n"

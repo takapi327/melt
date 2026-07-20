@@ -572,26 +572,39 @@ object SsrEmitter:
     val pad  = " " * indent
     val ipad = " " * (indent + 2)
 
-    // Lower the handler to a partial-function literal that returns String
-    // (Code parts verbatim; Html parts as `{ val _sb = …; _sb.toString }`).
+    // Lower the handler's `case …` arms to String-returning expressions (Code parts
+    // verbatim; Html parts as `{ val _sb = …; _sb.toString }`).
     val handlerExpr = new StringBuilder
     handler.foreach {
       case IrInlineTemplatePart.Code(code)  => handlerExpr ++= code
       case IrInlineTemplatePart.Html(nodes) => handlerExpr ++= irNodesToStringExpr(nodes, scopeId, hoistedMap)
     }
+    // Collapse the arms onto one line: the string-building bodies are already
+    // single-line, so the only line breaks come from the user's multi-line source,
+    // which would leave the spliced `match` arms ragged and trip the layout parser.
+    val handlerArms = handlerExpr.toString.linesIterator.map(_.trim).filter(_.nonEmpty).mkString(" ")
 
-    // Scope `_sbId` in its own block so multiple boundaries don't collide.
+    // A trailing `case _` covers the Loading branch (used for an unresolved query),
+    // unless the handler already matches Loading — in which case all three sealed
+    // `Async` cases are covered and the fallback would be an unreachable case.
+    val handlerCode = handler.collect { case IrInlineTemplatePart.Code(c) => c }.mkString(" ")
+    val ssrFallback = if handlerCode.contains("Loading") then "" else " case _ => \"\""
+
+    // Scope `_sbId` in its own block so multiple boundaries don't collide. Every
+    // line of the block body sits at exactly `ipad` (the `pending` nodes emit at the
+    // same `indent + 2`), so the block is uniformly indented and the layout parser
+    // does not flag it.
     buf ++= s"$pad{\n"
-    buf ++= s"""$ipad val _sbId = _root_.meltkit.SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")\n"""
-    buf ++= s"""$ipad renderer.push("<!--melt:sb:" + _sbId + "-->")\n"""
+    buf ++= s"""${ ipad }val _sbId = _root_.meltkit.SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")\n"""
+    buf ++= s"""${ ipad }renderer.push("<!--melt:sb:" + _sbId + "-->")\n"""
     pending.foreach(_.foreach(c => emitNode(c, buf, indent + 2, scopeId, nodePos, hoistedMap)))
-    buf ++= s"""$ipad renderer.push("<!--/melt:sb:" + _sbId + "-->")\n"""
+    buf ++= s"""${ ipad }renderer.push("<!--/melt:sb:" + _sbId + "-->")\n"""
     // Splice the handler's `case …` arms straight into a `match` on the (typed)
-    // branch value `a`; a trailing `case _` covers Loading/unmatched. Wrapping the
-    // arms as a partial-function literal instead would leave its scrutinee type
-    // uninferred (a PF literal as a receiver has no expected type).
-    buf ++= s"$ipad _root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
-    buf ++= s"$ipad   RenderResult(a match { ${ handlerExpr.toString } case _ => \"\" }, \"\")))\n"
+    // branch value `a`. Wrapping the arms as a partial-function literal instead
+    // would leave its scrutinee type uninferred (a PF literal as a receiver has no
+    // expected type).
+    buf ++= s"${ ipad }_root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
+    buf ++= s"${ ipad }  RenderResult(a match { $handlerArms$ssrFallback }, \"\")))\n"
     buf ++= s"$pad}\n"
 
   // ── Head emission ──────────────────────────────────────────────────────────
