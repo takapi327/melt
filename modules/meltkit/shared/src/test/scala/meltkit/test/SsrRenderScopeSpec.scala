@@ -29,17 +29,17 @@ class SsrRenderScopeSpec extends munit.FunSuite:
   test("resolveAll renders the Done branch from the resolveQuery result"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.successful(Some("42")))
     scope.suspend("m1", query("posts.count", "null"), branch)
-    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<done>42</done>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments.toMap.apply("m1").body, "<done>42</done>"))
 
   test("a failing query resolves to the Failed branch, not the whole page"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.failed(new RuntimeException("db down")))
     scope.suspend("m1", query("q", "null"), branch)
-    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<err>db down</err>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments.toMap.apply("m1").body, "<err>db down</err>"))
 
   test("an unregistered query keeps the Loading fallback"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.successful(None))
     scope.suspend("m1", query("missing", "null"), branch)
-    scope.resolveAll.map(r => assertEquals(r.fragments("m1").body, "<loading/>"))
+    scope.resolveAll.map(r => assertEquals(r.fragments.toMap.apply("m1").body, "<loading/>"))
 
   test("boundaries resolve independently and are keyed by marker id"):
     val scope = new SsrRenderScope[Future]((name, _) =>
@@ -48,8 +48,8 @@ class SsrRenderScopeSpec extends munit.FunSuite:
     scope.suspend("a", query("ok", "null"), branch)
     scope.suspend("b", query("bad", "null"), branch)
     scope.resolveAll.map { r =>
-      assertEquals(r.fragments("a").body, "<done>1</done>")
-      assertEquals(r.fragments("b").body, "<err>x</err>")
+      assertEquals(r.fragments.toMap.apply("a").body, "<done>1</done>")
+      assertEquals(r.fragments.toMap.apply("b").body, "<err>x</err>")
     }
 
   test("resolveAll seeds successfully resolved queries by key, but not failures"):
@@ -81,3 +81,28 @@ class SsrRenderScopeSpec extends munit.FunSuite:
   test("nextId allocates request-unique ids"):
     val scope = new SsrRenderScope[Future]((_, _) => Future.successful(None))
     assertNotEquals(scope.nextId(), scope.nextId())
+
+  test("a nested boundary registered while rendering a branch is resolved in a later round"):
+    // The outer branch registers a nested boundary via the ambient scope (as
+    // generated <melt:await> code would), which resolveAll must then resolve.
+    val scope = new SsrRenderScope[Future]((name, _) => Future.successful(Some(if name == "outer" then "1" else "2")))
+    val nestedBranch: Async[Int] => RenderResult =
+      case Async.Done(x) => RenderResult(s"<inner>$x</inner>", "")
+      case _             => RenderResult("", "")
+    val outerBranch: Async[Int] => RenderResult =
+      case Async.Done(x) =>
+        SsrRenderScope.current.foreach(_.suspend("n1", query("inner", "null"), nestedBranch))
+        RenderResult(s"<outer>$x<!--melt:sb:n1--><!--/melt:sb:n1--></outer>", "")
+      case _ => RenderResult("", "")
+    scope.suspend("m1", query("outer", "null"), outerBranch)
+    scope.resolveAll.map { r =>
+      val byId = r.fragments.toMap
+      assertEquals(byId("m1").body, "<outer>1<!--melt:sb:n1--><!--/melt:sb:n1--></outer>")
+      assertEquals(byId("n1").body, "<inner>2</inner>")
+      // parent-first order so the parent's spliced fragment (carrying n1's marker)
+      // precedes the child
+      assert(r.fragments.indexWhere(_._1 == "m1") < r.fragments.indexWhere(_._1 == "n1"))
+      // both queries seeded
+      assert(r.seedJson.contains("\"outer\\nnull\":1"), r.seedJson)
+      assert(r.seedJson.contains("\"inner\\nnull\":2"), r.seedJson)
+    }

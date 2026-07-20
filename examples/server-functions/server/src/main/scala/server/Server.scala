@@ -41,6 +41,8 @@ object Server extends IOApp.Simple:
     // ── Server functions: implemented once, callable type-safely from the client ─
     app.serve(Api.list) { (_, _) => store.get }
 
+    app.serve(Api.count) { (_, _) => store.get.map(_.size) }
+
     app.serve(Api.like) { (id, _) =>
       store.modify { posts =>
         val updated = posts.map(p => if p.id == id then p.copy(likes = p.likes + 1) else p)

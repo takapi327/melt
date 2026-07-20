@@ -22,8 +22,10 @@ import melt.ast.*
   * lands inside a `<!--[melt:dyn-->` region, so the hydration cursor and the
   * server splice disagree and the DOM tears.
   *
-  * T2.0 therefore requires every `<melt:await>` to live outside any reactive
-  * region (nested awaits are likewise rejected: single-level only for now).
+  * Every `<melt:await>` must therefore live outside any reactive region — a
+  * conditional, a list, a `<melt:key>`, or a `{#snippet}`. Nesting inside another
+  * await's branch (handler / pending / failed) is allowed: a branch is a stable
+  * spliced region, and `resolveAll` resolves nested boundaries in later rounds.
   */
 object AwaitBoundaryChecker:
 
@@ -77,19 +79,20 @@ object AwaitBoundaryChecker:
           val span = positions.spanOf(node)
           errors += CompileError(
             message = "<melt:await> cannot appear inside a reactive region (a conditional, " +
-              "list, another <melt:await> handler, <melt:key>, or {#snippet}). Move it to a " +
-              "static position in the template so its server-rendered boundary marker stays " +
-              "stable for hydration.",
+              "list, <melt:key>, or {#snippet}). Move it to a static position in the template " +
+              "so its server-rendered boundary marker stays stable for hydration.",
             line     = span.absoluteLine(templateSource, templateStartLine),
             column   = span.column(templateSource),
             filename = filename
           )
-        // The handler is itself a reactive region → any nested await is rejected too.
+        // A branch (handler / pending / failed) is a stable spliced region, so a
+        // nested <melt:await> directly inside it is allowed (resolved in a later
+        // round); a conditional/list within re-enters the reactive context.
         handler.foreach {
-          case InlineTemplatePart.Html(nodes) => nodes.foreach(descend(_, reactive = true))
+          case InlineTemplatePart.Html(nodes) => nodes.foreach(descend(_, reactive = false))
           case _                              => ()
         }
-        pending.foreach(_.children.foreach(descend(_, insideReactive)))
-        failed.foreach(_.children.foreach(descend(_, insideReactive)))
+        pending.foreach(_.children.foreach(descend(_, reactive = false)))
+        failed.foreach(_.children.foreach(descend(_, reactive = false)))
 
       case _ => ()

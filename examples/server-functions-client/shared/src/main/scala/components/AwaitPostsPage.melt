@@ -14,15 +14,23 @@ val posts = Api.list()
   <p><a href="/">← Back to the seeded list</a></p>
 
   <!-- The server resolves `posts` and renders the Done branch; <melt:pending>
-       is the fallback shown until it settles (and on the client until hydrated). -->
+       is the fallback shown until it settles (and on the client until hydrated).
+       The Done branch nests a second <melt:await> (the count), resolved in a
+       later round and spliced into the outer fragment. -->
   <melt:await value={posts}>
     { case Async.Done(list) =>
-        <ul>{list.map(p =>
-          <li>
-            <span class="title">{p.title}</span>
-            <span class="likes">♥ {p.likes.toString}</span>
-          </li>
-        )}</ul>
+        <div>
+          <ul>{list.map(p =>
+            <li>
+              <span class="title">{p.title}</span>
+              <span class="likes">♥ {p.likes.toString}</span>
+            </li>
+          )}</ul>
+          <melt:await value={Api.count()}>
+            { case Async.Done(n) => <p class="count">{n.toString} posts total</p> }
+            <melt:pending><p class="loading">counting…</p></melt:pending>
+          </melt:await>
+        </div>
       case Async.Failed(e) =>
         <p class="error">Failed to load: {e.getMessage}</p> }
     <melt:pending><p class="loading">Loading…</p></melt:pending>

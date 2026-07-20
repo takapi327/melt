@@ -110,8 +110,12 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
           case None =>
             runner.pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
           case Some(a) =>
-            given Pure[F] with
+            // Derive the effect type classes from the synchronous runner (resolution
+            // is sequential — a sync effect has no real concurrency).
+            given pureF: Pure[F] with
               def pure[A](x: A): F[A] = runner.pure(x)
+            val flatMapF = new FlatMap[F]:
+              def flatMap[A, C](fa: F[A])(f: A => F[C]): F[C] = f(runner.runSync(fa))
             val recover = new Recover[F]:
               def attempt[A](fa: F[A]): F[Either[Throwable, A]] =
                 runner.pure(try Right(runner.runSync(fa))
@@ -126,7 +130,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
               SsrRenderScope.withScope[F, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
             if !scope.nonEmpty then runner.pure(composeResponse(template, result, 200))
             else
-              runner.map(scope.resolveAll(using runner, recover, parallel)) { resolved =>
+              runner.map(scope.resolveAll(using runner, flatMapF, pureF, recover, parallel)) { resolved =>
                 composeResponse(template, result.copy(body = SsrRenderScope.spliceAndSeed(result.body, resolved)), 200)
               }
 

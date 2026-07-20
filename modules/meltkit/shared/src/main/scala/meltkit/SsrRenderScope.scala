@@ -34,55 +34,80 @@ final class SsrRenderScope[F[_]] private[meltkit] (
   private val wrapBranch:   SsrRenderScope.BranchWrap = SsrRenderScope.BranchWrap.identity
 ):
 
+  // Guards `_counter` and `_pending`: nested boundaries register during branch
+  // rendering, which `resolveAll` runs concurrently (real threads on the JVM).
+  private val _lock    = new AnyRef
   private var _counter = 0
   private val _pending: ListBuffer[SsrRenderScope.Suspended[?]] = ListBuffer.empty
 
   /** Allocates a request-unique boundary marker id (never a compile-time literal,
     * which would collide across the many `ServerRenderer`s a request builds). */
-  def nextId(): String =
+  def nextId(): String = _lock.synchronized {
     _counter += 1
     s"melt-sb-$_counter"
+  }
 
   /** Registers a boundary: `renderBranch` renders the resolved (or failed) branch
     * to a fragment once the query settles. */
   def suspend[Out](id: String, query: Query[Out], renderBranch: Async[Out] => RenderResult): Unit =
-    _pending += SsrRenderScope.Suspended(id, query, renderBranch)
+    _lock.synchronized(_pending += SsrRenderScope.Suspended(id, query, renderBranch))
 
-  private[meltkit] def nonEmpty: Boolean = _pending.nonEmpty
+  private[meltkit] def nonEmpty: Boolean = _lock.synchronized(_pending.nonEmpty)
 
-  /** Resolves every boundary concurrently, isolating failures per boundary (a
-    * failed query renders its `Failed` branch, never the whole page). Returns the
-    * rendered fragments (`markerId -> fragment`) for marker splicing plus the
-    * hydration seed JSON that lets the client adopt the data without refetching. */
+  private def pendingSize: Int = _lock.synchronized(_pending.length)
+
+  private def pendingFrom(from: Int): List[SsrRenderScope.Suspended[?]] =
+    _lock.synchronized(_pending.slice(from, _pending.length).toList)
+
+  /** Resolves every boundary concurrently, isolating failures per boundary (a failed
+    * query renders its `Failed` branch, never the whole page), then repeats for any
+    * nested `<melt:await>` boundaries a branch registered while rendering — one level
+    * per round, until none remain. Fragments accumulate parent-first, so splicing a
+    * parent (whose fragment carries a child's marker) precedes splicing the child.
+    * Returns the ordered fragments plus the hydration seed JSON. */
   private[meltkit] def resolveAll(using
     functor:  Functor[F],
+    flatMap:  FlatMap[F],
+    pure:     Pure[F],
     recover:  Recover[F],
     parallel: Parallel[F]
   ): F[SsrRenderScope.Resolved] =
-    functor.map(parallel.parTraverse(_pending.toList)(s => resolveOne(s))) { outcomes =>
-      val fragments = outcomes.map(o => o.id -> o.fragment).toMap
-      SsrRenderScope.Resolved(fragments, SsrRenderScope.buildSeedJson(outcomes.flatMap(_.seed)))
-    }
+    def loop(
+      from:  Int,
+      frags: List[(String, RenderResult)],
+      seeds: List[(String, String)]
+    ): F[SsrRenderScope.Resolved] =
+      val round = pendingFrom(from)
+      if round.isEmpty then pure.pure(SsrRenderScope.Resolved(frags, SsrRenderScope.buildSeedJson(seeds)))
+      else
+        val next = pendingSize
+        flatMap.flatMap(parallel.parTraverse(round)(s => resolveOne(s))) { outcomes =>
+          loop(next, frags ++ outcomes.map(o => o.id -> o.fragment), seeds ++ outcomes.flatMap(_.seed))
+        }
+    loop(0, Nil, Nil)
 
   private def resolveOne[Out](s: SsrRenderScope.Suspended[Out])(using
     functor: Functor[F],
     recover: Recover[F]
   ): F[SsrRenderScope.Outcome] =
     functor.map(recover.attempt(resolveQuery(s.query.name, s.query.argsJson))) {
-      // Each branch renders inside `wrapBranch`, which re-establishes the request
-      // ambient (e.g. `Router.withPath`) that a deferred F phase would otherwise
-      // have lost — the generated branch HTML may read `Router.currentPath`.
       case Right(Some(json)) =>
-        val fragment = wrapBranch {
+        val fragment = renderBranchIn {
           try s.renderBranch(Async.Done(s.query.outCodec.decode(SimpleJson.parse(json))))
           catch case e: Throwable => s.renderBranch(Async.Failed(e))
         }
         // Only a successfully resolved query is seeded — the client adopts its raw
         // JSON verbatim (decoded with the same codec) and skips its initial fetch.
         SsrRenderScope.Outcome(s.id, fragment, Some(s.query.key -> json))
-      case Right(None) => SsrRenderScope.Outcome(s.id, wrapBranch(s.renderBranch(Async.Loading)), None)
-      case Left(e)     => SsrRenderScope.Outcome(s.id, wrapBranch(s.renderBranch(Async.Failed(e))), None)
+      case Right(None) => SsrRenderScope.Outcome(s.id, renderBranchIn(s.renderBranch(Async.Loading)), None)
+      case Left(e)     => SsrRenderScope.Outcome(s.id, renderBranchIn(s.renderBranch(Async.Failed(e))), None)
     }
+
+  /** Renders a branch with the request ambient (`wrapBranch`, e.g. `Router.withPath`)
+    * AND this scope active, so any nested `<melt:await>` the branch renders registers
+    * back into this scope's pending list for the next resolution round. */
+  private def renderBranchIn(thunk: => RenderResult): RenderResult =
+    SsrRenderScope.withCurrent(this)(wrapBranch(thunk))
 
 object SsrRenderScope:
 
@@ -110,10 +135,10 @@ object SsrRenderScope:
     seed:     Option[(String, String)]
   )
 
-  /** The result of [[SsrRenderScope.resolveAll]]: fragments keyed by marker id for
-    * splicing, and the `data-melt-queries` JSON object (empty when nothing seeded). */
+  /** The result of [[SsrRenderScope.resolveAll]]: fragments in parent-first splice
+    * order, and the `data-melt-queries` JSON object (empty when nothing seeded). */
   private[meltkit] final case class Resolved(
-    fragments: Map[String, RenderResult],
+    fragments: List[(String, RenderResult)],
     seedJson:  String
   )
 
@@ -160,6 +185,15 @@ object SsrRenderScope:
     * `<melt:await>` code registers through this (existential `F`, so the code
     * stays F-free). */
   def current: Option[SsrRenderScope[?]] = Option(_current.get)
+
+  /** Makes `scope` the active ambient for the duration of `body` (restoring the
+    * previous one after), so a deferred branch render re-registers nested boundaries
+    * into the right scope. */
+  private[meltkit] def withCurrent[A](scope: SsrRenderScope[?])(body: => A): A =
+    val prev = _current.get
+    _current.set(scope)
+    try body
+    finally _current.set(prev)
 
   /** Runs `body` (the shell render) with a fresh scope active, returning the
     * shell result and the populated scope for the adapter to resolve. `wrapBranch`

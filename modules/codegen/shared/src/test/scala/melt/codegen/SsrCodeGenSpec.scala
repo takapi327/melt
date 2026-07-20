@@ -643,3 +643,19 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("a match {"), code)
     assert(code.contains("case Async.Done"), code)
   }
+
+  test("a nested melt:await inside a handler registers the inner boundary via string-building") {
+    val src =
+      """<melt:await value={outer}>
+        |  { case Async.Done(x) => <div><melt:await value={inner}>
+        |      { case Async.Done(y) => <span>done</span> }
+        |    </melt:await></div> }
+        |</melt:await>""".stripMargin
+    val code = compile(src)
+    // outer boundary pushes its marker through the renderer
+    assert(code.contains("""renderer.push("<!--melt:sb:" + _sbId + "-->")"""), code)
+    // the inner boundary (rendered inside the outer branch's `_sb`) pushes its marker
+    // and registers via the ambient scope from within the string-building
+    assert(code.contains("""_sb ++= "<!--melt:sb:" + _sbId + "-->""""), code)
+    assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, inner,"), code)
+  }

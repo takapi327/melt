@@ -501,6 +501,11 @@ object SpaEmitter:
       // ── <melt:await> async boundary (client = reactive on the query state) ──
       case IrNode.IrAwait(valueExpr, handler, pending, _) =>
         val anchor = ctr.nextTxt()
+        // Bind the awaitable to a local val so it is evaluated once — otherwise a
+        // fresh call like `value={Api.details(x)}` would create one Query for the
+        // subscription and a different one for the body's `.state.value` read.
+        val qVar = ctr.nextEl()
+        buf ++= s"${ indent }val $qVar = ${ valueExpr.code }\n"
         parentVar match
           case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
           case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
@@ -533,11 +538,11 @@ object SpaEmitter:
         val spaExhaustive = handlerCode.contains("Done") && handlerCode.contains("Failed")
 
         buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
-        buf ++= s"${ indent }  Bind.show(${ valueExpr.code }.state, _ => {\n"
+        buf ++= s"${ indent }  Bind.show($qVar.state, _ => {\n"
         // Splice the handler's `case …` arms straight into the match on the (typed)
         // query state. (A partial-function literal as a receiver would leave its
         // scrutinee type uninferred.)
-        buf ++= s"${ indent }    ${ valueExpr.code }.state.value match {\n"
+        buf ++= s"${ indent }    $qVar.state.value match {\n"
         buf ++= s"${ indent }      case _root_.melt.runtime.Async.Loading => $pendingExpr\n"
         buf ++= s"$handlerArms\n"
         if !spaExhaustive then buf ++= s"$armIndent case _ => dom.document.createTextNode(\"\")\n"

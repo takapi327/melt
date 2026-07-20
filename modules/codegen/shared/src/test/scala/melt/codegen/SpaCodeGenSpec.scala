@@ -2423,9 +2423,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |  <melt:pending><p>Loading…</p></melt:pending>
         |</melt:await>""".stripMargin
     val code = compile(src)
-    // reactive binding on the query's Async signal
-    assert(code.contains("Bind.show(posts.state,"), code)
-    assert(code.contains("posts.state.value match"), code)
+    // the awaitable is bound to a local val (evaluated once), then bound reactively
+    assert(raw"""val (\w+) = posts""".r.findFirstIn(code).isDefined, code)
+    assert(raw"""Bind\.show\((\w+)\.state,""".r.findFirstIn(code).isDefined, code)
+    assert(raw"""(\w+)\.state\.value match""".r.findFirstIn(code).isDefined, code)
     // pending supplies the Loading branch (user need not write a Loading arm)
     assert(code.contains("case _root_.melt.runtime.Async.Loading =>"), code)
     assert(code.contains("Loading…"), code)

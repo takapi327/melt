@@ -1169,7 +1169,7 @@ object GuideI18n:
         "Both render a query on the server with no loading flash. Reach for a seeded prop when a page loader already reads the data; reach for <melt:await> when you want the component to own the query and keep the route handler a one-liner. Under the hood both settle the same reactive Query and hydrate the same way.",
       constraintsTitle = "Keep the boundary at a static position",
       constraintsText  =
-        "A <melt:await> must sit outside any reactive region — a conditional, a list, another await's handler, <melt:key>, or {#snippet} — so its server-rendered marker stays stable for hydration; the compiler enforces this. T2.0 is single-level (no nested awaits yet).",
+        "A <melt:await> must sit outside any reactive region — a conditional, a list, <melt:key>, or {#snippet} — so its server-rendered marker stays stable for hydration; the compiler enforces this. Nesting one inside another await's branch is allowed (the inner boundary resolves in a later round); place it in an element rather than inside a conditional or list within the branch.",
       httpOnlyTitle = "Server adapters",
       httpOnlyText  =
         "Blocking async SSR is implemented by the http4s, Node, and JVM (Undertow) server adapters. The JVM built-in server resolves queries synchronously (its SyncRunner), so a query with a truly asynchronous implementation should run on the http4s or Node adapter. ctx.render (with a seeded prop) works everywhere."
@@ -1723,7 +1723,7 @@ object GuideI18n:
         "どちらもローディングのちらつきなしにサーバーで query を描画します。ページローダーが既にデータを読んでいるなら seeded prop を、コンポーネントに query を持たせてルートハンドラを 1 行に保ちたいなら <melt:await> を選びます。内部的にはどちらも同じリアクティブ Query を確定させ、同じように hydration します。",
       constraintsTitle = "境界は静的な位置に置く",
       constraintsText  =
-        "<melt:await> はリアクティブ領域の外（条件分岐・リスト・別の await のハンドラ・<melt:key>・{#snippet} の内側ではない場所）に置く必要があります。サーバー描画のマーカーが hydration のために安定するためで、コンパイラが強制します。T2.0 は単層のみ（ネストした await は未対応）です。",
+        "<melt:await> はリアクティブ領域の外（条件分岐・リスト・<melt:key>・{#snippet} の内側ではない場所）に置く必要があります。サーバー描画のマーカーが hydration のために安定するためで、コンパイラが強制します。別の await の分岐の中にネストするのは可能です（内側の境界は後続のラウンドで解決）。分岐内では条件分岐やリストの中ではなく要素の中に置いてください。",
       httpOnlyTitle = "サーバーアダプター",
       httpOnlyText  =
         "ブロッキング非同期 SSR は http4s・Node・JVM（Undertow）の各サーバーアダプターで実装されています。JVM 内蔵サーバーは query を同期的に解決する（SyncRunner）ため、実際に非同期な実装を持つ query は http4s か Node アダプターで動かしてください。ctx.render（seeded prop）はどこでも動作します。"

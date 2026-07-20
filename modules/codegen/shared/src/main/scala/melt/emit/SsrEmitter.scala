@@ -572,23 +572,8 @@ object SsrEmitter:
     val pad  = " " * indent
     val ipad = " " * (indent + 2)
 
-    // Lower the handler's `case …` arms to String-returning expressions (Code parts
-    // verbatim; Html parts as `{ val _sb = …; _sb.toString }`).
-    val handlerExpr = new StringBuilder
-    handler.foreach {
-      case IrInlineTemplatePart.Code(code)  => handlerExpr ++= code
-      case IrInlineTemplatePart.Html(nodes) => handlerExpr ++= irNodesToStringExpr(nodes, scopeId, hoistedMap)
-    }
-    // Collapse the arms onto one line: the string-building bodies are already
-    // single-line, so the only line breaks come from the user's multi-line source,
-    // which would leave the spliced `match` arms ragged and trip the layout parser.
-    val handlerArms = handlerExpr.toString.linesIterator.map(_.trim).filter(_.nonEmpty).mkString(" ")
-
-    // A trailing `case _` covers the Loading branch (used for an unresolved query),
-    // unless the handler already matches Loading — in which case all three sealed
-    // `Async` cases are covered and the fallback would be an unreachable case.
-    val handlerCode = handler.collect { case IrInlineTemplatePart.Code(c) => c }.mkString(" ")
-    val ssrFallback = if handlerCode.contains("Loading") then "" else " case _ => \"\""
+    val handlerArms = awaitHandlerArms(handler, scopeId, hoistedMap)
+    val ssrFallback = awaitFallback(handler)
 
     // Scope `_sbId` in its own block so multiple boundaries don't collide. Every
     // line of the block body sits at exactly `ipad` (the `pending` nodes emit at the
@@ -606,6 +591,49 @@ object SsrEmitter:
     buf ++= s"${ ipad }_root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
     buf ++= s"${ ipad }  RenderResult(a match { $handlerArms$ssrFallback }, \"\")))\n"
     buf ++= s"$pad}\n"
+
+  /** Lowers a `<melt:await>` handler's `case …` arms to one line of String-returning
+    * match arms (Code parts verbatim; Html parts as `{ val _sb = …; _sb.toString }`).
+    * Collapsed onto a single line so the spliced arms keep a consistent indentation. */
+  private def awaitHandlerArms(
+    handler:    List[IrInlineTemplatePart],
+    scopeId:    String,
+    hoistedMap: Map[String, IrNode.IrStaticElement]
+  ): String =
+    val hb = new StringBuilder
+    handler.foreach {
+      case IrInlineTemplatePart.Code(code)  => hb ++= code
+      case IrInlineTemplatePart.Html(nodes) => hb ++= irNodesToStringExpr(nodes, scopeId, hoistedMap)
+    }
+    hb.toString.linesIterator.map(_.trim).filter(_.nonEmpty).mkString(" ")
+
+  /** A trailing `case _` for the Loading branch (an unresolved query), unless the
+    * handler already matches Loading — in which case all three sealed `Async` cases
+    * are covered and the fallback would be an unreachable case. */
+  private def awaitFallback(handler: List[IrInlineTemplatePart]): String =
+    val code = handler.collect { case IrInlineTemplatePart.Code(c) => c }.mkString(" ")
+    if code.contains("Loading") then "" else " case _ => \"\""
+
+  /** String-building variant of [[emitAwaitSSR]] for a `<melt:await>` nested inside a
+    * handler (rendered into an `_sb`): pushes the marker span + pending fallback into
+    * `_sb` and registers the boundary with the ambient scope, which the next
+    * `resolveAll` round resolves and splices. */
+  private def emitAwaitToSb(
+    valueExpr:  ScalaExpr,
+    handler:    List[IrInlineTemplatePart],
+    pending:    Option[List[IrNode]],
+    sb:         StringBuilder,
+    scopeId:    String,
+    hoistedMap: Map[String, IrNode.IrStaticElement]
+  ): Unit =
+    val handlerArms = awaitHandlerArms(handler, scopeId, hoistedMap)
+    val ssrFallback = awaitFallback(handler)
+    sb ++= """{ val _sbId = _root_.meltkit.SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0"); """
+    sb ++= """_sb ++= "<!--melt:sb:" + _sbId + "-->"; """
+    pending.foreach(_.foreach(n => appendIrNodeToSb(n, sb, scopeId, hoistedMap)))
+    sb ++= """_sb ++= "<!--/melt:sb:" + _sbId + "-->"; """
+    sb ++= s"_root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a => "
+    sb ++= s"RenderResult(a match { $handlerArms$ssrFallback }, \"\"))); }; "
 
   // ── Head emission ──────────────────────────────────────────────────────────
 
@@ -800,6 +828,9 @@ object SsrEmitter:
       hoistedMap.get(id) match
         case Some(elem) => appendIrElementToSb(elem.tag, elem.attrs, elem.children, sb, scopeId, hoistedMap)
         case None       => ()
+
+    case IrNode.IrAwait(valueExpr, handler, pending, _) =>
+      emitAwaitToSb(valueExpr, handler, pending, sb, scopeId, hoistedMap)
 
     case _ => ()
 

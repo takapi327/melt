@@ -21,6 +21,9 @@ object Api:
   /** Read: all posts. Rendered reactively; seeded from the page loader on SSR. */
   val list = ServerFn.query[Unit, List[Post]]("posts.list")
 
+  /** Read: the post count. Used to demonstrate a nested `<melt:await>`. */
+  val count = ServerFn.query[Unit, Int]("posts.count")
+
   /** Mutate: like a post, returning the updated post. Paired with a single-flight
     * refresh of [[list]] so one round-trip both likes and refreshes the list. */
   val like = ServerFn.command[Int, Post]("posts.like")

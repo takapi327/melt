@@ -150,7 +150,7 @@ class SemanticCheckersSpec extends munit.FunSuite:
     assert(result.errors.exists(_.message.contains("<melt:await>")), result.errors.map(_.message))
   }
 
-  test("a nested <melt:await> inside another's handler is a compile error") {
+  test("a nested <melt:await> directly inside another's handler is allowed") {
     val result = compileSsr(
       """<melt:await value={outer}>
         |  { case Async.Done(a) => <melt:await value={inner}>
@@ -158,6 +158,5 @@ class SemanticCheckersSpec extends munit.FunSuite:
         |    </melt:await> }
         |</melt:await>""".stripMargin
     )
-    assert(result.errors.nonEmpty, "expected a nesting error")
-    assert(result.errors.exists(_.message.contains("<melt:await>")), result.errors.map(_.message))
+    assert(result.errors.isEmpty, result.errors.map(_.message))
   }
