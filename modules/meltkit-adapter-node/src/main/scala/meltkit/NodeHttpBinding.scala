@@ -73,7 +73,8 @@ private[meltkit] class NodeHttpBinding(
           basePath     = config.basePath,
           defaultTitle = config.defaultTitle,
           locals       = locals,
-          nonce        = nonce
+          nonce        = nonce,
+          app          = Some(app)
         )
 
     // Try static file serving first (GET/HEAD only)

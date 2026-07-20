@@ -26,18 +26,19 @@ import meltkit.exceptions.BodyDecodeException
 final class NodeMeltContext[P <: AnyNamedTuple, B](
   val params:               P,
   val requestPath:          String,
-  private val _queryParams: Map[String, List[String]] = Map.empty,
+  private val _queryParams: Map[String, List[String]]             = Map.empty,
   private val bodyDecoder:  BodyDecoder[B],
   private val rawBody:      Future[String],
-  private val rawHeaders:   Map[String, String]       = Map.empty,
-  private val rawCookies:   Map[String, String]       = Map.empty,
-  private val templateOpt:  Option[Template]          = None,
-  private val manifest:     ViteManifest              = ViteManifest.empty,
-  private val lang:         String                    = "en",
-  private val basePath:     String                    = "",
-  override val locals:      Locals                    = new Locals(),
-  private val nonce:        Option[String]            = None,
-  private val defaultTitle: String                    = ""
+  private val rawHeaders:   Map[String, String]                   = Map.empty,
+  private val rawCookies:   Map[String, String]                   = Map.empty,
+  private val templateOpt:  Option[Template]                      = None,
+  private val manifest:     ViteManifest                          = ViteManifest.empty,
+  private val lang:         String                                = "en",
+  private val basePath:     String                                = "",
+  override val locals:      Locals                                = new Locals(),
+  private val nonce:        Option[String]                        = None,
+  private val defaultTitle: String                                = "",
+  private val app:          Option[ServerMeltKitPlatform[Future]] = None
 )(using ec: ExecutionContext)
   extends ServerMeltContext[Future, P, B, RenderResult]:
 
@@ -91,28 +92,55 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
 
   override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
-      case None =>
-        throw new IllegalStateException(
-          "ctx.render() requires a NodeMeltContext initialized with a Template."
-        )
+      case None           => throw missingTemplate
+      case Some(template) => composeResponse(template, Router.withPath(requestPath)(component), status)
+
+  /** Blocking async SSR: resolve every `<melt:await>` boundary in-process (via the
+    * app's server-function registry) and splice the resolved branches over their
+    * markers, seeding the results for hydration. A page with no boundary is just
+    * [[render]] lifted into `Future`. */
+  override def renderAsync(component: => RenderResult): Future[Response] =
+    templateOpt match
+      case None           => throw missingTemplate
       case Some(template) =>
-        val result    = Router.withPath(requestPath)(component)
-        val augmented =
-          if result.imports.isEmpty then result
-          else
-            val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
-            val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
-            result.copy(head = newHead)
-        val html = template.render(
-          augmented,
-          manifest,
-          title    = defaultTitle,
-          lang     = lang,
-          basePath = basePath,
-          vars     = Map.empty,
-          nonce    = nonce
-        )
-        PlainResponse(status, "text/html; charset=utf-8", html)
+        app match
+          case None =>
+            Future.successful(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case Some(a) =>
+            val resolve =
+              a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[Future, PathSpec.Empty, Any, RenderResult]])
+            // Re-establish the request path around each deferred branch render.
+            val wrap = new SsrRenderScope.BranchWrap:
+              def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
+            val (result, scope) =
+              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
+            if !scope.nonEmpty then Future.successful(composeResponse(template, result, 200))
+            else
+              scope.resolveAll.map { resolved =>
+                composeResponse(template, result.copy(body = SsrRenderScope.spliceAndSeed(result.body, resolved)), 200)
+              }
+
+  private def missingTemplate: IllegalStateException =
+    new IllegalStateException("ctx.render() requires a NodeMeltContext initialized with a Template.")
+
+  /** Resolves `.melt` import tags and composes the page HTML via the [[Template]]. */
+  private def composeResponse(template: Template, result: RenderResult, status: StatusCode): PlainResponse =
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    val html = template.render(
+      augmented,
+      manifest,
+      title    = defaultTitle,
+      lang     = lang,
+      basePath = basePath,
+      vars     = Map.empty,
+      nonce    = nonce
+    )
+    PlainResponse(status, "text/html; charset=utf-8", html)
 
   // ── MeltContext: response builders ─────────────────────────────────────
 

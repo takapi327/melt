@@ -80,7 +80,8 @@ private[meltkit] class UndertowHttpBinding(
             basePath     = config.basePath,
             defaultTitle = config.defaultTitle,
             locals       = locals,
-            nonce        = nonce
+            nonce        = nonce,
+            app          = Some(app)
           )
 
       // Static file serving (GET/HEAD only)

@@ -117,6 +117,31 @@ object SsrRenderScope:
     seedJson:  String
   )
 
+  /** Splices each resolved `<melt:await>` branch over its marker span and appends the
+    * hydration seed as a `<script data-melt-queries>` so the client adopts the data
+    * without refetching. Shared by every server adapter's `renderAsync`. */
+  private[meltkit] def spliceAndSeed(body: String, resolved: Resolved): String =
+    var out = body
+    resolved.fragments.foreach { case (id, frag) => out = spliceMarker(out, id, frag.body) }
+    if resolved.seedJson.nonEmpty then
+      // Escape `</` so a string value can never close the <script> element early.
+      val safe = resolved.seedJson.replace("</", "<\\/")
+      out = s"""$out<script type="application/json" data-melt-queries>$safe</script>"""
+    out
+
+  /** Replaces the `<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->` span (marker + pending
+    * fallback) with `replacement`. Leaves the body untouched if the markers are absent
+    * (e.g. the boundary was inside a stripped event handler). */
+  private def spliceMarker(html: String, id: String, replacement: String): String =
+    val open  = s"<!--melt:sb:$id-->"
+    val close = s"<!--/melt:sb:$id-->"
+    val start = html.indexOf(open)
+    if start < 0 then html
+    else
+      val end = html.indexOf(close, start)
+      if end < 0 then html
+      else html.substring(0, start) + replacement + html.substring(end + close.length)
+
   /** Builds the `data-melt-queries` JSON object body (`{ "name\nargs": <result>, … }`).
     * Keys are JSON-escaped; the raw result JSON is spliced verbatim as the value.
     * Duplicate keys collapse (several boundaries may share one query). Empty → "". */

@@ -99,12 +99,13 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * boundary is effectful. A page with no `<melt:await>` behaves exactly like
     * [[render]] lifted into `F`.
     *
-    * Currently implemented by the http4s adapter; other server adapters raise
-    * [[UnsupportedOperationException]] until they gain the async-SSR wiring.
+    * Implemented by the http4s, Node, and JVM (Undertow) server contexts. The
+    * default raises [[UnsupportedOperationException]] for any context that has not
+    * wired async SSR.
     */
   def renderAsync(component: => C): F[Response] =
     throw new UnsupportedOperationException(
-      "renderAsync (blocking async SSR for <melt:await>) is currently only supported by the http4s adapter."
+      "renderAsync (blocking async SSR for <melt:await>) is not supported by this server context."
     )
 
 /** Makes [[ServerMeltContext.renderAsync]] callable from `app.get` handlers, whose

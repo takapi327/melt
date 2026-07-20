@@ -1160,7 +1160,7 @@ object GuideI18n:
         "The body is a { case Async.Done(x) => … } partial function (the same match you would write for a query's Async state); <melt:pending> supplies the Loading fallback, so you need not write a Loading arm. The value is a Query — a server function called with no manual seed.",
       serverH2    = "Rendering with renderAsync",
       serverIntro =
-        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s adapter.",
+        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, Node, and JVM (Undertow) server adapters.",
       seedH2    = "Hydration without a refetch",
       seedIntro =
         "The resolved query results are serialized into the page, so the client starts each awaited query already Done and skips its initial fetch — no loading flash and no redundant round-trip. A failed query renders its Failed branch (never a 500) and is not seeded, so the client retries it.",
@@ -1170,9 +1170,9 @@ object GuideI18n:
       constraintsTitle = "Keep the boundary at a static position",
       constraintsText  =
         "A <melt:await> must sit outside any reactive region — a conditional, a list, another await's handler, <melt:key>, or {#snippet} — so its server-rendered marker stays stable for hydration; the compiler enforces this. T2.0 is single-level (no nested awaits yet).",
-      httpOnlyTitle = "http4s adapter",
+      httpOnlyTitle = "Server adapters",
       httpOnlyText  =
-        "Blocking async SSR is currently implemented by the http4s adapter (JVM and Node). Other server adapters raise UnsupportedOperationException from renderAsync until they gain the wiring; ctx.render (with a seeded prop) works everywhere."
+        "Blocking async SSR is implemented by the http4s, Node, and JVM (Undertow) server adapters. The JVM built-in server resolves queries synchronously (its SyncRunner), so a query with a truly asynchronous implementation should run on the http4s or Node adapter. ctx.render (with a seeded prop) works everywhere."
     )
   )
 
@@ -1714,7 +1714,7 @@ object GuideI18n:
         "本体は { case Async.Done(x) => … } の部分関数です（query の Async 状態に対して書く match と同じ）。<melt:pending> が Loading フォールバックを担うので、Loading の分岐を書く必要はありません。value は Query — 手動 seed なしで呼び出したサーバー関数です。",
       serverH2    = "renderAsync で描画",
       serverIntro =
-        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s アダプターで利用できます。",
+        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・Node・JVM（Undertow）の各サーバーアダプターで利用できます。",
       seedH2    = "再取得なしの hydration",
       seedIntro =
         "解決した query の結果はページにシリアライズされるため、クライアントは各 await query を最初から Done で開始し、初回 fetch をスキップします。ローディングのちらつきも余分な往復もありません。失敗した query は Failed 分岐を描画し（500 にはならず）、seed もされないので、クライアントが再取得します。",
@@ -1724,9 +1724,9 @@ object GuideI18n:
       constraintsTitle = "境界は静的な位置に置く",
       constraintsText  =
         "<melt:await> はリアクティブ領域の外（条件分岐・リスト・別の await のハンドラ・<melt:key>・{#snippet} の内側ではない場所）に置く必要があります。サーバー描画のマーカーが hydration のために安定するためで、コンパイラが強制します。T2.0 は単層のみ（ネストした await は未対応）です。",
-      httpOnlyTitle = "http4s アダプター",
+      httpOnlyTitle = "サーバーアダプター",
       httpOnlyText  =
-        "ブロッキング非同期 SSR は現状 http4s アダプター（JVM・Node）で実装されています。他のサーバーアダプターは配線が入るまで renderAsync で UnsupportedOperationException を送出します。ctx.render（seeded prop）はどこでも動作します。"
+        "ブロッキング非同期 SSR は http4s・Node・JVM（Undertow）の各サーバーアダプターで実装されています。JVM 内蔵サーバーは query を同期的に解決する（SyncRunner）ため、実際に非同期な実装を持つ query は http4s か Node アダプターで動かしてください。ctx.render（seeded prop）はどこでも動作します。"
     )
   )
 

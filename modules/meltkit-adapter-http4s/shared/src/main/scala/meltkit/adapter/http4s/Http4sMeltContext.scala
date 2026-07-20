@@ -156,7 +156,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             if !scope.nonEmpty then summon[meltkit.Pure[F]].pure(composeResponse(template, result, 200))
             else
               summon[meltkit.Functor[F]].map(scope.resolveAll) { resolved =>
-                val body = Http4sMeltContext.spliceAndSeed(result.body, resolved)
+                val body = SsrRenderScope.spliceAndSeed(result.body, resolved)
                 composeResponse(template, result.copy(body = body), 200)
               }
 
@@ -208,30 +208,3 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
   override def notFound(message: String = "Not Found"): NotFound =
     Response.notFound(message)
-
-object Http4sMeltContext:
-
-  /** Splices each resolved `<melt:await>` branch over its marker span and appends
-    * the hydration seed as a `<script data-melt-queries>` so the client adopts the
-    * data without refetching. */
-  private[http4s] def spliceAndSeed(body: String, resolved: SsrRenderScope.Resolved): String =
-    var out = body
-    resolved.fragments.foreach { case (id, frag) => out = spliceMarker(out, id, frag.body) }
-    if resolved.seedJson.nonEmpty then
-      // Escape `</` so a string value can never close the <script> element early.
-      val safe = resolved.seedJson.replace("</", "<\\/")
-      out = s"""$out<script type="application/json" data-melt-queries>$safe</script>"""
-    out
-
-  /** Replaces the `<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->` span (marker + pending
-    * fallback) with `replacement`. Leaves the body untouched if the markers are
-    * absent (e.g. the boundary was inside a stripped event handler). */
-  private def spliceMarker(html: String, id: String, replacement: String): String =
-    val open  = s"<!--melt:sb:$id-->"
-    val close = s"<!--/melt:sb:$id-->"
-    val start = html.indexOf(open)
-    if start < 0 then html
-    else
-      val end = html.indexOf(close, start)
-      if end < 0 then html
-      else html.substring(0, start) + replacement + html.substring(end + close.length)
