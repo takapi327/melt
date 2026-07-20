@@ -98,7 +98,10 @@ object SsgGenerator:
               manifest     = config.manifest,
               lang         = config.defaultLang,
               basePath     = config.basePath,
-              defaultTitle = config.defaultTitle
+              defaultTitle = config.defaultTitle,
+              // Pass the app so a handler's `ctx.renderAsync` resolves <melt:await>
+              // queries in-process at build time (SyncRunner runs them synchronously).
+              app = Some(app)
             )
 
         route.tryHandle(rawValues, factory) match

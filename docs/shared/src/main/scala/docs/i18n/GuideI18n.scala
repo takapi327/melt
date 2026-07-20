@@ -1160,7 +1160,7 @@ object GuideI18n:
         "The body is a { case Async.Done(x) => … } partial function (the same match you would write for a query's Async state); <melt:pending> supplies the Loading fallback, so you need not write a Loading arm. The value is a Query — a server function called with no manual seed.",
       serverH2    = "Rendering with renderAsync",
       serverIntro =
-        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, Node, and JVM (Undertow) server adapters.",
+        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, Node, and JVM (Undertow) server adapters, and static generation (SSG) resolves the same boundaries at build time — baking the data straight into the HTML.",
       seedH2    = "Hydration without a refetch",
       seedIntro =
         "The resolved query results are serialized into the page, so the client starts each awaited query already Done and skips its initial fetch — no loading flash and no redundant round-trip. A failed query renders its Failed branch (never a 500) and is not seeded, so the client retries it.",
@@ -1714,7 +1714,7 @@ object GuideI18n:
         "本体は { case Async.Done(x) => … } の部分関数です（query の Async 状態に対して書く match と同じ）。<melt:pending> が Loading フォールバックを担うので、Loading の分岐を書く必要はありません。value は Query — 手動 seed なしで呼び出したサーバー関数です。",
       serverH2    = "renderAsync で描画",
       serverIntro =
-        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・Node・JVM（Undertow）の各サーバーアダプターで利用できます。",
+        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・Node・JVM（Undertow）の各サーバーアダプターで利用でき、静的サイト生成（SSG）でも同じ境界をビルド時に解決してデータを HTML に焼き込みます。",
       seedH2    = "再取得なしの hydration",
       seedIntro =
         "解決した query の結果はページにシリアライズされるため、クライアントは各 await query を最初から Done で開始し、初回 fetch をスキップします。ローディングのちらつきも余分な往復もありません。失敗した query は Failed 分岐を描画し（500 にはならず）、seed もされないので、クライアントが再取得します。",

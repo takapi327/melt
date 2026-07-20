@@ -8,7 +8,10 @@ package meltkit.ssg
 
 import java.nio.file.{ Files, Path }
 
-import melt.runtime.render.RenderResult
+import scala.concurrent.{ ExecutionContext, Future }
+
+import melt.runtime.render.{ RenderResult, ServerRenderer }
+import melt.runtime.Async
 
 import meltkit.*
 
@@ -160,4 +163,41 @@ class SsgGeneratorSpec extends munit.FunSuite:
       app.get("about", On)(ctx => ctx.render(RenderResult(body = "<p>about</p>", head = "")))
       SsgGenerator.run(app, config(out).copy(cleanOutput = false))
       assert(Files.exists(stale))
+    }
+
+  test("<melt:await> is resolved at build time via ctx.renderAsync"):
+    withTempDir { out =>
+      // Same-thread EC so SyncRunner[Future] sees each Future already completed (the
+      // SSG contract). A real IO-based SSG blocks on unsafeRunSync instead.
+      given ExecutionContext = ExecutionContext.parasitic
+      val nums               = ServerFn.query[Unit, List[Int]]("nums.list")
+      val app                = MeltKit[Future]()
+      app.serve(nums)((_, _) => Future.successful(List(1, 2, 3)))
+      // A handler that renders a <melt:await> boundary (mirroring generated code)
+      // and renders it with renderAsync, so SSG resolves the query at build time.
+      app.get("nums", On) { ctx =>
+        ctx.renderAsync {
+          val r  = ServerRenderer()
+          val id = SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")
+          r.push("<main><!--melt:sb:" + id + "-->")
+          r.push("<p>Loading…</p>")
+          r.push("<!--/melt:sb:" + id + "--></main>")
+          SsrRenderScope.current.foreach(
+            _.suspend(
+              id,
+              nums(),
+              {
+                case Async.Done(xs) => RenderResult("<ul>" + xs.map(n => s"<li>$n</li>").mkString + "</ul>", "")
+                case _              => RenderResult("", "")
+              }
+            )
+          )
+          r.result()
+        }
+      }
+      SsgGenerator.run(app, config(out))
+      val html = Files.readString(out.resolve("nums/index.html"))
+      assert(html.contains("<ul><li>1</li><li>2</li><li>3</li></ul>"), html) // resolved branch baked in
+      assert(!html.contains("Loading…"), html)                               // marker + pending replaced
+      assert(html.contains("data-melt-queries"), html)                       // seed injected for hydration
     }
