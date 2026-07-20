@@ -13,9 +13,9 @@ import melt.runtime.Async
 
 import cats.effect.IO
 import meltkit.*
-import meltkit.codec.BodyDecoder
-import meltkit.adapter.http4s.Http4sMeltContext
 import meltkit.adapter.http4s.Http4sAdapter.given
+import meltkit.adapter.http4s.Http4sMeltContext
+import meltkit.codec.BodyDecoder
 import org.http4s.{ Query as _, * }
 import org.http4s.implicits.*
 
@@ -103,11 +103,13 @@ class RenderAsyncTest extends CatsEffectSuite:
     app.serve(list) { (_, _) => IO.pure(Nil) }
     val ctx = ctxWith(app)
 
-    ctx.renderAsync {
-      val r = ServerRenderer()
-      r.push("<main>static</main>")
-      r.result()
-    }.map { resp =>
-      assert(resp.body.contains("<main>static</main>"), resp.body)
-      assert(!resp.body.contains("data-melt-queries"), resp.body)
-    }
+    ctx
+      .renderAsync {
+        val r = ServerRenderer()
+        r.push("<main>static</main>")
+        r.result()
+      }
+      .map { resp =>
+        assert(resp.body.contains("<main>static</main>"), resp.body)
+        assert(!resp.body.contains("data-melt-queries"), resp.body)
+      }
