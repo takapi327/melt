@@ -33,7 +33,7 @@ final class SsrRenderScope[F[_]] private[meltkit] (
   private val resolveQuery: (String, String) => F[Option[String]]
 ):
 
-  private var _counter                                   = 0
+  private var _counter = 0
   private val _pending: ListBuffer[SsrRenderScope.Suspended[?]] = ListBuffer.empty
 
   /** Allocates a request-unique boundary marker id (never a compile-time literal,
@@ -69,7 +69,7 @@ final class SsrRenderScope[F[_]] private[meltkit] (
           try s.renderBranch(Async.Done(s.query.outCodec.decode(SimpleJson.parse(json))))
           catch case e: Throwable => s.renderBranch(Async.Failed(e))
         s.id -> fragment
-      case Right(None) => s.id -> s.renderBranch(Async.Loading)  // not registered → keep fallback
+      case Right(None) => s.id -> s.renderBranch(Async.Loading) // not registered → keep fallback
       case Left(e)     => s.id -> s.renderBranch(Async.Failed(e))
     }
 
