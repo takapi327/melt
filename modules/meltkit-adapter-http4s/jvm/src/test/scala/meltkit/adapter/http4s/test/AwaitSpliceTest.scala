@@ -8,8 +8,8 @@ package meltkit.adapter.http4s.test
 
 import melt.runtime.render.RenderResult
 
-import meltkit.SsrRenderScope
 import meltkit.adapter.http4s.Http4sMeltContext
+import meltkit.SsrRenderScope
 
 /** Unit tests for the async-SSR marker splicing + hydration seed injection
   * (`Http4sMeltContext.spliceAndSeed`). */
@@ -37,7 +37,7 @@ class AwaitSpliceTest extends munit.FunSuite:
     val out      = Http4sMeltContext.spliceAndSeed("<main></main>", resolved)
     assert(out.contains("""<script type="application/json" data-melt-queries>"""), out)
     assert(out.contains("""<\/script>"""), out) // the value's </ is escaped so it can't close the tag early
-    assert(out.endsWith("</script>"), out)       // exactly one real closing tag, at the very end
+    assert(out.endsWith("</script>"), out)      // exactly one real closing tag, at the very end
     // the escaped value carries no raw </script> breakout before the closing tag
     assert(!out.dropRight("</script>".length).contains("</script>"), out)
 

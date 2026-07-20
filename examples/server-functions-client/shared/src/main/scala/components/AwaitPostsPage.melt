@@ -1,0 +1,39 @@
+<script lang="scala">
+import meltkit.*
+
+// Async SSR: no prop and no manual seed. The query resolves on the server inside
+// the <melt:await> boundary below (in-process, via `app.serve(Api.list)`), the
+// resolved branch is spliced into the HTML, and the client hydrates from the
+// injected `data-melt-queries` seed — no loading flash, no redundant initial
+// fetch. This is the async-SSR counterpart of PostsPage's seeded prop.
+val posts = Api.list()
+</script>
+
+<main class="posts">
+  <h1>Posts (async SSR)</h1>
+  <p><a href="/">← Back to the seeded list</a></p>
+
+  <!-- The server resolves `posts` and renders the Done branch; <melt:pending>
+       is the fallback shown until it settles (and on the client until hydrated). -->
+  <melt:await value={posts}>
+    { case Async.Done(list) =>
+        <ul>{list.map(p =>
+          <li>
+            <span class="title">{p.title}</span>
+            <span class="likes">♥ {p.likes.toString}</span>
+          </li>
+        )}</ul>
+      case Async.Failed(e) =>
+        <p class="error">Failed to load: {e.getMessage}</p> }
+    <melt:pending><p class="loading">Loading…</p></melt:pending>
+  </melt:await>
+</main>
+
+<style>
+.posts { max-width: 32rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
+.posts ul { list-style: none; padding: 0; }
+.posts li { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.title { flex: 1; }
+.likes { color: #c0392b; min-width: 3rem; }
+.error, .loading { color: #666; }
+</style>

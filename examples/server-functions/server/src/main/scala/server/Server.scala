@@ -56,6 +56,11 @@ object Server extends IOApp.Simple:
       store.get.map(posts => ctx.render(PostsPage(PostsPage.Props(posts = posts))))
     }
 
+    // Async SSR: no prop, no manual seed. `AwaitPostsPage` calls `Api.list()` inside
+    // a `<melt:await>` boundary; `renderAsync` resolves it in-process and splices the
+    // result into the HTML, seeding the client so it hydrates without refetching.
+    app.get("await") { ctx => ctx.renderAsync(AwaitPostsPage()) }
+
     // Field-issues form: validation failures return a per-field `errors` map.
     app.page("new")(
       render = (_, form: Option[NewPost]) => NewPostPage(NewPostPage.Props(form = form)),
