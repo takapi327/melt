@@ -84,7 +84,8 @@ object I18n:
         "ssg"              -> "SSG",
         "adapters"         -> "Adapters",
         "form-actions"     -> "Form Actions",
-        "server-functions" -> "Server Functions"
+        "server-functions" -> "Server Functions",
+        "async-ssr"        -> "Async SSR"
       )
     ),
     apiLinks = SidebarLinks(
@@ -183,7 +184,8 @@ object I18n:
         "ssg"              -> "SSG",
         "adapters"         -> "アダプター",
         "form-actions"     -> "フォームアクション",
-        "server-functions" -> "サーバー関数"
+        "server-functions" -> "サーバー関数",
+        "async-ssr"        -> "非同期 SSR"
       )
     ),
     apiLinks = SidebarLinks(

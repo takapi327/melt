@@ -1006,3 +1006,42 @@ object GuideCodes:
        |val form  = Form(props.form.getOrElse(NewPost("", ""))).invalidates(posts)
        |
        |<form method="post" use:enhance={form}>…</form>""".stripMargin
+
+  // ── Async SSR (<melt:await>) ────────────────────────────────────────────────
+
+  val asyncSsrPage: String =
+    """|<script lang="scala">
+       |import meltkit.*
+       |
+       |// No prop and no manual seed: the query is resolved on the server inside
+       |// the <melt:await> boundary below (in-process, via `app.serve(Api.list)`),
+       |// and the client hydrates from the injected seed — no loading flash, no
+       |// redundant initial fetch.
+       |val posts = Api.list()
+       |</script>
+       |
+       |<melt:await value={posts}>
+       |  { case Async.Done(list) => <ul>{list.map(p => <li>{p.title}</li>)}</ul>
+       |    case Async.Failed(e)  => <p class="error">{e.getMessage}</p> }
+       |  <melt:pending><p>Loading…</p></melt:pending>
+       |</melt:await>""".stripMargin
+
+  val asyncSsrServer: String =
+    """|// server (JVM): the query is implemented once with app.serve …
+       |app.serve(Api.list) { (_, ctx) => postRepo.all }
+       |
+       |// … and the page is rendered with renderAsync, which resolves every
+       |// <melt:await> boundary in-process before responding. It returns F[Response]
+       |// (unlike the synchronous ctx.render) because resolving a query is effectful.
+       |app.get("posts") { ctx => ctx.renderAsync(AwaitPostsPage()) }""".stripMargin
+
+  val asyncSsrVsSeeded: String =
+    """|// Two ways to render a query on the server with no loading flash:
+       |
+       |// 1. seeded prop — the loader reads the data and passes it as a prop.
+       |app.get("") { ctx => postRepo.all.map(p => ctx.render(PostsPage(PostsPage.Props(p)))) }
+       |val posts = Api.list.seeded(props.posts)      // in the component
+       |
+       |// 2. <melt:await> — the component calls the query; renderAsync resolves it.
+       |app.get("posts") { ctx => ctx.renderAsync(AwaitPostsPage()) }
+       |val posts = Api.list()                        // in the component""".stripMargin

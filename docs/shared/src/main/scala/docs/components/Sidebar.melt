@@ -12,7 +12,7 @@ def isActive(sec: String, s: String): Boolean = props.section == sec && props.sl
 val introItems    = List("introduction", "installation", "quick-start")
 val basicsItems   = List("components", "template-syntax", "reactivity", "computed", "effects", "events", "lifecycle")
 val advancedItems = List("control-flow", "special-elements", "transitions", "trusted-html", "css", "testing")
-val serverItems   = List("routing", "ssr", "ssg", "adapters", "form-actions", "server-functions")
+val serverItems   = List("routing", "ssr", "ssg", "adapters", "form-actions", "server-functions", "async-ssr")
 val apiItems      = List("template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin")
 val exampleItems  = List("counter", "todo-app")
 </script>
