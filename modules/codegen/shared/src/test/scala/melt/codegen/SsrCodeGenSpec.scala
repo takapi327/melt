@@ -639,6 +639,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""renderer.push("<!--/melt:sb:" + _sbId + "-->")"""), code)
     // the resolved-branch renderer is registered with the ambient scope
     assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, posts,"), code)
-    // handler is re-wrapped into a partial function returning RenderResult
-    assert(code.contains(".applyOrElse(a,"), code)
+    // handler arms are spliced into a match on the (typed) branch value
+    assert(code.contains("a match {"), code)
+    assert(code.contains("case Async.Done"), code)
   }

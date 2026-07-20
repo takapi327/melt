@@ -586,10 +586,12 @@ object SsrEmitter:
     buf ++= s"""$ipad renderer.push("<!--melt:sb:" + _sbId + "-->")\n"""
     pending.foreach(_.foreach(c => emitNode(c, buf, indent + 2, scopeId, nodePos, hoistedMap)))
     buf ++= s"""$ipad renderer.push("<!--/melt:sb:" + _sbId + "-->")\n"""
-    // The handler's outer braces are the interpolation delimiters (stripped by the
-    // parser), so re-wrap the `case …` arms into a partial-function literal.
+    // Splice the handler's `case …` arms straight into a `match` on the (typed)
+    // branch value `a`; a trailing `case _` covers Loading/unmatched. Wrapping the
+    // arms as a partial-function literal instead would leave its scrutinee type
+    // uninferred (a PF literal as a receiver has no expected type).
     buf ++= s"$ipad _root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
-    buf ++= s"$ipad   RenderResult(({ ${ handlerExpr.toString } }).applyOrElse(a, (_: Any) => \"\"), \"\")))\n"
+    buf ++= s"$ipad   RenderResult(a match { ${ handlerExpr.toString } case _ => \"\" }, \"\")))\n"
     buf ++= s"$pad}\n"
 
   // ── Head emission ──────────────────────────────────────────────────────────

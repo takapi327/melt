@@ -517,9 +517,14 @@ object SpaEmitter:
 
         buf ++= s"${ indent }Hydrating.withCursor(new HydrationCursor(null)) {\n"
         buf ++= s"${ indent }  Bind.show(${ valueExpr.code }.state, _ => {\n"
+        // Splice the handler's `case …` arms straight into the match on the (typed)
+        // query state; `pending` supplies the Loading arm and a trailing `case _`
+        // covers anything unmatched. (A partial-function literal as a receiver would
+        // leave its scrutinee type uninferred.)
         buf ++= s"${ indent }    ${ valueExpr.code }.state.value match {\n"
         buf ++= s"${ indent }      case _root_.melt.runtime.Async.Loading => $pendingExpr\n"
-        buf ++= s"${ indent }      case _a => ({ $handlerPf }).applyOrElse(_a, (_: Any) => dom.document.createTextNode(\"\"))\n"
+        buf ++= s"${ indent }      $handlerPf\n"
+        buf ++= s"${ indent }      case _ => dom.document.createTextNode(\"\")\n"
         buf ++= s"${ indent }    }\n"
         buf ++= s"${ indent }  }, $anchor)\n"
         buf ++= s"${ indent }}\n"

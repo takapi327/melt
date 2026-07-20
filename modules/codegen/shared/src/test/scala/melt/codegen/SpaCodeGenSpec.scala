@@ -2429,6 +2429,6 @@ class SpaCodeGenSpec extends munit.FunSuite:
     // pending supplies the Loading branch (user need not write a Loading arm)
     assert(code.contains("case _root_.melt.runtime.Async.Loading =>"), code)
     assert(code.contains("Loading…"), code)
-    // handler is applied as a partial function to the settled state
-    assert(code.contains(".applyOrElse(_a,"), code)
+    // handler arms are spliced into the match on the settled state
+    assert(code.contains("case Async.Done"), code)
   }
