@@ -185,6 +185,19 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   // Every served function name, for duplicate-registration detection.
   private val _serverFnNames = scala.collection.mutable.Set.empty[String]
 
+  /** A `(name, argsJson) => F[Option[encoded result JSON]]` closure over the given
+    * request context, for async-SSR in-process query resolution (`<melt:await>`).
+    * Reuses the query registry populated by `serve`; an unregistered name yields
+    * `None`. Adapter-facing because a component has no reference to the app. */
+  private[meltkit] def resolveQueryFn(
+    ctx: ServerMeltContext[F, PathSpec.Empty, ?, RenderResult]
+  )(using pure: Pure[F]): (String, String) => F[Option[String]] =
+    val sfCtx = ctx.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]]
+    (name, argsJson) =>
+      _serverFnImpls.get(name) match
+        case Some(h) => h(argsJson, sfCtx)
+        case None    => pure.pure(None)
+
   /** 415 for a server-function request whose Content-Type is not JSON. */
   private val unsupportedMediaType: Response =
     PlainResponse(415, "text/plain; charset=utf-8", "Server functions require Content-Type: application/json")

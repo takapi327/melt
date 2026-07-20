@@ -196,6 +196,14 @@ object Http4sAdapter:
   given [F[_]](using ae: cats.ApplicativeError[F, Throwable]): meltkit.Recover[F] with
     override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = ae.attempt(fa)
 
+  /** Bridges cats [[cats.Parallel]] to [[meltkit.Parallel]] so that async-SSR
+    * suspense boundaries resolve concurrently on any `F` with a cats `Parallel`
+    * instance (e.g. `cats.effect.IO`).
+    */
+  given [F[_]](using cats.Parallel[F], cats.Monad[F]): meltkit.Parallel[F] with
+    override def parTraverse[A, B](as: List[A])(f: A => F[B]): F[List[B]] =
+      cats.Parallel.parTraverse(as)(f)
+
   /** Bridges cats-effect [[cats.effect.kernel.Sync]] to [[meltkit.Defer]].
     *
     * Any `F` that has a cats-effect `Sync` instance (e.g. `cats.effect.IO`) gets
