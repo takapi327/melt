@@ -20,23 +20,31 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "sass-preprocessor",
     "compilerJVM",
     "compilerJS",
+    "runtimeJVM",
+    "runtimeJS",
     "codegenJVM",
     "codegenJS",
+    "testkit",
     "meltkitJVM",
     "meltkitJS",
     "meltkit-adapter-browser",
     "meltkit-adapter-node",
     "meltkit-adapter-http4sJVM",
-    "meltkit-adapter-http4sJS"
+    "meltkit-adapter-http4sJS",
+    "language-server"
   )
-ThisBuild / githubWorkflowBuildMatrixExclusions ++= Seq(
+ThisBuild / githubWorkflowBuildMatrixExclusions := Seq(
   // JS runs on Java 17 only
   MatrixExclude(Map("project" -> "preprocessorJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "preprocessorJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "compilerJS", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "runtimeJS", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "runtimeJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "codegenJS", "java" -> s"corretto@$java25")),
+  MatrixExclude(Map("project" -> "testkit", "java" -> s"corretto@$java21")),
+  MatrixExclude(Map("project" -> "testkit", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkitJS", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-browser", "java" -> s"corretto@$java21")),
@@ -65,7 +73,7 @@ ThisBuild / githubWorkflowBuild := Seq(
     List("project ${{ matrix.project }}", "Test/scalaJSLinkerResult"),
     name = Some("scalaJSLink"),
     cond = Some(
-      "contains('preprocessorJS compilerJS codegenJS meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)"
+      "contains('preprocessorJS compilerJS runtimeJS codegenJS testkit meltkitJS meltkit-adapter-browser meltkit-adapter-node meltkit-adapter-http4sJS', matrix.project)"
     )
   ),
   WorkflowStep.Sbt(
@@ -82,7 +90,7 @@ ThisBuild / githubWorkflowGeneratedDownloadSteps := Workflows.downloadSteps
 ThisBuild / githubWorkflowTargetBranches         := Seq("**")
 ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
-ThisBuild / githubWorkflowAddedJobs += Workflows.sbtScripted.value
+ThisBuild / githubWorkflowAddedJobs              := Seq(Workflows.sbtScripted.value)
 
 // ── Generic preprocessor API (no external dependencies, cross-compiled) ──
 lazy val preprocessor = crossProject(JVMPlatform, JSPlatform)
