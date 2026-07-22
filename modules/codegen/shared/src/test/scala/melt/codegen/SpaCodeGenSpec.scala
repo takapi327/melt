@@ -1036,6 +1036,15 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("fieldValue"), code) // user value wins (C4)
   }
 
+  test("use:form injects on an input nested in a static wrapper (label) without it being hoisted") {
+    // Regression: a plain <label><input></label> is a static subtree; injecting the
+    // spread must promote the label out of StaticHoistPass, else the binding is lost.
+    val code = compile("""<form use:form={form}><label>Email <input name="email" type="email"/></label></form>""")
+    assert(code.contains("""form.fieldValue("email").apply"""), code)
+    // the wrapping label must not be hoisted (which would drop the dynamic input)
+    assert(!code.contains("_hoist"), code)
+  }
+
   test("use:form and use:enhance compose: binding + submit wiring both emit") {
     val code = compile("""<form use:form={form} use:enhance={form}><input name="email"/></form>""")
     assert(code.contains("""form.fieldValue("email")"""), code)

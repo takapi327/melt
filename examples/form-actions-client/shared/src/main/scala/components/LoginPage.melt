@@ -14,16 +14,17 @@ val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 <main class="login">
   <h1>Sign in</h1>
 
-  <!-- Plain <form method="post"> works with JS disabled (native POST → PRG /
-       re-render). `use:enhance={form}` upgrades it to a fetch that updates the
-       form in place, with no full reload. -->
-  <form method="post" use:enhance={form}>
+  <!-- `use:form={form}` auto-binds each plain `name` input below to the matching
+       field of `form`: the compiler type-checks the name (a typo like `name="emial"`
+       is a compile error) and seeds the value/checked state on the server, so a
+       hand-written `{...form.text(_.email)}` spread is no longer needed. `use:enhance`
+       still upgrades the native POST to an in-place fetch (see PostEditorPage for the
+       selector-spread style). -->
+  <form method="post" use:form={form} use:enhance={form}>
     <label>
       Email
-      <!-- `{...form.text(_.email)}` spreads both `name` and the seeded `value`
-           from one type-checked selector: a typo like `_.emial` is a compile
-           error, and `name` always matches the field the server decodes. -->
-      <input {...form.text(_.email)} type="email"/>
+      <!-- auto-bound: name="email" → form.email (value seeded for SSR) -->
+      <input name="email" type="email"/>
     </label>
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
          reactive source (Bind.show), so the error re-renders when the enhance
@@ -32,11 +33,12 @@ val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 
     <label>
       Password
-      <input name={form.nameOf(_.password)} type="password"/>
+      <input name="password" type="password"/>
     </label>
 
     <label class="checkbox">
-      <input {...form.checkbox(_.remember)}/>
+      <!-- auto-bound checkbox: name="remember" → the Boolean field remember -->
+      <input name="remember" type="checkbox"/>
       Remember me
     </label>
 

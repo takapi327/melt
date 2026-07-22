@@ -56,15 +56,26 @@ object FormBindingPass extends IrPass:
 
     case e: IrNode.IrStaticElement =>
       // A static element carries no directives, so it never declares a scope, but it
-      // may be a plain `<input name="…">` to bind. Injecting a spread makes it dynamic,
-      // so it must be promoted to IrElement (otherwise StaticHoistPass would hoist it
-      // and the binding would be lost).
+      // may be a plain `<input name="…">` to bind, or an ancestor (e.g. a wrapping
+      // `<label>`) of one. Injecting a spread makes a node dynamic; a static element
+      // must then be promoted to IrElement — both when injected on directly AND when
+      // any descendant was promoted — otherwise StaticHoistPass would hoist the whole
+      // static subtree and the binding would be lost (silently, on the SPA side).
       val children = e.children.map(process(_, scope))
       inject(e.tag, e.attrs, scope) match
-        case Some(attrs) => IrNode.IrElement(e.tag, e.ns, attrs, children, e.scopeId)
-        case None        => e.copy(children = children)
+        case Some(attrs)                        => IrNode.IrElement(e.tag, e.ns, attrs, children, e.scopeId)
+        case None if children.exists(isDynamic) =>
+          IrNode.IrElement(e.tag, e.ns, e.attrs, children, e.scopeId)
+        case None => e.copy(children = children)
 
     case other => other.mapChildren(process(_, scope))
+
+  /** A node StaticHoistPass would treat as non-static (so a static ancestor holding
+    * it must be promoted). Only [[IrNode.IrStaticText]] / [[IrNode.IrStaticElement]] /
+    * [[IrNode.IrHoistRef]] children keep an element hoistable. */
+  private def isDynamic(node: IrNode): Boolean = node match
+    case _: IrNode.IrStaticText | _: IrNode.IrStaticElement | _: IrNode.IrHoistRef => false
+    case _                                                                         => true
 
   /** Splits `use:form={f}` out of `attrs`, returning the form expression and the
     * remaining attrs. The directive is dropped so no `Bind.action` is emitted for it
@@ -80,15 +91,15 @@ object FormBindingPass extends IrPass:
     scope.flatMap(form => spreadFor(tag, attrs, form).map(attrs :+ _))
 
   private def spreadFor(tag: String, attrs: List[IrAttr], form: ScalaExpr): Option[IrAttr] =
-    if tag != "input" then None // select/option/textarea: deferred
+    if tag != "input" then None        // select/option/textarea: deferred
     else if hasIgnore(attrs) then None // data-form-ignore escape hatch
     else
       staticAttr(attrs, "name") match
-        case None => None // dynamic or absent name: not statically checkable, skip
+        case None     => None // dynamic or absent name: not statically checkable, skip
         case Some(nm) =>
           staticAttr(attrs, "type").map(_.toLowerCase) match
             case Some(t) if nonBindableInputTypes.contains(t) => None // C3
-            case Some("checkbox") =>
+            case Some("checkbox")                             =>
               if hasChecked(attrs) then None // C4: user set state explicitly
               else Some(spread(s"""${ form.code }.checkedState("$nm")"""))
             case Some("radio") =>
