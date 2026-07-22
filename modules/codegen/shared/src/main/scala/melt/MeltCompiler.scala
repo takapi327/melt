@@ -12,6 +12,7 @@ import melt.analysis.{
   AwaitBoundaryChecker,
   BindingContextChecker,
   EffectDepsChecker,
+  FormBindingChecker,
   MalformedExpressionChecker,
   ModuleScriptChecker,
   RawTextInterpolationChecker,
@@ -166,6 +167,10 @@ object MeltCompiler:
                 case (msg, line) =>
                   CompileWarning(msg, line, 0, filename)
               }
+              val formBindingWarnings = FormBindingChecker.check(ast, source).map {
+                case (msg, line) =>
+                  CompileWarning(msg, line, 0, filename)
+              }
               val effectDepsWarnings = EffectDepsChecker.check(
                 ast,
                 filename,
@@ -180,7 +185,8 @@ object MeltCompiler:
                   }
                 else Nil
               val allWarnings =
-                parserWarnings ++ a11yWarnings ++ securityWarnings ++ effectDepsWarnings ++ moduleWarnings
+                parserWarnings ++ a11yWarnings ++ securityWarnings ++ formBindingWarnings ++
+                  effectDepsWarnings ++ moduleWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */
