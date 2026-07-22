@@ -54,8 +54,12 @@ object FormBindingPass extends IrPass:
       val childForm            = declared.orElse(form) // a nested use:form re-scopes its subtree
       val childSelect          = selectScope(e.tag, stripped, childForm, selectName)
       val children             = e.children.map(process(_, childForm, childSelect))
-      val attrs                = stripped ++ injectAttr(e.tag, stripped, form, selectName).toList
-      e.copy(attrs = attrs, children = children ++ injectChild(e.tag, stripped, children, form).toList)
+      // Injection decisions read `stripped` (still carrying data-form-ignore, which
+      // hasIgnore consults); the marker is then removed from the output (R-e).
+      val injAttr  = injectAttr(e.tag, stripped, form, selectName)
+      val injChild = injectChild(e.tag, stripped, children, form)
+      val attrs    = stripIgnore(stripped, form) ++ injAttr.toList
+      e.copy(attrs = attrs, children = children ++ injChild.toList)
 
     case e: IrNode.IrStaticElement =>
       // A static element carries no directives, so it never declares a scope, but it
@@ -69,9 +73,12 @@ object FormBindingPass extends IrPass:
       val newAttr     = injectAttr(e.tag, e.attrs, form, selectName)
       val newChild    = injectChild(e.tag, e.attrs, children0, form)
       val children    = children0 ++ newChild.toList
+      val hadIgnore   = form.isDefined && hasIgnore(e.attrs)
+      val attrs       = stripIgnore(e.attrs, form)
       if newAttr.isDefined || newChild.isDefined || children.exists(isDynamic) then
-        IrNode.IrElement(e.tag, e.ns, e.attrs ++ newAttr.toList, children, e.scopeId)
-      else e.copy(children = children)
+        IrNode.IrElement(e.tag, e.ns, attrs ++ newAttr.toList, children, e.scopeId)
+      else if hadIgnore then e.copy(attrs = attrs, children = children) // stripped marker; stays static
+      else e.copy(children                = children)
 
     case other => other.mapChildren(process(_, form, selectName))
 
@@ -175,12 +182,18 @@ object FormBindingPass extends IrPass:
   private def staticAttr(attrs: List[IrAttr], key: String): Option[String] =
     attrs.collectFirst { case IrAttr.StaticAttr(k, v) if k == key => v }
 
-  private def hasIgnore(attrs: List[IrAttr]): Boolean =
-    attrs.exists {
-      case IrAttr.StaticAttr("data-form-ignore", _) => true
-      case IrAttr.BooleanAttr("data-form-ignore")   => true
-      case _                                        => false
-    }
+  private def hasIgnore(attrs: List[IrAttr]): Boolean = attrs.exists(isIgnoreAttr)
+
+  private def isIgnoreAttr(a: IrAttr): Boolean = a match
+    case IrAttr.StaticAttr("data-form-ignore", _) => true
+    case IrAttr.BooleanAttr("data-form-ignore")   => true
+    case _                                        => false
+
+  /** Removes the `data-form-ignore` marker from a control's output (R-e) — it is a
+    * compiler directive, not an attribute meant to reach the rendered HTML. Only
+    * stripped under a `use:form` scope, where the marker is meaningful. */
+  private def stripIgnore(attrs: List[IrAttr], form: Option[ScalaExpr]): List[IrAttr] =
+    if form.isDefined then attrs.filterNot(isIgnoreAttr) else attrs
 
   private def hasValue(attrs: List[IrAttr]): Boolean =
     attrs.exists {

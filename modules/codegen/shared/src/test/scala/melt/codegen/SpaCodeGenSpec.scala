@@ -1029,6 +1029,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("""checkedState("_csrf")"""), code)
     assert(!code.contains("""fieldValue("go")"""), code)     // submit excluded (C3)
     assert(!code.contains("""fieldValue("intent")"""), code) // button excluded
+    // the data-form-ignore marker itself is removed from the output (R-e)
+    assert(!code.contains("data-form-ignore"), code)
+  }
+
+  test("use:form leaves data-form-ignore intact outside a use:form scope") {
+    val code = compile("""<form><input name="x" type="hidden" data-form-ignore/></form>""")
+    assert(code.contains("data-form-ignore"), code) // only stripped under use:form
   }
 
   test("use:form does not override an input that already sets value") {

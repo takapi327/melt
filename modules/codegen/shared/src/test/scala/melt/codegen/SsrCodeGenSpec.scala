@@ -690,3 +690,9 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""form.optionState("role", "admin")"""), code)
     assert(code.contains("""form.fieldText("bio")"""), code)
   }
+
+  test("use:form SSR: the data-form-ignore marker is stripped from output") {
+    val code = compile("""<form use:form={form}><input name="csrf" type="hidden" data-form-ignore/></form>""")
+    assert(!code.contains("data-form-ignore"), code)
+    assert(!code.contains("""fieldValue("csrf")"""), code) // still excluded from binding
+  }

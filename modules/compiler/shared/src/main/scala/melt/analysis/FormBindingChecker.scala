@@ -78,9 +78,9 @@ object FormBindingChecker:
     w:     mutable.ListBuffer[(String, Int)]
   ): Unit =
     val bindable = tag match
-      case "input"             => !nonBindableInputTypes.contains(inputType(attrs))
+      case "input"               => !nonBindableInputTypes.contains(inputType(attrs))
       case "select" | "textarea" => true
-      case _                   => false // <option> binds by value via its parent; buttons never bind
+      case _                     => false // <option> binds by value via its parent; buttons never bind
 
     if bindable && !hasIgnore(attrs) then
       if hasDynamicName(attrs) then
@@ -120,7 +120,7 @@ object FormBindingChecker:
 
   private def hasIgnore(attrs: List[Attr]): Boolean =
     attrs.exists {
-      case Attr.Static("data-form-ignore", _) => true
+      case Attr.Static("data-form-ignore", _)   => true
       case Attr.BooleanAttr("data-form-ignore") => true
       case _                                    => false
     }
