@@ -836,23 +836,25 @@ object GuideCodes:
        |)""".stripMargin
 
   val formActionsControls: String =
-    """|<!-- text input: name + seeded value -->
+    """|<!-- Under use:form, write plain `name` controls — the compiler binds each
+       |     to the matching field (type-checked) and seeds its state on the server. -->
+       |<form use:form use:enhance={form}>
+       |  <input name="email" type="email"/>                <!-- text: value seeded -->
+       |  <input name="remember" type="checkbox"/>          <!-- checkbox: from a Boolean field -->
+       |  <input name="role" type="radio" value="admin"/> Admin  <!-- radio: checked on match -->
+       |  <input name="role" type="radio" value="user"/> User
+       |  <select name="role">                              <!-- select + option: selected on match -->
+       |    <option value="admin">admin</option>
+       |    <option value="user">user</option>
+       |  </select>
+       |  <textarea name="bio"></textarea>                  <!-- textarea: content seeded -->
+       |  <input name="_csrf" type="hidden" data-form-ignore/>  <!-- opt a control out of binding -->
+       |</form>
+       |
+       |<!-- Manual alternative — the selector spreads. Use these where auto-binding
+       |     does not reach, e.g. an <input> built inside a {list.map(...)} region. -->
        |<input {...form.text(_.email)} type="email"/>
-       |
-       |<!-- checkbox: name + checked (from a Boolean field) -->
        |<input {...form.checkbox(_.remember)}/>
-       |
-       |<!-- radio: value + checked when the field equals this option -->
-       |<input {...form.radio(_.role, "admin")}/> Admin
-       |<input {...form.radio(_.role, "user")}/> User
-       |
-       |<!-- select + option: name on the select, selected on the matching option -->
-       |<select {...form.select(_.role)}>
-       |  <option {...form.option(_.role, "admin")}>admin</option>
-       |  <option {...form.option(_.role, "user")}>user</option>
-       |</select>
-       |
-       |<!-- textarea: one-way child interpolation (escaped on SSR) -->
        |<textarea name={form.nameOf(_.bio)}>{form.data.value.bio}</textarea>""".stripMargin
 
   val formActionsCustomCodec: String =
@@ -894,7 +896,7 @@ object GuideCodes:
 
   val formActionsClient: String =
     """|<script lang="scala">
-       |import melt.runtime.forms.{ Form, text }
+       |import melt.runtime.forms.Form
        |import meltkit.enhance
        |
        |case class Props(form: Option[LoginForm] = None)
@@ -903,12 +905,14 @@ object GuideCodes:
        |</script>
        |
        |<!-- Plain <form method="post"> works with JS disabled (native POST → PRG).
-       |     use:enhance upgrades it to a fetch that updates `form` in place. -->
-       |<form method="post" use:enhance={form}>
-       |  <!-- `{...form.text(_.email)}` spreads `name` + the seeded `value` from
-       |       one type-checked selector; `_.emial` is a compile error, and the
-       |       name always matches the field the server decodes. -->
-       |  <input {...form.text(_.email)} type="email"/>
+       |     use:enhance upgrades it to a fetch that updates `form` in place;
+       |     use:form auto-binds each plain `name` control below to a field of
+       |     `form` (a bare use:form takes its form from use:enhance={form}). -->
+       |<form method="post" use:form use:enhance={form}>
+       |  <!-- The compiler type-checks `name` against the model — a typo like
+       |       name="emial" is a compile error — and seeds the value on the server,
+       |       so no {...form.text(_.email)} spread is needed. -->
+       |  <input name="email" type="email"/>
        |
        |  <!-- Reactivity: pass a State/Signal (subscribes), not a `.value`
        |       (reads once). The `if form.data.value.… then` conditional makes

@@ -1085,15 +1085,15 @@ object GuideI18n:
         "Failure(status, data), via the fail(status, data) helper — a validation failure carrying the form back with errors.",
       resultRedirect =
         "Redirect(location) — a 303 Post/Redirect/Get on the native path; a client-side navigation under enhance.",
-      clientH2    = "Client: use:enhance",
+      clientH2    = "Client: use:form + use:enhance",
       clientIntro =
-        "Import meltkit.enhance and bind it with use:enhance={form}, where form is a Form primitive seeded from the hydration props. Removing use:enhance leaves a working native form — the progressive-enhancement floor.",
+        "Import meltkit.enhance and bind it with use:enhance={form}, where form is a Form primitive seeded from the hydration props. Add use:form on the same element to auto-bind every plain `name` control to a field of form; a bare use:form takes its form from use:enhance={form}. Removing use:enhance leaves a working native form — the progressive-enhancement floor.",
       nameOfTitle = "Type-safe field names",
       nameOfText  =
-        "The input name is the one string not checked against the form type. Derive it from a selector: {...form.text(_.email)} spreads both the name and the seeded value, or name={form.nameOf(_.email)} for the name alone. A typo (_.emial) is a compile error, and the name always matches the exact field the server's FormDataDecoder reads.",
+        "The input name is the one string not checked against the form type. Under use:form the compiler checks each plain name against the model — a typo (name=\"emial\") is a compile error — and seeds the value on the server, so <input name=\"email\"/> is enough. Where auto-binding does not reach (e.g. inside a reactive {list.map(...)} region) derive the name from a selector instead: {...form.text(_.email)}, or name={form.nameOf(_.email)} for the name alone.",
       controlsH2    = "All form controls",
       controlsIntro =
-        "Every control has a type-checked spread helper that seeds it from the field: form.text (input), form.checkbox (checked from a Boolean), form.radio(_.f, option) and form.select/form.option (value + checked/selected on match). A <textarea> uses child interpolation for its content. All reuse the same FieldCodec:",
+        "Under use:form, plain name controls bind automatically: <input> (text/checkbox/radio), <select>/<option> (selected on match) and <textarea> (content seeded); add data-form-ignore to opt one out. Each also has a type-checked selector spread for manual use — form.text, form.checkbox, form.radio(_.f, option), form.select/form.option — reusing the same FieldCodec:",
       customH2    = "Custom field types",
       customIntro =
         "Fields are decoded/encoded by a FieldCodec. String, Int, Long, Double, Boolean, Option and List are built in; add your own domain types by mapping an existing codec with imap/eimap. One FieldCodec drives both the server decode and the form.text value, so a custom type round-trips correctly. Nested case classes decode from hierarchical `field.subfield` keys, and nameOf/text accept nested selectors (form.nameOf(_.address.city)):",
@@ -1640,15 +1640,15 @@ object GuideI18n:
       resultSuccess  = "Success(data) — 再描画（ネイティブ）またはフォーム更新（enhance）。",
       resultFailure  = "Failure(status, data)（fail(status, data) ヘルパー経由）— バリデーション失敗。エラー付きでフォームを返します。",
       resultRedirect = "Redirect(location) — ネイティブ経路では 303 Post/Redirect/Get、enhance ではクライアント側ナビゲーション。",
-      clientH2       = "クライアント: use:enhance",
+      clientH2       = "クライアント: use:form + use:enhance",
       clientIntro    =
-        "meltkit.enhance をインポートし、use:enhance={form} でバインドします。form は hydration の props から生成した Form プリミティブです。use:enhance を外せば動作するネイティブフォームが残ります（プログレッシブエンハンスメントの土台）。",
+        "meltkit.enhance をインポートし、use:enhance={form} でバインドします。form は hydration の props から生成した Form プリミティブです。同じ要素に use:form を付けると、配下のプレーンな name コントロールが自動的に form のフィールドにバインドされます（式なしの use:form は use:enhance={form} から form を推論します）。use:enhance を外せば動作するネイティブフォームが残ります（プログレッシブエンハンスメントの土台）。",
       nameOfTitle = "型安全なフィールド名",
       nameOfText  =
-        "input の name はフォーム型と照合されない唯一の文字列です。セレクタから導出しましょう。{...form.text(_.email)} は name と初期 value をまとめて展開し、name={form.nameOf(_.email)} は name だけを返します。タイポ（_.emial）はコンパイルエラーになり、name はサーバの FormDataDecoder が読むフィールドと必ず一致します。",
+        "input の name はフォーム型と照合されない唯一の文字列です。use:form 配下ではコンパイラが各プレーン name をモデルと照合し（タイポ name=\"emial\" はコンパイルエラー）、サーバ側で値を初期化するので <input name=\"email\"/> だけで済みます。自動バインドが届かない箇所（例: リアクティブな {list.map(...)} 内）ではセレクタから導出します。{...form.text(_.email)}、または name だけなら name={form.nameOf(_.email)}。",
       controlsH2    = "すべてのフォームコントロール",
       controlsIntro =
-        "各コントロールに型チェック済みの spread ヘルパーがあり、フィールドから初期化します。form.text（input）、form.checkbox（Boolean から checked）、form.radio(_.f, option)、form.select / form.option（value + 一致時に checked/selected）。<textarea> は子コンテンツ補間で内容を入れます。すべて同じ FieldCodec を再利用します。",
+        "use:form 配下では、プレーンな name コントロールが自動でバインドされます。<input>（text/checkbox/radio）、<select>/<option>（一致時に selected）、<textarea>（内容を初期化）。対象から外すには data-form-ignore を付けます。各コントロールには手書き用の型チェック済みセレクタ spread（form.text・form.checkbox・form.radio(_.f, option)・form.select/form.option）もあり、同じ FieldCodec を再利用します。",
       customH2    = "カスタムフィールド型",
       customIntro =
         "フィールドは FieldCodec でデコード/エンコードされます。String・Int・Long・Double・Boolean・Option・List は組み込みで、独自ドメイン型は既存コーデックを imap/eimap でマップして追加します。1 つの FieldCodec がサーバのデコードと form.text の value の両方を駆動するので、カスタム型も正しく往復します。ネストした case class は階層キー（field.subfield）でデコードされ、nameOf/text はネストしたセレクタ（form.nameOf(_.address.city)）を受け付けます。",
