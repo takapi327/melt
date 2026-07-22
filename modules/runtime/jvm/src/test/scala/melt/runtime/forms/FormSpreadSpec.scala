@@ -116,5 +116,14 @@ class FormSpreadSpec extends munit.FunSuite:
     assertEquals(Form(Prefs(true, "admin")).radioState("role", "user"), Map.empty[String, Any])
   }
 
+  test("form.optionState (auto-binding): `selected` only, when the field equals this option") {
+    assertEquals(Form(Prefs(true, "admin")).optionState("role", "admin"), Map[String, Any]("selected" -> ""))
+    assertEquals(Form(Prefs(true, "admin")).optionState("role", "user"), Map.empty[String, Any])
+  }
+
+  test("form.fieldText (auto-binding): the field's wire value, for textarea content") {
+    assertEquals(Form(LoginForm("a@b.com", "secret")).fieldText("email"), "a@b.com")
+  }
+
 object FormSpreadSpec:
   case class SampleForm(email: String) derives PropsCodec

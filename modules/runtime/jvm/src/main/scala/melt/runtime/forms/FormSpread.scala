@@ -76,3 +76,11 @@ extension [A](form: Form[A])
   /** State-only radio for auto-binding (the user already wrote name + type + value). */
   inline def radioState(inline name: String, inline option: String): Map[String, Any] =
     ${ FormMacros.radioStateImpl[A]('form, 'name, 'option) }
+
+  /** State-only `<option>` for auto-binding (the user already wrote value). */
+  inline def optionState(inline name: String, inline option: String): Map[String, Any] =
+    ${ FormMacros.optionStateImpl[A]('form, 'name, 'option) }
+
+  /** The field's current wire value, for seeding a `<textarea>`'s child text. */
+  inline def fieldText(inline name: String): String =
+    ${ FormMacros.fieldTextImpl[A]('form, 'name) }

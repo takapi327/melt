@@ -19,7 +19,8 @@ import melt.runtime.render.ServerRenderer
   */
 class FormBindingPrefillSpec extends munit.FunSuite:
 
-  case class LoginForm(email: String, password: String, remember: Boolean = false) derives PropsCodec
+  case class LoginForm(email: String, password: String, remember: Boolean = false, role: String = "user")
+    derives PropsCodec
 
   /** Reproduces the SSR emitter's output for `<input name="email" type="email"/>`
     * under `use:form={form}`: the static attrs are pushed, then the injected spread. */
@@ -47,4 +48,25 @@ class FormBindingPrefillSpec extends munit.FunSuite:
       renderInput(off, "input", """ name="remember" type="checkbox"""", off.checkedState("remember")),
       """<input name="remember" type="checkbox"/>"""
     )
+  }
+
+  test("option: optionState marks `selected` on the option matching the field") {
+    val form = Form(LoginForm("a@b.com", "x", role = "admin"))
+    assertEquals(
+      renderInput(form, "option", """ value="admin"""", form.optionState("role", "admin")),
+      """<option value="admin" selected=""/>"""
+    )
+    assertEquals(
+      renderInput(form, "option", """ value="user"""", form.optionState("role", "user")),
+      """<option value="user"/>"""
+    )
+  }
+
+  test("textarea: fieldText yields the content string (escaped when rendered as a text node)") {
+    val form = Form(LoginForm("a@b.com <script>", "x"))
+    val r    = ServerRenderer()
+    r.push("<textarea name=\"email\">")
+    r.push(melt.runtime.Escape.html(form.fieldText("email"))) // mirrors how a text node is emitted
+    r.push("</textarea>")
+    assertEquals(r.result().body, "<textarea name=\"email\">a@b.com &lt;script&gt;</textarea>")
   }

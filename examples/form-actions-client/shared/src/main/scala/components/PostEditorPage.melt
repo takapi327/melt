@@ -17,27 +17,32 @@ val form = Form(props.form.getOrElse(PostForm("", "", errors = Nil)))
   <!-- One <form>, two submit buttons. Each button's `formaction="?/name"`
        targets a different named action on the server; the empty form action
        means both post to this same page. Works natively with JS disabled, and
-       `use:enhance` upgrades it (honouring the clicked button's formaction). -->
-  <form method="post" use:enhance={form}>
+       `use:enhance` upgrades it (honouring the clicked button's formaction).
+
+       `use:form={form}` auto-binds every plain `name` control below to the
+       matching PostForm field: the compiler checks each name and seeds the
+       value (text input), content (textarea) and selected option on the server.
+       The submit buttons are left alone (nothing to bind). -->
+  <form method="post" use:form={form} use:enhance={form}>
     <label>
       Title
-      <input {...form.text(_.title)}/>
+      <input name="title" type="text"/>
     </label>
 
     <label>
       Body
-      <!-- textarea content is one-way seeded via child interpolation (now allowed
-           — escapable raw text, HTML-escaped on SSR). name from the selector. -->
-      <textarea name={form.nameOf(_.body)}>{form.data.value.body}</textarea>
+      <!-- textarea content is seeded from the field as escaped child text (C6):
+           the compiler injects it because no content is written here. -->
+      <textarea name="body"></textarea>
     </label>
 
     <label>
       Visibility
-      <!-- <select> gets the name; each <option> is marked selected when it
-           matches the current field value (all type-checked via _.visibility). -->
-      <select {...form.select(_.visibility)}>
-        <option {...form.option(_.visibility, "public")}>public</option>
-        <option {...form.option(_.visibility, "private")}>private</option>
+      <!-- <select name> is bound; each <option> is marked `selected` when it
+           matches the current `visibility` field value. -->
+      <select name="visibility">
+        <option value="public">public</option>
+        <option value="private">private</option>
       </select>
     </label>
 

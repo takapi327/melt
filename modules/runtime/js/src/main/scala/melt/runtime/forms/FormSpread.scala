@@ -93,6 +93,14 @@ extension [A](form: Form[A])
   inline def radioState(inline name: String, inline option: String): HtmlAttrs =
     strAttrs(radioStateMap(form, name, option))
 
+  /** State-only `<option>` for auto-binding (the user already wrote value). */
+  inline def optionState(inline name: String, inline option: String): HtmlAttrs =
+    strAttrs(optionStateMap(form, name, option))
+
+  /** The field's current wire value, for seeding a `<textarea>`'s child text. */
+  inline def fieldText(inline name: String): String =
+    ${ FormMacros.fieldTextImpl[A]('form, 'name) }
+
 // The macro splice must be the whole RHS (it cannot be wrapped in `strAttrs`), so
 // these thin helpers carry the splice and the extension methods convert the result.
 private inline def fieldMap[A](form: Form[A], inline name: String): Map[String, Any] =
@@ -118,6 +126,9 @@ private inline def checkedStateMap[A](form: Form[A], inline name: String): Map[S
 
 private inline def radioStateMap[A](form: Form[A], inline name: String, inline option: String): Map[String, Any] =
   ${ FormMacros.radioStateImpl[A]('form, 'name, 'option) }
+
+private inline def optionStateMap[A](form: Form[A], inline name: String, inline option: String): Map[String, Any] =
+  ${ FormMacros.optionStateImpl[A]('form, 'name, 'option) }
 
 private inline def strAttrs(attrs: Map[String, Any]): HtmlAttrs =
   HtmlAttrs(attrs.map { case (k, v) => k -> v.toString })

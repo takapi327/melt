@@ -1045,6 +1045,24 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("_hoist"), code)
   }
 
+  test("use:form auto-binds select options (via the parent name) and textarea content") {
+    val code = compile(
+      """<form use:form={form}>
+         |<select name="role"><option value="admin">Admin</option><option value="user">User</option></select>
+         |<textarea name="bio"></textarea>
+         |</form>""".stripMargin
+    )
+    assert(code.contains("""form.optionState("role", "admin")"""), code)
+    assert(code.contains("""form.optionState("role", "user")"""), code)
+    // textarea value is child text, not an attribute (C6)
+    assert(code.contains("""form.fieldText("bio")"""), code)
+  }
+
+  test("use:form does not seed a textarea that already has content") {
+    val code = compile("""<form use:form={form}><textarea name="bio">{form.data.value.bio}</textarea></form>""")
+    assert(!code.contains("fieldText"), code) // author content wins (C4)
+  }
+
   test("use:form and use:enhance compose: binding + submit wiring both emit") {
     val code = compile("""<form use:form={form} use:enhance={form}><input name="email"/></form>""")
     assert(code.contains("""form.fieldValue("email")"""), code)

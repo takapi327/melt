@@ -138,6 +138,32 @@ private[forms] object FormMacros:
         val enc = summonEncoder[b](nm)
         '{ ControlAttrs.checkedState($enc.encodeValue(${ accessor.asExprOf[b] }) == ${ Expr(opt) }) }
 
+  /** State-only `<option>` (`selected` only) for auto-binding — the user wrote the
+    * `<option value>`; `selected` reflects whether the (parent-`<select>`) field
+    * currently equals this option.
+    */
+  def optionStateImpl[A: Type](form: Expr[Form[A]], name: Expr[String], option: Expr[String])(using
+    Quotes
+  ): Expr[Map[String, Any]] =
+    import quotes.reflect.*
+    val (accessor, cur, nm) = resolveField[A](form, name)
+    val opt                 = literal(option, "option auto-binding")
+    cur.asType match
+      case '[b] =>
+        val enc = summonEncoder[b](nm)
+        '{ ControlAttrs.selectedState($enc.encodeValue(${ accessor.asExprOf[b] }) == ${ Expr(opt) }) }
+
+  /** The current wire value of a field as a plain `String`, for seeding a
+    * `<textarea>`'s child text (its value is content, not an attribute — C6).
+    */
+  def fieldTextImpl[A: Type](form: Expr[Form[A]], name: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    val (accessor, cur, nm) = resolveField[A](form, name)
+    cur.asType match
+      case '[b] =>
+        val enc = summonEncoder[b](nm)
+        '{ $enc.encodeValue(${ accessor.asExprOf[b] }) }
+
   /** By-name mirror of `form.option` — `selected` when the field's wire value equals `option`. */
   def optionAttrsImpl[A: Type](form: Expr[Form[A]], name: Expr[String], option: Expr[String])(using
     Quotes

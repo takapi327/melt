@@ -679,3 +679,14 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""form.checkedState("remember")"""), code)
     assert(code.contains("""form.radioState("role", "admin")"""), code)
   }
+
+  test("use:form SSR: select options and textarea content are seeded") {
+    val code = compile(
+      """<form use:form={form}>
+         |<select name="role"><option value="admin">Admin</option></select>
+         |<textarea name="bio"></textarea>
+         |</form>""".stripMargin
+    )
+    assert(code.contains("""form.optionState("role", "admin")"""), code)
+    assert(code.contains("""form.fieldText("bio")"""), code)
+  }
