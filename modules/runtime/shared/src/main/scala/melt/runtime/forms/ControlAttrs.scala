@@ -30,3 +30,14 @@ private[forms] object ControlAttrs:
   def option(value: String, selected: Boolean): Map[String, Any] =
     val base = Map[String, Any]("value" -> value)
     if selected then base + ("selected" -> "") else base
+
+  /** State-only `checked` for auto-binding, where the user already wrote `name`
+    * and `type` (so only the reflected state is injected). A plain checkbox with no
+    * `value` submits `on` when checked, which the Boolean codec decodes as `true`.
+    */
+  def checkedState(checked: Boolean): Map[String, Any] =
+    if checked then Map[String, Any]("checked" -> "") else Map.empty
+
+  /** State-only `selected` for auto-binding an `<option>`. */
+  def selectedState(selected: Boolean): Map[String, Any] =
+    if selected then Map[String, Any]("selected" -> "") else Map.empty

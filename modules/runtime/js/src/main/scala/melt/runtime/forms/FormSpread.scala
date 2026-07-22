@@ -59,5 +59,65 @@ extension [A](form: Form[A])
   inline def option[B](inline selector: A => B, opt: B)(using encoder: FieldEncoder[B]): HtmlAttrs =
     strAttrs(ControlAttrs.option(encoder.encodeValue(opt), selector(form.data.value) == opt))
 
+  /** By-name text spread `{...form.field("email")}` — the string-driven mirror of
+    * [[text]]. Resolves the field and its encoder from a literal name so the
+    * FormBindingPass can inject it for a plain `<input name="email">`; a name with
+    * no matching field is a compile error, just like `_.email`.
+    */
+  inline def field(inline name: String): HtmlAttrs = strAttrs(fieldMap(form, name))
+
+  /** State-only variant used by auto-binding, where the user already wrote the
+    * `name` attribute: returns just the seeded `value` (re-emitting `name` would
+    * duplicate the attribute the user typed).
+    */
+  inline def fieldValue(inline name: String): HtmlAttrs = strAttrs(fieldValueMap(form, name))
+
+  /** By-name mirror of [[checkbox]] — the field must be Boolean. */
+  inline def checkboxField(inline name: String): HtmlAttrs = strAttrs(checkboxFieldMap(form, name))
+
+  /** By-name mirror of [[radio]] — `checked` when the field equals `option`. */
+  inline def radioField(inline name: String, inline option: String): HtmlAttrs =
+    strAttrs(radioFieldMap(form, name, option))
+
+  /** By-name mirror of [[select]] — sets `name`. */
+  inline def selectField(inline name: String): HtmlAttrs = strAttrs(selectFieldMap(form, name))
+
+  /** By-name mirror of [[option]] — `selected` when the field equals `option`. */
+  inline def optionField(inline name: String, inline option: String): HtmlAttrs =
+    strAttrs(optionFieldMap(form, name, option))
+
+  /** State-only checkbox for auto-binding (the user already wrote name + type). */
+  inline def checkedState(inline name: String): HtmlAttrs = strAttrs(checkedStateMap(form, name))
+
+  /** State-only radio for auto-binding (the user already wrote name + type + value). */
+  inline def radioState(inline name: String, inline option: String): HtmlAttrs =
+    strAttrs(radioStateMap(form, name, option))
+
+// The macro splice must be the whole RHS (it cannot be wrapped in `strAttrs`), so
+// these thin helpers carry the splice and the extension methods convert the result.
+private inline def fieldMap[A](form: Form[A], inline name: String): Map[String, Any] =
+  ${ FormMacros.fieldAttrsImpl[A]('form, 'name, true) }
+
+private inline def fieldValueMap[A](form: Form[A], inline name: String): Map[String, Any] =
+  ${ FormMacros.fieldAttrsImpl[A]('form, 'name, false) }
+
+private inline def checkboxFieldMap[A](form: Form[A], inline name: String): Map[String, Any] =
+  ${ FormMacros.checkboxAttrsImpl[A]('form, 'name) }
+
+private inline def radioFieldMap[A](form: Form[A], inline name: String, inline option: String): Map[String, Any] =
+  ${ FormMacros.radioAttrsImpl[A]('form, 'name, 'option) }
+
+private inline def selectFieldMap[A](form: Form[A], inline name: String): Map[String, Any] =
+  ${ FormMacros.selectAttrsImpl[A]('form, 'name) }
+
+private inline def optionFieldMap[A](form: Form[A], inline name: String, inline option: String): Map[String, Any] =
+  ${ FormMacros.optionAttrsImpl[A]('form, 'name, 'option) }
+
+private inline def checkedStateMap[A](form: Form[A], inline name: String): Map[String, Any] =
+  ${ FormMacros.checkedStateImpl[A]('form, 'name) }
+
+private inline def radioStateMap[A](form: Form[A], inline name: String, inline option: String): Map[String, Any] =
+  ${ FormMacros.radioStateImpl[A]('form, 'name, 'option) }
+
 private inline def strAttrs(attrs: Map[String, Any]): HtmlAttrs =
   HtmlAttrs(attrs.map { case (k, v) => k -> v.toString })

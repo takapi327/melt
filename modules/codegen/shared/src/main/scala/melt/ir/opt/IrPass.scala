@@ -21,4 +21,7 @@ object IrOptimizer:
   def run(ir: IrComponent, passes: List[IrPass] = defaultPasses): IrComponent =
     passes.foldLeft(ir)((acc, pass) => pass.run(acc))
 
-  val defaultPasses: List[IrPass] = List(StaticHoistPass, DependencyGraphPass)
+  // FormBindingPass runs first: it may turn a static <input> into a dynamic one
+  // (by injecting a form-binding spread), which must happen before StaticHoistPass
+  // decides what to hoist.
+  val defaultPasses: List[IrPass] = List(FormBindingPass, StaticHoistPass, DependencyGraphPass)

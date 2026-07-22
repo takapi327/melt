@@ -659,3 +659,23 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""_sb ++= "<!--melt:sb:" + _sbId + "-->""""), code)
     assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, inner,"), code)
   }
+
+  // ── FormBindingPass: use:form auto-binding (SSR prefill) ─────────────────
+
+  test("use:form injects a spreadAttrs call so SSR prefills the input value") {
+    val code = compile("""<form use:form={form}><input name="email" type="text"/></form>""")
+    assert(code.contains("""renderer.spreadAttrs("input", form.fieldValue("email"))"""), code)
+    // the use:form directive is a marker only; no client action is emitted
+    assert(!code.contains("Bind.action"), code)
+  }
+
+  test("use:form SSR: checkbox and radio inject state-only spreads") {
+    val code = compile(
+      """<form use:form={form}>
+         |<input name="remember" type="checkbox"/>
+         |<input name="role" type="radio" value="admin"/>
+         |</form>""".stripMargin
+    )
+    assert(code.contains("""form.checkedState("remember")"""), code)
+    assert(code.contains("""form.radioState("role", "admin")"""), code)
+  }

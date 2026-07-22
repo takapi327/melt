@@ -994,6 +994,55 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("form"), code)
   }
 
+  // ── FormBindingPass: use:form auto-binding ─────────────────────────────
+
+  test("use:form={form} injects fieldValue on a plain text input and strips the directive") {
+    val code = compile("""<form use:form={form}><input name="email" type="text"/></form>""")
+    assert(code.contains("""form.fieldValue("email").apply"""), code)
+    // the use:form marker must not become a Bind.action (a Form is not an action)
+    assert(!code.contains("Bind.action"), code)
+  }
+
+  test("use:form injects checkedState on a checkbox and radioState on a radio") {
+    val code = compile(
+      """<form use:form={form}>
+         |<input name="remember" type="checkbox"/>
+         |<input name="role" type="radio" value="admin"/>
+         |</form>""".stripMargin
+    )
+    assert(code.contains("""form.checkedState("remember")"""), code)
+    assert(code.contains("""form.radioState("role", "admin")"""), code)
+  }
+
+  test("use:form does not bind buttons/submit inputs or data-form-ignore inputs") {
+    val code = compile(
+      """<form use:form={form}>
+         |<input name="email" type="text"/>
+         |<input name="_csrf" type="hidden" data-form-ignore/>
+         |<input name="go" type="submit"/>
+         |<button name="intent" value="save">save</button>
+         |</form>""".stripMargin
+    )
+    assert(code.contains("""form.fieldValue("email")"""), code)
+    // excluded inputs are still rendered, but no binding spread is injected for them
+    assert(!code.contains("""fieldValue("_csrf")"""), code) // data-form-ignore excluded
+    assert(!code.contains("""checkedState("_csrf")"""), code)
+    assert(!code.contains("""fieldValue("go")"""), code)     // submit excluded (C3)
+    assert(!code.contains("""fieldValue("intent")"""), code) // button excluded
+  }
+
+  test("use:form does not override an input that already sets value") {
+    val code = compile("""<form use:form={form}><input name="email" type="text" value="seed"/></form>""")
+    assert(!code.contains("fieldValue"), code) // user value wins (C4)
+  }
+
+  test("use:form and use:enhance compose: binding + submit wiring both emit") {
+    val code = compile("""<form use:form={form} use:enhance={form}><input name="email"/></form>""")
+    assert(code.contains("""form.fieldValue("email")"""), code)
+    assert(code.contains("Bind.action("), code) // use:enhance retained
+    assert(code.contains("enhance"), code)
+  }
+
   // ── Phase 8: spread on HTML element ────────────────────────────────────
 
   test("spread attribute on HTML element emits apply") {
