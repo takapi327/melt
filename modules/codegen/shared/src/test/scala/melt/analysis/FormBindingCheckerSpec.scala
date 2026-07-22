@@ -54,6 +54,16 @@ class FormBindingCheckerSpec extends munit.FunSuite:
     assert(!w.exists(_.contains("no name")), w.toString)
   }
 
+  test("bare use:form with a sibling use:enhance does not warn (form is inferred)") {
+    val w = warnings("""<form use:form use:enhance={form}><input name="email"/></form>""")
+    assert(!w.exists(_.contains("no form to bind")), w.toString)
+  }
+
+  test("bare use:form with no form source warns") {
+    val w = warnings("""<form use:form><input name="email"/></form>""")
+    assert(w.exists(_.contains("no form to bind")), w.toString)
+  }
+
   test("select and textarea without a name warn under use:form") {
     val sel = warnings("""<form use:form={form}><select></select></form>""")
     assert(sel.exists(_.contains("no name")), sel.toString)

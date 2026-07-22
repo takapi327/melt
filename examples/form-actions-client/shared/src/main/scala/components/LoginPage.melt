@@ -14,13 +14,14 @@ val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 <main class="login">
   <h1>Sign in</h1>
 
-  <!-- `use:form={form}` auto-binds each plain `name` input below to the matching
-       field of `form`: the compiler type-checks the name (a typo like `name="emial"`
-       is a compile error) and seeds the value/checked state on the server, so a
-       hand-written `{...form.text(_.email)}` spread is no longer needed. `use:enhance`
-       still upgrades the native POST to an in-place fetch (see PostEditorPage for the
-       selector-spread style). -->
-  <form method="post" use:form={form} use:enhance={form}>
+  <!-- `use:form` auto-binds each plain `name` input below to the matching field of
+       `form`: the compiler type-checks the name (a typo like `name="emial"` is a
+       compile error) and seeds the value/checked state on the server, so a
+       hand-written `{...form.text(_.email)}` spread is no longer needed. A bare
+       `use:form` takes its form from the sibling `use:enhance={form}` (write
+       `use:form={form}` if there is no enhance); `use:enhance` also upgrades the
+       native POST to an in-place fetch (see PostEditorPage for the selector style). -->
+  <form method="post" use:form use:enhance={form}>
     <label>
       Email
       <!-- auto-bound: name="email" → form.email (value seeded for SSR) -->

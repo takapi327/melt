@@ -1070,6 +1070,12 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("fieldText"), code) // author content wins (C4)
   }
 
+  test("bare use:form infers its form from a sibling use:enhance") {
+    val code = compile("""<form use:form use:enhance={form}><input name="email"/></form>""")
+    assert(code.contains("""form.fieldValue("email")"""), code) // bound via the inferred form
+    assert(code.contains("Bind.action("), code)                 // use:enhance retained
+  }
+
   test("use:form and use:enhance compose: binding + submit wiring both emit") {
     val code = compile("""<form use:form={form} use:enhance={form}><input name="email"/></form>""")
     assert(code.contains("""form.fieldValue("email")"""), code)

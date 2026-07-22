@@ -56,8 +56,17 @@ object FormBindingChecker:
         def line = findNthTagLine(tag, source, lineIndex, nth)
 
         val declares = declaresUseForm(attrs)
-        if declares && tag != "form" then
-          w += ((s"use:form is only meaningful on a <form> element, not <$tag> — the binding will be ignored", line))
+        if declares then
+          if tag != "form" then
+            w += ((s"use:form is only meaningful on a <form> element, not <$tag> — the binding will be ignored", line))
+          // A bare `use:form` takes its form from a sibling `use:enhance={form}`; with
+          // neither an explicit `use:form={form}` nor `use:enhance={form}`, there is
+          // nothing to bind to.
+          if !hasFormExpr(attrs) && !hasEnhanceExpr(attrs) then
+            w += ((
+              "use:form has no form to bind — write use:form={form}, or add use:enhance={form} on the same element",
+              line
+            ))
 
         if insideForm then checkControl(tag, attrs, line, w)
 
@@ -100,6 +109,18 @@ object FormBindingChecker:
     attrs.exists {
       case Attr.Directive("use", "form", _, _) => true
       case _                                   => false
+    }
+
+  private def hasFormExpr(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("use", "form", Some(_), _) => true
+      case _                                         => false
+    }
+
+  private def hasEnhanceExpr(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Directive("use", "enhance", Some(_), _) => true
+      case _                                            => false
     }
 
   private def inputType(attrs: List[Attr]): String =

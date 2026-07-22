@@ -23,7 +23,7 @@ val form = Form(props.form.getOrElse(PostForm("", "", errors = Nil)))
        matching PostForm field: the compiler checks each name and seeds the
        value (text input), content (textarea) and selected option on the server.
        The submit buttons are left alone (nothing to bind). -->
-  <form method="post" use:form={form} use:enhance={form}>
+  <form method="post" use:form use:enhance={form}>
     <label>
       Title
       <input name="title" type="text"/>

@@ -38,7 +38,7 @@ server-functions-client/          # crossProject (shared → JVM SSR + JS hydrat
     Models.scala                  # Post, NewPost (errors: Map[String, List[String]])
     Api.scala                     # shared ServerFn contracts
     PostsPage.melt                # query/seed + single-flight + optimistic
-    NewPostPage.melt              # field-issues form (use:enhance)
+    NewPostPage.melt              # field-issues form (use:form auto-binding + use:enhance)
 server-functions/server/
   src/main/scala/server/Server.scala   # app.serve(...) + page actions
   src/main/resources/index.html

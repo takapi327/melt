@@ -18,16 +18,19 @@ def issue(field: String): String =
 <main class="new-post">
   <h1>Write a post</h1>
 
-  <form method="post" use:enhance={form}>
+  <!-- `use:form={form}` auto-binds each plain `name` control below to the matching
+       NewPost field, type-checking the name and seeding its value on the server;
+       `use:enhance` keeps the progressive-enhancement submit. -->
+  <form method="post" use:form use:enhance={form}>
     <label>
       Title
-      <input {...form.text(_.title)} type="text"/>
+      <input name="title" type="text"/>
     </label>
     {if form.data.value.errors.contains("title") then <p class="error">{issue("title")}</p> else <span></span>}
 
     <label>
       Body
-      <textarea name={form.nameOf(_.body)}></textarea>
+      <textarea name="body"></textarea>
     </label>
     {if form.data.value.errors.contains("body") then <p class="error">{issue("body")}</p> else <span></span>}
 

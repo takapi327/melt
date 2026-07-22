@@ -99,14 +99,21 @@ object FormBindingPass extends IrPass:
   ): Option[String] =
     if tag == "select" && form.isDefined then staticAttr(attrs, "name") else selectName
 
-  /** Splits `use:form={f}` out of `attrs`, returning the form expression and the
+  /** Splits `use:form` out of `attrs`, returning the form expression and the
     * remaining attrs. The directive is dropped so no `Bind.action` is emitted for it
     * (a `Form` is not a client action).
+    *
+    * The form expression is taken from `use:form={f}` when written explicitly, or —
+    * when `use:form` is bare — inferred from a sibling `use:enhance={f}` on the same
+    * element, so `<form use:form use:enhance={form}>` needs the form named only once.
     */
   private def extractUseForm(attrs: List[IrAttr]): (Option[ScalaExpr], List[IrAttr]) =
-    attrs.collectFirst { case IrAttr.UseAction("form", Some(f)) => f } match
-      case Some(f) => (Some(f), attrs.filterNot { case IrAttr.UseAction("form", _) => true; case _ => false })
-      case None    => (None, attrs)
+    val declaresForm = attrs.exists { case IrAttr.UseAction("form", _) => true; case _ => false }
+    if !declaresForm then (None, attrs)
+    else
+      val explicit    = attrs.collectFirst { case IrAttr.UseAction("form", Some(f)) => f }
+      val fromEnhance = attrs.collectFirst { case IrAttr.UseAction("enhance", Some(f)) => f }
+      (explicit.orElse(fromEnhance), attrs.filterNot { case IrAttr.UseAction("form", _) => true; case _ => false })
 
   /** The state-only attribute spread to append for an `<input>` / `<option>` under a
     * `use:form` scope, if any. */
