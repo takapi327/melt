@@ -7,7 +7,6 @@
 package example
 
 import components.*
-
 import meltkit.*
 import meltkit.ssg.SsgGenerator
 
