@@ -1,0 +1,15 @@
+<!-- Nested layout: registered with app.layout("dashboard"), so it wraps every
+     /dashboard/* page and is itself composed inside AppShell. -->
+<div class="dashboard">
+  <nav class="sidebar">
+    <a href="/dashboard/stats">Stats</a>
+    <a href="/dashboard/settings">Settings</a>
+  </nav>
+  <section class="content">{children}</section>
+</div>
+
+<style>
+.dashboard { display: flex; gap: 1.5rem; }
+.sidebar { width: 10rem; background: #f4f4f8; border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.content { flex: 1; }
+</style>

@@ -355,6 +355,28 @@ lazy val `server-functions-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`server-functions-client`.jvm)
 
+// ── Example: Nested layouts (SSR-only, static site generation) ────────────────
+//
+//   sbt "nested-layoutsJVM/run"   → writes static HTML under nested-layouts/dist
+//
+// Phase 1 nested layouts are SSR-only, so this example disables hydration
+// (meltHydration := false) and generates a static site with SsgGenerator.
+lazy val `nested-layouts` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("nested-layouts"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jvmSettings(
+    run / fork := true
+  )
+  .jsSettings(
+    meltHydration                   := false,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
+  )
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -385,7 +407,9 @@ lazy val root = project
     `form-actions-server`,
     `server-functions-client`.jvm,
     `server-functions-client`.js,
-    `server-functions-server`
+    `server-functions-server`,
+    `nested-layouts`.jvm,
+    `nested-layouts`.js
   )
   .settings(
     crossScalaVersions := Seq.empty

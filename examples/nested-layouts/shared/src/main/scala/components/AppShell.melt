@@ -1,0 +1,14 @@
+<!-- Root layout: a {children} component registered with app.layout(""). Every
+     page is composed inside it during SSR. -->
+<div class="app-shell">
+  <header class="app-header">Melt — Nested Layouts</header>
+  <div class="app-body">{children}</div>
+  <footer class="app-footer">© 2026 Melt</footer>
+</div>
+
+<style>
+.app-shell { font-family: system-ui, sans-serif; color: #222; }
+.app-header { background: #1a1a2e; color: #fff; padding: 1rem 1.5rem; font-weight: 600; }
+.app-body { padding: 1.5rem; }
+.app-footer { border-top: 1px solid #eee; color: #888; padding: 1rem 1.5rem; font-size: 0.85rem; }
+</style>
