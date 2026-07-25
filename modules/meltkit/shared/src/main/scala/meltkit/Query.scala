@@ -35,7 +35,8 @@ final class Query[Out] private[meltkit] (
   private[meltkit] val argsJson: String,
   private[meltkit] val outCodec: PropsCodec[Out],
   initial:                       Async[Out],
-  private val runFetch:          Query[Out] => Unit
+  private val runFetch:          Query[Out] => Unit,
+  private[meltkit] val tags:     Set[String] = Set.empty
 ):
 
   /** Stable identity `name + args` — matches a single-flight update entry to the

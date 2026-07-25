@@ -21,12 +21,12 @@ import melt.runtime.Async
   */
 extension [In, Out](fn: QueryFn[In, Out])
   def apply(in: In): Query[Out] =
-    new Query[Out](fn.name, fn.inCodec.encodeToString(in), fn.outCodec, Async.Loading, _ => ())
+    new Query[Out](fn.name, fn.inCodec.encodeToString(in), fn.outCodec, Async.Loading, _ => (), fn.tags)
   def apply()(using ev: Unit =:= In): Query[Out] = fn(ev(()))
 
   /** Seeds the query with a value already available during SSR (a page-loader
     * prop), so the server renders the resolved data — matching the client, which
     * hydrates from the same prop. No request is made on either side. */
   def seeded(in: In, seed: Out): Query[Out] =
-    new Query[Out](fn.name, fn.inCodec.encodeToString(in), fn.outCodec, Async.Done(seed), _ => ())
+    new Query[Out](fn.name, fn.inCodec.encodeToString(in), fn.outCodec, Async.Done(seed), _ => (), fn.tags)
   def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = fn.seeded(ev(()), seed)

@@ -84,8 +84,22 @@ final class QueryFn[In, Out] private[meltkit] (
   val name:                      String,
   private[meltkit] val endpoint: Endpoint[PathSpec.Empty, In, Nothing, Out],
   private[meltkit] val inCodec:  PropsCodec[In],
-  private[meltkit] val outCodec: PropsCodec[Out]
-) extends ServerFnContract[In, Out]
+  private[meltkit] val outCodec: PropsCodec[Out],
+  private[meltkit] val tags:     Set[String] = Set.empty
+) extends ServerFnContract[In, Out]:
+
+  /** Attaches an invalidation tag so `Invalidate("tag")` can refresh instances of
+    * this query without holding a reference to them (client-only; a no-op on the
+    * JVM). Fluent — multiple tags accumulate.
+    *
+    * {{{
+    * val posts = ServerFn.query[Unit, List[Post]]("posts.list").tagged("posts")
+    * // after a mutation, anywhere on the page:
+    * Invalidate("posts")
+    * }}}
+    */
+  def tagged(tag: String): QueryFn[In, Out] =
+    new QueryFn(name, endpoint, inCodec, outCodec, tags + tag)
 
 /** Raised on the client when a server function call returns a non-2xx response.
   *

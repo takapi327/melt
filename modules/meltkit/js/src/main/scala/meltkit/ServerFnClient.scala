@@ -156,7 +156,9 @@ private object ServerFnClient:
   def build[In, Out](fn: QueryFn[In, Out], in: In, initial: Async[Out]): Query[Out] =
     val url  = fn.endpoint.url(PathSpec.emptyValue)
     val body = fn.inCodec.encodeToString(in)
-    new Query[Out](fn.name, body, fn.outCodec, initial, self => runQuery(fn, url, body, self))
+    val q    = new Query[Out](fn.name, body, fn.outCodec, initial, self => runQuery(fn, url, body, self), fn.tags)
+    QueryRegistry.register(q) // enables Invalidate(tag)/Invalidate.all(); auto-removed on unmount
+    q
 
   /** POSTs a JSON body to `url`, resolving once response headers arrive. When
     * `singleFlight` is set, adds the header that asks the server to return an
