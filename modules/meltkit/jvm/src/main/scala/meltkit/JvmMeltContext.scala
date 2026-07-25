@@ -95,7 +95,13 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
   override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
-      case Some(template) => composeResponse(template, Router.withPath(requestPath)(component), status)
+      case Some(template) =>
+        val composed = Router.withPath(requestPath) {
+          app match
+            case Some(a) => a.wrapLayouts(requestPath, () => component)
+            case None    => component
+        }
+        composeResponse(template, composed, status)
 
   /** Blocking async SSR on a synchronous effect: resolve every `<melt:await>`
     * boundary in-process (via the app's server-function registry) and splice the

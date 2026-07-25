@@ -77,6 +77,17 @@ class SsgGeneratorSpec extends munit.FunSuite:
       assert(html.startsWith("<html>"))
     }
 
+  test("nested layouts compose the page inside matching layouts (SSR)"):
+    withTempDir { out =>
+      val app = MeltKit[[A] =>> A]()
+      app.layout("")(c => RenderResult("<div class=\"root\">" + c().body + "</div>", ""))
+      app.layout("dashboard")(c => RenderResult("<nav/>" + c().body, ""))
+      app.get("dashboard/stats", On)(ctx => ctx.render(RenderResult(body = "<p>stats</p>", head = "")))
+      SsgGenerator.run(app, config(out))
+      val html = Files.readString(out.resolve("dashboard/stats/index.html"))
+      assert(html.contains("<div class=\"root\"><nav/><p>stats</p></div>"), html)
+    }
+
   // ── Dynamic routes ────────────────────────────────────────────────────────
 
   test("dynamic route /posts/:slug generates one file per entry"):
