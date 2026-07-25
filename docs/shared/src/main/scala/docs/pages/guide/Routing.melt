@@ -81,6 +81,21 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.routingPageOptionsExample}</code></pre>
 </div>
 
+{t.layoutsH2.map(h => <h2>{h}</h2>)}
+{t.layoutsIntro.map(p => <p>{p}</p>)}
+
+{t.layoutsH2.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.routingNestedLayouts}</code></pre>
+  </div>
+)}
+
+{t.layoutsNote.map(note =>
+  <div class="callout callout-info">
+    <p>{note}</p>
+  </div>
+)}
+
 {t.infoTitle.map(title =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>

@@ -691,6 +691,23 @@ object GuideCodes:
        |
        |app.get(lang / "guide" / slug, opts) { ctx => ... }""".stripMargin
 
+  val routingNestedLayouts: String =
+    """|// A layout is a component with a {children} slot:
+       |// AppShell.melt
+       |<header>My site</header>
+       |<main>{children}</main>
+       |
+       |// Register layouts by path prefix in the server main. The empty prefix ""
+       |// is the root layout; deeper prefixes nest inside it.
+       |app.layout("")(c => AppShell(children = c))
+       |app.layout("dashboard")(c => DashboardLayout(children = c))
+       |
+       |app.get("dashboard/stats") { ctx => ctx.render(StatsPage()) }
+       |// SSR renders: AppShell( DashboardLayout( StatsPage ) )
+       |
+       |// A props-carrying layout takes the child as its `children` argument:
+       |app.layout("admin")(c => AdminLayout(AdminLayout.Props(role), children = c))""".stripMargin
+
   // ── SSR ───────────────────────────────────────────────────────────────────
 
   val ssrBuildSbt: String =

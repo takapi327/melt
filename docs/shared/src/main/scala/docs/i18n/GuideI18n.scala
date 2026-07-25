@@ -395,7 +395,10 @@ case class GuideRouting(
   pageOptsH2:      String,
   pageOptsIntro:   String,
   infoTitle:       Option[String],
-  infoText:        Option[String]
+  infoText:        Option[String],
+  layoutsH2:       Option[String] = None,
+  layoutsIntro:    Option[String] = None,
+  layoutsNote:     Option[String] = None
 )
 
 // ── SSR ───────────────────────────────────────────────────────────────────────
@@ -986,7 +989,14 @@ object GuideI18n:
       pageOptsH2      = "PageOptions",
       pageOptsIntro   = "Control SSR, CSR, and prerendering per route:",
       infoTitle       = None,
-      infoText        = None
+      infoText        = None,
+      layoutsH2       = Some("Nested layouts"),
+      layoutsIntro    = Some(
+        "A layout is a component with a {children} slot. Register layouts by path prefix with app.layout: the empty prefix \"\" is the root layout, and deeper prefixes nest inside it (shortest prefix = outermost). Each page under a prefix is composed inside its layouts during SSR."
+      ),
+      layoutsNote = Some(
+        "Phase 1 is SSR-only: use nested layouts with SSG / full-reload pages (hydration disabled). Layouts under client hydration need router-driven hydration, which is planned."
+      )
     ),
 
     ssr = GuideSsr(
@@ -1552,7 +1562,14 @@ object GuideI18n:
       pageOptsH2    = "PageOptions",
       pageOptsIntro = "ルートごとに SSR・CSR・プリレンダリングを制御します。",
       infoTitle     = Some("詳細は SSR/SSG ガイドを参照"),
-      infoText      = Some("SSR の仕組みについては サーバーサイドレンダリング、静的ページ生成については 静的サイト生成 を参照してください。")
+      infoText      = Some("SSR の仕組みについては サーバーサイドレンダリング、静的ページ生成については 静的サイト生成 を参照してください。"),
+      layoutsH2     = Some("ネストレイアウト"),
+      layoutsIntro  = Some(
+        "レイアウトは {children} スロットを持つコンポーネントです。app.layout でパス接頭辞に紐づけて登録します。空接頭辞 \"\" が最外(ルート)レイアウトで、深い接頭辞はその内側にネストします(短い接頭辞ほど外側)。接頭辞配下の各ページは SSR 時にレイアウトの中に合成されます。"
+      ),
+      layoutsNote = Some(
+        "Phase 1 は SSR 専用です。ネストレイアウトは SSG / フルリロードのページ(ハイドレーション無効)で使用してください。クライアントハイドレーション配下のレイアウトには router 駆動ハイドレーションが必要で、これは今後対応予定です。"
+      )
     ),
 
     ssr = GuideSsr(
