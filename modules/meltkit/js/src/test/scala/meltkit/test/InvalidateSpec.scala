@@ -6,8 +6,8 @@
 
 package meltkit.test
 
-import melt.runtime.json.PropsCodec
 import melt.runtime.{ Async, Owner, OwnerNode }
+import melt.runtime.json.PropsCodec
 
 import meltkit.*
 
@@ -25,9 +25,9 @@ class InvalidateSpec extends munit.FunSuite:
     (q, () => count)
 
   test("Invalidate(tag) refreshes only live queries carrying that tag") {
-    val node          = new OwnerNode(None)
-    val (a, aCount)   = spyQuery("a", Set("posts"))
-    val (b, bCount)   = spyQuery("b", Set("users"))
+    val node        = new OwnerNode(None)
+    val (a, aCount) = spyQuery("a", Set("posts"))
+    val (b, bCount) = spyQuery("b", Set("users"))
     Owner.withOwner(node) {
       QueryRegistry.register(a)
       QueryRegistry.register(b)
