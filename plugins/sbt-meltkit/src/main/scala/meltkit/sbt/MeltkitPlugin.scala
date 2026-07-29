@@ -233,6 +233,15 @@ object MeltkitPlugin extends AutoPlugin:
     val meltkitConfigBasePath =
       settingKey[String]("Asset base path used in Template.render for SSR")
 
+    /** The client hydration entry module for router-driven hydration (nested
+      * layouts). When `Some(moduleId)`, the generated `MeltKitConfig.routerHydration`
+      * exposes it, so a server/SSG passes `ServerConfig.routerHydration` and the SSR
+      * HTML boots a single `import(entryChunk).hydrate()` instead of one hydrate call
+      * per component. The client must export `@JSExportTopLevel("hydrate", moduleID =
+      * <this>)`. Default: `None` (per-component hydration). */
+    val meltkitRouterHydration =
+      settingKey[Option[String]]("Client hydration entry moduleID for router-driven hydration")
+
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
   import melt.sbt.MeltPlugin.autoImport.{ meltCodegenMode, meltHydration }
@@ -316,9 +325,10 @@ object MeltkitPlugin extends AutoPlugin:
       if f.exists() then Some(f) else None
     },
 
-    meltkitConfigObject   := "MeltKitConfig",
-    meltkitConfigLang     := "en",
-    meltkitConfigBasePath := "/assets",
+    meltkitConfigObject    := "MeltKitConfig",
+    meltkitConfigLang      := "en",
+    meltkitConfigBasePath  := "/assets",
+    meltkitRouterHydration := None,
 
     meltkitConfigGenerate := Def.taskDyn {
       val client = meltkitAssetManifestClient.value
@@ -327,13 +337,14 @@ object MeltkitPlugin extends AutoPlugin:
       if client.isDefined && (!hasScalaJSPlugin(thisProject.value) || isNode) then
         Def.task {
           generateMeltKitConfig(
-            streams        = streams.value,
-            outDir         = (Compile / sourceManaged).value / "generated",
-            pkgName        = meltkitAssetManifestPackage.value,
-            objectName     = meltkitConfigObject.value,
-            manifestObject = meltkitAssetManifestObject.value,
-            lang           = meltkitConfigLang.value,
-            basePath       = meltkitConfigBasePath.value
+            streams         = streams.value,
+            outDir          = (Compile / sourceManaged).value / "generated",
+            pkgName         = meltkitAssetManifestPackage.value,
+            objectName      = meltkitConfigObject.value,
+            manifestObject  = meltkitAssetManifestObject.value,
+            lang            = meltkitConfigLang.value,
+            basePath        = meltkitConfigBasePath.value,
+            routerHydration = meltkitRouterHydration.value
           )
         }
       else Def.task(Seq.empty[File])
@@ -399,13 +410,14 @@ object MeltkitPlugin extends AutoPlugin:
     * in sync.
     */
   private def generateMeltKitConfig(
-    streams:        TaskStreams,
-    outDir:         File,
-    pkgName:        String,
-    objectName:     String,
-    manifestObject: String,
-    lang:           String,
-    basePath:       String
+    streams:         TaskStreams,
+    outDir:          File,
+    pkgName:         String,
+    objectName:      String,
+    manifestObject:  String,
+    lang:            String,
+    basePath:        String,
+    routerHydration: Option[String]
   ): Seq[File] =
     val log = streams.log
     IO.createDirectory(outDir)
@@ -428,6 +440,9 @@ object MeltkitPlugin extends AutoPlugin:
          |  val manifest: meltkit.ViteManifest = $manifestObject.manifest
          |  val basePath: String               = "$basePath"
          |  val lang:     String               = "$lang"
+         |  /** Router-driven hydration entry moduleID, or None for per-component hydration.
+         |    * Pass to `ServerConfig.routerHydration` (or the http4s adapter param). */
+         |  val routerHydration: Option[String] = ${ routerHydration.fold("None")(id => s"""Some("$id")""") }
          |}
          |""".stripMargin
 
