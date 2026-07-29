@@ -41,9 +41,8 @@ object FutureStreamBody:
     writeAsync: String => Future[Unit],
     close:      () => Unit
   )(using ExecutionContext): Unit =
-    val written = body.chunks.foldLeft(writeAsync(body.head).map(_ => List.empty[(String, String)])) {
-      (accF, chunkF) =>
-        accF.flatMap(acc => chunkF.flatMap { case (html, seeds) => writeAsync(html).map(_ => acc ++ seeds) })
+    val written = body.chunks.foldLeft(writeAsync(body.head).map(_ => List.empty[(String, String)])) { (accF, chunkF) =>
+      accF.flatMap(acc => chunkF.flatMap { case (html, seeds) => writeAsync(html).map(_ => acc ++ seeds) })
     }
     written
       .flatMap(seeds => writeAsync(SsrRenderScope.streamSeedScript(seeds) + body.tail))

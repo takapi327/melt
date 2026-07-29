@@ -23,16 +23,22 @@ class FutureStreamBodyTest extends munit.FunSuite:
   test("drive writes head, chunks in order, a merged seed script, then tail, then closes"):
     val sink   = new StringBuilder
     var closed = false
-    val body = FutureStreamBody(
-      head = "HEAD",
+    val body   = FutureStreamBody(
+      head   = "HEAD",
       chunks = List(
         Future.successful(("<c1>", List("nums.list\nnull" -> "[1]"))),
-        Future.successful(("<c2>", List("posts.get\n1"    -> "[2]")))
+        Future.successful(("<c2>", List("posts.get\n1" -> "[2]")))
       ),
       tail = "TAIL"
     )
 
-    FutureStreamBody.drive(body, s => { sink ++= s; Future.unit }, () => closed = true)
+    FutureStreamBody.drive(
+      body,
+      s =>
+        sink ++= s; Future.unit
+      ,
+      () => closed = true
+    )
 
     val out = sink.toString
     assert(out.startsWith("HEAD"), out)
@@ -49,7 +55,13 @@ class FutureStreamBodyTest extends munit.FunSuite:
     var closed = false
     val body   = FutureStreamBody("HEAD", List(Future.successful(("<c1>", Nil))), "TAIL")
 
-    FutureStreamBody.drive(body, s => { sink ++= s; Future.unit }, () => closed = true)
+    FutureStreamBody.drive(
+      body,
+      s =>
+        sink ++= s; Future.unit
+      ,
+      () => closed = true
+    )
 
     val out = sink.toString
     assert(!out.contains("data-melt-queries"), out)
