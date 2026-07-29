@@ -157,6 +157,33 @@ final case class PlainResponse(
   override def withDeletedCookie(name: String, path: String): PlainResponse =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
 
+/** Opaque, effect-library-neutral marker for a streaming response body.
+  *
+  * Core stays free of fs2/cats-effect, so the concrete carrier lives in the
+  * adapter that can stream: the http4s adapter provides `Fs2StreamBody[F]`
+  * wrapping an `fs2.Stream[F, Byte]`, and only that adapter constructs and reads
+  * a [[StreamingResponse]]. Other transports never receive one — `renderStream`
+  * degrades to `renderAsync` off http4s. */
+trait StreamBody
+
+/** A chunked-transfer response whose body is produced incrementally by a
+  * [[StreamBody]] (streaming SSR). `body` is empty because the payload is the
+  * stream; only the http4s adapter interprets [[stream]]. */
+final case class StreamingResponse(
+  status:          StatusCode,
+  contentType:     String,
+  stream:          StreamBody,
+  headers:         Map[String, String]  = Map.empty,
+  responseCookies: List[ResponseCookie] = List.empty
+) extends Response:
+  val body:                                              String            = ""
+  override def withContentType(ct: String):              StreamingResponse = copy(contentType = ct)
+  override def withHeaders(h:      Map[String, String]): StreamingResponse = copy(headers = h)
+  override def withCookie(name: String, value: String, options: CookieOptions): StreamingResponse =
+    copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
+  override def withDeletedCookie(name: String, path: String): StreamingResponse =
+    copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
+
 object Response:
   def text(value: String): PlainResponse =
     PlainResponse(200, "text/plain; charset=utf-8", value)

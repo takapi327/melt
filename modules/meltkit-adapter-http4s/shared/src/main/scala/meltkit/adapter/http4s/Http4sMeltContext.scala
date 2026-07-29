@@ -167,11 +167,81 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
                 composeResponse(template, result.copy(body = body), 200)
               }
 
+  /** Streaming async SSR: flush the shell (with each `<melt:await>` pending fallback)
+    * immediately, then stream each boundary's resolved branch as a `<template>` +
+    * swap `<script>` chunk. Resolution runs up to [[streamConcurrency]] boundaries
+    * concurrently, flushed in registration order; nested boundaries resolve within
+    * their parent's chunk. Query seeds merge into one `data-melt-queries` script at
+    * the tail (the deferred module hydrate bootstrap runs after all swaps). A page
+    * with no boundary is just [[render]] lifted. */
+  override def renderStream(component: => RenderResult): F[Response] =
+    import Http4sAdapter.given                       // meltkit type-class bridges (Functor/Pure/Recover) for F
+    import cats.effect.implicits.parallelForGenSpawn // derive cats.Parallel[F] from Concurrent[F]
+    templateOpt match
+      case None           => throw missingTemplate
+      case Some(template) =>
+        app match
+          case None =>
+            Concurrent[F].pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case Some(a) =>
+            val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]])
+            val wrap    = new SsrRenderScope.BranchWrap:
+              def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
+            val (result, scope) =
+              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
+            if !scope.nonEmpty then Concurrent[F].pure(composeResponse(template, result, 200))
+            else
+              val (head, tail) = composeStreamParts(template, result)
+              val pending      = scope.pendingSnapshot
+              val stream: fs2.Stream[F, Byte] =
+                fs2.Stream.eval(cats.effect.Ref.of[F, List[(String, String)]](Nil)).flatMap { seedRef =>
+                  val headS  = fs2.Stream.emit(head + SsrRenderScope.streamSwapBootstrap(nonce))
+                  val chunkS =
+                    fs2.Stream.emits(pending).covary[F].parEvalMap(Http4sMeltContext.streamConcurrency) { s =>
+                      scope.resolveToChunk(s, nonce).flatMap {
+                        case (html, seeds) => seedRef.update(_ ++ seeds).as(html)
+                      }
+                    }
+                  val tailS = fs2.Stream.eval(seedRef.get.map(seeds => SsrRenderScope.streamSeedScript(seeds) + tail))
+                  (headS ++ chunkS ++ tailS).through(fs2.text.utf8.encode)
+                }
+              Concurrent[F].pure(
+                StreamingResponse(200, "text/html; charset=utf-8", Http4sAdapter.Fs2StreamBody(stream))
+              )
+
   private def missingTemplate: IllegalStateException =
     new IllegalStateException(
       "ctx.render() requires an Http4sAdapter initialized with a Template. " +
         "Use `Http4sAdapter(app, template, manifest).routes` instead of `Http4sAdapter.routes(app)`."
     )
+
+  /** Composes the shell for streaming and splits it at the end of the page body
+    * into `(head, tail)`. `head` is the document up to and including the shell body
+    * (with `<melt:await>` fallbacks); `tail` is everything after (the deferred
+    * hydrate bootstrap + `</body></html>`). Streamed fragments and the query seed
+    * are emitted between the two. */
+  private def composeStreamParts(template: Template, result: RenderResult): (String, String) =
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    // Mark the split point right after the shell body content, before the template's
+    // trailing markup and the (deferred) bootstrap, then cut the rendered document.
+    val html = template.render(
+      augmented.copy(body = augmented.body + Http4sMeltContext.streamSplit),
+      manifest,
+      title       = "",
+      lang        = lang,
+      basePath    = basePath,
+      vars        = Map.empty,
+      nonce       = nonce,
+      routerEntry = routerEntry
+    )
+    val idx = html.indexOf(Http4sMeltContext.streamSplit)
+    if idx < 0 then (html, "")
+    else (html.substring(0, idx), html.substring(idx + Http4sMeltContext.streamSplit.length))
 
   /** Resolves `.melt` import tags and composes the page HTML via the [[Template]]. */
   private def composeResponse(template: Template, result: RenderResult, status: StatusCode): PlainResponse =
@@ -216,3 +286,12 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
 
   override def notFound(message: String = "Not Found"): NotFound =
     Response.notFound(message)
+
+object Http4sMeltContext:
+  /** Max `<melt:await>` boundaries resolved concurrently while streaming (chunks are
+    * still flushed in registration order via `parEvalMap`). */
+  private val streamConcurrency: Int = 8
+
+  /** Sentinel marking where the shell body ends, used by `composeStreamParts` to
+    * split the rendered document for streaming. A NUL char never appears in HTML. */
+  private val streamSplit: String = " MELT_STREAM_SPLIT "

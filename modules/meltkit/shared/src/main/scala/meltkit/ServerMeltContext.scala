@@ -108,11 +108,31 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
       "renderAsync (blocking async SSR for <melt:await>) is not supported by this server context."
     )
 
-/** Makes [[ServerMeltContext.renderAsync]] callable from `app.get` handlers, whose
-  * `ctx` is statically a [[MeltContext]] but is always a server context at runtime. */
+  /** Renders a component with **streaming async SSR**: the shell (with each
+    * `<melt:await>` boundary's pending fallback) is flushed immediately for a fast
+    * first paint, then each boundary's resolved branch is streamed as a chunk that
+    * the client swaps over its fallback — React 18 `renderToPipeableStream`-style.
+    *
+    * The final DOM (and hydration seed) is identical to [[renderAsync]]; only the
+    * delivery is incremental. Streaming requires JS on the client for the swap.
+    *
+    * Only the http4s adapter implements true chunked streaming; the default here
+    * degrades to the blocking [[renderAsync]] (a single response), so a route
+    * written against `renderStream` still works on every server context. */
+  def renderStream(component: => C): F[Response] = renderAsync(component)
+
+/** Makes [[ServerMeltContext.renderAsync]] / [[ServerMeltContext.renderStream]]
+  * callable from `app.get` handlers, whose `ctx` is statically a [[MeltContext]]
+  * but is always a server context at runtime. */
 extension [F[_], P <: AnyNamedTuple, B](ctx: MeltContext[F, P, B, RenderResult])
   def renderAsync(component: => RenderResult): F[Response] =
     ctx match
       case s: ServerMeltContext[F, P, B, RenderResult] @unchecked => s.renderAsync(component)
       case _                                                      =>
         throw new UnsupportedOperationException("renderAsync requires a server (SSR) context")
+
+  def renderStream(component: => RenderResult): F[Response] =
+    ctx match
+      case s: ServerMeltContext[F, P, B, RenderResult] @unchecked => s.renderStream(component)
+      case _                                                      =>
+        throw new UnsupportedOperationException("renderStream requires a server (SSR) context")

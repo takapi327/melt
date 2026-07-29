@@ -11,6 +11,7 @@ import scala.collection.mutable.ListBuffer
 import melt.runtime.json.SimpleJson
 import melt.runtime.render.RenderResult
 import melt.runtime.Async
+import melt.runtime.Escape
 
 /** Per-request ambient that collects the async suspense boundaries a
   * `<melt:await>` registers during synchronous shell rendering, then resolves
@@ -52,6 +53,17 @@ final class SsrRenderScope[F[_]] private[meltkit] (
   def suspend[Out](id: String, query: Query[Out], renderBranch: Async[Out] => RenderResult): Unit =
     _lock.synchronized(_pending += SsrRenderScope.Suspended(id, query, renderBranch))
 
+  /** Registers an already-built boundary entry (used by [[resolveToChunk]] to
+    * seed a child scope with a top-level boundary lifted from this scope). */
+  private[meltkit] def suspendEntry(s: SsrRenderScope.Suspended[?]): Unit =
+    _lock.synchronized(_pending += s)
+
+  /** A snapshot of the boundaries registered during shell render — the top-level
+    * stream units for streaming SSR (nested boundaries resolve within their
+    * parent's chunk, see [[resolveToChunk]]). */
+  private[meltkit] def pendingSnapshot: List[SsrRenderScope.Suspended[?]] =
+    _lock.synchronized(_pending.toList)
+
   private[meltkit] def nonEmpty: Boolean = _lock.synchronized(_pending.nonEmpty)
 
   private def pendingSize: Int = _lock.synchronized(_pending.length)
@@ -72,19 +84,58 @@ final class SsrRenderScope[F[_]] private[meltkit] (
     recover:  Recover[F],
     parallel: Parallel[F]
   ): F[SsrRenderScope.Resolved] =
+    functor.map(resolveAllRaw) {
+      case (frags, seeds) =>
+        SsrRenderScope.Resolved(frags, SsrRenderScope.buildSeedJson(seeds))
+    }
+
+  /** Like [[resolveAll]] but returns the raw `key -> json` seed entries instead of
+    * a built JSON object, so streaming SSR can merge seeds across chunks into one
+    * `data-melt-queries` script at the tail. Fragments are parent-first. */
+  private[meltkit] def resolveAllRaw(using
+    functor:  Functor[F],
+    flatMap:  FlatMap[F],
+    pure:     Pure[F],
+    recover:  Recover[F],
+    parallel: Parallel[F]
+  ): F[(List[(String, RenderResult)], List[(String, String)])] =
     def loop(
       from:  Int,
       frags: List[(String, RenderResult)],
       seeds: List[(String, String)]
-    ): F[SsrRenderScope.Resolved] =
+    ): F[(List[(String, RenderResult)], List[(String, String)])] =
       val round = pendingFrom(from)
-      if round.isEmpty then pure.pure(SsrRenderScope.Resolved(frags, SsrRenderScope.buildSeedJson(seeds)))
+      if round.isEmpty then pure.pure((frags, seeds))
       else
         val next = pendingSize
         flatMap.flatMap(parallel.parTraverse(round)(s => resolveOne(s))) { outcomes =>
           loop(next, frags ++ outcomes.map(o => o.id -> o.fragment), seeds ++ outcomes.flatMap(_.seed))
         }
     loop(0, Nil, Nil)
+
+  /** Resolves one top-level boundary (and any `<melt:await>` nested in its resolved
+    * branch) into a streamed chunk: a `<template>` carrying the fully-spliced branch
+    * HTML plus a swap `<script>`. Uses a fresh child scope so concurrently streamed
+    * chunks never share a pending list. Returns the chunk HTML and its raw seeds. */
+  private[meltkit] def resolveToChunk(s: SsrRenderScope.Suspended[?], nonce: Option[String])(using
+    functor:  Functor[F],
+    flatMap:  FlatMap[F],
+    pure:     Pure[F],
+    recover:  Recover[F],
+    parallel: Parallel[F]
+  ): F[(String, List[(String, String)])] =
+    val child = new SsrRenderScope[F](resolveQuery, wrapBranch)
+    child.suspendEntry(s)
+    functor.map(child.resolveAllRaw) {
+      case (frags, seeds) =>
+        val html = frags match
+          case (_, head) :: rest =>
+            var h = head.body
+            rest.foreach { case (id, f) => h = SsrRenderScope.spliceMarker(h, id, f.body) }
+            h
+          case Nil => ""
+        (SsrRenderScope.streamChunk(s.id, html, nonce), seeds)
+    }
 
   private def resolveOne[Out](s: SsrRenderScope.Suspended[Out])(using
     functor: Functor[F],
@@ -153,6 +204,37 @@ object SsrRenderScope:
       val safe = resolved.seedJson.replace("</", "<\\/")
       out = s"""$out<script type="application/json" data-melt-queries>$safe</script>"""
     out
+
+  // ── Streaming SSR (chunked) helpers ────────────────────────────────────────
+
+  /** One-time bootstrap defining the client swap helper for streaming SSR. It
+    * locates a boundary's `<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->` fallback span,
+    * replaces it with the matching `<template>`'s content, and removes the markers,
+    * template and script — leaving DOM identical to the blocking `spliceMarker`
+    * result, so hydration proceeds unchanged. */
+  private[meltkit] def streamSwapBootstrap(nonce: Option[String]): String =
+    val n = nonce.fold("")(v => s""" nonce="${ Escape.attr(v) }"""")
+    s"""<script$n>window.__meltSwap=function(i){var o,c,x,w=document.createTreeWalker(document.body,128);""" +
+      """while(x=w.nextNode()){if(x.data==="melt:sb:"+i)o=x;else if(x.data==="/melt:sb:"+i){c=x;break}}""" +
+      """if(!o||!c)return;var t=document.getElementById("melt:t:"+i);if(!t)return;""" +
+      """var r=document.createRange();r.setStartAfter(o);r.setEndBefore(c);r.deleteContents();""" +
+      """c.parentNode.insertBefore(t.content,c);o.remove();c.remove();t.remove()};</script>"""
+
+  /** A streamed fragment: a `<template>` carrying the resolved branch HTML and an
+    * inline script that swaps it over the boundary's fallback span. */
+  private[meltkit] def streamChunk(id: String, fragmentHtml: String, nonce: Option[String]): String =
+    val n = nonce.fold("")(v => s""" nonce="${ Escape.attr(v) }"""")
+    s"""<template id="melt:t:$id">$fragmentHtml</template>""" +
+      s"""<script$n>window.__meltSwap(${ SimpleJson.encString(id) })</script>"""
+
+  /** The single `data-melt-queries` seed script emitted at the stream tail, merging
+    * every chunk's raw seeds (matches the client's `querySelector` read). */
+  private[meltkit] def streamSeedScript(seeds: List[(String, String)]): String =
+    val json = buildSeedJson(seeds)
+    if json.isEmpty then ""
+    else
+      val safe = json.replace("</", "<\\/")
+      s"""<script type="application/json" data-melt-queries>$safe</script>"""
 
   /** Replaces the `<!--melt:sb:ID-->` … `<!--/melt:sb:ID-->` span (marker + pending
     * fallback) with `replacement`. Leaves the body untouched if the markers are absent

@@ -498,6 +498,12 @@ object Http4sAdapter:
       httpOnly = c.options.httpOnly
     )
 
+  /** Carrier for a streaming-SSR response body — the concrete [[meltkit.StreamBody]]
+    * for this adapter, wrapping an already-built `fs2.Stream` of UTF-8 bytes. Only
+    * [[Http4sMeltContext.renderStream]] constructs it and only [[toHttp4sResponse]]
+    * reads it. */
+  private[http4s] final case class Fs2StreamBody[F[_]](toStream: fs2.Stream[F, Byte]) extends meltkit.StreamBody
+
   private[http4s] def toHttp4sResponse[F[_]](r: Response): Http4sResponse[F] =
     val status = Status.fromInt(r.status: Int).getOrElse(Status.InternalServerError)
     val ct     = MediaType.parse(r.contentType).toOption.map(`Content-Type`(_))
@@ -510,8 +516,13 @@ object Http4sAdapter:
     }
     val allHeaders: List[org.http4s.Header.ToRaw] =
       ct.toList.map(h => h: org.http4s.Header.ToRaw) ++ rawHeaders ++ cookieHeaders
+    // A streaming SSR response carries a pre-built fs2 byte stream (chunked flush);
+    // every other response emits its single String body as one chunk.
+    val body = r match
+      case StreamingResponse(_, _, b: Fs2StreamBody[F] @unchecked, _, _) => b.toStream
+      case _ => fs2.Stream.emit(r.body).through(fs2.text.utf8.encode)
     Http4sResponse(
       status  = status,
       headers = Headers(allHeaders*),
-      body    = fs2.Stream.emit(r.body).through(fs2.text.utf8.encode)
+      body    = body
     )
