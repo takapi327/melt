@@ -52,6 +52,17 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
+{t.hydrationModesH2.map(h => <h2>{h}</h2>)}
+{t.hydrationModesIntro.map(p => <p>{p}</p>)}
+{t.hydrationModesPer.map(p => <p>{p}</p>)}
+{t.hydrationModesRouter.map(p => <p>{p}</p>)}
+
+{t.hydrationModesH2.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.ssrHydrationModes}</code></pre>
+  </div>
+)}
+
 <div class="callout callout-info">
   <div class="callout-title">{t.partialTitle}</div>
   <p>{t.partialText}</p>

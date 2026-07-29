@@ -29,9 +29,10 @@ object Main:
       "<!doctype html><html><head><meta charset=\"utf-8\">%melt.head%</head><body>%melt.body%</body></html>"
     )
 
-  // In a real build the manifest is generated from the client JS (sbt-meltkit's
-  // AssetManifest / Vite). Here it is written by hand so the SSG can resolve the
-  // "app" entry chunk for the single router-hydration bootstrap.
+  // This SSG example uses MeltPlugin, so the manifest and entry moduleID are written
+  // by hand. A MeltkitPlugin server instead sets `meltkitRouterHydration := Some("app")`
+  // in build.sbt and reads `MeltKitConfig.manifest` / `MeltKitConfig.routerHydration`
+  // (generated from the real client build) — no hardcoding.
   private val manifest: ViteManifest =
     ViteManifest.fromEntries(Map("scalajs:app.js" -> ViteManifest.Entry(file = "app.js")))
 

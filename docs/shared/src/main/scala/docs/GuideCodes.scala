@@ -708,6 +708,23 @@ object GuideCodes:
        |// A props-carrying layout takes the child as its `children` argument:
        |app.layout("admin")(c => AdminLayout(AdminLayout.Props(role), children = c))""".stripMargin
 
+  val routingLayoutHydration: String =
+    """|// Client hydration of nested layouts is router-driven: one entry hydrates
+       |// the whole composed tree (instead of one hydrate call per component).
+       |
+       |// build.sbt (server): expose the client entry moduleID
+       |meltkitRouterHydration := Some("app")
+       |
+       |// server: SSR boots that single entry (from the build config)
+       |ServerConfig(template = ..., manifest = MeltKitConfig.manifest,
+       |             routerHydration = MeltKitConfig.routerHydration)
+       |
+       |// client Main.scala: the exported entry re-registers the same routes/layouts
+       |// and claims the server-rendered DOM in place, then takes over navigation.
+       |@JSExportTopLevel("hydrate", moduleID = "app")
+       |def hydrate(): Unit =
+       |  BrowserAdapter.hydrate(buildApp(), dom.document.getElementById("app"))""".stripMargin
+
   // ── SSR ───────────────────────────────────────────────────────────────────
 
   val ssrBuildSbt: String =
@@ -731,6 +748,21 @@ object GuideCodes:
   val ssrPropsExample: String =
     """|case class Props(title: String, count: Int)
        |// Codec is derived automatically for case classes with simple types""".stripMargin
+
+  val ssrHydrationModes: String =
+    """|// Per-component (default): each component self-hydrates in place, via one
+       |// import(chunk).hydrate() per component. Best for independent SSR pages —
+       |// only the components on the page ship + hydrate; no client router.
+       |meltHydration := true                      // build.sbt (client)
+       |
+       |// Router-driven (opt-in): a single entry hydrates the whole route tree and
+       |// then takes over client-side navigation. Required for nested layouts.
+       |meltkitRouterHydration := Some("app")      // build.sbt (server)
+       |
+       |// client Main.scala (router-driven entry)
+       |@JSExportTopLevel("hydrate", moduleID = "app")
+       |def hydrate(): Unit =
+       |  BrowserAdapter.hydrate(buildApp(), dom.document.getElementById("app"))""".stripMargin
 
   val ssrViteConfig: String =
     """|// vite.config.mjs

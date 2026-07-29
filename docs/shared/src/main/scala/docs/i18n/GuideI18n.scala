@@ -377,49 +377,54 @@ case class GuideTesting(
 // ── Routing ───────────────────────────────────────────────────────────────────
 
 case class GuideRouting(
-  lead:            String,
-  setupH2:         String,
-  setupIntro:      String,
-  routesH2:        String,
-  pathParamsH2:    String,
-  pathParamsIntro: String,
-  pathParamsOutro: Option[String],
-  ctxTableH2:      Option[String],
-  ctxMethodH:      Option[String],
-  ctxDescH:        Option[String],
-  ctxRenderDesc:   Option[String],
-  ctxHtmlDesc:     Option[String],
-  ctxParamsDesc:   Option[String],
-  ctxQueryDesc:    Option[String],
-  ctxLocalsDesc:   Option[String],
-  pageOptsH2:      String,
-  pageOptsIntro:   String,
-  infoTitle:       Option[String],
-  infoText:        Option[String],
-  layoutsH2:       Option[String] = None,
-  layoutsIntro:    Option[String] = None,
-  layoutsNote:     Option[String] = None
+  lead:                  String,
+  setupH2:               String,
+  setupIntro:            String,
+  routesH2:              String,
+  pathParamsH2:          String,
+  pathParamsIntro:       String,
+  pathParamsOutro:       Option[String],
+  ctxTableH2:            Option[String],
+  ctxMethodH:            Option[String],
+  ctxDescH:              Option[String],
+  ctxRenderDesc:         Option[String],
+  ctxHtmlDesc:           Option[String],
+  ctxParamsDesc:         Option[String],
+  ctxQueryDesc:          Option[String],
+  ctxLocalsDesc:         Option[String],
+  pageOptsH2:            String,
+  pageOptsIntro:         String,
+  infoTitle:             Option[String],
+  infoText:              Option[String],
+  layoutsH2:             Option[String] = None,
+  layoutsIntro:          Option[String] = None,
+  layoutsHydrationIntro: Option[String] = None,
+  layoutsNote:           Option[String] = None
 )
 
 // ── SSR ───────────────────────────────────────────────────────────────────────
 
 case class GuideSsr(
-  lead:         String,
-  howH2:        String,
-  step1:        String,
-  step2:        String,
-  step3:        String,
-  step4:        String,
-  enableH2:     String,
-  enableIntro:  String,
-  routeH2:      String,
-  propsH2:      String,
-  propsIntro:   String,
-  viteH2:       Option[String],
-  viteIntro:    Option[String],
-  partialTitle: String,
-  partialText:  String,
-  spaVsSsrH2:   Option[String]
+  lead:                 String,
+  howH2:                String,
+  step1:                String,
+  step2:                String,
+  step3:                String,
+  step4:                String,
+  enableH2:             String,
+  enableIntro:          String,
+  routeH2:              String,
+  propsH2:              String,
+  propsIntro:           String,
+  viteH2:               Option[String],
+  viteIntro:            Option[String],
+  hydrationModesH2:     Option[String] = None,
+  hydrationModesIntro:  Option[String] = None,
+  hydrationModesPer:    Option[String] = None,
+  hydrationModesRouter: Option[String] = None,
+  partialTitle:         String,
+  partialText:          String,
+  spaVsSsrH2:           Option[String]
 )
 
 // ── SSG ───────────────────────────────────────────────────────────────────────
@@ -994,8 +999,11 @@ object GuideI18n:
       layoutsIntro    = Some(
         "A layout is a component with a {children} slot. Register layouts by path prefix with app.layout: the empty prefix \"\" is the root layout, and deeper prefixes nest inside it (shortest prefix = outermost). Each page under a prefix is composed inside its layouts during SSR."
       ),
+      layoutsHydrationIntro = Some(
+        "For client hydration, set meltkitRouterHydration in build.sbt and export a single hydrate entry: the whole composed layout tree is hydrated by one router-driven entry (BrowserAdapter.hydrate) that claims the server-rendered DOM, rather than one hydrate call per component."
+      ),
       layoutsNote = Some(
-        "Phase 1 is SSR-only: use nested layouts with SSG / full-reload pages (hydration disabled). Layouts under client hydration need router-driven hydration, which is planned."
+        "Without meltkitRouterHydration the default is per-component hydration; use nested layouts with router hydration, or with SSG / full-reload pages."
       )
     ),
 
@@ -1014,11 +1022,22 @@ object GuideI18n:
       propsH2     = "Props serialization",
       propsIntro  =
         "For hydration to work, props are serialized to JSON by the server and deserialized by the client. Derive a PropsCodec automatically:",
-      viteH2       = None,
-      viteIntro    = None,
-      partialTitle = "Partial hydration",
-      partialText  = "Set csr = false to render a component as pure static HTML with no client-side JavaScript at all.",
-      spaVsSsrH2   = None
+      viteH2              = None,
+      viteIntro           = None,
+      hydrationModesH2    = Some("Hydration modes"),
+      hydrationModesIntro = Some(
+        "Melt has two hydration modes. Per-component (the default) hydrates each component independently; router-driven hydrates the whole route tree from one entry and takes over client navigation."
+      ),
+      hydrationModesPer = Some(
+        "Per-component (default): each component self-hydrates in place via its own hydrate() export. Only the components present on the page ship and hydrate, and there is no client-side router. Use it for independent SSR pages — content sites, islands-style enhancement — with no shared layouts and where navigation is a full page load."
+      ),
+      hydrationModesRouter = Some(
+        "Router-driven (meltkitRouterHydration): a single entry re-runs the router under hydration, claims the whole server-rendered tree, and then handles client-side navigation (SPA). It is required for nested layouts (per-component hydration cannot see the routing-level composition) and is the choice when you want SvelteKit-style client navigation after SSR. The trade-off is a larger initial entry (router + routes) and that the client rebuilds the same tree (query data via seeded/data-melt-queries)."
+      ),
+      partialTitle = "No hydration (static)",
+      partialText  =
+        "Set csr = false to render a component as pure static HTML with no client-side JavaScript at all — the third option alongside the two hydration modes above.",
+      spaVsSsrH2 = None
     ),
 
     ssg = GuideSsg(
@@ -1567,8 +1586,11 @@ object GuideI18n:
       layoutsIntro  = Some(
         "レイアウトは {children} スロットを持つコンポーネントです。app.layout でパス接頭辞に紐づけて登録します。空接頭辞 \"\" が最外(ルート)レイアウトで、深い接頭辞はその内側にネストします(短い接頭辞ほど外側)。接頭辞配下の各ページは SSR 時にレイアウトの中に合成されます。"
       ),
+      layoutsHydrationIntro = Some(
+        "クライアントハイドレーションでは、build.sbt で meltkitRouterHydration を設定し、単一の hydrate エントリをエクスポートします。合成されたレイアウトツリー全体が、コンポーネントごとの hydrate 呼び出しではなく、サーバ描画済み DOM を claim する単一の router 駆動エントリ(BrowserAdapter.hydrate)でハイドレートされます。"
+      ),
       layoutsNote = Some(
-        "Phase 1 は SSR 専用です。ネストレイアウトは SSG / フルリロードのページ(ハイドレーション無効)で使用してください。クライアントハイドレーション配下のレイアウトには router 駆動ハイドレーションが必要で、これは今後対応予定です。"
+        "meltkitRouterHydration を設定しない場合はコンポーネント単位のハイドレーションが既定です。ネストレイアウトは router ハイドレーション、または SSG / フルリロードのページで使用してください。"
       )
     ),
 
@@ -1589,8 +1611,18 @@ object GuideI18n:
       viteIntro   = Some(
         "SSR + ハイドレーションのプロダクションビルドでは、Rollup のデフォルト設定が named export (hydrate) を削除してしまうことがあります。vite.config.mjs に以下を追加してください。"
       ),
-      partialTitle = "部分ハイドレーション",
-      partialText  = "csr = false を設定すると、クライアント側の JavaScript を一切使わない純粋な静的 HTML としてコンポーネントをレンダリングできます。",
+      hydrationModesH2    = Some("ハイドレーション方式"),
+      hydrationModesIntro = Some(
+        "Melt には 2 つのハイドレーション方式があります。per-component(既定)は各コンポーネントを独立してハイドレートし、router 駆動はルートツリー全体を単一エントリからハイドレートしてクライアントナビを引き継ぎます。"
+      ),
+      hydrationModesPer = Some(
+        "per-component(既定): 各コンポーネントが自身の hydrate() export でその場でハイドレートします。ページ上にあるコンポーネントぶんだけを配信・ハイドレートし、クライアントルータはありません。共有レイアウトがなく、遷移がフルページロードでよい独立した SSR ページ(コンテンツサイト、islands 的な部分強化)向けです。"
+      ),
+      hydrationModesRouter = Some(
+        "router 駆動(meltkitRouterHydration): 単一エントリがルータをハイドレーションモードで再実行し、サーバ描画済みツリー全体を claim して、その後クライアントナビ(SPA)を担います。ネストレイアウトには必須(per-component は routing 層の合成を認識できない)で、SSR 後に SvelteKit 的なクライアントナビをしたい場合の選択肢です。トレードオフは初期エントリが大きくなること(ルータ+ルート)と、クライアントが同じツリーを再構築すること(query データは seeded/data-melt-queries 経由)。"
+      ),
+      partialTitle = "ハイドレーションなし(静的)",
+      partialText  = "csr = false を設定すると、クライアント側の JavaScript を一切使わない純粋な静的 HTML になります。上記 2 方式に加えた第 3 の選択肢です。",
       spaVsSsrH2   = Some("SSR と SPA の違い")
     ),
 

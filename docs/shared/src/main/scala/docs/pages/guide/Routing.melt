@@ -90,6 +90,14 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
+{t.layoutsHydrationIntro.map(p => <p>{p}</p>)}
+
+{t.layoutsHydrationIntro.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.routingLayoutHydration}</code></pre>
+  </div>
+)}
+
 {t.layoutsNote.map(note =>
   <div class="callout callout-info">
     <p>{note}</p>
