@@ -1,8 +1,10 @@
 <!-- Root layout: a {children} component registered with app.layout(""). Every
-     page is composed inside it during SSR. -->
+     page is composed inside it during SSR. The `data-melt-outlet` on the element
+     wrapping {children} lets the client keep this shell mounted across SPA
+     navigations, swapping only the inner content (Phase 2b persistent outlets). -->
 <div class="app-shell">
   <header class="app-header">Melt — Nested Layouts</header>
-  <div class="app-body">{children}</div>
+  <div class="app-body" data-melt-outlet>{children}</div>
   <footer class="app-footer">© 2026 Melt</footer>
 </div>
 

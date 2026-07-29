@@ -5,7 +5,7 @@
     <a href="/dashboard/stats">Stats</a>
     <a href="/dashboard/settings">Settings</a>
   </nav>
-  <section class="content">{children}</section>
+  <section class="content" data-melt-outlet>{children}</section>
 </div>
 
 <style>
