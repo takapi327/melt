@@ -6,31 +6,26 @@
 
 package meltkit.test
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 
 import meltkit.FutureStreamBody
 
 /** Unit test for the shared streaming driver used by the Node.js and Undertow
-  * chunked-SSR transports: it must flush the head, then each boundary chunk in
-  * registration order, then one merged `data-melt-queries` seed script + tail, and
-  * finally close. A parasitic executor makes the already-completed futures run
-  * inline, so the sink is fully populated once `drive` returns.
+  * chunked-SSR transports: it must flush the head, then each boundary chunk as it
+  * settles (out-of-order), then one merged `data-melt-queries` seed script + tail,
+  * and finally close. A parasitic executor runs each promise's completion inline, so
+  * the sink reflects the writes deterministically as the test settles the promises.
   */
 class FutureStreamBodyTest extends munit.FunSuite:
 
   private given ExecutionContext = ExecutionContext.parasitic
 
-  test("drive writes head, chunks in order, a merged seed script, then tail, then closes"):
+  test("drive flushes the head, then chunks as they settle (out-of-order), merged seed, tail, close"):
     val sink   = new StringBuilder
     var closed = false
-    val body   = FutureStreamBody(
-      head   = "HEAD",
-      chunks = List(
-        Future.successful(("<c1>", List("nums.list\nnull" -> "[1]"))),
-        Future.successful(("<c2>", List("posts.get\n1" -> "[2]")))
-      ),
-      tail = "TAIL"
-    )
+    val p1     = Promise[(String, List[(String, String)])]()
+    val p2     = Promise[(String, List[(String, String)])]()
+    val body   = FutureStreamBody("HEAD", List(p1.future, p2.future), "TAIL")
 
     FutureStreamBody.drive(
       body,
@@ -40,9 +35,15 @@ class FutureStreamBodyTest extends munit.FunSuite:
       () => closed = true
     )
 
+    // The head flushes immediately; nothing else until a boundary settles.
+    assertEquals(sink.toString, "HEAD")
+
+    // Settle the second-registered boundary first — it must flush first.
+    p2.success(("<c2>", List("posts.get\n1" -> "[2]")))
+    p1.success(("<c1>", List("nums.list\nnull" -> "[1]")))
+
     val out = sink.toString
-    assert(out.startsWith("HEAD"), out)
-    assert(out.indexOf("<c1>") < out.indexOf("<c2>"), out) // registration order preserved
+    assert(out.indexOf("<c2>") < out.indexOf("<c1>"), out) // completion order, not registration
     // Seeds from every chunk merge into a single tail data-melt-queries script.
     assertEquals(out.split("data-melt-queries").length - 1, 1, out)
     assert(out.contains("\"nums.list\\nnull\":[1]"), out)

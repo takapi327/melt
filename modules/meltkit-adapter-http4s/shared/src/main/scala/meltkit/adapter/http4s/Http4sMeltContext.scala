@@ -170,10 +170,12 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   /** Streaming async SSR: flush the shell (with each `<melt:await>` pending fallback)
     * immediately, then stream each boundary's resolved branch as a `<template>` +
     * swap `<script>` chunk. Resolution runs up to [[streamConcurrency]] boundaries
-    * concurrently, flushed in registration order; nested boundaries resolve within
-    * their parent's chunk. Query seeds merge into one `data-melt-queries` script at
-    * the tail (the deferred module hydrate bootstrap runs after all swaps). A page
-    * with no boundary is just [[render]] lifted. */
+    * concurrently and each chunk is flushed as soon as it settles (out-of-order —
+    * a slow boundary never delays a faster one; the client swaps by id regardless of
+    * arrival order). Nested boundaries resolve within their parent's chunk. Query
+    * seeds merge into one `data-melt-queries` script at the tail (the deferred module
+    * hydrate bootstrap runs after all swaps). A page with no boundary is just
+    * [[render]] lifted. */
   override def renderStream(component: => RenderResult): F[Response] =
     import Http4sAdapter.given                       // meltkit type-class bridges (Functor/Pure/Recover) for F
     import cats.effect.implicits.parallelForGenSpawn // derive cats.Parallel[F] from Concurrent[F]
@@ -197,7 +199,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
                 fs2.Stream.eval(cats.effect.Ref.of[F, List[(String, String)]](Nil)).flatMap { seedRef =>
                   val headS  = fs2.Stream.emit(head + SsrRenderScope.streamSwapBootstrap(nonce))
                   val chunkS =
-                    fs2.Stream.emits(pending).covary[F].parEvalMap(Http4sMeltContext.streamConcurrency) { s =>
+                    fs2.Stream.emits(pending).covary[F].parEvalMapUnordered(Http4sMeltContext.streamConcurrency) { s =>
                       scope.resolveToChunk(s, nonce).flatMap {
                         case (html, seeds) => seedRef.update(_ ++ seeds).as(html)
                       }
@@ -288,8 +290,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
     Response.notFound(message)
 
 object Http4sMeltContext:
-  /** Max `<melt:await>` boundaries resolved concurrently while streaming (chunks are
-    * still flushed in registration order via `parEvalMap`). */
+  /** Max `<melt:await>` boundaries resolved concurrently while streaming (each chunk
+    * is flushed as it settles via `parEvalMapUnordered`). */
   private val streamConcurrency: Int = 8
 
   /** Sentinel marking where the shell body ends, used by `composeStreamParts` to
