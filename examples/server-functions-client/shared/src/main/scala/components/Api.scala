@@ -30,3 +30,15 @@ object Api:
 
   /** Mutate: delete a post. */
   val remove = ServerFn.command[Int, Unit]("posts.remove")
+
+  // ── Streaming SSR demo ─────────────────────────────────────────────────────
+  // Two independent reads with different (artificial) server-side delays, used by
+  // `StreamingPage` to show `ctx.renderStream`: the shell flushes immediately and
+  // each boundary streams in as it settles — the faster `streamStats` chunk arrives
+  // before the slower `streamPosts` one (out-of-order).
+
+  /** Read: all posts, deliberately slow. Feeds a top-level `<melt:await>`. */
+  val streamPosts = ServerFn.query[Unit, List[Post]]("stream.posts")
+
+  /** Read: the post count, less slow — settles (and streams) before `streamPosts`. */
+  val streamStats = ServerFn.query[Unit, Int]("stream.stats")

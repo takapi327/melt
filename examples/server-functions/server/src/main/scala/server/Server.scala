@@ -6,6 +6,8 @@
 
 package server
 
+import scala.concurrent.duration.*
+
 import cats.effect.*
 import com.comcast.ip4s.*
 import components.*
@@ -52,6 +54,12 @@ object Server extends IOApp.Simple:
 
     app.serve(Api.remove) { (id, _) => store.update(_.filterNot(_.id == id)) }
 
+    // Streaming SSR demo: two independent reads with different artificial delays,
+    // so `/stream` visibly flushes the shell first, then streams each boundary as it
+    // settles (the faster `streamStats` before the slower `streamPosts`).
+    app.serve(Api.streamStats) { (_, _) => IO.sleep(600.millis) *> store.get.map(_.size) }
+    app.serve(Api.streamPosts) { (_, _) => IO.sleep(1500.millis) *> store.get }
+
     // ── Pages ────────────────────────────────────────────────────────────────
     // Loader: read the store and seed the reactive query as a prop.
     app.get("") { ctx =>
@@ -62,6 +70,11 @@ object Server extends IOApp.Simple:
     // a `<melt:await>` boundary; `renderAsync` resolves it in-process and splices the
     // result into the HTML, seeding the client so it hydrates without refetching.
     app.get("await") { ctx => ctx.renderAsync(AwaitPostsPage()) }
+
+    // Streaming SSR: same style, but `renderStream` flushes the shell (with each
+    // boundary's <melt:pending>) immediately, then streams each resolved branch as a
+    // chunk the client swaps in — the faster boundary first (out-of-order).
+    app.get("stream") { ctx => ctx.renderStream(StreamingPage()) }
 
     // Field-issues form: validation failures return a per-field `errors` map.
     app.page("new")(

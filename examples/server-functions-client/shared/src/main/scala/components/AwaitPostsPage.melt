@@ -11,7 +11,7 @@ val posts = Api.list()
 
 <main class="posts">
   <h1>Posts (async SSR)</h1>
-  <p><a href="/">← Back to the seeded list</a></p>
+  <p><a href="/">← Back to the seeded list</a> · <a href="/stream">Streaming version →</a></p>
 
   <!-- The server resolves `posts` and renders the Done branch; <melt:pending>
        is the fallback shown until it settles (and on the client until hydrated).

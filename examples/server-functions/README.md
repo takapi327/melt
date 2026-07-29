@@ -15,6 +15,8 @@ output types can never drift between the two sides.
 | **single-flight** | `Api.remove.dispatch(id).updates(posts).run()` mutates and refreshes the list in one round-trip. |
 | **optimistic update** | the Like button bumps the count immediately, reconciles with the server value, and rolls back on failure. |
 | **field issues** | `NewPost` carries `errors: Map[String, List[String]]`; the `/new` action returns per-field messages that `NewPostPage` shows next to each input. |
+| **async SSR** | `AwaitPostsPage` calls `Api.list()` inside `<melt:await>`; `/await` uses `ctx.renderAsync` to resolve it on the server and seed hydration — no loader, no flash. |
+| **streaming SSR** | `StreamingPage` has two independent `<melt:await>` boundaries; `/stream` uses `ctx.renderStream` to flush the shell first, then stream each resolved branch (out-of-order) for a fast first paint. |
 
 ## Run it
 
@@ -27,8 +29,10 @@ sbt "server-functions-server/run"
 # → http://localhost:3000
 ```
 
-- `/`     — reactive post list. Like (optimistic + single-flight), Delete, Reload.
-- `/new`  — progressively-enhanced form with per-field validation issues.
+- `/`       — reactive post list. Like (optimistic + single-flight), Delete, Reload.
+- `/new`    — progressively-enhanced form with per-field validation issues.
+- `/await`  — **blocking async SSR** (`ctx.renderAsync`): `<melt:await>` resolves on the server; one response.
+- `/stream` — **streaming async SSR** (`ctx.renderStream`): the shell (with each `<melt:pending>`) flushes immediately, then each boundary streams in as it settles. Two boundaries with artificial delays make it visible — the faster count arrives (~0.6s) before the slower posts (~1.5s), while the shell is already on screen. `curl -N http://localhost:3000/stream` shows the chunks arrive incrementally.
 
 ## Layout
 
@@ -39,6 +43,8 @@ server-functions-client/          # crossProject (shared → JVM SSR + JS hydrat
     Api.scala                     # shared ServerFn contracts
     PostsPage.melt                # query/seed + single-flight + optimistic
     NewPostPage.melt              # field-issues form (use:form auto-binding + use:enhance)
+    AwaitPostsPage.melt           # blocking async SSR (<melt:await>, nested boundary)
+    StreamingPage.melt            # streaming async SSR (two independent boundaries)
 server-functions/server/
   src/main/scala/server/Server.scala   # app.serve(...) + page actions
   src/main/resources/index.html
