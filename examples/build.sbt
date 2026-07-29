@@ -385,6 +385,53 @@ lazy val `nested-layouts` = crossProject(JVMPlatform, JSPlatform)
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
   )
 
+// ── Example: Route prefetch (SPA + server functions) ─────────────────────────
+//
+//   sbt "prefetch-app-server/run"   → http://localhost:8080
+//
+// A pure SPA (BrowserAdapter.mountWithShell) whose nav links carry
+// `data-melt-preload`; hovering the Items link runs the registered
+// `app.prefetch("items")` thunk (Api.items.prefetch()), warming a short-lived
+// query cache the ItemsPage then adopts with no loading flash. The http4s server
+// serves the shared `Api.items` server function (deliberately slow).
+lazy val `prefetch-app` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("prefetch-app"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+
+lazy val prefetchAppDir        = file("prefetch-app")
+lazy val `prefetch-app-server` = project
+  .in(file("prefetch-app/server"))
+  .settings(
+    run / fork := true,
+    libraryDependencies ++= Seq(
+      "io.github.takapi327" %% "meltkit-adapter-http4s" % meltVersion,
+      "org.http4s"          %% "http4s-ember-server"    % "0.23.33",
+      "org.http4s"          %% "http4s-dsl"             % "0.23.33",
+      "io.circe"            %% "circe-generic"          % "0.14.9"
+    ),
+    meltkitAssetManifestClient := Some(`prefetch-app`.js),
+    meltkitViteDistDir         := prefetchAppDir / "dist",
+    meltkitViteManifestPath    := prefetchAppDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`prefetch-app`.jvm)
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -417,7 +464,10 @@ lazy val root = project
     `server-functions-client`.js,
     `server-functions-server`,
     `nested-layouts`.jvm,
-    `nested-layouts`.js
+    `nested-layouts`.js,
+    `prefetch-app`.jvm,
+    `prefetch-app`.js,
+    `prefetch-app-server`
   )
   .settings(
     crossScalaVersions := Seq.empty
