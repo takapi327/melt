@@ -725,6 +725,24 @@ object GuideCodes:
        |def hydrate(): Unit =
        |  BrowserAdapter.hydrate(buildApp(), dom.document.getElementById("app"))""".stripMargin
 
+  val routingPrefetch: String =
+    """|val app = MeltKit()
+       |app.get("posts") { ctx => ctx.render(PostsPage()) }
+       |
+       |// Declare what to warm before navigating to /posts.
+       |app.prefetch("posts") { () => Api.list.prefetch() }
+       |
+       |BrowserAdapter.mount(app, dom.document.getElementById("app"))
+       |
+       |// Opt links in (the mode is inherited, so one attribute covers the whole nav):
+       |// <nav data-melt-preload="hover">
+       |//   <a href="/posts">Posts</a>
+       |//   <a href="/about" data-melt-preload="viewport">About</a>
+       |// </nav>
+       |//
+       |// On hover, Api.list.prefetch() fetches once into a short-lived, single-use
+       |// cache; when PostsPage renders, Api.list() adopts it as Done — no flash.""".stripMargin
+
   // ── SSR ───────────────────────────────────────────────────────────────────
 
   val ssrBuildSbt: String =

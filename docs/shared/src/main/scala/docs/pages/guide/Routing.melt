@@ -104,6 +104,21 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
+{t.prefetchH2.map(h => <h2>{h}</h2>)}
+{t.prefetchIntro.map(p => <p>{p}</p>)}
+
+{t.prefetchH2.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.routingPrefetch}</code></pre>
+  </div>
+)}
+
+{t.prefetchNote.map(note =>
+  <div class="callout callout-info">
+    <p>{note}</p>
+  </div>
+)}
+
 {t.infoTitle.map(title =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>

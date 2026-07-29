@@ -399,7 +399,10 @@ case class GuideRouting(
   layoutsH2:             Option[String] = None,
   layoutsIntro:          Option[String] = None,
   layoutsHydrationIntro: Option[String] = None,
-  layoutsNote:           Option[String] = None
+  layoutsNote:           Option[String] = None,
+  prefetchH2:            Option[String] = None,
+  prefetchIntro:         Option[String] = None,
+  prefetchNote:          Option[String] = None
 )
 
 // ── SSR ───────────────────────────────────────────────────────────────────────
@@ -1007,6 +1010,13 @@ object GuideI18n:
       ),
       layoutsNote = Some(
         "Without meltkitRouterHydration the default is per-component hydration; use nested layouts with router hydration, or with SSG / full-reload pages."
+      ),
+      prefetchH2    = Some("Prefetching route data"),
+      prefetchIntro = Some(
+        "Warm a route's query data before the user navigates, so the page renders with no loading flash. Register what to prefetch for a path with app.prefetch(path) { () => Api.foo.prefetch(...) }, then opt a link in with data-melt-preload: \"hover\" (default — on hover/focus), \"tap\" (pointer-down only), \"viewport\" (as it scrolls into view), or \"off\". The mode is inherited from ancestors, so one attribute on a nav enables a whole list. QueryFn.prefetch fetches once into a short-lived, single-use cache that the next matching query() adopts as Done — normal queries are unaffected."
+      ),
+      prefetchNote = Some(
+        "Prefetch warms data only. Melt SPAs ship all route code in one bundle (no per-route lazy import), so there is no separate code to preload; and prefetch never renders the target route, so it runs no effects. Each path prefetches once per session."
       )
     ),
 
@@ -1599,6 +1609,13 @@ object GuideI18n:
       ),
       layoutsNote = Some(
         "meltkitRouterHydration を設定しない場合はコンポーネント単位のハイドレーションが既定です。ネストレイアウトは router ハイドレーション、または SSG / フルリロードのページで使用してください。"
+      ),
+      prefetchH2    = Some("ルートデータの先読み（prefetch）"),
+      prefetchIntro = Some(
+        "ナビゲーション前にルートの query データを温めておくと、ページがローディングのちらつき無しで表示されます。app.prefetch(path) { () => Api.foo.prefetch(...) } でパスごとの先読み内容を登録し、リンクに data-melt-preload を付けてオプトインします：\"hover\"（既定＝hover/focus 時）/ \"tap\"（pointer-down のみ）/ \"viewport\"（表示領域に入ったとき）/ \"off\"。モードは祖先から継承されるので、ナビ要素に 1 つ付ければリスト全体に効きます。QueryFn.prefetch は短命・単一使用のキャッシュへ一度だけ fetch し、次に一致する query() が Done として取り込みます（通常のクエリには影響しません）。"
+      ),
+      prefetchNote = Some(
+        "prefetch はデータのみを温めます。Melt の SPA は全ルートのコードを単一バンドルで配信する（ルート単位の遅延 import が無い）ため先読みすべきコードはありません。また prefetch はターゲットルートをレンダリングしないので effect は実行されません。各パスはセッション中一度だけ先読みされます。"
       )
     ),
 
