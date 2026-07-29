@@ -37,7 +37,9 @@ import meltkit.codec.BodyEncoder
 final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:              P,
   private val bodyDecoder: BodyDecoder[B],
-  private val outletEl:    dom.Element
+  private val outletEl:    dom.Element,
+  private val app:         MeltKitPlatform[F, dom.Element],
+  private val hydrating:   Boolean = false
 ) extends MeltContext[F, P, B, dom.Element]:
 
   /** Always empty on the browser — no server middleware sets locals here. */
@@ -63,11 +65,19 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
       entry = entries.next()
     result.toMap
 
-  /** Evaluates `component` immediately and mounts it into `outletEl`. */
+  /** Evaluates `component`, composes it inside any matching `use:form`-style
+    * layouts ([[MeltKitPlatform.wrapLayouts]]), and mounts it into `outletEl`.
+    *
+    * When `hydrating` (the initial render under [[BrowserAdapter.hydrate]]), the
+    * composed tree claims the server-rendered DOM in place — evaluation runs inside
+    * an active `Hydrating` cursor set up by the adapter — so the outlet is neither
+    * cleared nor re-appended. On a normal navigation the outlet is replaced.
+    */
   override def render(component: => dom.Element): PlainResponse =
-    val el = component
-    outletEl.innerHTML = ""
-    Mount(outletEl, el)
+    val el = app.wrapLayouts(requestPath, () => component)
+    if !hydrating then
+      outletEl.innerHTML = ""
+      Mount(outletEl, el)
     Response.noContent
 
   override def render(component: => dom.Element, status: StatusCode): PlainResponse =

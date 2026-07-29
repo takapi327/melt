@@ -75,6 +75,51 @@ trait MeltKitPlatform[F[_], C]:
   /** Adds a route. Used by [[ServerMeltKitPlatform]] to register typed endpoints. */
   private[meltkit] def addRoute(r: Route[F, C]): Unit = _routes += r
 
+  // ── Nested layouts ─────────────────────────────────────────────────────
+
+  /** Layouts registered by static path prefix, in registration order. Each is a
+    * `{children}` component's `apply` that wraps a child render (`() => C`) into the
+    * parent, so a page under the prefix is composed inside it (SSR: `C = RenderResult`;
+    * client: `C = dom.Element`). */
+  private val _layouts = ListBuffer.empty[(List[PathSegment], (() => C) => C)]
+
+  /** Registers a layout that wraps every page under `prefix`.
+    *
+    * `wrap` feeds the child render into a `{children}` layout component as its
+    * `children` thunk, via an explicit lambda:
+    * `app.layout("dashboard")(c => DashboardLayout(children = c))`
+    * (props-carrying: `app.layout("dashboard")(c => DashboardLayout(props, children = c))`).
+    * The empty prefix `""` wraps all pages (the root layout). Layouts nest by prefix
+    * length: the shortest matching prefix is the outermost.
+    *
+    * On the server the composition is applied by each context's `render`; on the
+    * client by the router dispatch. (Client hydration of nested layouts requires the
+    * router-driven hydration entry — see the design doc.)
+    */
+  def layout(prefix: String)(wrap: (() => C) => C): Unit =
+    val segs = prefix.split('/').filter(_.nonEmpty).map(PathSegment.Static(_)).toList
+    _layouts += (segs -> wrap)
+
+  /** The layouts that apply to `path`, outermost first (shortest prefix first). */
+  private[meltkit] def layoutsFor(path: String): List[(() => C) => C] =
+    val segs = path.split('/').filter(_.nonEmpty).toList
+    _layouts.toList
+      .collect { case (lsegs, wrap) if isLayoutPrefix(lsegs, segs) => lsegs.length -> wrap }
+      .sortBy(_._1)
+      .map(_._2)
+
+  /** Composes `page` inside every layout matching `path` (outermost wraps innermost).
+    * With no matching layout, returns `page()` unchanged. */
+  private[meltkit] def wrapLayouts(path: String, page: () => C): C =
+    layoutsFor(path).foldRight(page)((wrap, inner) => () => wrap(inner))()
+
+  private def isLayoutPrefix(prefix: List[PathSegment], path: List[String]): Boolean =
+    prefix.length <= path.length &&
+      prefix.zip(path).forall {
+        case (PathSegment.Static(v), s) => v == s
+        case _                          => true // Param/Wildcard prefixes accept any (future)
+      }
+
   private[meltkit] def register[P <: AnyNamedTuple](
     method: HttpMethod,
     spec:   PathSpec[P]
@@ -208,52 +253,6 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   /** Returns the [[PageOptions]] for a route registered with a [[PageOptions]] argument, if any. */
   def pageOptionsFor(segments: List[PathSegment]): Option[PageOptions] =
     _pageOptions.get(segments)
-
-  // ── Nested layouts (SSR) ───────────────────────────────────────────────
-
-  /** Layouts registered by static path prefix, in registration order. Each wraps a
-    * child render into a parent (a `{children}` component's `apply`), so a page under
-    * the prefix is composed inside it during SSR. */
-  private val _layouts =
-    ListBuffer.empty[(List[PathSegment], (() => RenderResult) => RenderResult)]
-
-  /** Registers a layout that wraps every page under `prefix`.
-    *
-    * `wrap` feeds the child render into a `{children}` layout component as its
-    * `children` thunk, via an explicit lambda:
-    * `app.layout("dashboard")(c => DashboardLayout(children = c))`
-    * (props-carrying: `app.layout("dashboard")(c => DashboardLayout(props, children = c))`).
-    * The empty prefix `""` wraps all pages (the root layout). Layouts nest by prefix
-    * length: the shortest matching prefix is the outermost.
-    *
-    * SSR only (Phase 1): the composition is applied by each server context's `render`.
-    * A layout on a page built with hydration enabled is not yet supported (the
-    * per-component hydration entry cannot see the routing-level composition); use it
-    * with SSG / full-reload pages until client hydration lands.
-    */
-  def layout(prefix: String)(wrap: (() => RenderResult) => RenderResult): Unit =
-    val segs = prefix.split('/').filter(_.nonEmpty).map(PathSegment.Static(_)).toList
-    _layouts += (segs -> wrap)
-
-  /** The layouts that apply to `path`, outermost first (shortest prefix first). */
-  private[meltkit] def layoutsFor(path: String): List[(() => RenderResult) => RenderResult] =
-    val segs = path.split('/').filter(_.nonEmpty).toList
-    _layouts.toList
-      .collect { case (lsegs, wrap) if isPrefixOf(lsegs, segs) => lsegs.length -> wrap }
-      .sortBy(_._1)
-      .map(_._2)
-
-  /** Composes `page` inside every layout matching `path` (outermost wraps innermost).
-    * With no matching layout, returns `page()` unchanged. */
-  private[meltkit] def wrapLayouts(path: String, page: () => RenderResult): RenderResult =
-    layoutsFor(path).foldRight(page)((wrap, inner) => () => wrap(inner))()
-
-  private def isPrefixOf(prefix: List[PathSegment], path: List[String]): Boolean =
-    prefix.length <= path.length &&
-      prefix.zip(path).forall {
-        case (PathSegment.Static(v), s) => v == s
-        case _                          => true // Param/Wildcard prefixes accept any (future)
-      }
 
   // ── GET with PageOptions ───────────────────────────────────────────────
 

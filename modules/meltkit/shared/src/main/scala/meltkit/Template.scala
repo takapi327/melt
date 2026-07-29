@@ -160,6 +160,25 @@ final class Template private[meltkit] (private val raw: String):
     vars:     Map[String, String],
     nonce:    Option[String]
   ): String =
+    render(result, manifest, title, lang, basePath, vars, nonce, routerEntry = None)
+
+  /** As above, with a router-driven hydration entry.
+    *
+    * When `routerEntry` is `Some(moduleId)`, a single `import(entryChunk).hydrate()`
+    * bootstrap is emitted for that app entry module (which hydrates the whole
+    * layout+page composition), instead of one hydrate call per component. `None`
+    * keeps the per-component hydration bootstrap.
+    */
+  def render(
+    result:      RenderResult,
+    manifest:    ViteManifest,
+    title:       String,
+    lang:        String,
+    basePath:    String,
+    vars:        Map[String, String],
+    nonce:       Option[String],
+    routerEntry: Option[String]
+  ): String =
     val effectiveTitle =
       if title.nonEmpty then Escape.html(title)
       else result.title.getOrElse("")
@@ -183,16 +202,23 @@ final class Template private[meltkit] (private val raw: String):
     // The nonce is server-generated (CspNonce, 128-bit), but escape it too so a
     // future caller passing an untrusted value cannot inject an attribute.
     val nonceAttr = nonce.fold("")(n => s""" nonce="${ Escape.attr(n) }"""")
-    val bootstrap = result.components.toList.distinct
-      .flatMap { moduleId =>
-        manifest.chunksFor(moduleId).lastOption.map { entryChunk =>
-          // JSON-encode the import path so it is safely quoted in the JS
-          // context (also escapes `</` to avoid closing the <script> element).
-          val importArg = SimpleJson.encString(s"$strippedBase/$entryChunk")
-          s"""<script type="module"$nonceAttr>import($importArg).then(m => m.hydrate?.())</script>"""
-        }
-      }
-      .mkString("\n")
+
+    // JSON-encode the import path so it is safely quoted in the JS context (also
+    // escapes `</` to avoid closing the <script> element).
+    def hydrateScript(chunk: String): String =
+      val importArg = SimpleJson.encString(s"$strippedBase/$chunk")
+      s"""<script type="module"$nonceAttr>import($importArg).then(m => m.hydrate?.())</script>"""
+
+    val bootstrap = routerEntry match
+      // Router-driven hydration: one entry module hydrates the whole app (composing
+      // its layouts + page), instead of one hydrate() call per component.
+      case Some(entryModuleId) =>
+        manifest.chunksFor(entryModuleId).lastOption.map(hydrateScript).getOrElse("")
+      // Per-component hydration: each component's chunk self-hydrates in place.
+      case None =>
+        result.components.toList.distinct
+          .flatMap(moduleId => manifest.chunksFor(moduleId).lastOption.map(hydrateScript))
+          .mkString("\n")
 
     val propsBlobs = result.components.toList.distinct
       .flatMap { moduleId =>

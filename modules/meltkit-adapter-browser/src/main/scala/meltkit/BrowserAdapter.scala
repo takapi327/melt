@@ -10,7 +10,7 @@ import scala.NamedTuple.AnyNamedTuple
 
 import org.scalajs.dom
 
-import melt.runtime.Mount
+import melt.runtime.{ Hydrating, HydrationCursor, Mount }
 
 import meltkit.codec.BodyDecoder
 
@@ -108,6 +108,25 @@ object BrowserAdapter:
     dispatch(app, rootEl, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
 
+  /** Hydrates a server-rendered, router-driven app: the initial render '''claims'''
+    * the existing SSR DOM (rather than replacing it), reproducing the same
+    * layout+page composition the server produced; subsequent navigations render
+    * normally. Call this once from the client entry, e.g.
+    *
+    * {{{
+    * @JSExportTopLevel("hydrate", moduleID = "app")
+    * def hydrate(): Unit =
+    *   BrowserAdapter.hydrate(buildApp(), dom.document.getElementById("app"))
+    * }}}
+    *
+    * The app must register the same routes and `app.layout(...)` layouts used on the
+    * server, so the client composition matches the server-rendered markup.
+    */
+  def hydrate[F[_]: AsyncRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
+    ensureLinkInterceptor()
+    dispatch(app, rootEl, Router.currentPath.value, hydrating = true)
+    Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
+
   /** Renders `shell` once into `rootEl`, then routes future navigations into
     * the `[data-melt-outlet]` element found within the shell.
     *
@@ -175,9 +194,10 @@ object BrowserAdapter:
   // ── Route dispatch ───────────────────────────────────────────────────────
 
   private def dispatch[F[_]: AsyncRunner](
-    app:      MeltKitPlatform[F, dom.Element],
-    outletEl: dom.Element,
-    path:     String
+    app:       MeltKitPlatform[F, dom.Element],
+    outletEl:  dom.Element,
+    path:      String,
+    hydrating: Boolean = false
   ): Unit =
     val segments = path.split("/").filter(_.nonEmpty).toList
     val matched  = app.routes.find { r =>
@@ -190,6 +210,15 @@ object BrowserAdapter:
           params:  P,
           decoder: BodyDecoder[B]
         ): MeltContext[F, P, B, dom.Element] =
-          BrowserMeltContext[F, P, B](params, decoder, outletEl)
-      route.tryHandle(rawValues, factory).foreach(thunk => summon[AsyncRunner[F]].runAndForget(thunk()))
+          BrowserMeltContext[F, P, B](params, decoder, outletEl, app, hydrating)
+      route.tryHandle(rawValues, factory).foreach { thunk =>
+        if hydrating then
+          // Claim the SSR DOM in place: the render composes layout+page inside this
+          // cursor (see BrowserMeltContext.render), reusing the existing nodes.
+          Hydrating.withCursor(new HydrationCursor(outletEl.firstChild)) {
+            summon[AsyncRunner[F]].runAndForget(thunk())
+          }
+          Hydrating.flush()
+        else summon[AsyncRunner[F]].runAndForget(thunk())
+      }
     }
