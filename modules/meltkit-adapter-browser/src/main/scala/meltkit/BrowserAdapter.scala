@@ -105,8 +105,9 @@ object BrowserAdapter:
     */
   def mount[F[_]: AsyncRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
-    dispatch(app, rootEl, Router.currentPath.value)
-    Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
+    val stack = new OutletStack(app, rootEl)
+    dispatch(app, stack, rootEl, Router.currentPath.value)
+    Router.currentPath.subscribe { path => dispatch(app, stack, rootEl, path) }
 
   /** Hydrates a server-rendered, router-driven app: the initial render '''claims'''
     * the existing SSR DOM (rather than replacing it), reproducing the same
@@ -124,8 +125,9 @@ object BrowserAdapter:
     */
   def hydrate[F[_]: AsyncRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
-    dispatch(app, rootEl, Router.currentPath.value, hydrating = true)
-    Router.currentPath.subscribe { path => dispatch(app, rootEl, path) }
+    val stack = new OutletStack(app, rootEl)
+    dispatch(app, stack, rootEl, Router.currentPath.value, hydrating = true)
+    Router.currentPath.subscribe { path => dispatch(app, stack, rootEl, path) }
 
   /** Renders `shell` once into `rootEl`, then routes future navigations into
     * the `[data-melt-outlet]` element found within the shell.
@@ -143,8 +145,9 @@ object BrowserAdapter:
     rootEl.innerHTML = ""
     Mount(rootEl, shell)
     val outlet = Option(rootEl.querySelector("[data-melt-outlet]")).getOrElse(rootEl)
-    dispatch(app, outlet, Router.currentPath.value)
-    Router.currentPath.subscribe { path => dispatch(app, outlet, path) }
+    val stack  = new OutletStack(app, outlet)
+    dispatch(app, stack, outlet, Router.currentPath.value)
+    Router.currentPath.subscribe { path => dispatch(app, stack, outlet, path) }
 
   // ── Link interception ────────────────────────────────────────────────────
 
@@ -195,6 +198,7 @@ object BrowserAdapter:
 
   private def dispatch[F[_]: AsyncRunner](
     app:       MeltKitPlatform[F, dom.Element],
+    stack:     OutletStack,
     outletEl:  dom.Element,
     path:      String,
     hydrating: Boolean = false
@@ -210,7 +214,7 @@ object BrowserAdapter:
           params:  P,
           decoder: BodyDecoder[B]
         ): MeltContext[F, P, B, dom.Element] =
-          BrowserMeltContext[F, P, B](params, decoder, outletEl, app, hydrating)
+          BrowserMeltContext[F, P, B](params, decoder, stack, hydrating)
       route.tryHandle(rawValues, factory).foreach { thunk =>
         if hydrating then
           // Claim the SSR DOM in place: the render composes layout+page inside this

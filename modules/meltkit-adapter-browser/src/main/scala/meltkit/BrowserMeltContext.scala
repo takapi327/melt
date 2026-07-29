@@ -10,8 +10,6 @@ import scala.NamedTuple.AnyNamedTuple
 
 import org.scalajs.dom
 
-import melt.runtime.Mount
-
 import meltkit.codec.BodyDecoder
 import meltkit.codec.BodyEncoder
 
@@ -20,10 +18,9 @@ import meltkit.codec.BodyEncoder
   * Created by [[BrowserAdapter]] for each URL change. Route handlers receive
   * this context and build responses using the standard `ctx.*` helpers.
   *
-  * `ctx.render(Component())` replaces the outlet element's content with the
-  * given component. In [[BrowserAdapter.mount]] mode the outlet is `rootEl`
-  * itself; in [[BrowserAdapter.mountWithShell]] mode it is the
-  * `[data-melt-outlet]` element within the shell.
+  * `ctx.render(Component())` composes the component inside its matching layouts and
+  * mounts it via the [[OutletStack]], which retains shared nested layouts across
+  * navigations (only the diverging subtree is swapped).
   *
   * Browser navigation routes carry no request body; use the [[Fetch]] client
   * for API calls from within components. Body access is available only on the
@@ -31,14 +28,12 @@ import meltkit.codec.BodyEncoder
   *
   * @param params      the decoded path parameters extracted from the URL
   * @param bodyDecoder the [[BodyDecoder]] bound to the endpoint's body type `B`
-  * @param outletEl    the DOM element to render into; either `rootEl` (full-replace
-  *                    mode) or the `[data-melt-outlet]` element (shell mode)
+  * @param stack       the persistent outlet manager that composes and mounts the page
   */
 final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
   val params:              P,
   private val bodyDecoder: BodyDecoder[B],
-  private val outletEl:    dom.Element,
-  private val app:         MeltKitPlatform[F, dom.Element],
+  private val stack:       OutletStack,
   private val hydrating:   Boolean = false
 ) extends MeltContext[F, P, B, dom.Element]:
 
@@ -65,19 +60,16 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
       entry = entries.next()
     result.toMap
 
-  /** Evaluates `component`, composes it inside any matching `use:form`-style
-    * layouts ([[MeltKitPlatform.wrapLayouts]]), and mounts it into `outletEl`.
+  /** Composes `component` inside its matching layouts and mounts it through the
+    * [[OutletStack]], which keeps shared nested layouts mounted across navigations.
     *
     * When `hydrating` (the initial render under [[BrowserAdapter.hydrate]]), the
     * composed tree claims the server-rendered DOM in place — evaluation runs inside
-    * an active `Hydrating` cursor set up by the adapter — so the outlet is neither
-    * cleared nor re-appended. On a normal navigation the outlet is replaced.
+    * an active `Hydrating` cursor set up by the adapter — so nothing is cleared or
+    * re-appended. On a normal navigation only the diverging subtree is replaced.
     */
   override def render(component: => dom.Element): PlainResponse =
-    val el = app.wrapLayouts(requestPath, () => component)
-    if !hydrating then
-      outletEl.innerHTML = ""
-      Mount(outletEl, el)
+    stack.render(requestPath, () => component, hydrating)
     Response.noContent
 
   override def render(component: => dom.Element, status: StatusCode): PlainResponse =

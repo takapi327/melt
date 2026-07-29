@@ -102,11 +102,17 @@ trait MeltKitPlatform[F[_], C]:
 
   /** The layouts that apply to `path`, outermost first (shortest prefix first). */
   private[meltkit] def layoutsFor(path: String): List[(() => C) => C] =
+    layoutsWithPrefixFor(path).map(_._2)
+
+  /** [[layoutsFor]] paired with each layout's prefix segments, outermost first.
+    * The prefix identifies a layout across paths: two paths share a layout iff its
+    * prefix matches both, so the persistent-outlet nav (client) diffs these prefixes
+    * to decide which mounted layouts to keep. */
+  private[meltkit] def layoutsWithPrefixFor(path: String): List[(List[PathSegment], (() => C) => C)] =
     val segs = path.split('/').filter(_.nonEmpty).toList
     _layouts.toList
-      .collect { case (lsegs, wrap) if isLayoutPrefix(lsegs, segs) => lsegs.length -> wrap }
-      .sortBy(_._1)
-      .map(_._2)
+      .collect { case (lsegs, wrap) if isLayoutPrefix(lsegs, segs) => (lsegs, wrap) }
+      .sortBy(_._1.length)
 
   /** Composes `page` inside every layout matching `path` (outermost wraps innermost).
     * With no matching layout, returns `page()` unchanged. */
