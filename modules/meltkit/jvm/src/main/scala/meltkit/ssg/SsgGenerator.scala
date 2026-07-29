@@ -101,7 +101,8 @@ object SsgGenerator:
               defaultTitle = config.defaultTitle,
               // Pass the app so a handler's `ctx.renderAsync` resolves <melt:await>
               // queries in-process at build time (SyncRunner runs them synchronously).
-              app = Some(app)
+              app         = Some(app),
+              routerEntry = config.routerHydration
             )
 
         route.tryHandle(rawValues, factory) match

@@ -59,7 +59,11 @@ case class ServerConfig(
   publicDir:           Option[String]    = None,
   cleanOutput:         Boolean           = true,
   quiet:               Boolean           = false,
-  maxRequestBodyBytes: Long              = 10L * 1024 * 1024
+  maxRequestBodyBytes: Long              = 10L * 1024 * 1024,
+  // When set, the app is hydrated by a single router-driven entry module
+  // (`@JSExportTopLevel("hydrate", moduleID = <this>)`) instead of one hydrate call
+  // per component — required for nested layouts under client hydration.
+  routerHydration: Option[String] = None
 )
 
 /** A handle to a running server.

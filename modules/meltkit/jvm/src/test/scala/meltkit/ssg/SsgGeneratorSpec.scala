@@ -88,6 +88,29 @@ class SsgGeneratorSpec extends munit.FunSuite:
       assert(html.contains("<div class=\"root\"><nav/><p>stats</p></div>"), html)
     }
 
+  test("routerHydration emits a single app-entry hydrate bootstrap (not per-component)"):
+    withTempDir { out =>
+      val manifest = ViteManifest.fromEntries(
+        Map(
+          "scalajs:app.js"  -> ViteManifest.Entry(file = "assets/app-abc.js"),
+          "scalajs:home.js" -> ViteManifest.Entry(file = "assets/home-def.js")
+        )
+      )
+      val app = MeltKit[[A] =>> A]()
+      app.get("", On)(ctx => ctx.render(RenderResult(body = "<p>home</p>", head = "", components = Set("home"))))
+      val cfg = ServerConfig(
+        template        = Template.fromString("<html><head>%melt.head%</head><body>%melt.body%</body></html>"),
+        manifest        = manifest,
+        outputDir       = Some(out.toString),
+        routerHydration = Some("app")
+      )
+      SsgGenerator.run(app, cfg)
+      val html = Files.readString(out.resolve("index.html"))
+      // the hydrate bootstrap imports the single app entry, not each component
+      assert(html.contains("""import("/assets/app-abc.js")"""), html)
+      assert(!html.contains("""import("/assets/home-def.js")"""), html)
+    }
+
   // ── Dynamic routes ────────────────────────────────────────────────────────
 
   test("dynamic route /posts/:slug generates one file per entry"):

@@ -74,7 +74,8 @@ private[meltkit] class NodeHttpBinding(
           defaultTitle = config.defaultTitle,
           locals       = locals,
           nonce        = nonce,
-          app          = Some(app)
+          app          = Some(app),
+          routerEntry  = config.routerHydration
         )
 
     // Try static file serving first (GET/HEAD only)

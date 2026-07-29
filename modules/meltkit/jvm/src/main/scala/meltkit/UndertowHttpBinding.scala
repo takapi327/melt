@@ -81,7 +81,8 @@ private[meltkit] class UndertowHttpBinding(
             defaultTitle = config.defaultTitle,
             locals       = locals,
             nonce        = nonce,
-            app          = Some(app)
+            app          = Some(app),
+            routerEntry  = config.routerHydration
           )
 
       // Static file serving (GET/HEAD only)

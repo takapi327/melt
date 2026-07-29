@@ -106,7 +106,8 @@ object NodeSsgGenerator:
               // Pass the app so a handler's `ctx.renderAsync` resolves <melt:await>
               // queries in-process at build time (each must complete synchronously,
               // like every SSG handler, since the result is read via SyncRunner).
-              app = Some(app)
+              app         = Some(app),
+              routerEntry = config.routerHydration
             )
 
         route.tryHandle(rawValues, factory) match

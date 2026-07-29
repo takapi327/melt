@@ -80,12 +80,13 @@ import org.http4s.Status
   * }}}
   */
 final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
-  private val app:       ServerMeltKitPlatform[F],
-  private val template:  Template,
-  private val manifest:  ViteManifest,
-  private val lang:      String,
-  private val basePath:  String,
-  private val cspConfig: Option[CspConfig] = None
+  private val app:             ServerMeltKitPlatform[F],
+  private val template:        Template,
+  private val manifest:        ViteManifest,
+  private val lang:            String,
+  private val basePath:        String,
+  private val cspConfig:       Option[CspConfig] = None,
+  private val routerHydration: Option[String]    = None
 ):
 
   /** Builds [[HttpRoutes]] from the [[MeltKit]] router with SSR support.
@@ -125,7 +126,8 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
             basePath,
             locals,
             nonce,
-            Some(app)
+            Some(app),
+            routerHydration
           )
 
       // Attach the Content-Security-Policy header to the response after the handler completes.
@@ -239,19 +241,22 @@ object Http4sAdapter:
     *                      `assets/` prefix, so this should be `""` for root deployments.
     */
   def apply[F[_]: Async: Files: meltkit.Defer](
-    app:           ServerMeltKitPlatform[F],
-    clientDistDir: Path,
-    manifest:      ViteManifest,
-    lang:          String = "en",
-    basePath:      String = "",
-    cspConfig:     Option[CspConfig] = None
+    app:             ServerMeltKitPlatform[F],
+    clientDistDir:   Path,
+    manifest:        ViteManifest,
+    lang:            String = "en",
+    basePath:        String = "",
+    cspConfig:       Option[CspConfig] = None,
+    routerHydration: Option[String] = None
   ): F[Http4sAdapter[F]] =
     Files[F]
       .readAll(clientDistDir / "index.html")
       .through(fs2.text.utf8.decode)
       .compile
       .string
-      .map(content => new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath, cspConfig))
+      .map(content =>
+        new Http4sAdapter(app, Template.fromString(content), manifest, lang, basePath, cspConfig, routerHydration)
+      )
 
   /** Builds [[HttpRoutes]] for a full SSR setup:
     *
@@ -276,14 +281,15 @@ object Http4sAdapter:
     * @param cspConfig     optional CSP configuration
     */
   def ssrRoutes[F[_]: Async: Files: meltkit.Defer](
-    app:           ServerMeltKitPlatform[F],
-    clientDistDir: Path,
-    manifest:      ViteManifest,
-    lang:          String = "en",
-    basePath:      String = "",
-    cspConfig:     Option[CspConfig] = None
+    app:             ServerMeltKitPlatform[F],
+    clientDistDir:   Path,
+    manifest:        ViteManifest,
+    lang:            String = "en",
+    basePath:        String = "",
+    cspConfig:       Option[CspConfig] = None,
+    routerHydration: Option[String] = None
   ): F[HttpRoutes[F]] =
-    apply(app, clientDistDir, manifest, lang, basePath, cspConfig).map { adapter =>
+    apply(app, clientDistDir, manifest, lang, basePath, cspConfig, routerHydration).map { adapter =>
       val rawFileR = fileService[F](FileService.Config(clientDistDir.toString))
       // Exclude "/" and "/index.html": those paths are handled by SSR route handlers.
       // fileService auto-serves index.html for directory requests, which would bypass

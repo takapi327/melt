@@ -52,7 +52,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val basePath:    String                           = "",
   override val locals:     Locals                           = new Locals(),
   private val nonce:       Option[String]                   = None,
-  private val app:         Option[ServerMeltKitPlatform[F]] = None
+  private val app:         Option[ServerMeltKitPlatform[F]] = None,
+  private val routerEntry: Option[String]                   = None
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
   private val cachedBody: F[String] =
@@ -183,11 +184,12 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
     val html = template.render(
       augmented,
       manifest,
-      title    = "",
-      lang     = lang,
-      basePath = basePath,
-      vars     = Map.empty,
-      nonce    = nonce
+      title       = "",
+      lang        = lang,
+      basePath    = basePath,
+      vars        = Map.empty,
+      nonce       = nonce,
+      routerEntry = routerEntry
     )
     PlainResponse(status, "text/html; charset=utf-8", html)
 

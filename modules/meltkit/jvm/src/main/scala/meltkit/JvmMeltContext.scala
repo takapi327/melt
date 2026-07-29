@@ -40,7 +40,8 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
   override val locals:      Locals                           = new Locals(),
   private val nonce:        Option[String]                   = None,
   private val defaultTitle: String                           = "",
-  private val app:          Option[ServerMeltKitPlatform[F]] = None
+  private val app:          Option[ServerMeltKitPlatform[F]] = None,
+  private val routerEntry:  Option[String]                   = None
 )(using runner: SyncRunner[F])
   extends ServerMeltContext[F, P, B, RenderResult]:
 
@@ -154,11 +155,12 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
     val html = template.render(
       augmented,
       manifest,
-      title    = defaultTitle,
-      lang     = lang,
-      basePath = basePath,
-      vars     = Map.empty,
-      nonce    = nonce
+      title       = defaultTitle,
+      lang        = lang,
+      basePath    = basePath,
+      vars        = Map.empty,
+      nonce       = nonce,
+      routerEntry = routerEntry
     )
     PlainResponse(status, "text/html; charset=utf-8", html)
 
