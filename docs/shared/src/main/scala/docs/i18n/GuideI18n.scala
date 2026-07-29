@@ -1195,9 +1195,9 @@ object GuideI18n:
         "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, Node, and JVM (Undertow) server adapters, and static generation (SSG) resolves the same boundaries at build time — baking the data straight into the HTML.",
       streamingH2    = "Streaming with renderStream",
       streamingIntro =
-        "ctx.renderStream (http4s) sends the shell — with each boundary's <melt:pending> fallback — immediately for a fast first paint, then streams each resolved branch as a chunk the client swaps over its fallback (React 18 renderToPipeableStream-style). Boundaries resolve up to 8 at a time; the final DOM and hydration seed are identical to renderAsync, so you write the same <melt:await> and only change the call. A page with no boundary, and any non-http4s adapter, transparently fall back to a single blocking response.",
+        "ctx.renderStream sends the shell — with each boundary's <melt:pending> fallback — immediately for a fast first paint, then streams each resolved branch as a chunk the client swaps over its fallback (React 18 renderToPipeableStream-style). It is implemented on all three server adapters — http4s, Node.js, and JVM (Undertow). Boundaries resolve concurrently; the final DOM and hydration seed are identical to renderAsync, so you write the same <melt:await> and only change the call. A page with no boundary falls back transparently to a single blocking response, as does static generation (SSG), which always resolves at build time.",
       streamingNote =
-        "Streaming needs JS on the client for the swap, so blocking renderAsync remains the SEO-safe default; reach for renderStream when the slowest boundary would otherwise delay the whole page (TTFB). Node/Undertow chunked streaming and out-of-order flush are planned.",
+        "Streaming needs JS on the client for the swap, so blocking renderAsync remains the SEO-safe default; reach for renderStream when the slowest boundary would otherwise delay the whole page (TTFB). Chunks currently flush in registration order (concurrently resolved); out-of-order flush and per-boundary progressive hydration are planned.",
       seedH2    = "Hydration without a refetch",
       seedIntro =
         "The resolved query results are serialized into the page, so the client starts each awaited query already Done and skips its initial fetch — no loading flash and no redundant round-trip. A failed query renders its Failed branch (never a 500) and is not seeded, so the client retries it.",
@@ -1774,9 +1774,9 @@ object GuideI18n:
         "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・Node・JVM（Undertow）の各サーバーアダプターで利用でき、静的サイト生成（SSG）でも同じ境界をビルド時に解決してデータを HTML に焼き込みます。",
       streamingH2    = "renderStream でストリーミング",
       streamingIntro =
-        "ctx.renderStream（http4s）は、まずシェル（各境界の <melt:pending> フォールバック付き）を即座に送出して first paint を速め、続いて各境界の解決済み分岐をチャンクとして流し、クライアントがフォールバックの上に差し替えます（React 18 の renderToPipeableStream と同じ方式）。境界は最大 8 件まで並行解決します。最終的な DOM と hydration の seed は renderAsync と同一なので、同じ <melt:await> を書いて呼び出しだけを変えます。境界のないページや http4s 以外のアダプターは、透過的に単一のブロッキング応答へフォールバックします。",
+        "ctx.renderStream は、まずシェル（各境界の <melt:pending> フォールバック付き）を即座に送出して first paint を速め、続いて各境界の解決済み分岐をチャンクとして流し、クライアントがフォールバックの上に差し替えます（React 18 の renderToPipeableStream と同じ方式）。http4s・Node.js・JVM（Undertow）の 3 つのサーバーアダプターすべてで実装されています。境界は並行に解決されます。最終的な DOM と hydration の seed は renderAsync と同一なので、同じ <melt:await> を書いて呼び出しだけを変えます。境界のないページは透過的に単一のブロッキング応答へフォールバックし、静的サイト生成（SSG）も常にビルド時に解決します。",
       streamingNote =
-        "ストリーミングは差し替えにクライアントの JS が必要なため、SEO 安全な既定はブロッキングの renderAsync のままです。最も遅い境界がページ全体を遅らせてしまう場合に renderStream を選びます（TTFB 改善）。Node/Undertow の chunked ストリーミングと完了順（out-of-order）flush は今後対応予定です。",
+        "ストリーミングは差し替えにクライアントの JS が必要なため、SEO 安全な既定はブロッキングの renderAsync のままです。最も遅い境界がページ全体を遅らせてしまう場合に renderStream を選びます（TTFB 改善）。チャンクは現状、登録順に flush されます（解決自体は並行）。完了順（out-of-order）flush と境界ごとの段階的 hydration は今後対応予定です。",
       seedH2    = "再取得なしの hydration",
       seedIntro =
         "解決した query の結果はページにシリアライズされるため、クライアントは各 await query を最初から Done で開始し、初回 fetch をスキップします。ローディングのちらつきも余分な往復もありません。失敗した query は Failed 分岐を描画し（500 にはならず）、seed もされないので、クライアントが再取得します。",

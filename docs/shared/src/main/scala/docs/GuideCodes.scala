@@ -1089,13 +1089,14 @@ object GuideCodes:
        |app.get("posts") { ctx => ctx.renderAsync(AwaitPostsPage()) }""".stripMargin
 
   val asyncSsrStreaming: String =
-    """|// Streaming SSR (http4s): flush the shell (with each <melt:pending> fallback)
-       |// immediately, then stream each resolved <melt:await> branch as a chunk the
-       |// client swaps in. Same page, same <melt:await> — only the call changes.
+    """|// Streaming SSR (http4s, Node.js, Undertow): flush the shell (with each
+       |// <melt:pending> fallback) immediately, then stream each resolved <melt:await>
+       |// branch as a chunk the client swaps in. Same page, same <melt:await> —
+       |// only the call changes.
        |app.get("posts") { ctx => ctx.renderStream(AwaitPostsPage()) }
        |
-       |// The final DOM and hydration seed match renderAsync. A page with no boundary,
-       |// or a non-http4s adapter, degrades to a single blocking response.""".stripMargin
+       |// The final DOM and hydration seed match renderAsync. A page with no boundary
+       |// (and SSG, which resolves at build time) degrades to a single blocking response.""".stripMargin
 
   val asyncSsrVsSeeded: String =
     """|// Two ways to render a query on the server with no loading flash:
