@@ -10,12 +10,15 @@ import components.*
 import meltkit.*
 import meltkit.ssg.SsgGenerator
 
-/** Nested layouts (SSR) demo, generated as a static site.
+/** Nested layouts demo (SSR static site + router-driven hydration).
   *
   * `app.layout(prefix)(c => Layout(children = c))` registers a `{children}` layout
   * by path prefix: the empty prefix is the root layout, deeper prefixes nest inside
-  * it. Each page is composed inside its matching layouts during SSR — no client
-  * hydration involved (Phase 1 is SSR-only).
+  * it. Each page is composed inside its matching layouts during SSR.
+  *
+  * `routerHydration = Some("app")` makes the generated HTML boot a single hydrate
+  * entry (`@JSExportTopLevel("hydrate", moduleID = "app")` in the JS `Main`) that
+  * hydrates the whole composed tree, instead of one hydrate call per component.
   *
   * Run with `sbt "nested-layoutsJVM/run"`; HTML is written under `dist/`.
   */
@@ -25,6 +28,12 @@ object Main:
     Template.fromString(
       "<!doctype html><html><head><meta charset=\"utf-8\">%melt.head%</head><body>%melt.body%</body></html>"
     )
+
+  // In a real build the manifest is generated from the client JS (sbt-meltkit's
+  // AssetManifest / Vite). Here it is written by hand so the SSG can resolve the
+  // "app" entry chunk for the single router-hydration bootstrap.
+  private val manifest: ViteManifest =
+    ViteManifest.fromEntries(Map("scalajs:app.js" -> ViteManifest.Entry(file = "app.js")))
 
   def main(args: Array[String]): Unit =
     val app = MeltKit[[A] =>> A]()
@@ -38,5 +47,13 @@ object Main:
     app.get("dashboard/stats", prerender)(ctx => ctx.render(StatsPage()))
 
     val out = args.headOption.getOrElse("dist")
-    SsgGenerator.run(app, ServerConfig(template = shell, outputDir = Some(out)))
+    SsgGenerator.run(
+      app,
+      ServerConfig(
+        template        = shell,
+        manifest        = manifest,
+        outputDir       = Some(out),
+        routerHydration = Some("app")
+      )
+    )
     println(s"[nested-layouts] Generated static site to '$out'")

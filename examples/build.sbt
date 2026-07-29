@@ -355,12 +355,15 @@ lazy val `server-functions-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`server-functions-client`.jvm)
 
-// ── Example: Nested layouts (SSR-only, static site generation) ────────────────
+// ── Example: Nested layouts (SSR + router-driven hydration) ───────────────────
 //
 //   sbt "nested-layoutsJVM/run"   → writes static HTML under nested-layouts/dist
 //
-// Phase 1 nested layouts are SSR-only, so this example disables hydration
-// (meltHydration := false) and generates a static site with SsgGenerator.
+// Layout components (AppShell / DashboardLayout) are registered by prefix with
+// app.layout(...) and compose each page during SSR. The JVM main generates a
+// static site whose bootstrap is a single router-driven hydrate entry
+// (routerHydration = Some("app")); the JS main (Main.scala) exports that entry,
+// which calls BrowserAdapter.hydrate to claim the SSR DOM and take over routing.
 lazy val `nested-layouts` = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
   .in(file("nested-layouts"))
@@ -371,8 +374,13 @@ lazy val `nested-layouts` = crossProject(JVMPlatform, JSPlatform)
   .jvmSettings(
     run / fork := true
   )
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
   .jsSettings(
-    meltHydration                   := false,
+    meltHydration                   := true,
     scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.ESModule))
   )
