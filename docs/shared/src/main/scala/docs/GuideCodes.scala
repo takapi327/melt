@@ -1088,6 +1088,15 @@ object GuideCodes:
        |// (unlike the synchronous ctx.render) because resolving a query is effectful.
        |app.get("posts") { ctx => ctx.renderAsync(AwaitPostsPage()) }""".stripMargin
 
+  val asyncSsrStreaming: String =
+    """|// Streaming SSR (http4s): flush the shell (with each <melt:pending> fallback)
+       |// immediately, then stream each resolved <melt:await> branch as a chunk the
+       |// client swaps in. Same page, same <melt:await> — only the call changes.
+       |app.get("posts") { ctx => ctx.renderStream(AwaitPostsPage()) }
+       |
+       |// The final DOM and hydration seed match renderAsync. A page with no boundary,
+       |// or a non-http4s adapter, degrades to a single blocking response.""".stripMargin
+
   val asyncSsrVsSeeded: String =
     """|// Two ways to render a query on the server with no loading flash:
        |

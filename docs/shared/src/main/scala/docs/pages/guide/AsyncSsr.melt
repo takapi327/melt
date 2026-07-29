@@ -32,6 +32,17 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.asyncSsrServer}</code></pre>
 </div>
 
+<h2>{t.streamingH2}</h2>
+<p>{t.streamingIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.asyncSsrStreaming}</code></pre>
+</div>
+
+<div class="callout callout-info">
+  <p>{t.streamingNote}</p>
+</div>
+
 <h2>{t.seedH2}</h2>
 <p>{t.seedIntro}</p>
 
