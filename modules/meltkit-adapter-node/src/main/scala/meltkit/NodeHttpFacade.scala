@@ -31,9 +31,10 @@ trait IncomingMessage extends js.Object:
 /** Facade for Node.js `http.ServerResponse`. */
 @js.native
 trait ServerResponse extends js.Object:
-  def writeHead(status: Int, headers: js.Dictionary[String]): Unit = js.native
-  def end(body:         String):                              Unit = js.native
-  def end():                                                  Unit = js.native
+  def writeHead(status: Int, headers: js.Dictionary[String]): Unit    = js.native
+  def write(chunk:      String):                              Boolean = js.native
+  def end(body:         String):                              Unit    = js.native
+  def end():                                                  Unit    = js.native
 
 /** Facade for Node.js `http.Server`. */
 @js.native

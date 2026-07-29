@@ -82,7 +82,8 @@ private[meltkit] class UndertowHttpBinding(
             locals       = locals,
             nonce        = nonce,
             app          = Some(app),
-            routerEntry  = config.routerHydration
+            routerEntry  = config.routerHydration,
+            streamEc     = Some(ec)
           )
 
       // Static file serving (GET/HEAD only)
@@ -143,8 +144,34 @@ private[meltkit] class UndertowHttpBinding(
               exchange.getResponseHeaders.put(new HttpString(cfg.headerName), cfg.buildHeaderValue(n))
           }
           exchange.setStatusCode(response.status)
-          if isHead then exchange.endExchange()
-          else exchange.getResponseSender.send(ByteBuffer.wrap(response.body.getBytes("UTF-8")))
+          response match
+            case StreamingResponse(_, _, b: FutureStreamBody, _, _) if !isHead =>
+              // Chunked transfer: no Content-Length, so Undertow streams via the
+              // async Sender. FutureStreamBody.drive awaits each send's IoCallback
+              // before the next, satisfying the Sender's one-send-at-a-time contract.
+              val sender = exchange.getResponseSender
+              FutureStreamBody.drive(
+                b,
+                chunk =>
+                  val p = scala.concurrent.Promise[Unit]()
+                  sender.send(
+                    ByteBuffer.wrap(chunk.getBytes("UTF-8")),
+                    new io.undertow.io.IoCallback:
+                      def onComplete(ex: HttpServerExchange, sn: io.undertow.io.Sender): Unit =
+                        p.success(())
+                      def onException(
+                        ex:  HttpServerExchange,
+                        sn:  io.undertow.io.Sender,
+                        err: java.io.IOException
+                      ): Unit = p.failure(err)
+                  )
+                  p.future
+                ,
+                () => exchange.endExchange()
+              )
+            case _ =>
+              if isHead then exchange.endExchange()
+              else exchange.getResponseSender.send(ByteBuffer.wrap(response.body.getBytes("UTF-8")))
         catch
           case _: Throwable =>
             try exchange.endExchange()

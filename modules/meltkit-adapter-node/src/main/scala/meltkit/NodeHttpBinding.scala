@@ -132,9 +132,21 @@ private[meltkit] class NodeHttpBinding(
           val serialized = serializeCookie(c)
           headerDict("Set-Cookie") = if existing.isEmpty then serialized else s"$existing, $serialized"
         }
-        res.writeHead(response.status, headerDict)
-        if isHead then res.end()
-        else res.end(response.body)
+        response match
+          case StreamingResponse(_, _, b: FutureStreamBody, _, _) if !isHead =>
+            // Chunked transfer: no Content-Length, so Node streams via res.write.
+            res.writeHead(response.status, headerDict)
+            FutureStreamBody.drive(
+              b,
+              chunk =>
+                res.write(chunk); Future.unit
+              ,
+              () => res.end()
+            )
+          case _ =>
+            res.writeHead(response.status, headerDict)
+            if isHead then res.end()
+            else res.end(response.body)
 
       case Failure(error) if !responded =>
         responded = true

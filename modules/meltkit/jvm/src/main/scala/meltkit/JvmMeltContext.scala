@@ -41,7 +41,11 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
   private val nonce:        Option[String]                   = None,
   private val defaultTitle: String                           = "",
   private val app:          Option[ServerMeltKitPlatform[F]] = None,
-  private val routerEntry:  Option[String]                   = None
+  private val routerEntry:  Option[String]                   = None,
+  // Present only for the Future-based Undertow server (streaming SSR needs a real
+  // ExecutionContext for concurrent boundary resolution); absent for SSG, where
+  // renderStream degrades to the blocking renderAsync.
+  private val streamEc: Option[scala.concurrent.ExecutionContext] = None
 )(using runner: SyncRunner[F])
   extends ServerMeltContext[F, P, B, RenderResult]:
 
@@ -141,8 +145,74 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
                 composeResponse(template, result.copy(body = SsrRenderScope.spliceAndSeed(result.body, resolved)), 200)
               }
 
+  /** Streaming async SSR (Undertow): flush the shell with each `<melt:await>` pending
+    * fallback immediately, then stream each resolved branch as a `<template>` +
+    * swap-script chunk. Unlike [[renderAsync]] (which resolves via the sequential
+    * [[SyncRunner]]), this uses the real `Future` type-class instances for concurrent
+    * resolution — hence it needs the server's [[scala.concurrent.ExecutionContext]]
+    * ([[streamEc]]). Without one (e.g. SSG), it degrades to blocking [[renderAsync]]. */
+  override def renderStream(component: => RenderResult): F[Response] =
+    streamEc match
+      case None      => renderAsync(component)
+      case Some(ecx) =>
+        templateOpt match
+          case None           => throw missingTemplate
+          case Some(template) =>
+            app match
+              case None =>
+                runner.pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+              case Some(a) =>
+                // The Undertow binding always fixes F = Future, so the built-in
+                // Future type classes (concurrent) drive resolution here.
+                given scala.concurrent.ExecutionContext = ecx
+                given pureF: Pure[F] with
+                  def pure[A](x: A): F[A] = runner.pure(x)
+                val resolve = a
+                  .resolveQueryFn(this.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]])
+                  .asInstanceOf[(String, String) => scala.concurrent.Future[Option[String]]]
+                val wrap = new SsrRenderScope.BranchWrap:
+                  def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
+                val (result, scope) =
+                  SsrRenderScope.withScope[scala.concurrent.Future, RenderResult](resolve, wrap)(
+                    Router.withPath(requestPath)(component)
+                  )
+                if !scope.nonEmpty then runner.pure(composeResponse(template, result, 200))
+                else
+                  val (head, tail) = composeStreamParts(template, result)
+                  val chunks       = scope.pendingSnapshot.map(s => scope.resolveToChunk(s, nonce))
+                  runner.pure(
+                    StreamingResponse(
+                      200,
+                      "text/html; charset=utf-8",
+                      FutureStreamBody(head + SsrRenderScope.streamSwapBootstrap(nonce), chunks, tail)
+                    )
+                  )
+
   private def missingTemplate: IllegalStateException =
     new IllegalStateException("ctx.render() requires a JvmMeltContext initialized with a Template.")
+
+  /** Composes the shell for streaming and splits it at the end of the page body into
+    * `(head, tail)` — the same split as the http4s adapter. */
+  private def composeStreamParts(template: Template, result: RenderResult): (String, String) =
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    val html = template.render(
+      augmented.copy(body = augmented.body + JvmMeltContext.streamSplit),
+      manifest,
+      title       = defaultTitle,
+      lang        = lang,
+      basePath    = basePath,
+      vars        = Map.empty,
+      nonce       = nonce,
+      routerEntry = routerEntry
+    )
+    val idx = html.indexOf(JvmMeltContext.streamSplit)
+    if idx < 0 then (html, "")
+    else (html.substring(0, idx), html.substring(idx + JvmMeltContext.streamSplit.length))
 
   /** Resolves `.melt` import tags and composes the page HTML via the [[Template]]. */
   private def composeResponse(template: Template, result: RenderResult, status: StatusCode): PlainResponse =
@@ -185,3 +255,8 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
 
   override def notFound(message: String = "Not Found"): NotFound =
     Response.notFound(message)
+
+object JvmMeltContext:
+  /** Sentinel marking where the shell body ends, for splitting the streamed shell.
+    * NUL chars never appear in HTML. */
+  private val streamSplit: String = " MELT_STREAM_SPLIT "

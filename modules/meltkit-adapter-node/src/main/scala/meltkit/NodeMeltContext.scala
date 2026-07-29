@@ -127,8 +127,61 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
                 composeResponse(template, result.copy(body = SsrRenderScope.spliceAndSeed(result.body, resolved)), 200)
               }
 
+  /** Streaming async SSR: flush the shell (with each `<melt:await>` pending fallback)
+    * immediately, then stream each resolved branch as a `<template>` + swap-script
+    * chunk. The final DOM and hydration seed match [[renderAsync]]; only delivery is
+    * incremental. A page with no boundary is [[render]] lifted into `Future`. */
+  override def renderStream(component: => RenderResult): Future[Response] =
+    templateOpt match
+      case None           => throw missingTemplate
+      case Some(template) =>
+        app match
+          case None =>
+            Future.successful(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case Some(a) =>
+            val resolve =
+              a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[Future, PathSpec.Empty, Any, RenderResult]])
+            val wrap = new SsrRenderScope.BranchWrap:
+              def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
+            val (result, scope) =
+              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
+            if !scope.nonEmpty then Future.successful(composeResponse(template, result, 200))
+            else
+              val (head, tail) = composeStreamParts(template, result)
+              val chunks       = scope.pendingSnapshot.map(s => scope.resolveToChunk(s, nonce))
+              Future.successful(
+                StreamingResponse(
+                  200,
+                  "text/html; charset=utf-8",
+                  FutureStreamBody(head + SsrRenderScope.streamSwapBootstrap(nonce), chunks, tail)
+                )
+              )
+
   private def missingTemplate: IllegalStateException =
     new IllegalStateException("ctx.render() requires a NodeMeltContext initialized with a Template.")
+
+  /** Composes the shell for streaming and splits it at the end of the page body into
+    * `(head, tail)` — the same split as the http4s adapter. */
+  private def composeStreamParts(template: Template, result: RenderResult): (String, String) =
+    val augmented =
+      if result.imports.isEmpty then result
+      else
+        val tags    = ImportTagResolver.resolveTags(result.imports, manifest, basePath, nonce)
+        val newHead = if result.head.isEmpty then tags else s"$tags\n${ result.head }"
+        result.copy(head = newHead)
+    val html = template.render(
+      augmented.copy(body = augmented.body + NodeMeltContext.streamSplit),
+      manifest,
+      title       = defaultTitle,
+      lang        = lang,
+      basePath    = basePath,
+      vars        = Map.empty,
+      nonce       = nonce,
+      routerEntry = routerEntry
+    )
+    val idx = html.indexOf(NodeMeltContext.streamSplit)
+    if idx < 0 then (html, "")
+    else (html.substring(0, idx), html.substring(idx + NodeMeltContext.streamSplit.length))
 
   /** Resolves `.melt` import tags and composes the page HTML via the [[Template]]. */
   private def composeResponse(template: Template, result: RenderResult, status: StatusCode): PlainResponse =
@@ -171,3 +224,8 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
 
   override def notFound(message: String = "Not Found"): NotFound =
     Response.notFound(message)
+
+object NodeMeltContext:
+  /** Sentinel marking where the shell body ends, for splitting the streamed shell.
+    * NUL chars never appear in HTML. */
+  private val streamSplit: String = " MELT_STREAM_SPLIT "
