@@ -6,6 +6,7 @@
 
 package meltkit
 
+import scala.scalajs.js
 import scala.NamedTuple.AnyNamedTuple
 
 import org.scalajs.dom
@@ -105,6 +106,7 @@ object BrowserAdapter:
     */
   def mount[F[_]: AsyncRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
+    ensurePrefetch(app)
     val stack = new OutletStack(app, rootEl)
     dispatch(app, stack, rootEl, Router.currentPath.value)
     Router.currentPath.subscribe { path => dispatch(app, stack, rootEl, path) }
@@ -125,6 +127,7 @@ object BrowserAdapter:
     */
   def hydrate[F[_]: AsyncRunner](app: MeltKitPlatform[F, dom.Element], rootEl: dom.Element): Unit =
     ensureLinkInterceptor()
+    ensurePrefetch(app)
     val stack = new OutletStack(app, rootEl)
     dispatch(app, stack, rootEl, Router.currentPath.value, hydrating = true)
     Router.currentPath.subscribe { path => dispatch(app, stack, rootEl, path) }
@@ -142,6 +145,7 @@ object BrowserAdapter:
     shell:  dom.Element
   ): Unit =
     ensureLinkInterceptor()
+    ensurePrefetch(app)
     rootEl.innerHTML = ""
     Mount(rootEl, shell)
     val outlet = Option(rootEl.querySelector("[data-melt-outlet]")).getOrElse(rootEl)
@@ -163,26 +167,33 @@ object BrowserAdapter:
       && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
       && !event.defaultPrevented
     then
-      findAnchor(event).foreach { anchor =>
-        val href = anchor.getAttribute("href")
-        if href != null && href.nonEmpty then
-          val hasExternal = Option(anchor.getAttribute("rel"))
-            .exists(_.split("\\s+").contains("external"))
-          val hasTarget   = Option(anchor.getAttribute("target")).exists(_.nonEmpty)
-          val hasDownload = anchor.hasAttribute("download")
-          if !hasExternal && !hasTarget && !hasDownload then
-            try
-              val url = new dom.URL(href, dom.window.location.href)
-              if (url.protocol == "https:" || url.protocol == "http:")
-                && url.origin == dom.window.location.origin
-              then
-                event.preventDefault()
-                val path = url.pathname + (if url.search.nonEmpty then url.search else "")
-                Router.navigate(path)
-            catch case _: Throwable => () // Invalid URL — let browser handle it
+      findAnchor(event.target).foreach { anchor =>
+        internalUrlOf(anchor).foreach { url =>
+          event.preventDefault()
+          Router.navigate(url.pathname + (if url.search.nonEmpty then url.search else ""))
+        }
       }
 
-  private def findAnchor(event: dom.MouseEvent): Option[dom.html.Anchor] =
+  /** The same-origin [[dom.URL]] a link navigates to, or `None` when it is external
+    * (rel=external / target / download / cross-origin / non-http(s) / invalid). Shared
+    * by click navigation and the prefetch hook. */
+  private def internalUrlOf(anchor: dom.html.Anchor): Option[dom.URL] =
+    val href = anchor.getAttribute("href")
+    if href == null || href.isEmpty then None
+    else
+      val hasExternal = Option(anchor.getAttribute("rel")).exists(_.split("\\s+").contains("external"))
+      val hasTarget   = Option(anchor.getAttribute("target")).exists(_.nonEmpty)
+      val hasDownload = anchor.hasAttribute("download")
+      if hasExternal || hasTarget || hasDownload then None
+      else
+        try
+          val url = new dom.URL(href, dom.window.location.href)
+          if (url.protocol == "https:" || url.protocol == "http:") && url.origin == dom.window.location.origin
+          then Some(url)
+          else None
+        catch case _: Throwable => None
+
+  private def findAnchor(target: dom.EventTarget | Null): Option[dom.html.Anchor] =
     @annotation.tailrec
     def loop(node: dom.Node | Null): Option[dom.html.Anchor] =
       if node == null then None
@@ -190,9 +201,87 @@ object BrowserAdapter:
         node match
           case a: dom.html.Anchor if a.hasAttribute("href") => Some(a)
           case _                                            => loop(node.parentNode)
-    event.target match
+    target match
       case n: dom.Node => loop(n)
       case _           => None
+
+  // ── Link prefetch (data-melt-preload) ──────────────────────────────────────
+
+  private var prefetchInstalled = false
+  private val prefetched        = scala.collection.mutable.Set.empty[String]
+
+  /** Installs the hover/tap/viewport prefetch hooks once, when the router is a
+    * browser [[MeltKit]] (the only platform that registers `app.prefetch(...)`). */
+  private def ensurePrefetch(app: MeltKitPlatform[?, dom.Element]): Unit =
+    app match
+      case m: MeltKit if !prefetchInstalled =>
+        prefetchInstalled = true
+        val onHover: scalajs.js.Function1[dom.Event, Unit] = e => maybePrefetch(m, e.target, "hover")
+        dom.document.addEventListener("mouseover", onHover)
+        dom.document.addEventListener("focusin", onHover)
+        dom.document.addEventListener("pointerdown", (e: dom.Event) => maybePrefetch(m, e.target, "tap"))
+        installViewportPrefetch(m)
+      case _ => ()
+
+  /** Runs the registered prefetch for the anchor under `target` when its
+    * `data-melt-preload` mode matches the `trigger` ("hover" from mouseover/focusin,
+    * "tap" from pointerdown — which also covers `hover` links on touch devices). */
+  private def maybePrefetch(app: MeltKit, target: dom.EventTarget | Null, trigger: String): Unit =
+    findAnchor(target).foreach { anchor =>
+      val fires = preloadMode(anchor) match
+        case Some("hover") => trigger == "hover" || trigger == "tap"
+        case Some("tap")   => trigger == "tap"
+        case _             => false // "viewport" (observer-driven), "off", or absent
+      if fires then internalUrlOf(anchor).foreach(url => runPrefetch(app, url.pathname))
+    }
+
+  /** The effective `data-melt-preload` mode for `anchor` — its own attribute or the
+    * nearest ancestor's (SvelteKit-style inheritance); an empty value means "hover". */
+  private def preloadMode(anchor: dom.html.Anchor): Option[String] =
+    @annotation.tailrec
+    def loop(node: dom.Node): Option[String] =
+      node match
+        case el: dom.Element if el.hasAttribute("data-melt-preload") =>
+          val v = el.getAttribute("data-melt-preload")
+          Some(if v == null || v.isEmpty then "hover" else v)
+        case _ =>
+          node.parentNode match
+            case null        => None
+            case p: dom.Node => loop(p)
+    loop(anchor)
+
+  private def runPrefetch(app: MeltKit, pathname: String): Unit =
+    if !prefetched.contains(pathname) then
+      prefetched += pathname
+      app.prefetchThunksFor(pathname).foreach(_())
+
+  /** Observes `data-melt-preload="viewport"` links and prefetches each as it scrolls
+    * into view. Re-scans after every navigation (new links may have rendered). A
+    * no-op where `IntersectionObserver` is unavailable. */
+  private def installViewportPrefetch(app: MeltKit): Unit =
+    if js.typeOf(dom.window.asInstanceOf[js.Dynamic].IntersectionObserver) != "undefined" then
+      val observer = new dom.IntersectionObserver(
+        (entries, obs) =>
+          entries.foreach { entry =>
+            if entry.isIntersecting then
+              entry.target match
+                case a: dom.html.Anchor =>
+                  obs.unobserve(a)
+                  internalUrlOf(a).foreach(url => runPrefetch(app, url.pathname))
+                case _ => ()
+          },
+        new dom.IntersectionObserverInit {}
+      )
+      def scan(): Unit =
+        val links = dom.document.querySelectorAll("a[href]")
+        var i     = 0
+        while i < links.length do
+          links(i) match
+            case a: dom.html.Anchor if preloadMode(a).contains("viewport") => observer.observe(a)
+            case _                                                         => ()
+          i += 1
+      scan()
+      Router.currentPath.subscribe(_ => scan())
 
   // ── Route dispatch ───────────────────────────────────────────────────────
 

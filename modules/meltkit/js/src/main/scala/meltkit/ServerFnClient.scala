@@ -109,6 +109,12 @@ extension [In, Out](fn: QueryFn[In, Out])
   def seeded(in:   In, seed:      Out):         Query[Out] = ServerFnClient.build(fn, in, Async.Done(seed))
   def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = seeded(ev(()), seed)
 
+  /** Warms the client cache for `fn(in)` without rendering — typically on link
+    * hover/viewport, so a subsequent navigation adopts the data with no loading
+    * flash. The prefetched result is single-use and short-lived (see the design). */
+  def prefetch(in:         In):          Unit = ServerFnClient.prefetch(fn, in)
+  def prefetch()(using ev: Unit =:= In): Unit = ServerFnClient.prefetch(fn, ev(()))
+
 private object ServerFnClient:
 
   /** Invokes an eager query, preferring an SSR hydration seed when one is present.
@@ -122,12 +128,22 @@ private object ServerFnClient:
     * request on demand in both cases. */
   def query[In, Out](fn: QueryFn[In, Out], in: In): Query[Out] =
     val body = fn.inCodec.encodeToString(in)
-    seedFor(s"${ fn.name }\n$body").flatMap { json =>
+    val key  = s"${ fn.name }\n$body"
+    def decode(json: SimpleJson.JsonValue): Option[Out] =
       try Some(fn.outCodec.decode(json))
-      catch case _: Throwable => None // malformed seed → fall back to an eager fetch
-    } match
-      case Some(seed) => build(fn, in, Async.Done(seed))
-      case None       =>
+      catch
+        case _: Throwable => None
+    // Prefer an SSR hydration seed, then a fresh prefetch (adopted once), else fetch.
+    seedFor(key)
+      .flatMap(decode)
+      .orElse(
+        consumePrefetch(key).flatMap(text =>
+          try decode(SimpleJson.parse(text))
+          catch case _: Throwable => None
+        )
+      ) match
+      case Some(value) => build(fn, in, Async.Done(value))
+      case None        =>
         val q = build(fn, in, Async.Loading)
         q.refresh()
         q
@@ -233,6 +249,49 @@ private object ServerFnClient:
     * mutable state because Scala.js is single-threaded. */
   private val inFlight = scala.collection.mutable.Map.empty[String, Future[(Int, Boolean, String)]]
 
+  /** POSTs `body` to `url`, coalescing identical concurrent requests through
+    * [[inFlight]] (the entry is dropped once settled — no result is cached here). */
+  private def fetchDeduped(url: String, body: String)(using ExecutionContext): Future[(Int, Boolean, String)] =
+    val key = s"$url\n$body"
+    inFlight.getOrElseUpdate(
+      key, {
+        val f = postJson(url, body).flatMap(res => res.text().toFuture.map(text => (res.status, res.ok, text)))
+        f.onComplete(_ => inFlight.remove(key))
+        f
+      }
+    )
+
+  // ── Prefetch cache ─────────────────────────────────────────────────────────
+  // A short-lived, single-use result cache keyed by Query.key (`name\nargs`).
+  // ONLY `prefetch` populates it and `query` consumes an entry exactly once, so a
+  // normal query is unaffected unless its key was just prefetched — no page ever
+  // serves cached data twice or past the TTL. (Matches the SvelteKit preload-data
+  // model: the prefetched value is adopted by the imminent navigation, then gone.)
+  private val prefetchTtlMs = 30000.0
+  private val prefetchCache =
+    scala.collection.mutable.Map.empty[String, (String, Double)] // key -> (rawJson, expiresAt)
+
+  /** Warms the prefetch cache for `fn(in)`: fires the request (deduped with any
+    * in-flight one) and stores its result under [[Query.key]] for [[query]] to adopt.
+    * No-op during SSR, and skipped when a fresh entry already exists. A failed
+    * request is ignored — the navigation will simply fetch normally. */
+  def prefetch[In, Out](fn: QueryFn[In, Out], in: In): Unit =
+    if ServerRenderer.isRendering then ()
+    else
+      given ExecutionContext = queue
+      val body               = fn.inCodec.encodeToString(in)
+      val key                = s"${ fn.name }\n$body"
+      if !prefetchCache.get(key).exists(_._2 > js.Date.now()) then
+        fetchDeduped(fn.endpoint.url(PathSpec.emptyValue), body).onComplete {
+          case Success((_, ok, text)) if ok => prefetchCache(key) = (text, js.Date.now() + prefetchTtlMs)
+          case _                            => () // failed/errored prefetch: leave the cache empty
+        }
+
+  /** Consumes a fresh prefetch entry for `key` (single use — removed on read);
+    * returns its raw JSON, or `None` when absent or expired. */
+  private def consumePrefetch(key: String): Option[String] =
+    prefetchCache.remove(key).collect { case (json, expiresAt) if expiresAt > js.Date.now() => json }
+
   /** Runs a query request and drives the [[Query]]'s reactive state, coalescing
     * identical concurrent requests. */
   def runQuery[In, Out](fn: QueryFn[In, Out], url: String, body: String, q: Query[Out]): Unit =
@@ -246,15 +305,7 @@ private object ServerFnClient:
 
   private def runQueryNow[In, Out](fn: QueryFn[In, Out], url: String, body: String, q: Query[Out]): Unit =
     given ExecutionContext = queue
-    val key                = s"$url\n$body"
-    val raw                = inFlight.getOrElseUpdate(
-      key, {
-        val f = postJson(url, body).flatMap(res => res.text().toFuture.map(text => (res.status, res.ok, text)))
-        f.onComplete(_ => inFlight.remove(key))
-        f
-      }
-    )
-    raw.onComplete {
+    fetchDeduped(url, body).onComplete {
       case Success((status, ok, text)) =>
         if ok then
           try q.setDone(fn.outCodec.decode(SimpleJson.parse(text)))
