@@ -67,8 +67,7 @@ private[meltkit] final class OutletStack(
         rootOutlet.innerHTML = ""
         Mount(rootOutlet, tree)
       frames = capture(rootOutlet, app.layoutsWithPrefixFor(path).map(_._1))
-    else
-      navigate(path, page)
+    else navigate(path, page)
 
   /** Incremental navigation: keep the shared outer layouts, rebuild the rest. */
   private def navigate(path: String, page: () => dom.Element): Unit =
