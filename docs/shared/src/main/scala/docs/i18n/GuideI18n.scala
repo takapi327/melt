@@ -563,6 +563,21 @@ case class GuideAsyncSsr(
   httpOnlyText:     String
 )
 
+case class GuideServerEnv(
+  lead:          String,
+  privateH2:     String,
+  privateIntro:  String,
+  publicH2:      String,
+  publicIntro:   String,
+  boundaryH2:    String,
+  boundaryIntro: String,
+  layer1:        String,
+  layer2:        String,
+  layer3:        String,
+  propsTitle:    String,
+  propsText:     String
+)
+
 // ── Top-level Guide container ─────────────────────────────────────────────────
 
 case class GuideI18n(
@@ -589,7 +604,8 @@ case class GuideI18n(
   adapters:        GuideAdapters,
   formActions:     GuideFormActions,
   serverFunctions: GuideServerFunctions,
-  asyncSsr:        GuideAsyncSsr
+  asyncSsr:        GuideAsyncSsr,
+  serverEnv:       GuideServerEnv
 )
 
 object GuideI18n:
@@ -1220,6 +1236,27 @@ object GuideI18n:
       httpOnlyTitle = "Server adapters",
       httpOnlyText  =
         "Blocking async SSR is implemented by the http4s, Node, and JVM (Undertow) server adapters. The JVM built-in server resolves queries synchronously (its SyncRunner), so a query with a truly asynchronous implementation should run on the http4s or Node adapter. ctx.render (with a seeded prop) works everywhere."
+    ),
+    serverEnv = GuideServerEnv(
+      lead =
+        "Keep secrets on the server and expose only browser-safe values — enforced by the compiler, not by convention. Because Melt cross-compiles the same code for the JVM and the browser, a value read in the wrong place would otherwise ship to the client.",
+      privateH2    = "Private env (server-only)",
+      privateIntro =
+        "meltkit.env.PrivateEnv reads private environment variables (secrets, keys, connection strings) with a typed API. It lives only in the JVM artifact, so referencing it from a browser-reachable component is a hard compile error on the Scala.js build — not a lint, a real link boundary. Read it in route handlers, hooks, or JVM-only code, and pass only non-secret values to components.",
+      publicH2    = "Public env (build-time, typed)",
+      publicIntro =
+        "For values that are safe in the browser, set meltPublicEnv in build.sbt. sbt-melt generates a typed PublicEnv object (compiled into both client and server), so what may reach the browser is an explicit whitelist and referencing an undeclared key is a compile error. Never put secrets here — these fields are shipped to the client.",
+      boundaryH2    = "How the boundary is enforced",
+      boundaryIntro = "Three layers, weakest to strongest:",
+      layer1        =
+        "EnvChecker — a friendly compile error if a browser component reads sys.env / System.getenv / PrivateEnv. directly (an early guardrail; a text check, so not a guarantee on its own).",
+      layer2 =
+        "PrivateEnv is JVM-only — the real boundary: client use fails to link on the Scala.js build, which no lint or runtime check could guarantee.",
+      layer3 =
+        "PublicEnv is a generated whitelist — what may reach the browser is declared, so a typo or an undeclared key is a compile error and nothing leaks by omission.",
+      propsTitle = "Props cross the boundary as data",
+      propsText  =
+        "A secret passed to a hydrated component as a prop is serialized into the page (props are the SSR→client data channel), so the checker can't catch it. Keep secrets in handlers and pass only the non-secret values a component needs."
     )
   )
 
@@ -1806,6 +1843,25 @@ object GuideI18n:
       httpOnlyTitle = "サーバーアダプター",
       httpOnlyText  =
         "ブロッキング非同期 SSR は http4s・Node・JVM（Undertow）の各サーバーアダプターで実装されています。JVM 内蔵サーバーは query を同期的に解決する（SyncRunner）ため、実際に非同期な実装を持つ query は http4s か Node アダプターで動かしてください。ctx.render（seeded prop）はどこでも動作します。"
+    ),
+    serverEnv = GuideServerEnv(
+      lead =
+        "シークレットはサーバに留め、ブラウザに出してよい値だけを公開します。しかもそれを規約ではなくコンパイラで強制します。Melt は同じコードを JVM とブラウザ双方にクロスコンパイルするため、読む場所を誤ると値がクライアントに混入してしまうからです。",
+      privateH2    = "private env（サーバ専用）",
+      privateIntro =
+        "meltkit.env.PrivateEnv は private な環境変数（シークレット・鍵・接続文字列）を型付き API で読みます。JVM アーティファクトにしか存在しないため、ブラウザ到達コンポーネントから参照すると Scala.js ビルドで**コンパイルエラー**になります（lint ではなく本物のリンク境界）。route handler・hook・JVM 専用コードで読み、コンポーネントには非秘密の値だけを渡してください。",
+      publicH2    = "public env（ビルド時・型付き）",
+      publicIntro =
+        "ブラウザで安全な値は build.sbt の meltPublicEnv に設定します。sbt-melt が型付きの PublicEnv オブジェクトを生成し（client・server 双方にコンパイル）、ブラウザに届き得る値は明示的な whitelist になります。未宣言のキーを参照するとコンパイルエラーです。シークレットは絶対に入れないでください — これらはクライアントに送られます。",
+      boundaryH2    = "境界の強制のされ方",
+      boundaryIntro = "弱い順に 3 層:",
+      layer1        =
+        "EnvChecker — ブラウザコンポーネントが sys.env / System.getenv / PrivateEnv. を直接読むと親切なコンパイルエラー（早期ガード。文字列チェックなので単独では保証ではない）。",
+      layer2     = "PrivateEnv が JVM 専用 — 真の境界。クライアントで使うと Scala.js ビルドがリンクに失敗する。lint やランタイムチェックでは保証できない。",
+      layer3     = "PublicEnv は生成された whitelist — ブラウザに届き得る値が宣言制になり、タイプミスや未宣言キーはコンパイルエラー。漏れによる漏洩がない。",
+      propsTitle = "Props はデータとして境界を越える",
+      propsText  =
+        "hydrate されるコンポーネントに props として渡した秘密はページに serialize されます（props は SSR→client のデータ経路）。checker は拾えません。秘密は handler に留め、コンポーネントに必要な非秘密の値だけを渡してください。"
     )
   )
 

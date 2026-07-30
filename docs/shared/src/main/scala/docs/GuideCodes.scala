@@ -1116,6 +1116,32 @@ object GuideCodes:
        |// The final DOM and hydration seed match renderAsync. A page with no boundary
        |// (and SSG, which resolves at build time) degrades to a single blocking response.""".stripMargin
 
+  val serverEnvPrivate: String =
+    """|import meltkit.env.PrivateEnv
+       |
+       |// Server-side only (route handler / JVM code). Read the secret here and
+       |// return only the non-secret value the client needs.
+       |app.serve(Api.greeting) { (_, _) =>
+       |  val salutation = PrivateEnv.optional[String]("GREETING").getOrElse("Hello")
+       |  IO.pure(s"$salutation from the server!")
+       |}
+       |
+       |// In a browser component this line would NOT compile — PrivateEnv is JVM-only:
+       |// val leaked = PrivateEnv.get("DATABASE_URL")""".stripMargin
+
+  val serverEnvPublic: String =
+    """|// Browser-safe public config → a generated, typed PublicEnv object.
+       |meltPublicEnv := Map("apiBase" -> "/api", "appName" -> "My App")
+       |
+       |// generated (compiled into client + server):
+       |//   object PublicEnv:
+       |//     val apiBase: String = "/api"
+       |//     val appName: String = "My App"
+       |
+       |// in a component (browser-safe):
+       |val base = generated.PublicEnv.apiBase
+       |// generated.PublicEnv.missing  // ← compile error: not a member of PublicEnv""".stripMargin
+
   val asyncSsrVsSeeded: String =
     """|// Two ways to render a query on the server with no loading flash:
        |

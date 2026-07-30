@@ -85,7 +85,8 @@ object I18n:
         "adapters"         -> "Adapters",
         "form-actions"     -> "Form Actions",
         "server-functions" -> "Server Functions",
-        "async-ssr"        -> "Async SSR"
+        "async-ssr"        -> "Async SSR",
+        "server-env"       -> "Environment & secrets"
       )
     ),
     apiLinks = SidebarLinks(
@@ -185,7 +186,8 @@ object I18n:
         "adapters"         -> "アダプター",
         "form-actions"     -> "フォームアクション",
         "server-functions" -> "サーバー関数",
-        "async-ssr"        -> "非同期 SSR"
+        "async-ssr"        -> "非同期 SSR",
+        "server-env"       -> "環境変数・シークレット"
       )
     ),
     apiLinks = SidebarLinks(
