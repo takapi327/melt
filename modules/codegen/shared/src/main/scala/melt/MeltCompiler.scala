@@ -12,6 +12,7 @@ import melt.analysis.{
   AwaitBoundaryChecker,
   BindingContextChecker,
   EffectDepsChecker,
+  EnvChecker,
   FormBindingChecker,
   MalformedExpressionChecker,
   ModuleScriptChecker,
@@ -123,7 +124,15 @@ object MeltCompiler:
           }
         }
 
-        val allErrors = semanticErrors ++ securityErrors ++ moduleErrors
+        // SPA only: an SSR component reads env legitimately server-side. Only a
+        // friendly guard — the real boundary is that PrivateEnv is JVM-only, so client
+        // use fails to link regardless of this check.
+        val envErrors =
+          if mode == CompileMode.SPA then
+            EnvChecker.checkErrors(source).map { case (msg, line) => CompileError(msg, line, 0, filename) }
+          else Nil
+
+        val allErrors = semanticErrors ++ securityErrors ++ moduleErrors ++ envErrors
         if allErrors.nonEmpty then CompileResult(None, None, allErrors, Nil)
         else
           // ── Preprocess CSS before code generation ─────────────────────────

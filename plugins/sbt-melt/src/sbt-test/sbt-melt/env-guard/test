@@ -1,0 +1,2 @@
+# A browser (SPA) component reading sys.env must fail to compile (server-only env guard)
+-> compile

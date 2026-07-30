@@ -1,0 +1,9 @@
+<script lang="scala">
+val base    = generated.PublicEnv.apiBase
+val appName = generated.PublicEnv.appName
+</script>
+
+<div>
+  <h1>{appName}</h1>
+  <a href={base}>API</a>
+</div>

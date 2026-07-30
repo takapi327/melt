@@ -1,0 +1,5 @@
+<script lang="scala">
+val secret = sys.env("SECRET_KEY")
+</script>
+
+<div>{secret}</div>
