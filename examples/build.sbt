@@ -432,6 +432,54 @@ lazy val `prefetch-app-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`prefetch-app`.jvm)
 
+// ── Example: Server-only env boundary + typed env ────────────────────────────
+//
+//   sbt "server-env-server/run"   → http://localhost:8080
+//
+// The server reads a private value with meltkit.env.PrivateEnv (JVM-only, so the
+// client cannot reference it — a real compile boundary) and returns only a derived
+// non-secret greeting. `meltPublicEnv` generates a typed `PublicEnv` object the
+// client reads for browser-safe config.
+lazy val `server-env` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("server-env"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+  // Browser-safe public config → generated `PublicEnv`. Never put secrets here.
+  .settings(meltPublicEnv := Map("appName" -> "Melt env demo", "apiBase" -> "/api"))
+
+lazy val serverEnvDir        = file("server-env")
+lazy val `server-env-server` = project
+  .in(file("server-env/server"))
+  .settings(
+    run / fork := true,
+    libraryDependencies ++= Seq(
+      "io.github.takapi327" %% "meltkit-adapter-http4s" % meltVersion,
+      "org.http4s"          %% "http4s-ember-server"    % "0.23.33",
+      "org.http4s"          %% "http4s-dsl"             % "0.23.33",
+      "io.circe"            %% "circe-generic"          % "0.14.9"
+    ),
+    meltkitAssetManifestClient := Some(`server-env`.js),
+    meltkitViteDistDir         := serverEnvDir / "dist",
+    meltkitViteManifestPath    := serverEnvDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`server-env`.jvm)
+
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -467,7 +515,10 @@ lazy val root = project
     `nested-layouts`.js,
     `prefetch-app`.jvm,
     `prefetch-app`.js,
-    `prefetch-app-server`
+    `prefetch-app-server`,
+    `server-env`.jvm,
+    `server-env`.js,
+    `server-env-server`
   )
   .settings(
     crossScalaVersions := Seq.empty

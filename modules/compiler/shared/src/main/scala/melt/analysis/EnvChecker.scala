@@ -54,5 +54,10 @@ object EnvChecker:
   // body-relative offsets the caller would have to re-base.
   def checkErrors(source: String): List[(String, Int)] =
     source.linesIterator.zipWithIndex.flatMap { (line, idx) =>
-      rules.collect { case Rule(pattern, message) if pattern.findFirstIn(line).isDefined => (message, idx + 1) }
+      // Drop a trailing line comment first, so documenting the boundary in a comment
+      // (e.g. "// PrivateEnv.get(...) would not compile here") isn't itself flagged.
+      val code = line.indexOf("//") match
+        case -1 => line
+        case i  => line.substring(0, i)
+      rules.collect { case Rule(pattern, message) if pattern.findFirstIn(code).isDefined => (message, idx + 1) }
     }.toList

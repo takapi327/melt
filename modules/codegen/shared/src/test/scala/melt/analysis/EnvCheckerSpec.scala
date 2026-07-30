@@ -49,6 +49,11 @@ class EnvCheckerSpec extends munit.FunSuite:
     assertEquals(check("val e = sys.environment\nval v = myPrivateEnvVar\n// PrivateEnv is server-only"), Nil)
   }
 
+  test("does not flag env access mentioned in a line comment (documenting the boundary)") {
+    assertEquals(check("// val leaked = PrivateEnv.get(\"SECRET\") — would not compile here"), Nil)
+    assertEquals(check("val x = 1 // sys.env(\"A\") is banned on the client"), Nil)
+  }
+
   test("reports each occurrence with its own line") {
     val src =
       """val a = sys.env("A")
