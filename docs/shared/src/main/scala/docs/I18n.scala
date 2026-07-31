@@ -110,7 +110,7 @@ object I18n:
         "A single-file component framework for Scala.js. Compile Scala, HTML and CSS to lean DOM code — no runtime framework.",
       cta1          = "Get Started",
       cta2          = "View on GitHub",
-      meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.3.7"),
+      meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.8.4"),
       featuresLabel = "Why Melt",
       featuresTitle = "The compiler is the framework.",
       featuresSub   =
@@ -210,7 +210,7 @@ object I18n:
       tagline       = "Scala.js 向けのシングルファイルコンポーネントフレームワーク。Scala・HTML・CSS を 1 ファイルで書き、コンパイラが素の DOM コードを生成します。",
       cta1          = "はじめる",
       cta2          = "GitHub で見る",
-      meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.3.7"),
+      meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.8.4"),
       featuresLabel = "Melt を選ぶ理由",
       featuresTitle = "コンパイラがフレームワーク。",
       featuresSub   = "Svelte にインスパイアされ、Scala の型システムに支えられた SFC。同じ .melt ファイルからブラウザ・サーバー・静的サイトを出力します。",

@@ -57,9 +57,7 @@ object Workflows:
     )
   )
 
-  /** Download steps for the publish job: one download + inflate per project variant.
-    * Only Scala 3.3.7 (the LTS / default) is downloaded since publish uses the first Scala version.
-    */
+  /** Download steps for the publish job: one download + inflate per project variant. */
   val downloadSteps: Seq[WorkflowStep] =
     matrixProjects.flatMap { proj =>
       Seq(

@@ -38,7 +38,7 @@ object GuideCodes:
        |  .in(file("client"))
        |  .enablePlugins(ScalaJSPlugin, MeltPlugin)
        |  .settings(
-       |    scalaVersion := "3.3.7"
+       |    scalaVersion := "3.8.4"
        |  )""".stripMargin
 
   val installProjectLayout: String =

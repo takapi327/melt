@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.3.7, 3.8.4]
+        scala: [3.8.4]
         java: [corretto@17, corretto@21, corretto@25]
         project: [preprocessorJVM, preprocessorJS, sass-preprocessor, compilerJVM, compilerJS, runtimeJVM, runtimeJS, codegenJVM, codegenJS, testkit, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS, language-server]
         exclude:
@@ -63,10 +63,6 @@ jobs:
             java: corretto@21
           - project: meltkit-adapter-http4sJS
             java: corretto@25
-          - java: corretto@21
-            scala: 3.8.4
-          - java: corretto@25
-            scala: 3.8.4
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (full)
@@ -137,7 +133,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.3.7]
+        scala: [3.8.4]
         java: [corretto@17]
     runs-on: ${{ matrix.os }}
     steps:
@@ -173,32 +169,32 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Download target directories (3.3.7, compilerJVM)
+      - name: Download target directories (3.8.4, compilerJVM)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJVM
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerJVM
 
-      - name: Inflate target directories (3.3.7, compilerJVM)
+      - name: Inflate target directories (3.8.4, compilerJVM)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.7, compilerJS)
+      - name: Download target directories (3.8.4, compilerJS)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerJS
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerJS
 
-      - name: Inflate target directories (3.3.7, compilerJS)
+      - name: Inflate target directories (3.8.4, compilerJS)
         run: |
           tar xf targets.tar
           rm targets.tar
 
-      - name: Download target directories (3.3.7, compilerNative)
+      - name: Download target directories (3.8.4, compilerNative)
         uses: actions/download-artifact@v4
         with:
-          name: target-${{ matrix.os }}-${{ matrix.java }}-3.3.7-compilerNative
+          name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerNative
 
-      - name: Inflate target directories (3.3.7, compilerNative)
+      - name: Inflate target directories (3.8.4, compilerNative)
         run: |
           tar xf targets.tar
           rm targets.tar
@@ -211,7 +207,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [3.3.7]
+        scala: [3.8.4]
         java: [corretto@17, corretto@21]
     runs-on: ${{ matrix.os }}
     steps:

@@ -5,7 +5,7 @@ import ScalaVersions._
 
 ThisBuild / version            := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion       := scala3
-ThisBuild / crossScalaVersions := Seq(scala3, scala38)
+ThisBuild / crossScalaVersions := Seq(scala3)
 
 // ── GitHub Actions ──
 ThisBuild / githubWorkflowJavaVersions := Seq(
@@ -52,9 +52,7 @@ ThisBuild / githubWorkflowBuildMatrixExclusions := Seq(
   MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java21")),
   MatrixExclude(Map("project" -> "meltkit-adapter-node", "java" -> s"corretto@$java25")),
   MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java21")),
-  MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25")),
-  MatrixExclude(Map("java" -> s"corretto@$java21", "scala" -> scala38)),
-  MatrixExclude(Map("java" -> s"corretto@$java25", "scala" -> scala38))
+  MatrixExclude(Map("project" -> "meltkit-adapter-http4sJS", "java" -> s"corretto@$java25"))
 )
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(

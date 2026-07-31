@@ -1,6 +1,6 @@
 # meltPublicEnv generates a PublicEnv object with the declared fields
 > compile
-$ exists target/out/sjs1/scala-3.3.7/public-env/src_managed/main/melt-env/PublicEnv.scala
+$ exists target/out/sjs1/scala-3.8.4/public-env/src_managed/main/melt-env/PublicEnv.scala
 
 # The component references generated.PublicEnv.apiBase / .appName and links
 > fastLinkJS
