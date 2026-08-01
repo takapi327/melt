@@ -247,22 +247,48 @@ enum IrInlineTemplatePart:
   * Leaf nodes (no children) return `this` unchanged.
   * Used by [[melt.ir.opt.StaticHoistPass]] to walk the tree.
   */
+/** Maps `f` over `nodes`, returning the SAME list reference when every element is
+  * unchanged (reference-equal). Preserving identity for untouched subtrees keeps
+  * their source-position mapping (an `IdentityHashMap`) alive across IR passes. */
+private def mapPreserve(nodes: List[IrNode], f: IrNode => IrNode): List[IrNode] =
+  var changed = false
+  val mapped  = nodes.map { n =>
+    val m = f(n)
+    if !(m eq n) then changed = true
+    m
+  }
+  if changed then mapped else nodes
+
 extension (node: IrNode)
   def mapChildren(f: IrNode => IrNode): IrNode = node match
-    case e: IrNode.IrElement        => e.copy(children = e.children.map(f))
-    case e: IrNode.IrStaticElement  => e.copy(children = e.children.map(f))
-    case e: IrNode.IrDynamicElement => e.copy(children = e.children.map(f))
-    case e: IrNode.IrComponent      => e.copy(children = e.children.map(slot => slot.copy(nodes = slot.nodes.map(f))))
-    case e: IrNode.IrHead           => e.copy(children = e.children.map(f))
-    case e: IrNode.IrBoundary       =>
+    case e: IrNode.IrElement =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrStaticElement =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrDynamicElement =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrComponent =>
+      var changed = false
+      val slots   = e.children.map { slot =>
+        val ns = mapPreserve(slot.nodes, f);
+        if ns eq slot.nodes then slot
+        else
+          changed = true; slot.copy(nodes = ns)
+      }
+      if changed then e.copy(children = slots) else e
+    case e: IrNode.IrHead =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrBoundary =>
       e.copy(
         children = e.children.map(f),
         pending  = e.pending.map(_.map(f)),
         failed   = e.failed.map(b => b.copy(children = b.children.map(f)))
       )
-    case e: IrNode.IrKeyBlock   => e.copy(children = e.children.map(f))
-    case e: IrNode.IrSnippetDef => e.copy(children = e.children.map(f))
-    case leaf                   => leaf // IrStaticText, IrDynamicText, IrHoistRef, etc.
+    case e: IrNode.IrKeyBlock =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrSnippetDef =>
+      val c = mapPreserve(e.children, f); if c eq e.children then e else e.copy(children = c)
+    case leaf => leaf // IrStaticText, IrDynamicText, IrHoistRef, etc.
 
 /** Children slot passed to a component invocation.
   * Renamed from `IrChildren` to avoid ambiguity with the [[IrNode.IrChildren]]

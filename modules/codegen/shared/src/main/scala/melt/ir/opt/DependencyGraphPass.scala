@@ -64,9 +64,13 @@ object DependencyGraphPass extends IrPass:
     * All other container nodes recurse into children without merging across scope boundaries.
     */
   private def processNode(node: IrNode, reactiveVars: Set[String]): IrNode = node match
-    case e: IrNode.IrElement       => e.copy(children = processElementChildren(e.children, reactiveVars))
-    case e: IrNode.IrStaticElement => e.copy(children = processElementChildren(e.children, reactiveVars))
-    case _                         => node.mapChildren(processNode(_, reactiveVars))
+    case e: IrNode.IrElement =>
+      val c = processElementChildren(e.children, reactiveVars)
+      if c eq e.children then e else e.copy(children = c)
+    case e: IrNode.IrStaticElement =>
+      val c = processElementChildren(e.children, reactiveVars)
+      if c eq e.children then e else e.copy(children = c)
+    case _ => node.mapChildren(processNode(_, reactiveVars))
 
   // ── Per-element sibling merge ─────────────────────────────────────────────
 
@@ -86,13 +90,16 @@ object DependencyGraphPass extends IrPass:
 
     val mergeVars = varCounts.filter(_._2 >= 2).keySet.toSet
 
-    children.map {
+    val mapped = children.map {
       case dt @ IrNode.IrDynamicText(expr, ReactiveKind.LikelyReactive, None) if mergeVars.nonEmpty =>
         extractSingleVarName(expr.code, reactiveVars)
           .filter(mergeVars.contains)
           .fold(dt: IrNode)(v => dt.copy(mergeGroup = Some(v)))
       case other => processNode(other, reactiveVars)
     }
+    // Preserve the original list (and thus node identity + source positions) when
+    // nothing changed, so downstream position lookups still resolve.
+    if mapped.zip(children).forall((a, b) => a eq b) then children else mapped
 
   // ── Reactive variable extraction ─────────────────────────────────────────
 

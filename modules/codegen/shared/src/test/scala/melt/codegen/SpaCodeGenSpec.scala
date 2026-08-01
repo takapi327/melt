@@ -2428,6 +2428,27 @@ class SpaCodeGenSpec extends munit.FunSuite:
     )
   }
 
+  test("element source position survives IR passes (handler/attribute errors map to the element line)") {
+    // <button> is on line 6; its position must survive FormBinding/Hoist/DependencyGraph
+    // passes so a type error in its handler/attribute lands on line 6, not the script end.
+    val src =
+      """<script lang="scala">
+        |case class Props(x: Int = 0)
+        |val h = (e: org.scalajs.dom.Event) => ()
+        |</script>
+        |<div>
+        |  <button onclick={h}>x</button>
+        |</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "Test.melt", "Test", "", sourcePath = "/tmp/Test.melt")
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
+    val code    = result.scalaCode.getOrElse(fail("No generated code"))
+    val entries = extractMappingEntries(code).getOrElse(fail(s"No source-map entries in:\n$code"))
+    assert(
+      entries.exists(_._2 == 6),
+      s"expected a source-map entry for the <button> line 6, got source lines: ${ entries.map(_._2).sorted.distinct }"
+    )
+  }
+
   // ── String literal file imports ────────────────────────────────────────
 
   test("string import emits @JSImport facade and js/JSImport imports") {

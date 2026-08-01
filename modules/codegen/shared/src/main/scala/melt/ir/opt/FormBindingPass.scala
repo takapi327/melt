@@ -53,13 +53,18 @@ object FormBindingPass extends IrPass:
       val (declared, stripped) = extractUseForm(e.attrs)
       val childForm            = declared.orElse(form) // a nested use:form re-scopes its subtree
       val childSelect          = selectScope(e.tag, stripped, childForm, selectName)
-      val children             = e.children.map(process(_, childForm, childSelect))
+      val mapped               = e.children.map(process(_, childForm, childSelect))
+      // Preserve identity (and source position) when the subtree is untouched.
+      val childrenUnchanged = mapped.length == e.children.length && mapped.zip(e.children).forall((a, b) => a eq b)
+      val children          = if childrenUnchanged then e.children else mapped
       // Injection decisions read `stripped` (still carrying data-form-ignore, which
       // hasIgnore consults); the marker is then removed from the output (R-e).
       val injAttr  = injectAttr(e.tag, stripped, form, selectName)
       val injChild = injectChild(e.tag, stripped, children, form)
-      val attrs    = stripIgnore(stripped, form) ++ injAttr.toList
-      e.copy(attrs = attrs, children = children ++ injChild.toList)
+      if (stripped eq e.attrs) && injAttr.isEmpty && injChild.isEmpty && childrenUnchanged then e
+      else
+        val attrs = stripIgnore(stripped, form) ++ injAttr.toList
+        e.copy(attrs = attrs, children = children ++ injChild.toList)
 
     case e: IrNode.IrStaticElement =>
       // A static element carries no directives, so it never declares a scope, but it
@@ -68,17 +73,20 @@ object FormBindingPass extends IrPass:
       // static element must then be promoted to IrElement — when injected on directly
       // AND when any descendant was promoted — otherwise StaticHoistPass would hoist
       // the whole static subtree and the binding would be lost (silently, on SPA).
-      val childSelect = selectScope(e.tag, e.attrs, form, selectName)
-      val children0   = e.children.map(process(_, form, childSelect))
-      val newAttr     = injectAttr(e.tag, e.attrs, form, selectName)
-      val newChild    = injectChild(e.tag, e.attrs, children0, form)
-      val children    = children0 ++ newChild.toList
-      val hadIgnore   = form.isDefined && hasIgnore(e.attrs)
-      val attrs       = stripIgnore(e.attrs, form)
+      val childSelect       = selectScope(e.tag, e.attrs, form, selectName)
+      val mapped            = e.children.map(process(_, form, childSelect))
+      val childrenUnchanged = mapped.length == e.children.length && mapped.zip(e.children).forall((a, b) => a eq b)
+      val children0         = if childrenUnchanged then e.children else mapped
+      val newAttr           = injectAttr(e.tag, e.attrs, form, selectName)
+      val newChild          = injectChild(e.tag, e.attrs, children0, form)
+      val children          = children0 ++ newChild.toList
+      val hadIgnore         = form.isDefined && hasIgnore(e.attrs)
+      val attrs             = stripIgnore(e.attrs, form)
       if newAttr.isDefined || newChild.isDefined || children.exists(isDynamic) then
         IrNode.IrElement(e.tag, e.ns, attrs ++ newAttr.toList, children, e.scopeId)
       else if hadIgnore then e.copy(attrs = attrs, children = children) // stripped marker; stays static
-      else e.copy(children                = children)
+      else if childrenUnchanged then e // untouched: preserve identity + source position
+      else e.copy(children = children)
 
     case it: IrNode.IrInlineTemplate =>
       val parts = it.parts.map {
