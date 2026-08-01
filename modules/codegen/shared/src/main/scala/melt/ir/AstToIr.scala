@@ -487,6 +487,10 @@ object AstToIr:
         if isTypeDeclStart(trimmed) then
           val (endIdx, chunk) = collectBalanced(lines, i)
           typeDecls += chunk.mkString("\n")
+          // Keep blank placeholder lines so the remaining script body preserves its
+          // original line positions — the emitter maps each body line back to its
+          // `.melt` line by index, so removing lines here would shift every mapping.
+          (i to endIdx).foreach(_ => rest += "")
           i = endIdx + 1
         else
           rest += line

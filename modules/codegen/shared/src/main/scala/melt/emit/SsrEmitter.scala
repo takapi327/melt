@@ -90,8 +90,9 @@ object SsrEmitter:
 
     if ir.scriptBody.trim.nonEmpty then
       tracker ++= "    // ── User script section ──\n"
-      tracker.markSourceLine(ir.scriptBodyLine)
-      ir.scriptBody.linesIterator.foreach { line =>
+      // Map each script line to its own `.melt` line (not all to the script start).
+      ir.scriptBody.linesIterator.zipWithIndex.foreach { (line, i) =>
+        tracker.markSourceLine(ir.scriptBodyLine + i)
         if line.trim.isEmpty then tracker ++= "\n"
         else tracker ++= s"    $line\n"
       }

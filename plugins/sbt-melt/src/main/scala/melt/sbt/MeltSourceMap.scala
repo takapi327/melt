@@ -65,15 +65,33 @@ object MeltSourceMap:
                 case Some((srcLine, srcCol)) =>
                   Some(remappedPosition(meltFile, srcLine, srcCol))
 
+  /** Reads the `srcLine`-th (1-based) line of `file`, or "" if unavailable. */
+  private def readLine(file: File, srcLine: Int): String =
+    try
+      val src =
+        try scala.io.Source.fromFile(file, "UTF-8")
+        catch case _: Throwable => scala.io.Source.fromFile(file)
+      try
+        src.getLines().drop(srcLine - 1).nextOption().getOrElse("")
+      finally src.close()
+    catch case _: Throwable => ""
+
   /** Constructs an `xsbti.Position` pointing to `file` at `srcLine` and `srcCol`. */
   private def remappedPosition(file: File, srcLine: Int, srcCol: Int): xsbti.Position =
+    // Provide the actual `.melt` line content + a caret so the compiler renders the
+    // usual underlined source excerpt at the remapped position (was blank before).
+    val content = if srcLine >= 1 then readLine(file, srcLine) else ""
     new xsbti.Position:
       override def line(): Optional[Integer] =
         Optional.of(srcLine.asInstanceOf[Integer])
-      override def lineContent(): String            = ""
+      override def lineContent(): String            = content
       override def offset():      Optional[Integer] = Optional.empty()
       // pointer() is 0-based within the line; srcCol is 1-based
-      override def pointer():      Optional[Integer]      = Optional.of((srcCol - 1).asInstanceOf[Integer])
-      override def pointerSpace(): Optional[String]       = Optional.empty()
-      override def sourcePath():   Optional[String]       = Optional.of(file.getAbsolutePath)
-      override def sourceFile():   Optional[java.io.File] = Optional.of(file)
+      override def pointer():      Optional[Integer] = Optional.of((srcCol - 1).asInstanceOf[Integer])
+      override def pointerSpace(): Optional[String]  =
+        if content.isEmpty then Optional.empty()
+        else
+          val n = math.max(0, math.min(srcCol - 1, content.length))
+          Optional.of(content.take(n).map(c => if c == '\t' then '\t' else ' ').mkString)
+      override def sourcePath(): Optional[String]       = Optional.of(file.getAbsolutePath)
+      override def sourceFile(): Optional[java.io.File] = Optional.of(file)

@@ -123,9 +123,13 @@ object SpaEmitter:
     if ir.style.isDefined then tracker ++= "    Style.inject(_scopeId, _css)\n"
 
     // ── script body ───────────────────────────────────────────────────────
+    // Map each script line to its own `.melt` line so a type error lands on the
+    // real line, not collapsed onto the script's first line.
     if ir.scriptBody.trim.nonEmpty then
-      tracker.markSourceLine(ir.scriptBodyLine)
-      ir.scriptBody.linesIterator.foreach(line => tracker ++= s"    $line\n")
+      ir.scriptBody.linesIterator.zipWithIndex.foreach { (line, i) =>
+        tracker.markSourceLine(ir.scriptBodyLine + i)
+        tracker ++= s"    $line\n"
+      }
       tracker += '\n'
 
     // ── template section ──────────────────────────────────────────────────

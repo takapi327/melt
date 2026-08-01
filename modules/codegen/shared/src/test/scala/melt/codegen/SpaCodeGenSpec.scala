@@ -2407,6 +2407,27 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(exprEntry.isDefined, s"Expected entry with sourceLine=4 col=6, got: $entries")
   }
 
+  test("source-map maps each script body line to its own source line (not all to the script start)") {
+    // line 2: val a = 1 / line 3: val b = 2 / line 4: val c = 3
+    val src =
+      """<script lang="scala">
+        |val a = 1
+        |val b = 2
+        |val c = 3
+        |</script>
+        |<div>{c.toString}</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "Test.melt", "Test", "", sourcePath = "/tmp/Test.melt")
+    assert(result.errors.isEmpty, s"Compile errors: ${ result.errors.map(_.message) }")
+    val code     = result.scalaCode.getOrElse(fail("No generated code"))
+    val entries  = extractMappingEntries(code).getOrElse(fail(s"No source-map entries in:\n$code"))
+    val srcLines = entries.map(_._2).toSet
+    // each of the three script statements must map to its own .melt line, not all to line 2
+    assert(
+      srcLines.contains(2) && srcLines.contains(3) && srcLines.contains(4),
+      s"expected script lines 2,3,4 mapped distinctly, got source lines: ${ entries.map(_._2).sorted.distinct }"
+    )
+  }
+
   // ── String literal file imports ────────────────────────────────────────
 
   test("string import emits @JSImport facade and js/JSImport imports") {
