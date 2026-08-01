@@ -42,6 +42,48 @@ object AwaitBoundaryChecker:
     )
     errors.toList
 
+  /** Warns when a `<melt:await>` handles no error case, so a failed query would
+    * render nothing. The emitter injects a `case _` fallback to avoid a runtime
+    * MatchError, which also silences the compiler's exhaustiveness check — this
+    * surfaces the gap the fallback would otherwise hide. */
+  def failedArmWarnings(
+    ast:               MeltFile,
+    positions:         NodePositions = NodePositions.empty,
+    templateSource:    String = "",
+    templateStartLine: Int = 1
+  ): List[(String, Int)] =
+    val warnings = mutable.ListBuffer.empty[(String, Int)]
+    def visit(node: TemplateNode): Unit =
+      node match
+        case a @ TemplateNode.Await(_, handler, _, failed) =>
+          val handlerCode    = handler.collect { case InlineTemplatePart.Code(c) => c }.mkString(" ")
+          val handlesFailure =
+            failed.isDefined || handlerCode.contains("Failed") || handlerCode.contains("case _")
+          if !handlesFailure then
+            val span = positions.spanOf(a)
+            warnings += (
+              "<melt:await> handles no error case: a failed query will render nothing. " +
+                "Add `case Async.Failed(e) => …` to the handler or a <melt:failed> block."
+                -> span.absoluteLine(templateSource, templateStartLine)
+            )
+          handler.foreach { case InlineTemplatePart.Html(nodes) => nodes.foreach(visit); case _ => () }
+          failed.foreach(_.children.foreach(visit))
+        case TemplateNode.Element(_, _, children)                => children.foreach(visit)
+        case TemplateNode.Component(_, _, children)              => children.foreach(visit)
+        case TemplateNode.Head(children)                         => children.foreach(visit)
+        case TemplateNode.DynamicElement(_, _, children)         => children.foreach(visit)
+        case TemplateNode.KeyBlock(_, children)                  => children.foreach(visit)
+        case TemplateNode.SnippetDef(_, _, children)             => children.foreach(visit)
+        case TemplateNode.Boundary(_, children, pending, failed) =>
+          children.foreach(visit)
+          pending.foreach(_.children.foreach(visit))
+          failed.foreach(_.children.foreach(visit))
+        case TemplateNode.InlineTemplate(parts) =>
+          parts.foreach { case InlineTemplatePart.Html(nodes) => nodes.foreach(visit); case _ => () }
+        case _ => ()
+    ast.template.foreach(visit)
+    warnings.toList
+
   private def walk(
     node:              TemplateNode,
     insideReactive:    Boolean,

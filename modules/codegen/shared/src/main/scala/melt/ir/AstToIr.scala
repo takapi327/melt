@@ -553,8 +553,29 @@ object AstToIr:
       val params = propsDef.substring(open + 1, close)
       splitByCommaBalanced(params).forall { param =>
         val trimmed = param.trim
-        trimmed.isEmpty || trimmed.contains("=")
+        trimmed.isEmpty || paramHasDefault(trimmed)
       }
+
+  /** True when a single parameter declaration carries a default value.
+    *
+    * Scans for a top-level `=` that is not part of `=>` (a function type) or a
+    * comparison operator (`==`, `<=`, `>=`, `!=`), so `row: (String, Int) => dom.Node`
+    * is correctly read as having no default.
+    */
+  private def paramHasDefault(param: String): Boolean =
+    var depth = 0
+    var i     = 0
+    while i < param.length do
+      param(i) match
+        case '(' | '[' | '{'   => depth += 1
+        case ')' | ']' | '}'   => depth -= 1
+        case '=' if depth == 0 =>
+          val next = if i + 1 < param.length then param(i + 1) else ' '
+          val prev = if i > 0 then param(i - 1) else ' '
+          if next != '>' && prev != '=' && prev != '<' && prev != '>' && prev != '!' then return true
+        case _ =>
+      i += 1
+    false
 
   private def extractBaseName(typeName: String): String =
     val i = typeName.indexOf('['); if i < 0 then typeName else typeName.substring(0, i)

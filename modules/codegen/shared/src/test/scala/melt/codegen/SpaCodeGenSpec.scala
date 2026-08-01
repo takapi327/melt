@@ -2089,6 +2089,20 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("type Props = Todo"), code)
   }
 
+  test("a function-typed prop (=> in the type) is not mistaken for a default value") {
+    val src =
+      """<script lang="scala">
+        |import org.scalajs.dom
+        |case class Props(row: (String, Int) => dom.Node)
+        |</script>
+        |<ul>{@render props.row("x", 1)}</ul>""".stripMargin
+    val code = compile(src, name = "Card")
+    // `row` has no default, so mount/apply must NOT default `props` to `Props()`
+    // (the `=>` in the type must not be read as a default assignment).
+    assert(!code.contains("props: Props = Props()"), code)
+    assert(code.contains("def mount(target: dom.Element, props: Props):"), code)
+  }
+
   test("custom generic props type name: generates val/type Props alias") {
     val src =
       """<script lang="scala">
@@ -2595,4 +2609,36 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |</melt:await>""".stripMargin
     val code = compile(src)
     assert(code.contains("_root_.meltkit.Query.awaited(posts)"), code)
+  }
+
+  test("melt:await without an error case warns that failures render nothing") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span> }
+        |</melt:await>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(
+      result.warnings.exists(_.message.contains("handles no error case")),
+      s"expected a missing-error-arm warning, got: ${ result.warnings.map(_.message) }"
+    )
+  }
+
+  test("melt:await with a Failed arm does not warn") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span>
+        |    case Async.Failed(e) => <span>fail</span> }
+        |</melt:await>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(!result.warnings.exists(_.message.contains("handles no error case")), result.warnings.toString)
+  }
+
+  test("melt:await with a <melt:failed> block does not warn") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span> }
+        |  <melt:failed><p>error</p></melt:failed>
+        |</melt:await>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(!result.warnings.exists(_.message.contains("handles no error case")), result.warnings.toString)
   }

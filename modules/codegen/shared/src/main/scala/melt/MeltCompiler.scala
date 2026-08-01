@@ -206,9 +206,18 @@ object MeltCompiler:
                       )
                   }
                 else Nil
+              val awaitWarnings =
+                AwaitBoundaryChecker
+                  .failedArmWarnings(
+                    ast,
+                    positions         = result.positions,
+                    templateSource    = result.templateSource,
+                    templateStartLine = result.templateStartLine
+                  )
+                  .map { case (msg, line) => CompileWarning(msg, line, 0, filename) }
               val allWarnings =
                 parserWarnings ++ a11yWarnings ++ securityWarnings ++ formBindingWarnings ++
-                  effectDepsWarnings ++ moduleWarnings ++ hydrationWarnings
+                  effectDepsWarnings ++ moduleWarnings ++ hydrationWarnings ++ awaitWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */

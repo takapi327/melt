@@ -20,3 +20,10 @@ import org.scalajs.dom
   * }}}
   */
 type Snippet[A] = A => dom.Node
+
+/** A snippet taking two arguments — e.g. `{#snippet row(name: String, i: Int)}`.
+  * A named alias for the raw function type used in a Props field. */
+type Snippet2[A, B] = (A, B) => dom.Node
+
+/** A snippet taking three arguments. */
+type Snippet3[A, B, C] = (A, B, C) => dom.Node
