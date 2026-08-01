@@ -969,6 +969,19 @@ object Bind:
     val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
+  @scala.annotation.targetName("listInvalidSource")
+  inline def list(source: Any, renderFn: Nothing => dom.Node, anchor: Any): Unit =
+    scala.compiletime.error(
+      "A reactive list ({items.map(...)}) needs `items` to be an Iterable, or a State[?] / Signal[?] of one.\n" +
+        "If you derived the source (e.g. .zipWithIndex), map it back into a State/Signal first."
+    )
+
+  @scala.annotation.targetName("eachInvalidSource")
+  inline def each(source: Any, keyFn: Nothing => Any, renderFn: Nothing => dom.Node, anchor: Any): Unit =
+    scala.compiletime.error(
+      "A keyed list ({items.keyed(_.id).map(...)}) needs `items` to be a State[?] / Signal[?] of an Iterable."
+    )
+
   /** Keyed list rendering with node reuse. Reorders and adds/removes nodes efficiently.
     *
     * When list-item elements have `_meltAnimateFn` set (via `animate:` directive),
