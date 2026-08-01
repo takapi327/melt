@@ -254,17 +254,25 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("event handler emits addEventListener") {
     val code = compile("<button onclick={handler}>Click</button>")
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", handler)"""), code)
   }
 
   test("keydown event handler") {
     val code = compile("<input onkeydown={handler} />")
-    assert(code.contains("""Bind.on(""") && code.contains(""", "keydown", handler)"""), code)
+    assert(code.contains("""Bind.on[dom.KeyboardEvent](""") && code.contains(""", "keydown", handler)"""), code)
   }
 
   test("event handler is routed through Bind.on so a wrong arg type is rejected") {
     val code = compile("""<button onclick={_ => count += 1}>Click</button>""")
-    assert(code.contains("Bind.on("), code)
+    assert(code.contains("Bind.on[dom.MouseEvent]("), code)
+  }
+
+  test("event handlers carry the DOM event type specific to the event name") {
+    assert(compile("<div onwheel={h}/>").contains("Bind.on[dom.WheelEvent]("))
+    assert(compile("<input onfocus={h}/>").contains("Bind.on[dom.FocusEvent]("))
+    assert(compile("<a ondragstart={h}>x</a>").contains("Bind.on[dom.DragEvent]("))
+    // an event without a specific DOM type falls back to dom.Event
+    assert(compile("<form onsubmit={h}></form>").contains("Bind.on[dom.Event]("))
   }
 
   // ── Component node (no-op in Phase 3) ─────────────────────────────────
@@ -476,7 +484,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Hydrating.text(count,"), code)
     assert(code.contains("Hydrating.text(name,"), code)
     // Event handler
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", """), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", """), code)
     // Two-way bind:value
     assert(code.contains("Bind.inputValue("), code)
     // Static text
@@ -753,6 +761,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("canvasRef.set("), code)
   }
 
+  test("bind:this casts the element to its tag-specific DOM type") {
+    assert(compile("<input bind:this={r}/>").contains("r.set(_el0.asInstanceOf[dom.html.Input])"))
+    assert(compile("<select bind:this={r}></select>").contains("r.set(_el0.asInstanceOf[dom.html.Select])"))
+    // an unmapped tag falls back to the base dom.Element
+    assert(compile("<section bind:this={r}></section>").contains("r.set(_el0.asInstanceOf[dom.Element])"))
+  }
+
   test("bind:clientWidth emits Bind.clientWidth") {
     val code = compile("<div bind:clientWidth={w}></div>")
     assert(code.contains("Bind.clientWidth(_el0, w)"), code)
@@ -902,7 +917,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |)}</ul>""".stripMargin
     val code = compile(src)
     assert(code.contains("""classList.add("entry")"""), code)
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", handler)"""), code)
     assert(code.contains("Hydrating.text(item.name,"), code)
   }
 
@@ -1381,7 +1396,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("TYPE-SAFE: event handler is applied through a dom.Event param, not cast") {
     val src  = """<button onclick={handler}></button>"""
     val code = compile(src)
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", handler)"""), code)
     assert(!code.contains("handler.asInstanceOf"), s"onclick must not cast handler:\n$code")
   }
 
@@ -1577,7 +1592,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("<melt:element> with event handler emits addEventListener in setup lambda") {
     val code = compile("<melt:element this={tag} onclick={handler}>click</melt:element>")
     assert(code.contains("Bind.dynamicElement(tag,"), code)
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", handler)"""), code)
   }
 
   test("<melt:element> does not emit createElement for the dynamic element itself") {
@@ -1788,7 +1803,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("_bFallback0: (Throwable, () => Unit) => dom.Element = (error, reset) =>"), code)
     assert(code.contains("fallback = _bFallback0"), code)
-    assert(code.contains("""Bind.on(""") && code.contains(""", "click", _ => reset())"""), code)
+    assert(code.contains("""Bind.on[dom.MouseEvent](""") && code.contains(""", "click", _ => reset())"""), code)
   }
 
   test("melt:boundary with onerror attr emits onError prop") {

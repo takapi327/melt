@@ -82,7 +82,7 @@ object Bind:
     val cancel = signal.subscribe(a => setAttr(el, name, a))
     Cleanup.register(cancel)
 
-  def on(el: dom.EventTarget, event: String, handler: dom.Event => Any): Unit =
+  def on[E <: dom.Event](el: dom.EventTarget, event: String, handler: E => Any): Unit =
     el.addEventListener(event, handler)
 
   /** Static attribute binding (fallback).

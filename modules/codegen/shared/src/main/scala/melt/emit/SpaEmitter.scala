@@ -257,7 +257,7 @@ object SpaEmitter:
         val anchor   = ctr.nextTxt()
         val elVar    = "_dynEl"
         val setupBuf = new LineTracker
-        attrs.foreach(emitAttr(_, elVar, setupBuf, s"$indent  ", ctr))
+        attrs.foreach(emitAttr(_, elVar, "", setupBuf, s"$indent  ", ctr))
         children.foreach { child =>
           val cv = emitNode(
             child,
@@ -614,7 +614,7 @@ object SpaEmitter:
     attrs.foreach { attr =>
       attr match
         case _: IrAttr.BindSelectValue if deferredSelectBind.isDefined => () // emitted after children
-        case _                                                         => emitAttr(attr, v, buf, indent, ctr)
+        case _                                                         => emitAttr(attr, v, tag, buf, indent, ctr)
     }
 
     val hasChildren = children.nonEmpty
@@ -661,7 +661,7 @@ object SpaEmitter:
 
   // ── emitAttr ──────────────────────────────────────────────────────────────
 
-  private def emitAttr(attr: IrAttr, v: String, buf: LineTracker, indent: String, ctr: Counter): Unit =
+  private def emitAttr(attr: IrAttr, v: String, tag: String, buf: LineTracker, indent: String, ctr: Counter): Unit =
     attr match
       case IrAttr.StaticAttr("class", value) =>
         value.split("\\s+").filter(_.nonEmpty).foreach { cls =>
@@ -681,7 +681,7 @@ object SpaEmitter:
         buf ++= s"${ indent }${ expr.code }.apply($v)\n"
 
       case IrAttr.EventHandler(event, handler) =>
-        buf ++= s"""${ indent }Bind.on($v, "$event", ${ handler.code })\n"""
+        buf ++= s"""${ indent }Bind.on[${ domEventType(event) }]($v, "$event", ${ handler.code })\n"""
       case IrAttr.EventHandlerWithModifier(event, handler, mods) =>
         if mods.contains("preventDefault") then
           buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); (${ handler.code }).asInstanceOf[Any] }))\n"""
@@ -707,7 +707,7 @@ object SpaEmitter:
       case IrAttr.BindGroup(expr, true) =>
         buf ++= s"${ indent }Bind.checkboxGroup($v.asInstanceOf[dom.html.Input], ${ expr.code }, $v.asInstanceOf[dom.html.Input].value)\n"
       case IrAttr.BindThis(expr) =>
-        buf ++= s"${ indent }${ expr.code }.set($v.asInstanceOf[dom.Element])\n"
+        buf ++= s"${ indent }${ expr.code }.set($v.asInstanceOf[${ domElementType(tag) }])\n"
       case IrAttr.BindDimension(property, expr) =>
         buf ++= s"${ indent }Bind.$property($v, ${ expr.code })\n"
       case IrAttr.BindInnerHtml(expr) =>
@@ -849,6 +849,42 @@ object SpaEmitter:
     buf ++= s"${ inner }_frag\n"
     buf ++= s"${ indent }}\n"
     varName
+
+  private def domElementType(tag: String): String =
+    tag.toLowerCase match
+      case "input"    => "dom.html.Input"
+      case "textarea" => "dom.html.TextArea"
+      case "select"   => "dom.html.Select"
+      case "option"   => "dom.html.Option"
+      case "button"   => "dom.html.Button"
+      case "form"     => "dom.html.Form"
+      case "a"        => "dom.html.Anchor"
+      case "img"      => "dom.html.Image"
+      case "canvas"   => "dom.html.Canvas"
+      case "video"    => "dom.html.Video"
+      case "audio"    => "dom.html.Audio"
+      case "table"    => "dom.html.Table"
+      case "label"    => "dom.html.Label"
+      case "div"      => "dom.html.Div"
+      case "span"     => "dom.html.Span"
+      case "p"        => "dom.html.Paragraph"
+      case _          => "dom.Element"
+
+  private def domEventType(event: String): String =
+    event.toLowerCase match
+      case "click" | "dblclick" | "mousedown" | "mouseup" | "mousemove" | "mouseenter" | "mouseleave" | "mouseover" |
+        "mouseout" | "contextmenu" =>
+        "dom.MouseEvent"
+      case "keydown" | "keyup" | "keypress"                                                   => "dom.KeyboardEvent"
+      case "focus" | "blur" | "focusin" | "focusout"                                          => "dom.FocusEvent"
+      case "wheel"                                                                            => "dom.WheelEvent"
+      case "drag" | "dragstart" | "dragend" | "dragenter" | "dragleave" | "dragover" | "drop" =>
+        "dom.DragEvent"
+      case "touchstart" | "touchend" | "touchmove" | "touchcancel" => "dom.TouchEvent"
+      case "pointerdown" | "pointerup" | "pointermove" | "pointerenter" | "pointerleave" | "pointerover" |
+        "pointerout" | "pointercancel" =>
+        "dom.PointerEvent"
+      case _ => "dom.Event"
 
   private def emitSnippetDef(
     buf:      LineTracker,
