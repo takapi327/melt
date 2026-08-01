@@ -288,77 +288,13 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     * developer sees dropped keys without the server crashing.
     */
   def spreadAttrs(tag: String, attrs: Map[String, Any]): Unit =
-    attrs.foreach {
-      case (name, rawValue) =>
-        if !AttrNameValidator.isValid(name) then
-          MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
-        else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
-        else if name.startsWith("$$") then ()
-        else
-          val unwrapped = unwrapOption(rawValue)
-          unwrapped match
-            case null =>
-              ()
-            case f if isFunction(f) =>
-              MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
-            case t if isTuple(t) =>
-              MeltWarnings.warn(
-                s"Dropped Tuple/Named Tuple spread attribute '$name': " +
-                  "field names are erased at runtime and cannot be expanded into individual attributes. " +
-                  "Use individual prop bindings instead."
-              )
-            case false =>
-              ()
-            case true =>
-              push(s" $name")
-            case v if UrlAttributes.isUrlAttribute(tag, name) =>
-              push(s""" $name="${ Escape.url(v) }"""")
-            case v =>
-              push(s""" $name="${ Escape.attr(v) }"""")
-    }
+    push(ServerRenderer.spreadAttrsToString(tag, attrs))
 
   /** Unwraps at most a single layer of `Some(x)` so that users can pass
     * `Option[T]`-valued props through spread without surprises. Nested
     * `Some(Some(x))` is handled by a single unwrap — further unwrapping
     * is left to `Escape.*` which already handles `Option` recursively.
     */
-  private def unwrapOption(value: Any): Any = value match
-    case null        => null
-    case None        => null
-    case Some(inner) => inner
-    case other       => other
-
-  private def isFunction(value: Any): Boolean = value match
-    case _: scala.Function0[?]                                                                    => true
-    case _: scala.Function1[?, ?]                                                                 => true
-    case _: scala.Function2[?, ?, ?]                                                              => true
-    case _: scala.Function3[?, ?, ?, ?]                                                           => true
-    case _: scala.Function4[?, ?, ?, ?, ?]                                                        => true
-    case _: scala.Function5[?, ?, ?, ?, ?, ?]                                                     => true
-    case _: scala.Function6[?, ?, ?, ?, ?, ?, ?]                                                  => true
-    case _: scala.Function7[?, ?, ?, ?, ?, ?, ?, ?]                                               => true
-    case _: scala.Function8[?, ?, ?, ?, ?, ?, ?, ?, ?]                                            => true
-    case _: scala.Function9[?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                         => true
-    case _: scala.Function10[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                     => true
-    case _: scala.Function11[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                  => true
-    case _: scala.Function12[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                               => true
-    case _: scala.Function13[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                            => true
-    case _: scala.Function14[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                         => true
-    case _: scala.Function15[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                      => true
-    case _: scala.Function16[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                   => true
-    case _: scala.Function17[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                => true
-    case _: scala.Function18[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]             => true
-    case _: scala.Function19[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]          => true
-    case _: scala.Function20[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]       => true
-    case _: scala.Function21[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]    => true
-    case _: scala.Function22[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?] => true
-    case _: scala.runtime.FunctionXXL => true // arity 23+ (Scala 3)
-    case _                            => false
-
-  private def isTuple(value: Any): Boolean = value match
-    case _: scala.Tuple => true
-    case _              => false
-
   /** Finalises the renderer into an immutable [[RenderResult]].
     *
     * The assembled `head` string contains, in order:
@@ -424,14 +360,82 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
             "If intentional, increase the limit via MELT_MAX_OUTPUT_BYTES env var."
         )
 
+object ServerRenderer:
+
+  def spreadAttrsToString(tag: String, attrs: Map[String, Any]): String =
+    val sb = new StringBuilder
+    attrs.foreach {
+      case (name, rawValue) =>
+        if !AttrNameValidator.isValid(name) then
+          MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
+        else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
+        else if name.startsWith("$$") then ()
+        else
+          unwrapOption(rawValue) match
+            case null =>
+              ()
+            case f if isFunction(f) =>
+              MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
+            case t if isTuple(t) =>
+              MeltWarnings.warn(
+                s"Dropped Tuple/Named Tuple spread attribute '$name': " +
+                  "field names are erased at runtime and cannot be expanded into individual attributes. " +
+                  "Use individual prop bindings instead."
+              )
+            case false =>
+              ()
+            case true =>
+              sb ++= s" $name"
+            case v if UrlAttributes.isUrlAttribute(tag, name) =>
+              sb ++= s""" $name="${ Escape.url(v) }""""
+            case v =>
+              sb ++= s""" $name="${ Escape.attr(v) }""""
+    }
+    sb.toString
+
+  private def unwrapOption(value: Any): Any = value match
+    case null        => null
+    case None        => null
+    case Some(inner) => inner
+    case other       => other
+
+  private def isFunction(value: Any): Boolean = value match
+    case _: scala.Function0[?]                                                                    => true
+    case _: scala.Function1[?, ?]                                                                 => true
+    case _: scala.Function2[?, ?, ?]                                                              => true
+    case _: scala.Function3[?, ?, ?, ?]                                                           => true
+    case _: scala.Function4[?, ?, ?, ?, ?]                                                        => true
+    case _: scala.Function5[?, ?, ?, ?, ?, ?]                                                     => true
+    case _: scala.Function6[?, ?, ?, ?, ?, ?, ?]                                                  => true
+    case _: scala.Function7[?, ?, ?, ?, ?, ?, ?, ?]                                               => true
+    case _: scala.Function8[?, ?, ?, ?, ?, ?, ?, ?, ?]                                            => true
+    case _: scala.Function9[?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                         => true
+    case _: scala.Function10[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                     => true
+    case _: scala.Function11[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                                  => true
+    case _: scala.Function12[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                               => true
+    case _: scala.Function13[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                            => true
+    case _: scala.Function14[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                         => true
+    case _: scala.Function15[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                      => true
+    case _: scala.Function16[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                   => true
+    case _: scala.Function17[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]                => true
+    case _: scala.Function18[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]             => true
+    case _: scala.Function19[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]          => true
+    case _: scala.Function20[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]       => true
+    case _: scala.Function21[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?]    => true
+    case _: scala.Function22[?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?] => true
+    case _: scala.runtime.FunctionXXL => true // arity 23+ (Scala 3)
+    case _                            => false
+
+  private def isTuple(value: Any): Boolean = value match
+    case _: scala.Tuple => true
+    case _              => false
+
   private def isEventHandler(name: String): Boolean =
     val lower = name.toLowerCase
     lower.length > 2 && lower.startsWith("on")
 
   private def truncate(s: String, max: Int): String =
     if s.length <= max then s else s.substring(0, max) + "..."
-
-object ServerRenderer:
 
   // ── SSR render-scope flag ──────────────────────────────────────────────────
   // Counts nested active render passes. A component's script runs between a

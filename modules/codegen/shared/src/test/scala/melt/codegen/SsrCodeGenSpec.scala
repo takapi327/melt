@@ -638,7 +638,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Loading…"), code)
     assert(code.contains("""renderer.push("<!--/melt:sb:" + _sbId + "-->")"""), code)
     // the resolved-branch renderer is registered with the ambient scope
-    assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, posts,"), code)
+    assert(code.contains("SsrRenderScope.current.foreach(_.suspend(_sbId, _root_.meltkit.Query.awaited(posts),"), code)
     // handler arms are spliced into a match on the (typed) branch value
     assert(code.contains("a match {"), code)
     assert(code.contains("case Async.Done"), code)
@@ -695,4 +695,11 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val code = compile("""<form use:form={form}><input name="csrf" type="hidden" data-form-ignore/></form>""")
     assert(!code.contains("data-form-ignore"), code)
     assert(!code.contains("""fieldValue("csrf")"""), code) // still excluded from binding
+  }
+
+  test("use:form SSR: an input nested inside {if ...} is still bound") {
+    val code = compile(
+      """<form use:form={form}>{if show then <input name="email" type="text"/> else <span>off</span>}</form>"""
+    )
+    assert(code.contains("""form.fieldValue("email")"""), code)
   }

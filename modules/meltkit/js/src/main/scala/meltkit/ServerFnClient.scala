@@ -10,7 +10,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 import scala.scalajs.js
 import scala.scalajs.js.Thenable.Implicits.given
-import scala.util.{ Failure, Success }
+import scala.util.{ Failure, NotGiven, Success }
 
 import org.scalajs.dom
 
@@ -52,8 +52,8 @@ extension [In, Out](fn: CommandFn[In, Out])
       }
     }
 
-  def dispatch(in:         In):          Mutation[In, Out] = new Mutation(fn, in)
-  def dispatch()(using ev: Unit =:= In): Mutation[In, Out] = new Mutation(fn, ev(()))
+  def dispatch(in:         In)(using NotGiven[Unit =:= In]): Mutation[In, Out] = new Mutation(fn, in)
+  def dispatch()(using ev: Unit =:= In):                     Mutation[In, Out] = new Mutation(fn, ev(()))
 
 /** A single-flight mutation: declares the queries to refresh from the mutation's
   * response, so `run()` both mutates and updates the client's reactive queries in
@@ -103,17 +103,18 @@ final class Mutation[In, Out] private[meltkit] (fn: CommandFn[In, Out], in: In):
   *     still re-runs the request on demand.
   */
 extension [In, Out](fn: QueryFn[In, Out])
-  def apply(in:         In):          Query[Out] = ServerFnClient.query(fn, in)
-  def apply()(using ev: Unit =:= In): Query[Out] = ServerFnClient.query(fn, ev(()))
+  def apply(in:         In)(using NotGiven[Unit =:= In]): Query[Out] = ServerFnClient.query(fn, in)
+  def apply()(using ev: Unit =:= In):                     Query[Out] = ServerFnClient.query(fn, ev(()))
 
-  def seeded(in:   In, seed:      Out):         Query[Out] = ServerFnClient.build(fn, in, Async.Done(seed))
-  def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = seeded(ev(()), seed)
+  def seeded(in: In, seed: Out)(using NotGiven[Unit =:= In]): Query[Out] =
+    ServerFnClient.build(fn, in, Async.Done(seed))
+  def seeded(seed: Out)(using ev: Unit =:= In): Query[Out] = ServerFnClient.build(fn, ev(()), Async.Done(seed))
 
   /** Warms the client cache for `fn(in)` without rendering — typically on link
     * hover/viewport, so a subsequent navigation adopts the data with no loading
     * flash. The prefetched result is single-use and short-lived (see the design). */
-  def prefetch(in:         In):          Unit = ServerFnClient.prefetch(fn, in)
-  def prefetch()(using ev: Unit =:= In): Unit = ServerFnClient.prefetch(fn, ev(()))
+  def prefetch(in:         In)(using NotGiven[Unit =:= In]): Unit = ServerFnClient.prefetch(fn, in)
+  def prefetch()(using ev: Unit =:= In):                     Unit = ServerFnClient.prefetch(fn, ev(()))
 
 private object ServerFnClient:
 

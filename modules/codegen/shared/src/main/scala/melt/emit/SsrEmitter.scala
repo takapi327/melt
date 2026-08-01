@@ -588,7 +588,7 @@ object SsrEmitter:
     // branch value `a`. Wrapping the arms as a partial-function literal instead
     // would leave its scrutinee type uninferred (a PF literal as a receiver has no
     // expected type).
-    buf ++= s"${ ipad }_root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, ${ valueExpr.code }, a =>\n"
+    buf ++= s"${ ipad }_root_.meltkit.SsrRenderScope.current.foreach(_.suspend(_sbId, _root_.meltkit.Query.awaited(${ valueExpr.code }), a =>\n"
     buf ++= s"${ ipad }  RenderResult(a match { $handlerArms$ssrFallback }, \"\")))\n"
     buf ++= s"$pad}\n"
 
@@ -894,6 +894,8 @@ object SsrEmitter:
         stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${ expr.code }) + "\\"""""
       case IrAttr.StyleProp(prop, expr) =>
         stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\"""""
+      case IrAttr.Spread(expr) =>
+        stmts += s"""_sb ++= _root_.melt.runtime.render.ServerRenderer.spreadAttrsToString("$tag", ${ expr.code })"""
       case _ => ()
     }
 

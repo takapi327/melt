@@ -77,3 +77,7 @@ final class Query[Out] private[meltkit] (
   private[meltkit] def setLoading():              Unit = _state.set(Async.Loading)
   private[meltkit] def setDone(value: Out):       Unit = _state.set(Async.Done(value))
   private[meltkit] def setFailed(e:   Throwable): Unit = _state.set(Async.Failed(e))
+
+object Query:
+
+  def awaited[Out](query: Query[Out]): Query[Out] = query

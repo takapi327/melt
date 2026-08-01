@@ -80,6 +80,11 @@ object AstToIr:
       reactiveVars      = reactiveVars
     )
 
+  def propsTypeOf(ast: MeltFile): Option[IrPropsType] =
+    val rawCode           = ast.script.map(_.code.trim).getOrElse("")
+    val (allTypeDecls, _) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    detectPropsType(allTypeDecls, ast.script)
+
   // ── Node lowering ─────────────────────────────────────────────────────────
 
   private def lowerNode(

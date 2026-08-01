@@ -82,6 +82,9 @@ object Bind:
     val cancel = signal.subscribe(a => setAttr(el, name, a))
     Cleanup.register(cancel)
 
+  def on(el: dom.EventTarget, event: String, handler: dom.Event => Any): Unit =
+    el.addEventListener(event, handler)
+
   /** Static attribute binding (fallback).
     * Boolean values set/remove the attribute and the DOM property for
     * properties like `checked`, `disabled`, `selected`.

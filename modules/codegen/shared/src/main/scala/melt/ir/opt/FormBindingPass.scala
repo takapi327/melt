@@ -6,7 +6,7 @@
 
 package melt.ir.opt
 
-import melt.ir.{ mapChildren, IrAttr, IrComponent, IrNode, ReactiveKind, ScalaExpr }
+import melt.ir.{ mapChildren, IrAttr, IrComponent, IrInlineTemplatePart, IrNode, ReactiveKind, ScalaExpr }
 
 /** Auto-binds plain `name` inputs under a `<form use:form={f}>` to the fields of
   * `f`, so a `.melt` author can write `<input name="email">` instead of
@@ -79,6 +79,14 @@ object FormBindingPass extends IrPass:
         IrNode.IrElement(e.tag, e.ns, attrs ++ newAttr.toList, children, e.scopeId)
       else if hadIgnore then e.copy(attrs = attrs, children = children) // stripped marker; stays static
       else e.copy(children                = children)
+
+    case it: IrNode.IrInlineTemplate =>
+      val parts = it.parts.map {
+        case IrInlineTemplatePart.Html(nodes) =>
+          IrInlineTemplatePart.Html(nodes.map(process(_, form, selectName)))
+        case code => code
+      }
+      it.copy(parts = parts)
 
     case other => other.mapChildren(process(_, form, selectName))
 

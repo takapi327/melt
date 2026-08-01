@@ -193,9 +193,22 @@ object MeltCompiler:
                     }
                   }
                 else Nil
+              val hydrationWarnings =
+                if hydration then
+                  melt.ir.AstToIr.propsTypeOf(ast).toList.collect {
+                    case pt if pt.typeParams.nonEmpty =>
+                      CompileWarning(
+                        s"Component '$objectName' has generic Props ${ pt.typeParams } and cannot be hydrated: " +
+                          "hydration codegen is skipped for generic components. Use a non-generic Props type to hydrate.",
+                        0,
+                        0,
+                        filename
+                      )
+                  }
+                else Nil
               val allWarnings =
                 parserWarnings ++ a11yWarnings ++ securityWarnings ++ formBindingWarnings ++
-                  effectDepsWarnings ++ moduleWarnings
+                  effectDepsWarnings ++ moduleWarnings ++ hydrationWarnings
               CompileResult(Some(code), None, Nil, allWarnings)
 
   /** Converts a character offset to a 1-based line number. */

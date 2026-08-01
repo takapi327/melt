@@ -47,6 +47,19 @@ class PropsCodecSpec extends FunSuite:
   // A form model carrying per-field validation issues (the field-issues use case).
   final case class Signup(email: String, errors: Map[String, List[String]] = Map.empty) derives PropsCodec
 
+  // Sum types: a Scala 3 enum (mixed singleton + parameterised cases) and a
+  // sealed trait hierarchy — both derive via the Mirror.SumOf path.
+  enum Shape derives PropsCodec:
+    case Circle(radius: Double)
+    case Rect(w: Double, h: Double)
+    case Empty
+
+  sealed trait Event derives PropsCodec
+  object Event:
+    final case class Click(x: Int, y: Int) extends Event
+    final case class Key(code: String)     extends Event
+    case object Idle                       extends Event
+
   // ── Primitive round-trip ─────────────────────────────────────────────
 
   test("primitives round-trip through encode/decode"):
@@ -130,3 +143,21 @@ class PropsCodecSpec extends FunSuite:
     val codec = summon[PropsCodec[Signup]]
     val form  = Signup("bad", Map("email" -> List("must contain @")))
     assertEquals(codec.decode(SimpleJson.parse(codec.encodeToString(form))), form)
+
+  // ── Sum types (enum / sealed trait) ──────────────────────────────────
+
+  test("enum cases (parameterised and singleton) round-trip via a $type discriminator"):
+    val codec = summon[PropsCodec[Shape]]
+    List[Shape](Shape.Circle(2.0), Shape.Rect(3.0, 4.0), Shape.Empty).foreach { s =>
+      assertEquals(codec.decode(SimpleJson.parse(codec.encodeToString(s))), s)
+    }
+
+  test("enum encoding carries the case name in $type"):
+    val codec = summon[PropsCodec[Shape]]
+    assert(codec.encodeToString(Shape.Circle(1.0)).contains("\"$type\":\"Circle\""))
+
+  test("sealed trait hierarchy round-trips (case class and case object)"):
+    val codec = summon[PropsCodec[Event]]
+    List[Event](Event.Click(1, 2), Event.Key("Enter"), Event.Idle).foreach { e =>
+      assertEquals(codec.decode(SimpleJson.parse(codec.encodeToString(e))), e)
+    }

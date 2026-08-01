@@ -254,12 +254,17 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   test("event handler emits addEventListener") {
     val code = compile("<button onclick={handler}>Click</button>")
-    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
   }
 
   test("keydown event handler") {
     val code = compile("<input onkeydown={handler} />")
-    assert(code.contains("""addEventListener("keydown", handler)"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "keydown", handler)"""), code)
+  }
+
+  test("event handler is routed through Bind.on so a wrong arg type is rejected") {
+    val code = compile("""<button onclick={_ => count += 1}>Click</button>""")
+    assert(code.contains("Bind.on("), code)
   }
 
   // ── Component node (no-op in Phase 3) ─────────────────────────────────
@@ -471,7 +476,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Hydrating.text(count,"), code)
     assert(code.contains("Hydrating.text(name,"), code)
     // Event handler
-    assert(code.contains("""addEventListener("click","""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", """), code)
     // Two-way bind:value
     assert(code.contains("Bind.inputValue("), code)
     // Static text
@@ -897,7 +902,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |)}</ul>""".stripMargin
     val code = compile(src)
     assert(code.contains("""classList.add("entry")"""), code)
-    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
     assert(code.contains("Hydrating.text(item.name,"), code)
   }
 
@@ -1001,6 +1006,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("""form.fieldValue("email").apply"""), code)
     // the use:form marker must not become a Bind.action (a Form is not an action)
     assert(!code.contains("Bind.action"), code)
+  }
+
+  test("use:form binds an input nested inside {if ...}") {
+    val code = compile(
+      """<form use:form={form}>{if show then <input name="email" type="text"/> else <span>off</span>}</form>"""
+    )
+    assert(code.contains("""form.fieldValue("email")"""), code)
   }
 
   test("use:form injects checkedState on a checkbox and radioState on a radio") {
@@ -1366,12 +1378,10 @@ class SpaCodeGenSpec extends munit.FunSuite:
 
   // ── event handlers — verify no asInstanceOf bypass ───────────────────────
 
-  test("TYPE-SAFE: event handler passed directly to addEventListener — type enforced by DOM API") {
-    // addEventListener("click", handler) requires handler: js.Function1[dom.Event, _].
-    // Passing a non-function causes a Scala compile error.
+  test("TYPE-SAFE: event handler is applied through a dom.Event param, not cast") {
     val src  = """<button onclick={handler}></button>"""
     val code = compile(src)
-    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
     assert(!code.contains("handler.asInstanceOf"), s"onclick must not cast handler:\n$code")
   }
 
@@ -1567,7 +1577,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
   test("<melt:element> with event handler emits addEventListener in setup lambda") {
     val code = compile("<melt:element this={tag} onclick={handler}>click</melt:element>")
     assert(code.contains("Bind.dynamicElement(tag,"), code)
-    assert(code.contains("""addEventListener("click", handler)"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", handler)"""), code)
   }
 
   test("<melt:element> does not emit createElement for the dynamic element itself") {
@@ -1778,7 +1788,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
     val code = compile(src)
     assert(code.contains("_bFallback0: (Throwable, () => Unit) => dom.Element = (error, reset) =>"), code)
     assert(code.contains("fallback = _bFallback0"), code)
-    assert(code.contains("""addEventListener("click", _ => reset())"""), code)
+    assert(code.contains("""Bind.on(""") && code.contains(""", "click", _ => reset())"""), code)
   }
 
   test("melt:boundary with onerror attr emits onError prop") {
@@ -2087,6 +2097,33 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("val Props = Props"), code) // no redundant alias
   }
 
+  test("generic Props with hydration warns that hydration is skipped") {
+    val src =
+      """<script lang="scala">
+        |case class Props[A](item: A)
+        |</script>
+        |<span>{props.item.toString}</span>""".stripMargin
+    val result = MeltCompiler.compile(src, "Box.melt", "Box", "", hydration = true)
+    assert(result.errors.isEmpty, s"Unexpected errors: ${ result.errors.map(_.message) }")
+    assert(
+      result.warnings.exists(w => w.message.contains("hydration") && w.message.contains("generic")),
+      s"Expected a hydration/generic warning, got: ${ result.warnings.map(_.message) }"
+    )
+  }
+
+  test("non-generic Props with hydration does not warn") {
+    val src =
+      """<script lang="scala">
+        |case class Props(value: Int)
+        |</script>
+        |<span>{props.value}</span>""".stripMargin
+    val result = MeltCompiler.compile(src, "Counter.melt", "Counter", "", hydration = true)
+    assert(
+      !result.warnings.exists(w => w.message.contains("hydration") && w.message.contains("generic")),
+      s"Unexpected hydration warning: ${ result.warnings.map(_.message) }"
+    )
+  }
+
   // ── M-10: {#snippet} and {@render} ───────────────────────────────────────
 
   test("{#snippet} without params generates () => dom.Node lambda") {
@@ -2115,6 +2152,19 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |</div>""".stripMargin
     val code = compile(src)
     assert(code.contains("val renderItem: (Todo) => dom.Node = (todo: Todo) =>"), code)
+  }
+
+  test("{#snippet} with multiple typed params generates a multi-arg lambda") {
+    val src =
+      """<div>
+        |  {#snippet pair(a: Int, b: String)}
+        |    <li>{a} - {b}</li>
+        |  {/snippet}
+        |  {@render pair(5, "x")}
+        |</div>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("val pair: (Int, String) => dom.Node = (a: Int, b: String) =>"), code)
+    assert(!code.contains("((Int, String)) => dom.Node"), code)
   }
 
   test("{@render expr} appends the expression result") {
@@ -2513,7 +2563,7 @@ class SpaCodeGenSpec extends munit.FunSuite:
         |</melt:await>""".stripMargin
     val code = compile(src)
     // the awaitable is bound to a local val (evaluated once), then bound reactively
-    assert(raw"""val (\w+) = posts""".r.findFirstIn(code).isDefined, code)
+    assert(raw"""val (\w+) = _root_.meltkit.Query.awaited\(posts\)""".r.findFirstIn(code).isDefined, code)
     assert(raw"""Bind\.show\((\w+)\.state,""".r.findFirstIn(code).isDefined, code)
     assert(raw"""(\w+)\.state\.value match""".r.findFirstIn(code).isDefined, code)
     // pending supplies the Loading branch (user need not write a Loading arm)
@@ -2521,4 +2571,13 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("Loading…"), code)
     // handler arms are spliced into the match on the settled state
     assert(code.contains("case Async.Done"), code)
+  }
+
+  test("melt:await routes the value through Query.awaited for a friendly non-Query error") {
+    val src =
+      """<melt:await value={posts}>
+        |  { case Async.Done(xs) => <span>done</span> }
+        |</melt:await>""".stripMargin
+    val code = compile(src)
+    assert(code.contains("_root_.meltkit.Query.awaited(posts)"), code)
   }

@@ -187,7 +187,12 @@ object PropsCodec:
     * makes the resulting `.scala` source easier to read and
     * IDE-navigable.
     */
-  inline given derived[A <: Product](using m: Mirror.ProductOf[A]): PropsCodec[A] =
+  inline given derived[A](using m: Mirror.Of[A]): PropsCodec[A] =
+    inline m match
+      case p: Mirror.ProductOf[A] => productCodec[A](using p)
+      case s: Mirror.SumOf[A]     => sumCodec[A](using s)
+
+  inline def productCodec[A](using m: Mirror.ProductOf[A]): PropsCodec[A] =
     new PropsCodec[A]:
       private val labels:    List[String]         = summonLabels[m.MirroredElemLabels]
       private val codecs:    List[PropsCodec[?]]  = summonCodecs[m.MirroredElemTypes]
@@ -221,6 +226,35 @@ object PropsCodec:
               values(i) = codecsArr(i).decode(v)
           i += 1
         m.fromProduct(Tuple.fromArray(values))
+
+  inline def sumCodec[A](using m: Mirror.SumOf[A]): PropsCodec[A] =
+    new PropsCodec[A]:
+      private val labelsArr: Array[String]        = summonLabels[m.MirroredElemLabels].toArray
+      private val codecsArr: Array[PropsCodec[?]] = summonCodecs[m.MirroredElemTypes].toArray
+
+      def encode(value: A, buf: StringBuilder): Unit =
+        val ord = m.ordinal(value)
+        buf += '{'
+        buf ++= SimpleJson.encString("$type")
+        buf += ':'
+        buf ++= SimpleJson.encString(labelsArr(ord))
+        buf += ','
+        buf ++= SimpleJson.encString("$value")
+        buf += ':'
+        codecsArr(ord).asInstanceOf[PropsCodec[Any]].encode(value, buf)
+        buf += '}'
+
+      def decode(json: SimpleJson.JsonValue): A =
+        val obj = json match
+          case o: SimpleJson.JsonValue.Obj => o
+          case other                       => typeMismatch("object", other)
+        val tpe = obj.fields.get("$type") match
+          case Some(SimpleJson.JsonValue.Str(s)) => s
+          case _                                 => typeMismatch("a $type discriminator", json)
+        val idx = labelsArr.indexOf(tpe)
+        if idx < 0 then throw new IllegalArgumentException(s"PropsCodec: unknown case '$tpe' for a sum type")
+        val payload = obj.fields.getOrElse("$value", SimpleJson.JsonValue.Null)
+        codecsArr(idx).decode(payload).asInstanceOf[A]
 
   private inline def summonLabels[T <: Tuple]: List[String] =
     inline erasedValue[T] match

@@ -505,7 +505,7 @@ object SpaEmitter:
         // fresh call like `value={Api.details(x)}` would create one Query for the
         // subscription and a different one for the body's `.state.value` read.
         val qVar = ctr.nextEl()
-        buf ++= s"${ indent }val $qVar = ${ valueExpr.code }\n"
+        buf ++= s"${ indent }val $qVar = _root_.meltkit.Query.awaited(${ valueExpr.code })\n"
         parentVar match
           case Some(p) => buf ++= s"${ indent }val $anchor = Hydrating.dynAnchor($p.asInstanceOf[dom.Element])\n"
           case None    => buf ++= s"""${ indent }val $anchor = dom.document.createComment("melt")\n"""
@@ -681,7 +681,7 @@ object SpaEmitter:
         buf ++= s"${ indent }${ expr.code }.apply($v)\n"
 
       case IrAttr.EventHandler(event, handler) =>
-        buf ++= s"""${ indent }$v.addEventListener("$event", ${ handler.code })\n"""
+        buf ++= s"""${ indent }Bind.on($v, "$event", ${ handler.code })\n"""
       case IrAttr.EventHandlerWithModifier(event, handler, mods) =>
         if mods.contains("preventDefault") then
           buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); (${ handler.code }).asInstanceOf[Any] }))\n"""
@@ -872,7 +872,7 @@ object SpaEmitter:
       case ps =>
         val types = ps.map(_.typeAnnotation.getOrElse("Any")).mkString(", ")
         val decls = ps.map(p => p.typeAnnotation.map(t => s"${ p.name }: $t").getOrElse(p.name)).mkString(", ")
-        (s"(($types)) => dom.Node", s"(($decls))")
+        (s"($types) => dom.Node", s"($decls)")
 
     buf ++= s"${ indent }val $name: $typeStr = $paramStr => {\n"
 
