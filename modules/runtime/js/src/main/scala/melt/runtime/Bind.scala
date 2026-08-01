@@ -85,6 +85,16 @@ object Bind:
   def on[E <: dom.Event](el: dom.EventTarget, event: String, handler: E => Any): Unit =
     el.addEventListener(event, handler)
 
+  def onModified[E <: dom.Event](el: dom.EventTarget, event: String, mods: Set[String], handler: E => Any): Unit =
+    el.addEventListener(
+      event,
+      (e: E) =>
+        if mods.contains("preventDefault") then e.preventDefault()
+        if mods.contains("stopPropagation") then e.stopPropagation()
+        if mods.contains("stopImmediatePropagation") then e.stopImmediatePropagation()
+        handler(e)
+    )
+
   /** Static attribute binding (fallback).
     * Boolean values set/remove the attribute and the DOM property for
     * properties like `checked`, `disabled`, `selected`.

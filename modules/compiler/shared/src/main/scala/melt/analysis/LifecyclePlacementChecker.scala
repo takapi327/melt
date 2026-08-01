@@ -8,8 +8,8 @@ package melt.analysis
 
 import scala.collection.mutable
 
-import melt.NodePositions
 import melt.ast.*
+import melt.NodePositions
 
 /** Warns when a lifecycle registration (`onMount` / `onCleanup` / `effect` /
   * `layoutEffect`) is written inside a reactive template region — a conditional,
@@ -42,7 +42,7 @@ object LifecyclePlacementChecker:
           s"Lifecycle call '${ m.group(1) }' is inside a reactive region (a conditional, list, " +
             "<melt:key>, or {#snippet}); it will register conditionally/repeatedly, not once at mount. " +
             "Move it to the top level of <script>."
-          -> span.absoluteLine(templateSource, templateStartLine)
+            -> span.absoluteLine(templateSource, templateStartLine)
         )
       }
 
@@ -52,15 +52,15 @@ object LifecyclePlacementChecker:
           if reactive then warnFor(code, node)
         case TemplateNode.InlineTemplate(parts) =>
           parts.foreach {
-            case InlineTemplatePart.Code(code) => warnFor(code, node)
+            case InlineTemplatePart.Code(code)  => warnFor(code, node)
             case InlineTemplatePart.Html(nodes) => nodes.foreach(visit(_, reactive = true))
           }
-        case TemplateNode.KeyBlock(_, children)      => children.foreach(visit(_, reactive = true))
-        case TemplateNode.SnippetDef(_, _, children) => children.foreach(visit(_, reactive = true))
-        case TemplateNode.Element(_, _, children)        => children.foreach(visit(_, reactive))
-        case TemplateNode.Component(_, _, children)      => children.foreach(visit(_, reactive))
-        case TemplateNode.Head(children)                 => children.foreach(visit(_, reactive))
-        case TemplateNode.DynamicElement(_, _, children) => children.foreach(visit(_, reactive))
+        case TemplateNode.KeyBlock(_, children)                  => children.foreach(visit(_, reactive = true))
+        case TemplateNode.SnippetDef(_, _, children)             => children.foreach(visit(_, reactive = true))
+        case TemplateNode.Element(_, _, children)                => children.foreach(visit(_, reactive))
+        case TemplateNode.Component(_, _, children)              => children.foreach(visit(_, reactive))
+        case TemplateNode.Head(children)                         => children.foreach(visit(_, reactive))
+        case TemplateNode.DynamicElement(_, _, children)         => children.foreach(visit(_, reactive))
         case TemplateNode.Boundary(_, children, pending, failed) =>
           children.foreach(visit(_, reactive))
           pending.foreach(_.children.foreach(visit(_, reactive)))

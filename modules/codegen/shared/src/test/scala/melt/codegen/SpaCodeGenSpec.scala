@@ -131,6 +131,20 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(code.contains("_root.appendChild"), code)
   }
 
+  test("single reactive root is attached to a wrapper, not dropped into a detached anchor") {
+    // A whole-template conditional must have its anchor parented (like the multi-root
+    // path) — otherwise the content binds to a detached comment and never appears.
+    val code = compile("<div>{if cond then <p>a</p> else <p>b</p>}</div>", name = "App")
+    // sanity: this is the reactive path
+    assert(code.contains("Bind.show("), code)
+    // put the whole template as a single reactive root
+    val rootCode = compile("{if cond then <p>a</p> else <p>b</p>}", name = "Root")
+    assert(rootCode.contains("Bind.show("), rootCode)
+    // the anchor must be parented (dynAnchor of a real element), NOT a detached createComment
+    assert(rootCode.contains("Hydrating.dynAnchor("), rootCode)
+    assert(!rootCode.contains("""dom.document.createComment("melt")"""), rootCode)
+  }
+
   // ── Expression nodes (reactive via Hydrating.text) ──────────────────────
 
   test("expression node emits Hydrating.text for reactive binding") {
@@ -273,6 +287,20 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(compile("<a ondragstart={h}>x</a>").contains("Bind.on[dom.DragEvent]("))
     // an event without a specific DOM type falls back to dom.Event
     assert(compile("<form onsubmit={h}></form>").contains("Bind.on[dom.Event]("))
+  }
+
+  test("colon-form event handler with a modifier calls the handler via Bind.onModified") {
+    val code = compile("""<button on:click|preventDefault={h}>x</button>""")
+    // handler must actually be passed (not discarded via asInstanceOf[Any])
+    assert(code.contains("""Bind.onModified[dom.MouseEvent](_el0, "click", Set("preventDefault"), h)"""), code)
+    assert(!code.contains("asInstanceOf[Any]"), code)
+  }
+
+  test("standard on*-form event handler with a modifier splits the event name and modifier") {
+    val code = compile("""<form onsubmit|preventDefault={h}></form>""")
+    // event name must be "submit", NOT "submit|preventDefault"
+    assert(code.contains("""Bind.onModified[dom.Event](_el0, "submit", Set("preventDefault"), h)"""), code)
+    assert(!code.contains("submit|preventDefault"), code)
   }
 
   // ── Component node (no-op in Phase 3) ─────────────────────────────────

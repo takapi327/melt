@@ -476,7 +476,10 @@ private[parser] final class TemplateParser(
       val rest            = name.substring(colon + 1)
       val (dirName, mods) = splitModifiers(rest)
       Attr.Directive(kind, dirName, Some(expr), mods)
-    else if name.startsWith("on") && name.length > 2 then Attr.EventHandler(name.substring(2), expr)
+    else if name.startsWith("on") && name.length > 2 then
+      val (event, mods) = splitModifiers(name.substring(2))
+      if mods.isEmpty then Attr.EventHandler(event, expr)
+      else Attr.Directive("on", event, Some(expr), mods)
     else Attr.Dynamic(name, expr)
 
   /** Splits `"fade|global|local"` into `("fade", Set("global", "local"))`. */

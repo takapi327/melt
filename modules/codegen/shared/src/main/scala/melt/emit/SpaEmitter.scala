@@ -138,11 +138,21 @@ object SpaEmitter:
         tracker.markSourceLine(ir.templateStartLine)
         tracker ++= "    val _result = dom.document.createElement(\"div\")\n"
       case single :: Nil =>
-        val v = emitNode(single, tracker, "    ", ctr, isRoot = true, parentVar = None, nodePos = nodePos)
-        if v.nonEmpty then tracker ++= s"    val _result = $v\n"
+        // Probe first: an anchor-based root (a whole-template conditional / list /
+        // <melt:key> / etc.) returns "" and would otherwise bind to a detached
+        // comment anchor, so its content never enters the DOM. Give it a parent by
+        // wrapping in _root, exactly like the multi-root path.
+        val probe    = new LineTracker
+        val probeVar = emitNode(single, probe, "    ", new Counter, isRoot = true, parentVar = None, nodePos = nodePos)
+        if probeVar.nonEmpty then
+          val v = emitNode(single, tracker, "    ", ctr, isRoot = true, parentVar = None, nodePos = nodePos)
+          tracker ++= s"    val _result = $v\n"
         else
           tracker.markSourceLine(ir.templateStartLine)
-          tracker ++= "    val _result = dom.document.createElement(\"div\")\n"
+          tracker ++= "    val _root = dom.document.createElement(\"div\")\n"
+          tracker ++= "    _root.classList.add(_scopeId)\n"
+          emitNode(single, tracker, "    ", ctr, isRoot = false, parentVar = Some("_root"), nodePos = nodePos)
+          tracker ++= "    val _result = _root\n"
       case multiple =>
         tracker.markSourceLine(ir.templateStartLine)
         tracker ++= "    val _root = dom.document.createElement(\"div\")\n"
@@ -683,10 +693,8 @@ object SpaEmitter:
       case IrAttr.EventHandler(event, handler) =>
         buf ++= s"""${ indent }Bind.on[${ domEventType(event) }]($v, "$event", ${ handler.code })\n"""
       case IrAttr.EventHandlerWithModifier(event, handler, mods) =>
-        if mods.contains("preventDefault") then
-          buf ++= s"""${ indent }$v.addEventListener("$event", ((e: dom.Event) => { e.preventDefault(); (${ handler.code }).asInstanceOf[Any] }))\n"""
-        else
-          buf ++= s"""${ indent }$v.addEventListener("$event", ((_: dom.Event) => (${ handler.code }).asInstanceOf[Any]))\n"""
+        val modSet = mods.toList.sorted.map(m => s"\"$m\"").mkString("Set(", ", ", ")")
+        buf ++= s"""${ indent }Bind.onModified[${ domEventType(event) }]($v, "$event", $modSet, ${ handler.code })\n"""
 
       case IrAttr.BindInputValue(expr) =>
         buf ++= s"${ indent }Bind.inputValue($v.asInstanceOf[dom.html.Input], ${ expr.code })\n"
