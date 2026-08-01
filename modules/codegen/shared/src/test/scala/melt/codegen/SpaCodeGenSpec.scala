@@ -2633,6 +2633,32 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!result.warnings.exists(_.message.contains("handles no error case")), result.warnings.toString)
   }
 
+  test("onMount inside a conditional region warns about placement") {
+    val src =
+      """<script lang="scala">
+        |import melt.runtime.State
+        |case class Props(x: Int = 0)
+        |val show = State(true)
+        |</script>
+        |<div>{if show.value then { onMount { println("m") }; <span>on</span> } else <span>off</span>}</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(
+      result.warnings.exists(w => w.message.contains("Lifecycle call") && w.message.contains("onMount")),
+      s"expected a lifecycle-placement warning, got: ${ result.warnings.map(_.message) }"
+    )
+  }
+
+  test("onMount at the top level of script does not warn about placement") {
+    val src =
+      """<script lang="scala">
+        |case class Props(x: Int = 0)
+        |onMount { println("m") }
+        |</script>
+        |<div>hi</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(!result.warnings.exists(_.message.contains("Lifecycle call")), result.warnings.toString)
+  }
+
   test("melt:await with a <melt:failed> block does not warn") {
     val src =
       """<melt:await value={posts}>
