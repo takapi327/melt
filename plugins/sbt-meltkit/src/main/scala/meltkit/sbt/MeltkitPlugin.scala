@@ -385,6 +385,11 @@ object MeltkitPlugin extends AutoPlugin:
           Def.task {
             val distDir = (clientProject / Compile / fastLinkJS / scalaJSLinkerOutputDirectory).value
             meltkitIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
+            val composed = melt.sbt.SourceMapComposer.composeDirectory(distDir)
+            if composed.nonEmpty then
+              streams.value.log.info(
+                s"[sbt-meltkit] composed .melt source maps in ${ composed.size } file(s)"
+              )
             val isNode = meltMode.value.contains(MeltMode.Node)
             generateAssetManifest(
               streams      = streams.value,
