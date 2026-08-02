@@ -21,14 +21,26 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     assertEquals(lines(2), "  def inc() = count.update(_ + 1)")
   }
 
-  test("script tag lines become blank in the virtual file") {
+  test("script tag lines carry the wrapping object braces (no line shift)") {
     val source = """|<script lang="scala">
                     |  val x = 1
                     |</script>""".stripMargin
-    val vf    = VirtualFileGenerator.generate(source)
+    val vf    = VirtualFileGenerator.generate(source, "Melt_abc123")
     val lines = vf.content.split("\n", -1).toVector
-    assertEquals(lines(0), "", "opening <script> tag line should be blank")
-    assertEquals(lines(2), "", "closing </script> tag line should be blank")
+    assertEquals(lines(0), "object Melt_abc123 {", "opening tag line wraps the script object")
+    assertEquals(lines(1), "  val x = 1", "body line is unchanged")
+    assertEquals(lines(2), "}", "closing tag line closes the script object")
+  }
+
+  test("distinct object names isolate virtual files for same-basename documents") {
+    val source = """|<script lang="scala">
+                    |  val x = 1
+                    |</script>""".stripMargin
+    val a = VirtualFileGenerator.generate(source, "Melt_aaa").content
+    val b = VirtualFileGenerator.generate(source, "Melt_bbb").content
+    assert(a.contains("object Melt_aaa {"), a)
+    assert(b.contains("object Melt_bbb {"), b)
+    assertNotEquals(a, b)
   }
 
   test("template lines become blank in the virtual file") {
@@ -209,7 +221,7 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     val vf    = VirtualFileGenerator.generate(source)
     val lines = vf.content.split("\n", -1).toVector
     assertEquals(lines(1), "  val total = State(0)")
-    assertEquals(lines(0), "") // tag line is blank
+    assertEquals(lines(0), "object MeltVirtual {") // tag line wraps the script object
   }
 
   test("mapper.moduleScriptRange is set for module script body lines") {

@@ -45,6 +45,18 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   @volatile private var workspaceRoot: Option[java.nio.file.Path] = None
   private val metals:                  MetalsBridge               = MetalsBridge()
 
+  /** Bounded pool for LSP request handlers (hover/completion/definition) so a slow
+    * Metals call runs off the message-loop thread and never head-of-line-blocks
+    * unrelated requests. */
+  private val requestExecutor: java.util.concurrent.ExecutorService =
+    java.util.concurrent.Executors.newFixedThreadPool(
+      math.max(2, Runtime.getRuntime.availableProcessors - 1),
+      (r: Runnable) =>
+        val t = Thread(r, "melt-lsp-request")
+        t.setDaemon(true)
+        t
+    )
+
   /** In-memory index of importable files (path → CompletionItem).
     * Built once in [[initialized]] and kept up-to-date via [[didChangeWatchedFiles]].
     */
@@ -76,7 +88,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       )
 
     // Start Metals in the background so initialize() returns immediately.
-    Future(metals.startIfAvailable()).failed
+    Future(metals.startIfAvailable(workspaceRoot)).failed
       .foreach(e => System.err.println(s"[melt-lsp] Metals startup error: $e"))
 
     // Use TextDocumentSyncOptions (not the bare enum) so that the `save` capability
@@ -132,6 +144,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   override def shutdown(): CompletableFuture[Object] =
     metals.shutdown()
+    requestExecutor.shutdownNow()
     CompletableFuture.completedFuture(null.asInstanceOf[Object])
 
   override def exit(): Unit = System.exit(0)
@@ -169,20 +182,38 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     Future(blocking(fullValidate(uri, text))).failed
       .foreach(e => System.err.println(s"[melt-lsp] fullValidate error for $uri: $e"))
 
-  /** Returns a hover tooltip describing the section the cursor is in. */
+  /** Returns a hover tooltip for the cursor position.
+    *
+    * For the Scala script sections the request is delegated to [[MetalsBridge]] so
+    * real type/signature/doc information is shown; when Metals is unavailable or has
+    * nothing under the cursor, it falls back to a section label. Template/style/unknown
+    * sections always use the section label.
+    */
   override def hover(params: HoverParams): CompletableFuture[Hover] =
+    CompletableFuture.supplyAsync(() => computeHover(params), requestExecutor)
+
+  private def computeHover(params: HoverParams): Hover =
     val uri     = params.getTextDocument.getUri
     val content = documents.getOrElse(uri, "")
-    val vf      = VirtualFileGenerator.generate(content)
+    val vf      = VirtualFileGenerator.generate(content, MeltVirtualId.objectName(uri))
     val line    = params.getPosition.getLine
-    val message = vf.mapper.sectionAt(line) match
+    val char    = params.getPosition.getCharacter
+    val section = vf.mapper.sectionAt(line)
+
+    section match
+      case MeltSection.Script | MeltSection.ModuleScript =>
+        metals.hoverForScript(uri, vf, line, char).getOrElse(sectionHover(section))
+      case other => sectionHover(other)
+
+  /** Builds the fallback hover describing which section the cursor is in. */
+  private def sectionHover(section: MeltSection): Hover =
+    val message = section match
       case MeltSection.Script       => "**Scala script** — type-checked by Metals"
       case MeltSection.ModuleScript => "**Scala module script** — shared across all instances, type-checked by Metals"
       case MeltSection.Style        => "**CSS style** — scoped to this component"
       case MeltSection.Template     => "**HTML template** — compiled to reactive DOM bindings"
       case MeltSection.Unknown      => "**Melt component**"
-    val markup = MarkupContent(MarkupKind.MARKDOWN, message)
-    CompletableFuture.completedFuture(Hover(markup))
+    Hover(MarkupContent(MarkupKind.MARKDOWN, message))
 
   /** Returns completions for the cursor position.
     *
@@ -195,9 +226,14 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def completion(
     params: CompletionParams
   ): CompletableFuture[JEither[java.util.List[CompletionItem], CompletionList]] =
+    CompletableFuture.supplyAsync(() => computeCompletion(params), requestExecutor)
+
+  private def computeCompletion(
+    params: CompletionParams
+  ): JEither[java.util.List[CompletionItem], CompletionList] =
     val uri     = params.getTextDocument.getUri
     val content = documents.getOrElse(uri, "")
-    val vf      = VirtualFileGenerator.generate(content)
+    val vf      = VirtualFileGenerator.generate(content, MeltVirtualId.objectName(uri))
     val line    = params.getPosition.getLine
     val char    = params.getPosition.getCharacter
     val section = vf.mapper.sectionAt(line)
@@ -214,7 +250,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
           .getOrElse(Nil)
       else Nil
 
-    if importPathItems.nonEmpty then CompletableFuture.completedFuture(JEither.forLeft(importPathItems.asJava))
+    if importPathItems.nonEmpty then JEither.forLeft(importPathItems.asJava)
     else
       val meltItems   = MeltCompletionProvider.completionsFor(section)
       val metalsItems =
@@ -222,7 +258,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
           metals.completionsForScript(uri, vf, line, char)
         else Nil
 
-      CompletableFuture.completedFuture(JEither.forLeft((metalsItems ++ meltItems).asJava))
+      JEither.forLeft((metalsItems ++ meltItems).asJava)
 
   /** Returns the definition location for the symbol under the cursor.
     *
@@ -234,9 +270,14 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def definition(
     params: DefinitionParams
   ): CompletableFuture[JEither[java.util.List[? <: Location], java.util.List[? <: LocationLink]]] =
+    CompletableFuture.supplyAsync(() => computeDefinition(params), requestExecutor)
+
+  private def computeDefinition(
+    params: DefinitionParams
+  ): JEither[java.util.List[? <: Location], java.util.List[? <: LocationLink]] =
     val uri     = params.getTextDocument.getUri
     val content = documents.getOrElse(uri, "")
-    val vf      = VirtualFileGenerator.generate(content)
+    val vf      = VirtualFileGenerator.generate(content, MeltVirtualId.objectName(uri))
     val line    = params.getPosition.getLine
     val char    = params.getPosition.getCharacter
     val section = vf.mapper.sectionAt(line)
@@ -249,9 +290,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       case _ =>
         Nil
 
-    CompletableFuture.completedFuture(
-      JEither.forLeft(locations.asJava)
-    )
+    JEither.forLeft(locations.asJava)
 
   // ── WorkspaceService ──────────────────────────────────────────────────────
 
@@ -303,7 +342,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
       val metalsDiags: List[Diagnostic] =
         if result.errors.nonEmpty then Nil
         else
-          val vf = VirtualFileGenerator.generate(content)
+          val vf = VirtualFileGenerator.generate(content, MeltVirtualId.objectName(uri))
           metals.diagnosticsForScript(uri, vf)
 
       // Re-check before publishing: diagnosticsForScript may block for up to 30 s,

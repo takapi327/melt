@@ -51,20 +51,30 @@ object VirtualFileGenerator:
   private val ModuleAttrRe   = """\smodule(?=\s|>|/)""".r
   private val StringImportRe = """^\s*import\s+"[^"]+"\s*$""".r
 
-  /** Generates a [[VirtualFile]] from a raw .melt source string. */
-  def generate(meltSource: String): VirtualFile =
+  /** Generates a [[VirtualFile]] from a raw .melt source string.
+    *
+    * The script body is wrapped in `object <objectName> { … }` so that virtual
+    * files for different `.melt` documents — all compiled together in one Bloop
+    * source set — do not collide on top-level names. The braces reuse the already
+    * blank `<script>`/`</script>` tag lines, so no body line moves and the .melt ↔
+    * virtual position mapping stays the identity. `objectName` must be unique per
+    * document (see [[MeltVirtualId.objectName]]).
+    */
+  def generate(meltSource: String, objectName: String = "MeltVirtual"): VirtualFile =
     val lines = meltSource.split("\n", -1).toVector
 
     val moduleScriptBounds   = findSection(lines, isModuleScriptOpen, "</script>")
     val instanceScriptBounds = findSection(lines, isInstanceScriptOpen, "</script>")
     val styleBounds          = findSection(lines, isStyleOpen, "</style>")
 
-    val virtualLines = lines.zipWithIndex.map { (line, idx) =>
+    val scriptBodyLines = lines.zipWithIndex.map { (line, idx) =>
       val inScriptBody =
         moduleScriptBounds.exists { case (open, close) => idx > open && idx < close } ||
           instanceScriptBounds.exists { case (open, close) => idx > open && idx < close }
       if inScriptBody && !StringImportRe.matches(line) then line else ""
     }
+
+    val virtualLines = wrapInObject(scriptBodyLines, moduleScriptBounds, instanceScriptBounds, objectName)
 
     val moduleScriptRange = moduleScriptBounds
       .map { case (open, close) => LineRange(open + 1, close - 1) }
@@ -82,6 +92,26 @@ object VirtualFileGenerator:
       content = virtualLines.mkString("\n"),
       mapper  = PositionMapper(scriptRange, styleRange, moduleScriptRange)
     )
+
+  /** Places `object <name> {` on the first script section's (blank) open-tag line and
+    * `}` on the last section's (blank) close-tag line, enclosing every script body
+    * without shifting any line. Returns the input unchanged when there is no script. */
+  private def wrapInObject(
+    lines:          Vector[String],
+    moduleBounds:   Option[(Int, Int)],
+    instanceBounds: Option[(Int, Int)],
+    objectName:     String
+  ): Vector[String] =
+    val bounds = List(moduleBounds, instanceBounds).flatten
+    if bounds.isEmpty then lines
+    else
+      val minOpen  = bounds.map(_._1).min
+      val maxClose = bounds.map(_._2).max
+      lines.zipWithIndex.map { (line, idx) =>
+        if idx == minOpen then s"object $objectName {"
+        else if idx == maxClose then "}"
+        else line
+      }
 
   private def isScriptOpen(line: String): Boolean =
     line.trim.startsWith("<script") && ScalaLangRe.findFirstIn(line).isDefined

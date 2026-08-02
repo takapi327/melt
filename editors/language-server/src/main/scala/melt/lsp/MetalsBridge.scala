@@ -62,14 +62,34 @@ import org.eclipse.lsp4j.services.*
   */
 class MetalsBridge:
 
-  private val workspaceDir: Path = Files.createTempDirectory("melt-lsp-workspace-")
-  private val srcDir:       Path = workspaceDir.resolve("src")
-  private val bloopDir:     Path = workspaceDir.resolve(".bloop")
+  private[lsp] val workspaceDir: Path = Files.createTempDirectory("melt-lsp-workspace-")
+  private val srcDir:            Path = workspaceDir.resolve("src")
+  private val bloopDir:          Path = workspaceDir.resolve(".bloop")
 
-  private var metalsProcess:   Option[Process]               = None
-  private var metalsServer:    Option[LanguageServer]        = None
-  private var listenerFuture:  Option[Future[Void]]          = None
-  private var capturingClient: Option[CapturingMetalsClient] = None
+  // Backstop: remove the temp workspace on JVM exit in case shutdown() is never
+  // called (e.g. the editor kills the process). Removed in shutdown() to avoid
+  // accumulating hooks when the bridge is shut down normally.
+  private val cleanupHook: Thread = Thread(() =>
+    deleteRecursively(workspaceDir); ()
+  )
+  Runtime.getRuntime.addShutdownHook(cleanupHook)
+
+  // These are written from the `initialize` background future (tryStart) and from
+  // shutdown(), and read from completion/definition/hover/diagnostics request
+  // threads. @volatile provides the happens-before edge so a request thread never
+  // observes a torn or stale view.
+  @volatile private var metalsProcess:   Option[Process]               = None
+  @volatile private var metalsServer:    Option[LanguageServer]        = None
+  @volatile private var listenerFuture:  Option[Future[Void]]          = None
+  @volatile private var capturingClient: Option[CapturingMetalsClient] = None
+
+  /** The user's project root, used to recover a real classpath / Scala version
+    * for the synthetic Bloop project (see [[createWorkspaceStructure]]). */
+  @volatile private var userWorkspaceRoot: Option[Path] = None
+
+  /** Fallback Scala version used only when neither the project's Bloop json files
+    * nor its output directories reveal one. */
+  private val FallbackScalaVersion = "3.3.4"
 
   /** Persistent open virtual docs: meltUri → (virtualUri, documentVersion). */
   private val openDocs = ConcurrentHashMap[String, (String, Int)]()
@@ -84,9 +104,12 @@ class MetalsBridge:
 
   /** Attempts to find and start a `metals` binary.
     *
+    * @param userRoot the user's project root, used to reuse its resolved classpath
+    *                 and Scala version for the synthetic Bloop project
     * @return true if Metals was found and successfully initialised
     */
-  def startIfAvailable(): Boolean =
+  def startIfAvailable(userRoot: Option[Path] = None): Boolean =
+    userWorkspaceRoot = userRoot
     metalsServer.isDefined || findMetalsCommand().exists(tryStart)
 
   /** Removes the virtual doc entry for a closed .melt file.
@@ -117,6 +140,18 @@ class MetalsBridge:
     metalsProcess   = None
     listenerFuture  = None
     capturingClient = None
+    // Remove the temp workspace so `melt-lsp-workspace-*` dirs don't accumulate.
+    Try { deleteRecursively(workspaceDir) }
+    // The dir is gone; drop the JVM-exit backstop so hooks don't accumulate.
+    Try { Runtime.getRuntime.removeShutdownHook(cleanupHook) }
+
+  /** Recursively deletes a directory tree, best-effort (ignores individual failures). */
+  private def deleteRecursively(path: Path): Unit =
+    if Files.isDirectory(path) then
+      val stream = Files.list(path)
+      try stream.iterator().asScala.foreach(deleteRecursively)
+      finally stream.close()
+    Try(Files.deleteIfExists(path))
 
   // ── Completions ───────────────────────────────────────────────────────────
 
@@ -180,6 +215,41 @@ class MetalsBridge:
         else loc
       }
     }.getOrElse(Nil)
+
+  // ── Hover ─────────────────────────────────────────────────────────────────
+
+  /** Requests hover information (type, signature, docs) from Metals for the Scala
+    * script section.
+    *
+    * The hover range, when present, is in virtual .scala coordinates which — thanks
+    * to the identity line mapping — are the same as the .melt coordinates, so it can
+    * be returned unchanged.
+    *
+    * @param meltUri   file URI of the .melt document
+    * @param vf        [[VirtualFile]] generated from the current .melt source
+    * @param line      0-based line in the .melt file where the cursor is
+    * @param character 0-based character offset
+    * @return the Metals hover, or None when Metals is unavailable or has nothing to show
+    */
+  def hoverForScript(
+    meltUri:   String,
+    vf:        VirtualFile,
+    line:      Int,
+    character: Int
+  ): Option[Hover] =
+    withSyncedDoc(meltUri, vf) { (server, virtualUri) =>
+      val (vLine, vChar) = vf.mapper.meltToVirtual(line, character)
+      val params         = HoverParams(TextDocumentIdentifier(virtualUri), Position(vLine, vChar))
+      Option(server.getTextDocumentService.hover(params).get(10, TimeUnit.SECONDS))
+    }.flatten.filter(hoverHasContent)
+
+  /** True when a hover actually carries text (Metals returns a null/empty hover when
+    * there is nothing under the cursor). */
+  private def hoverHasContent(h: Hover): Boolean =
+    Option(h.getContents).exists { contents =>
+      if contents.isRight then Option(contents.getRight).exists(m => Option(m.getValue).exists(_.trim.nonEmpty))
+      else Option(contents.getLeft).exists(!_.isEmpty)
+    }
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
@@ -329,26 +399,36 @@ class MetalsBridge:
     )
     candidates.find { cmd =>
       Try {
-        ProcessBuilder(cmd, "--version")
-          .redirectErrorStream(true)
-          .start()
-          .waitFor(5, TimeUnit.SECONDS)
-        true
+        val process = ProcessBuilder(cmd, "--version").redirectErrorStream(true).start()
+        if process.waitFor(5, TimeUnit.SECONDS) then process.exitValue() == 0
+        else
+          // Timed out: destroy the probe so it does not leak, and reject this candidate.
+          process.destroyForcibly()
+          false
       }.getOrElse(false)
     }
 
-  /** Maps a .melt file URI to the corresponding virtual .scala URI in the temp workspace. */
+  /** Maps a .melt file URI to the corresponding virtual .scala URI in the temp
+    * workspace. The filename includes a hash of the full URI so two `.melt` files
+    * that share a basename map to distinct virtual files (see [[MeltVirtualId]]). */
   private def toVirtualUri(meltUri: String): String =
-    val basename = meltUri.replaceAll(".*[/\\\\]", "").stripSuffix(".melt")
-    srcDir.resolve(s"$basename.scala").toUri.toString
+    srcDir.resolve(s"${ MeltVirtualId.fileBaseName(meltUri) }.scala").toUri.toString
 
   private def createWorkspaceStructure(): Unit =
     Files.createDirectories(srcDir)
     Files.createDirectories(bloopDir)
     val javaHome = System.getProperty("java.home")
-    // Minimal Bloop config: Metals needs a project definition to start managing
-    // the workspace. The classpath is intentionally left empty here — Metals
-    // will use Coursier to resolve the Scala standard library on first use.
+
+    // Reuse the user project's already-resolved Bloop classpath + Scala version so
+    // Metals can type-check `melt.runtime.*` and the project's own dependencies.
+    // Without this the synthetic project has an empty classpath, and Metals reports
+    // "Not found" for essentially every real symbol.
+    val resolved =
+      userWorkspaceRoot.map(BloopClasspathResolver.resolve).getOrElse(BloopClasspathResolver.Resolved(Nil, None))
+    val scalaVersion  = resolved.scalaVersion.getOrElse(FallbackScalaVersion)
+    val classpathJson =
+      resolved.classpath.map(entry => "\"" + esc(entry) + "\"").mkString(", ")
+
     val bloopConfig =
       s"""|{
           |  "version": "1.4.0",
@@ -358,13 +438,13 @@ class MetalsBridge:
           |    "workspaceDir": "${ esc(workspaceDir.toString) }",
           |    "sources": ["${ esc(srcDir.toString) }"],
           |    "dependencies": [],
-          |    "classpath": [],
+          |    "classpath": [$classpathJson],
           |    "out": "${ esc(workspaceDir.resolve("out").toString) }",
           |    "classesDir": "${ esc(workspaceDir.resolve("out/classes").toString) }",
           |    "scala": {
           |      "organization": "org.scala-lang",
           |      "name": "scala3-compiler_3",
-          |      "version": "3.6.4",
+          |      "version": "$scalaVersion",
           |      "options": [],
           |      "jars": [],
           |      "analysis": "${ esc(workspaceDir.resolve("out/analysis.bin").toString) }",
