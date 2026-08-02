@@ -24,9 +24,11 @@ import melt.ast.*
   *   - a bindable control with '''no''' `name` at all — nothing to bind (add a
   *     `name`, or `data-form-ignore` to opt out).
   *
-  * Reactive regions (`{items.map(i => <input …>)}`) are not descended into: their
-  * inputs live inside a `ScalaExpr`, are never auto-bound, and use the hand-written
-  * spread — so flagging them would be a false positive.
+  * Reactive regions (`{if …}`, `{items.map(i => <input …>)}`) ARE descended into,
+  * but only a '''static''' `name` there is flagged: those controls are never
+  * auto-bound, so a plain `name="…"` reads as an auto-bind attempt that silently
+  * does nothing. A control correctly using the `{...form.field("…")}` spread has no
+  * static `name`, so it is not flagged — avoiding false positives.
   */
 object FormBindingChecker:
 
@@ -37,16 +39,17 @@ object FormBindingChecker:
     val w         = mutable.ListBuffer.empty[(String, Int)]
     val lineIndex = buildLineIndex(source)
     val tagCount  = mutable.Map.empty[String, Int]
-    ast.template.foreach(walk(_, insideForm = false, w, source, lineIndex, tagCount))
+    ast.template.foreach(walk(_, insideForm = false, insideReactive = false, w, source, lineIndex, tagCount))
     w.toList
 
   private def walk(
-    node:       TemplateNode,
-    insideForm: Boolean,
-    w:          mutable.ListBuffer[(String, Int)],
-    source:     String,
-    lineIndex:  Array[Int],
-    tagCount:   mutable.Map[String, Int]
+    node:           TemplateNode,
+    insideForm:     Boolean,
+    insideReactive: Boolean,
+    w:              mutable.ListBuffer[(String, Int)],
+    source:         String,
+    lineIndex:      Array[Int],
+    tagCount:       mutable.Map[String, Int]
   ): Unit =
     node match
       case TemplateNode.Element(tag, attrs, children) =>
@@ -68,23 +71,33 @@ object FormBindingChecker:
               line
             ))
 
-        if insideForm then checkControl(tag, attrs, line, w)
+        if insideForm then checkControl(tag, attrs, insideReactive, line, w)
 
-        children.foreach(walk(_, insideForm || declares, w, source, lineIndex, tagCount))
+        children.foreach(walk(_, insideForm || declares, insideReactive, w, source, lineIndex, tagCount))
 
       // A component's slot children are still under the form scope (the pass injects
       // into them); its internal template is opaque and not visible here.
       case TemplateNode.Component(_, _, children) =>
-        children.foreach(walk(_, insideForm, w, source, lineIndex, tagCount))
+        children.foreach(walk(_, insideForm, insideReactive, w, source, lineIndex, tagCount))
 
-      case _ => () // Text / Expression / InlineTemplate (reactive) — not auto-bound
+      // Reactive region (`{if …}`, `{items.map(…)}`): its controls are NOT auto-bound.
+      // Descend so a static `name` (which reads as an auto-bind attempt) can be flagged.
+      case TemplateNode.InlineTemplate(parts) =>
+        parts.foreach {
+          case InlineTemplatePart.Html(nodes) =>
+            nodes.foreach(walk(_, insideForm, insideReactive = true, w, source, lineIndex, tagCount))
+          case InlineTemplatePart.Code(_) => ()
+        }
+
+      case _ => () // Text / Expression — nothing to bind
 
   /** Warns when a bindable control under `use:form` cannot be auto-bound. */
   private def checkControl(
-    tag:   String,
-    attrs: List[Attr],
-    line:  => Int,
-    w:     mutable.ListBuffer[(String, Int)]
+    tag:            String,
+    attrs:          List[Attr],
+    insideReactive: Boolean,
+    line:           => Int,
+    w:              mutable.ListBuffer[(String, Int)]
   ): Unit =
     val bindable = tag match
       case "input"               => !nonBindableInputTypes.contains(inputType(attrs))
@@ -92,7 +105,18 @@ object FormBindingChecker:
       case _                     => false // <option> binds by value via its parent; buttons never bind
 
     if bindable && !hasIgnore(attrs) then
-      if hasDynamicName(attrs) then
+      if insideReactive then
+        // Auto-binding only happens for controls directly under the form; a static
+        // `name` inside a reactive region silently binds to nothing. A control that
+        // correctly uses the spread has no static name, so it is not flagged.
+        staticName(attrs).filter(_ => !hasSpread(attrs)).foreach { nm =>
+          w += ((
+            s"""<$tag name="$nm"> inside a reactive region ({if …}/{…map…}) under use:form is not auto-bound — """ +
+              s"""use the {...form.field("$nm")} spread instead, or data-form-ignore to opt out""",
+            line
+          ))
+        }
+      else if hasDynamicName(attrs) then
         w += ((
           s"<$tag> under use:form has a dynamic name={…}, which cannot be type-checked against the form model — " +
             "use the hand-written {...form.field(\"…\")} spread, or data-form-ignore to opt out",
@@ -130,6 +154,15 @@ object FormBindingChecker:
     attrs.exists {
       case Attr.Static("name", _) => true
       case _                      => false
+    }
+
+  private def staticName(attrs: List[Attr]): Option[String] =
+    attrs.collectFirst { case Attr.Static("name", v) => v }
+
+  private def hasSpread(attrs: List[Attr]): Boolean =
+    attrs.exists {
+      case Attr.Spread(_) => true
+      case _              => false
     }
 
   private def hasDynamicName(attrs: List[Attr]): Boolean =

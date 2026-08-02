@@ -64,6 +64,27 @@ class FormBindingCheckerSpec extends munit.FunSuite:
     assert(w.exists(_.contains("no form to bind")), w.toString)
   }
 
+  test("static-named control inside a reactive region under use:form warns it is not auto-bound") {
+    val w = warnings(
+      """<form use:form={form}>{if show then <input name="email"/> else <span></span>}</form>"""
+    )
+    assert(w.exists(m => m.contains("not auto-bound") && m.contains("form.field")), w.toString)
+  }
+
+  test("static-named control inside a .map region under use:form warns it is not auto-bound") {
+    val w = warnings(
+      """<form use:form={form}>{items.map(i => <input name="email"/>)}</form>"""
+    )
+    assert(w.exists(m => m.contains("not auto-bound")), w.toString)
+  }
+
+  test("a control using the form spread inside a reactive region does not warn") {
+    val w = warnings(
+      """<form use:form={form}>{if show then <input {...form.field("email")}/> else <span></span>}</form>"""
+    )
+    assert(!w.exists(m => m.contains("not auto-bound")), w.toString)
+  }
+
   test("select and textarea without a name warn under use:form") {
     val sel = warnings("""<form use:form={form}><select></select></form>""")
     assert(sel.exists(_.contains("no name")), sel.toString)
