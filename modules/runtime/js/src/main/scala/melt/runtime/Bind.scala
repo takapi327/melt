@@ -1020,42 +1020,10 @@ object Bind:
     anchor:   dom.Node
   ): Unit =
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
-
-    def rebuild(items: Iterable[A]): Unit =
-      val parent = anchor.parentNode
-      // Snapshot positions of animate-marked elements before mutation
-      val animEls = nodeMap.values.collect {
-        case el: dom.Element if isAnimateMarked(el) => el
-      }
-      val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
-      val newKeys = items.map(keyFn).toSet
-      val oldKeys = nodeMap.keySet.toSet
-      // Remove nodes whose keys no longer exist; destroy their subscriptions too
-      (oldKeys -- newKeys).foreach { k =>
-        nodeMap.get(k).foreach { n =>
-          parent.removeChild(n)
-          n match
-            case el: dom.Element => Lifecycle.destroyTree(el)
-            case _               =>
-        }
-        nodeMap -= k
-      }
-      // Add/reorder
-      val newMap = mutable.LinkedHashMap.empty[K, dom.Node]
-      items.foreach { item =>
-        val k    = keyFn(item)
-        val node = nodeMap.getOrElse(k, renderFn(item))
-        parent.insertBefore(node, anchor)
-        newMap(k) = node
-      }
-      nodeMap = newMap
-      // Play animations on surviving animate-marked elements
-      if before.nonEmpty then
-        val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
-        playAnimations(survivors, before)
-
-    rebuild(source.value)
-    val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
+    nodeMap = reconcileKeyed(source.value, keyFn, renderFn, anchor, nodeMap)
+    val cancel = source.subscribe(items =>
+      nodeMap = reconcileKeyed(items.asInstanceOf[Iterable[A]], keyFn, renderFn, anchor, nodeMap)
+    )
     Cleanup.register(cancel)
 
   def each[A, K](
@@ -1065,40 +1033,101 @@ object Bind:
     anchor:   dom.Node
   ): Unit =
     var nodeMap = mutable.LinkedHashMap.empty[K, dom.Node]
-
-    def rebuild(items: Iterable[A]): Unit =
-      val parent  = anchor.parentNode
-      val animEls = nodeMap.values.collect {
-        case el: dom.Element if isAnimateMarked(el) => el
-      }
-      val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
-      val newKeys = items.map(keyFn).toSet
-      val oldKeys = nodeMap.keySet.toSet
-      // Remove nodes whose keys no longer exist; destroy their subscriptions too
-      (oldKeys -- newKeys).foreach { k =>
-        nodeMap.get(k).foreach { n =>
-          parent.removeChild(n)
-          n match
-            case el: dom.Element => Lifecycle.destroyTree(el)
-            case _               =>
-        }
-        nodeMap -= k
-      }
-      val newMap = mutable.LinkedHashMap.empty[K, dom.Node]
-      items.foreach { item =>
-        val k    = keyFn(item)
-        val node = nodeMap.getOrElse(k, renderFn(item))
-        parent.insertBefore(node, anchor)
-        newMap(k) = node
-      }
-      nodeMap = newMap
-      if before.nonEmpty then
-        val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
-        playAnimations(survivors, before)
-
-    rebuild(source.value)
-    val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
+    nodeMap = reconcileKeyed(source.value, keyFn, renderFn, anchor, nodeMap)
+    val cancel = source.subscribe(items =>
+      nodeMap = reconcileKeyed(items.asInstanceOf[Iterable[A]], keyFn, renderFn, anchor, nodeMap)
+    )
     Cleanup.register(cancel)
+
+  /** Keyed reconciliation with minimal DOM moves. Reuses each node by key, removes
+    * nodes whose keys vanished, and — crucially — only moves the nodes that are NOT
+    * part of the longest increasing subsequence of the reused nodes' old positions
+    * (the LIS nodes are already in the correct relative order, so they stay put).
+    * Returns the new key→node order. */
+  private def reconcileKeyed[A, K](
+    items:    Iterable[A],
+    keyFn:    A => K,
+    renderFn: A => dom.Node,
+    anchor:   dom.Node,
+    nodeMap:  mutable.LinkedHashMap[K, dom.Node]
+  ): mutable.LinkedHashMap[K, dom.Node] =
+    val parent  = anchor.parentNode
+    val animEls = nodeMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
+    val before  = if animEls.nonEmpty then AnimateEngine.snapshot(animEls) else Map.empty
+
+    val itemList   = items.iterator.toVector
+    val newKeys    = itemList.map(keyFn)
+    val newKeySet  = newKeys.toSet
+    val oldOrder   = nodeMap.keys.toVector
+    val oldIndexOf = oldOrder.iterator.zipWithIndex.toMap
+
+    // Remove nodes whose keys no longer exist; destroy their subscriptions too.
+    oldOrder.foreach { k =>
+      if !newKeySet.contains(k) then
+        nodeMap.get(k).foreach { n => parent.removeChild(n); destroyNode(n) }
+        nodeMap -= k
+    }
+
+    // Resolve each new position to a (reused or freshly rendered) node and its old index.
+    val n         = itemList.length
+    val newNodes  = mutable.ArrayBuffer.empty[dom.Node]
+    val oldIdxBuf = mutable.ArrayBuffer.empty[Int]
+    var i         = 0
+    while i < n do
+      nodeMap.get(newKeys(i)) match
+        case Some(node) => newNodes += node; oldIdxBuf += oldIndexOf(newKeys(i))
+        case None       => newNodes += renderFn(itemList(i)); oldIdxBuf += -1
+      i += 1
+
+    // Nodes on the LIS are already in the right relative order — leave them; move the rest.
+    val stable = lisIndices(oldIdxBuf.toArray, -1)
+    var nextRef: dom.Node = anchor
+    var j = n - 1
+    while j >= 0 do
+      val node = newNodes(j)
+      if !stable.contains(j) then parent.insertBefore(node, nextRef)
+      nextRef = node
+      j -= 1
+
+    val newMap = mutable.LinkedHashMap.empty[K, dom.Node]
+    i = 0
+    while i < n do
+      newMap(newKeys(i)) = newNodes(i)
+      i += 1
+
+    if before.nonEmpty then
+      val survivors = newMap.values.collect { case el: dom.Element if isAnimateMarked(el) => el }
+      playAnimations(survivors, before)
+
+    newMap
+
+  /** Indices (into `arr`) that form a longest strictly-increasing subsequence,
+    * ignoring entries equal to `newMarker`. O(n log n) patience sorting with
+    * predecessor links for reconstruction. Used to minimise keyed-list DOM moves. */
+  private[runtime] def lisIndices(arr: Array[Int], newMarker: Int): Set[Int] =
+    val n     = arr.length
+    val tails =
+      mutable.ArrayBuffer.empty[Int] // tails(k) = arr-index of the smallest tail of an incr. subseq of length k+1
+    val prev = Array.fill(n)(-1)
+    var i    = 0
+    while i < n do
+      val v = arr(i)
+      if v != newMarker then
+        var lo = 0
+        var hi = tails.length
+        while lo < hi do
+          val mid = (lo + hi) >>> 1
+          if arr(tails(mid)) < v then lo = mid + 1 else hi = mid
+        if lo > 0 then prev(i)                               = tails(lo - 1)
+        if lo == tails.length then tails += i else tails(lo) = i
+      i += 1
+    val result = mutable.HashSet.empty[Int]
+    if tails.nonEmpty then
+      var idx = tails(tails.length - 1)
+      while idx != -1 do
+        result += idx
+        idx = prev(idx)
+    result.toSet
 
   /** Returns `true` if the element has an animate function stored (`_meltAnimateFn`). */
   private def isAnimateMarked(el: dom.Element): Boolean =
