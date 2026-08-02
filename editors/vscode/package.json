@@ -46,6 +46,18 @@
         }
       }
     ],
+    "commands": [
+      {
+        "command": "melt.restartServer",
+        "title": "Restart Server",
+        "category": "Melt"
+      },
+      {
+        "command": "melt.showOutput",
+        "title": "Show Server Output",
+        "category": "Melt"
+      }
+    ],
     "configuration": {
       "title": "Melt",
       "properties": {
@@ -53,6 +65,11 @@
           "type": "string",
           "default": "",
           "description": "Path to melt-language-server JAR. Leave empty to use the bundled server."
+        },
+        "melt.server.java": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Java executable used to run the language server. Leave empty to use $JAVA_HOME/bin/java, then `java` on PATH."
         },
         "melt.server.javaArgs": {
           "type": "array",
