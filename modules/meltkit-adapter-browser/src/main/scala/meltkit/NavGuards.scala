@@ -19,7 +19,7 @@ object NavGuards:
 
   /** Registers a guard; returns a function that unregisters it. */
   def register(guard: (String, String) => Boolean): () => Unit =
-    guards = guards :+ guard
+    guards       = guards :+ guard
     () => guards = guards.filterNot(_ eq guard)
 
   /** True iff every registered guard permits navigating from `from` to `to`. */
