@@ -40,6 +40,71 @@ class ContextSpec extends munit.FunSuite:
     assertEquals(ctx.inject(), "default")
   }
 
+  test("sibling providers do not leak across owner subtrees") {
+    val ctx = Context.create("default")
+    var nodeA: OwnerNode = null
+    var nodeB: OwnerNode = null
+    Owner.withNew {
+      val (_, a) = Owner.withNew { ctx.provide("A") }
+      val (_, b) = Owner.withNew { ctx.provide("B") }
+      nodeA = a
+      nodeB = b
+    }
+    // Both subtrees are alive. Each must see its own provider, not whoever
+    // pushed last (the failure mode of a global temporal stack).
+    assertEquals(Owner.withOwner(nodeA)(ctx.inject()), Some("A"))
+    assertEquals(Owner.withOwner(nodeB)(ctx.inject()), Some("B"))
+  }
+
+  test("child injects the ancestor's value during nested construction (generated flow)") {
+    val ctx  = Context.create("default")
+    var seen = "unset"
+    Owner.withNew { // parent component apply()
+      ctx.provide("parent")
+      Owner.withNew { // child component apply(), nested in parent
+        seen = ctx.inject() // natural inject during the child's own setup
+      }
+    }
+    assertEquals(seen, "parent")
+  }
+
+  test("inject walks up owner ancestry to the nearest provider") {
+    val ctx = Context.create("default")
+    var leaf: OwnerNode = null
+    Owner.withNew {
+      ctx.provide("root")
+      Owner.withNew { // intermediate node with no provider
+        val (_, l) = Owner.withNew {} // leaf
+        leaf = l
+      }
+    }
+    assertEquals(Owner.withOwner(leaf)(ctx.inject()), Some("root"))
+  }
+
+  test("nearest owner provider overrides an ancestor's") {
+    val ctx = Context.create("default")
+    var inner: OwnerNode = null
+    Owner.withNew {
+      ctx.provide("outer")
+      val (_, i) = Owner.withNew { ctx.provide("inner") }
+      inner = i
+    }
+    assertEquals(Owner.withOwner(inner)(ctx.inject()), Some("inner"))
+  }
+
+  test("provided context dies with its owner node") {
+    val ctx = Context.create("default")
+    var node: OwnerNode = null
+    Owner.withNew {
+      val (_, n) = Owner.withNew { ctx.provide("scoped") }
+      node = n
+    }
+    assertEquals(Owner.withOwner(node)(ctx.inject()), Some("scoped"))
+    node.destroy()
+    // A destroyed node can no longer be entered, so the value is gone.
+    assertEquals(Owner.withOwner(node)(ctx.inject()), None)
+  }
+
   test("OptionalContext returns None when no provider") {
     val ctx = Context.createOptional[String]
     assertEquals(ctx.inject(), None)

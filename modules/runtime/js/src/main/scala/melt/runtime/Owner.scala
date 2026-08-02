@@ -34,6 +34,10 @@ final class OwnerNode(val parent: Option[OwnerNode]):
   // js.Set preserves insertion order and is the standard Svelte 5 approach
   private val _cleanups: js.Set[() => Unit] = new js.Set()
 
+  // Context values provided at this node, keyed by Context instance identity.
+  // Allocated lazily since most nodes provide nothing.
+  private var _context: js.Map[Any, Any] | Null = null
+
   private var _destroyed = false
 
   def isDestroyed: Boolean = _destroyed
@@ -73,6 +77,21 @@ final class OwnerNode(val parent: Option[OwnerNode]):
         _prevSibling = None
         _nextSibling = None
     }
+
+  /** Stores a context value at this node, keyed by the providing `Context`
+    * instance. Overwrites any prior value for the same key at this node. */
+  private[runtime] def setContext(key: Any, value: Any): Unit =
+    val map = _context match
+      case null => val m = js.Map.empty[Any, Any]; _context = m; m
+      case m    => m.asInstanceOf[js.Map[Any, Any]]
+    map.update(key, value)
+
+  /** Returns the context value stored at THIS node for `key`, if any (does not
+    * walk ancestors). */
+  private[runtime] def contextLocal(key: Any): Option[Any] =
+    _context match
+      case null => None
+      case m    => m.asInstanceOf[js.Map[Any, Any]].get(key)
 
   /** Registers a cleanup function to run when this node is destroyed.
     *
@@ -205,6 +224,25 @@ object Owner:
     * No-op if there is no active owner (e.g. top-level or test context).
     */
   def register(f: () => Unit): Unit = _current.foreach(_.addCleanup(f))
+
+  /** Stores a context [value] under [key] on the current owner node.
+    * Returns `false` (storing nothing) when there is no active owner, so callers
+    * can fall back to a legacy mechanism. The value is released automatically
+    * when the node is destroyed. */
+  def provideContext(key: Any, value: Any): Boolean =
+    _current match
+      case Some(node) => node.setContext(key, value); true
+      case None       => false
+
+  /** Reads the nearest context value for [key] by walking from the current owner
+    * up through its ancestors. Returns `None` when no ancestor provides it. */
+  def injectContext(key: Any): Option[Any] =
+    var node = _current
+    while node.isDefined do
+      node.get.contextLocal(key) match
+        case found @ Some(_) => return found
+        case None            => node = node.get.parent
+    None
 
 /** Thrown when the reactive update depth exceeds the safety threshold.
   *

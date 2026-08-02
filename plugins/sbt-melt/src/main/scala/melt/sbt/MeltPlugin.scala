@@ -84,6 +84,20 @@ object MeltPlugin extends AutoPlugin:
 
   import autoImport.*
 
+  /** Resolves the user-facing `meltCodegenMode` setting to a concrete `"spa"` /
+    * `"ssr"` codegen mode, or a `Left` error when the value is not one of the
+    * recognised modes. `"auto"` selects `spa` for a Scala.js project and `ssr`
+    * otherwise. Kept pure so it is unit-testable and so a typo fails the build
+    * loudly instead of silently defaulting.
+    */
+  def resolveCodegenMode(raw: String, hasScalaJSPlugin: Boolean): Either[String, String] =
+    raw.trim.toLowerCase match
+      case "spa"  => Right("spa")
+      case "ssr"  => Right("ssr")
+      case "auto" => Right(if hasScalaJSPlugin then "spa" else "ssr")
+      case _      =>
+        Left(s"""invalid meltCodegenMode "$raw" — expected "spa", "ssr", or "auto"""")
+
   private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
 
   private val ScalaJSPluginClassName = "org.scalajs.sbtplugin.ScalaJSPlugin$"
@@ -114,10 +128,9 @@ object MeltPlugin extends AutoPlugin:
       srcDirs = meltSourceDirectories.value,
       outDir  = meltOutputDirectory.value,
       pkg     = meltPackage.value,
-      mode    = meltCodegenMode.value match
-        case "spa" => "spa"
-        case "ssr" => "ssr"
-        case _     => if hasScalaJSPlugin(thisProject.value) then "spa" else "ssr"
+      mode    = resolveCodegenMode(meltCodegenMode.value, hasScalaJSPlugin(thisProject.value)) match
+        case Right(m)  => m
+        case Left(err) => throw new MessageOnlyException(s"[sbt-melt] $err")
       ,
       hydration     = meltHydration.value,
       hydrationRoot = meltHydrationRoot.value,

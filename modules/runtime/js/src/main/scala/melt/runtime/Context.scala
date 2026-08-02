@@ -8,10 +8,17 @@ package melt.runtime
 
 import scala.collection.mutable
 
-/** Parent-to-descendant dependency injection via a stack-based approach.
+/** Parent-to-descendant dependency injection bound to the owner tree.
   *
-  * Safe for single-threaded Scala.js. `provide` pushes a value onto the stack
-  * during component creation; `inject` reads the top (nearest ancestor).
+  * `provide` attaches a value to the current [[OwnerNode]]; `inject` walks up the
+  * owner ancestry to the nearest provider. Because lookup follows structural
+  * ownership rather than temporal push/pop order, it stays correct across async
+  * boundaries, event handlers, and sibling subtrees — where a global stack would
+  * return whichever provider ran last. The value is released when the owning node
+  * is destroyed, so no explicit cleanup is needed.
+  *
+  * When there is no active owner (top-level scripts, tests), it falls back to a
+  * per-instance stack with cleanup-driven pop, preserving the previous behaviour.
   *
   * {{{
   * // Define
@@ -25,31 +32,38 @@ import scala.collection.mutable
   * }}}
   */
 final class Context[A] private (default: A):
-  private val stack = mutable.Stack[A]()
+  private val legacyStack = mutable.Stack[A]()
 
-  /** Provides a value for descendant components. Automatically removed on cleanup. */
+  /** Provides a value for descendant components. Released with the owner node,
+    * or on cleanup in the ownerless fallback path. */
   def provide(value: A): Unit =
-    stack.push(value)
-    onCleanup(() =>
-      stack.pop(); ()
-    )
+    if !Owner.provideContext(this, value) then
+      legacyStack.push(value)
+      onCleanup(() =>
+        legacyStack.pop(); ()
+      )
 
   /** Reads the nearest ancestor's provided value, or the default. */
   def inject(): A =
-    if stack.nonEmpty then stack.top else default
+    Owner.injectContext(this) match
+      case Some(value) => value.asInstanceOf[A]
+      case None        => if legacyStack.nonEmpty then legacyStack.top else default
 
 /** Optional context without a default value. */
 final class OptionalContext[A] private[runtime]:
-  private val stack = mutable.Stack[A]()
+  private val legacyStack = mutable.Stack[A]()
 
   def provide(value: A): Unit =
-    stack.push(value)
-    onCleanup(() =>
-      stack.pop(); ()
-    )
+    if !Owner.provideContext(this, value) then
+      legacyStack.push(value)
+      onCleanup(() =>
+        legacyStack.pop(); ()
+      )
 
   def inject(): Option[A] =
-    if stack.nonEmpty then Some(stack.top) else None
+    Owner.injectContext(this) match
+      case Some(value) => Some(value.asInstanceOf[A])
+      case None        => if legacyStack.nonEmpty then Some(legacyStack.top) else None
 
 object Context:
   def create[A](default: A): Context[A]         = new Context(default)
