@@ -505,3 +505,20 @@ class MeltParserSpec extends munit.FunSuite:
   test("returns Left for unclosed <style> tag") {
     assert(parse("<p></p><style>div { color: red; }").isLeft)
   }
+
+  test("pathologically deep nesting yields a clean parse error, not a StackOverflow") {
+    val depth  = 3000
+    val src    = ("<div>" * depth) + "x" + ("</div>" * depth)
+    val result = MeltParser.parse(src)
+    assert(result.isLeft, s"expected a Left parse error for depth=$depth nesting")
+  }
+
+  test("unsupported {@html ...} directive yields a clean parse error") {
+    val result = MeltParser.parse("""<div>{@html "<b>x</b>"}</div>""")
+    assert(result.isLeft, s"expected Left for {@html}, got: $result")
+    assert(result.left.exists(_.contains("@html")), s"expected message mentioning @html, got: $result")
+  }
+
+  test("supported {@render ...} still parses") {
+    assert(MeltParser.parse("<div>{@render row(1)}</div>").isRight)
+  }

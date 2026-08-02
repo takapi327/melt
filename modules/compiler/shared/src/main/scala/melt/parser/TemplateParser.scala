@@ -38,6 +38,13 @@ private[parser] final class TemplateParser(
 
   private var pos: Int = 0
 
+  // Recursion-depth guard: element nesting recurses parseElement ⇄ parseNodes, so a
+  // pathologically deep template would overflow the stack. Real templates nest only
+  // a handful of levels; this cap is orders of magnitude above that and turns the
+  // crash into a clean parse error.
+  private var depth:    Int = 0
+  private val MaxDepth: Int = 512
+
   private val _warnings = List.newBuilder[(String, Int)]
 
   /** All valid HTML5 element names — mirrors `HtmlTag.knownTags` in the runtime.
@@ -228,6 +235,15 @@ private[parser] final class TemplateParser(
               val n = parseRenderCall()
               posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
               nodes += n
+            else if pos < src.length && src(pos) == '@' then
+              // Unknown Svelte-style {@...} directive — Melt only supports {@render ...}.
+              // Reject cleanly instead of splicing `@foo` into generated Scala (which
+              // would surface as a confusing scalac error on machine-generated code).
+              val name = src.drop(pos + 1).takeWhile(c => c.isLetterOrDigit)
+              throw MeltParseException(
+                s"Unsupported {@$name ...} directive. Melt supports {@render ...} only; " +
+                  "for raw HTML use {TrustedHtml.unsafe(...)} or bind:innerHTML={...}."
+              )
             else
               val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder)
               pos = end
@@ -266,28 +282,32 @@ private[parser] final class TemplateParser(
   // ── Element / component parsing ───────────────────────────────────────────
 
   private def parseElement(): TemplateNode =
-    pos += 1 // consume '<'
+    depth += 1
+    if depth > MaxDepth then throw MeltParseException(s"Template nesting is too deep (exceeded $MaxDepth levels).")
+    try
+      pos += 1 // consume '<'
 
-    val tag = collectName()
-    skipSpaces()
-    val attrs = collectAttrs()
+      val tag = collectName()
+      skipSpaces()
+      val attrs = collectAttrs()
 
-    val selfClose = pos < src.length && src(pos) == '/'
-    if selfClose then
-      // Warn if a non-void element is self-closed (e.g., <span />)
-      if !VoidElements.contains(tag.toLowerCase) && tag.charAt(0).isLower then
-        _warnings += ((s"<$tag /> is self-closed but is not a void element — use <$tag></$tag> instead", pos))
-      pos += 1
-    if pos < src.length && src(pos) == '>' then pos += 1
+      val selfClose = pos < src.length && src(pos) == '/'
+      if selfClose then
+        // Warn if a non-void element is self-closed (e.g., <span />)
+        if !VoidElements.contains(tag.toLowerCase) && tag.charAt(0).isLower then
+          _warnings += ((s"<$tag /> is self-closed but is not a void element — use <$tag></$tag> instead", pos))
+        pos += 1
+      if pos < src.length && src(pos) == '>' then pos += 1
 
-    val children =
-      if selfClose || VoidElements.contains(tag.toLowerCase) then Nil
-      else
-        val ch = parseNodes(insideTag = true)
-        consumeClosingTag()
-        collapseWhitespace(ch)
+      val children =
+        if selfClose || VoidElements.contains(tag.toLowerCase) then Nil
+        else
+          val ch = parseNodes(insideTag = true)
+          consumeClosingTag()
+          collapseWhitespace(ch)
 
-    makeNode(tag, attrs, children)
+      makeNode(tag, attrs, children)
+    finally depth -= 1
 
   private def consumeClosingTag(): Unit =
     if pos < src.length && src.startsWith("</", pos) then
@@ -684,6 +704,11 @@ private[parser] final class TemplateParser(
 
   private def skipSpaces(): Unit =
     while pos < src.length && src(pos).isWhitespace do pos += 1
+
+/** Thrown by [[TemplateParser]] on an unrecoverable parse condition (e.g. nesting
+  * deeper than the recursion-depth guard). Converted to a `Left` parse error by
+  * [[MeltParser.parseWithWarnings]] so it surfaces as a normal compile error. */
+final class MeltParseException(val errorMessage: String) extends RuntimeException(errorMessage)
 
 object TemplateParser:
   def parse(templateSource: String): List[TemplateNode] =

@@ -11,6 +11,7 @@ import melt.analysis.{
   AttrNameChecker,
   AwaitBoundaryChecker,
   BindingContextChecker,
+  DuplicateSnippetChecker,
   EffectDepsChecker,
   EnvChecker,
   FormBindingChecker,
@@ -106,6 +107,13 @@ object MeltCompiler:
               positions         = result.positions
             ) ++
             AwaitBoundaryChecker.check(
+              ast,
+              filename,
+              positions         = result.positions,
+              templateSource    = result.templateSource,
+              templateStartLine = result.templateStartLine
+            ) ++
+            DuplicateSnippetChecker.check(
               ast,
               filename,
               positions         = result.positions,

@@ -45,15 +45,19 @@ private final class JsState[A](private var _current: A) extends State[A]:
     _post.toList.foreach(_(_current))
 
   def set(value: A): Unit =
-    Owner.enterReactive()
-    try
-      _current = value
-      if Batch.isBatching then Batch.enqueue(_batchFlush)
-      else
-        _pre.toList.foreach(_(value))
-        _bind.toList.foreach(_(value))
-        _post.toList.foreach(_(value))
-    finally Owner.exitReactive()
+    // Dedup: writing an equal value is a no-op — skip the subscriber notification
+    // (and its DOM re-render) entirely, matching Svelte/Solid-style change detection.
+    if value == _current then ()
+    else
+      Owner.enterReactive()
+      try
+        _current = value
+        if Batch.isBatching then Batch.enqueue(_batchFlush)
+        else
+          _pre.toList.foreach(_(value))
+          _bind.toList.foreach(_(value))
+          _post.toList.foreach(_(value))
+      finally Owner.exitReactive()
 
   def update(f: A => A): Unit = set(f(_current))
 

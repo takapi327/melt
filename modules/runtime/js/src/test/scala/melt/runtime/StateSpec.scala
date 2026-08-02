@@ -37,6 +37,26 @@ class StateSpec extends munit.FunSuite:
     assertEquals(received, 7)
   }
 
+  test("set() to an equal value does not notify subscribers (dedup)") {
+    val v     = State(0)
+    var count = 0
+    v.subscribe(_ => count += 1)
+    v.set(1) // change → notifies
+    v.set(1) // same value → must be skipped
+    v.set(1) // same value → must be skipped
+    assertEquals(count, 1)
+  }
+
+  test("set() to an equal case class value is deduped structurally") {
+    final case class P(x: Int)
+    val v     = State(P(1))
+    var count = 0
+    v.subscribe(_ => count += 1)
+    v.set(P(2)) // change
+    v.set(P(2)) // structurally equal → skipped
+    assertEquals(count, 1)
+  }
+
   test("subscribe() returns an unsubscribe function that stops notifications") {
     val v        = State(0)
     var received = 0

@@ -54,61 +54,63 @@ object MeltParser:
 
   /** Parses a `.melt` source and returns the AST together with any warnings. */
   def parseWithWarnings(source: String): Either[String, ParseResult] =
-    SectionSplitter.split(source).map { sections =>
-      val (nodes, positions, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
+    try
+      SectionSplitter.split(source).map { sections =>
+        val (nodes, positions, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
 
-      // ── String import warnings with source-level offset ────────────────
-      // Warnings were collected in SectionSplitter.split() alongside the
-      // filtered code. Here we convert (message, path) pairs to
-      // (message, charOffset) so the compiler can report accurate line numbers.
-      val importWarningTuples: List[(String, Int)] =
-        sections.rawScript.toList.flatMap { r =>
-          r.importWarnings.map { (msg, path) =>
-            val needle = s"""import "$path""""
-            val offset = source.indexOf(needle)
-            (msg, if offset >= 0 then offset else 0)
+        // ── String import warnings with source-level offset ────────────────
+        // Warnings were collected in SectionSplitter.split() alongside the
+        // filtered code. Here we convert (message, path) pairs to
+        // (message, charOffset) so the compiler can report accurate line numbers.
+        val importWarningTuples: List[(String, Int)] =
+          sections.rawScript.toList.flatMap { r =>
+            r.importWarnings.map { (msg, path) =>
+              val needle = s"""import "$path""""
+              val offset = source.indexOf(needle)
+              (msg, if offset >= 0 then offset else 0)
+            }
           }
-        }
 
-      val moduleImportWarningTuples: List[(String, Int)] =
-        sections.moduleScript.toList.flatMap { r =>
-          r.importWarnings.map { (msg, path) =>
-            val needle = s"""import "$path""""
-            val offset = source.indexOf(needle)
-            (msg, if offset >= 0 then offset else 0)
+        val moduleImportWarningTuples: List[(String, Int)] =
+          sections.moduleScript.toList.flatMap { r =>
+            r.importWarnings.map { (msg, path) =>
+              val needle = s"""import "$path""""
+              val offset = source.indexOf(needle)
+              (msg, if offset >= 0 then offset else 0)
+            }
           }
-        }
 
-      val ast = MeltFile(
-        script       = sections.rawScript.map(r => ScriptSection(r.code, r.imports)),
-        template     = nodes,
-        style        = sections.style.map((content, lang) => StyleSection(content, lang)),
-        moduleScript = sections.moduleScript.map(r => ScriptSection(r.code, r.imports))
-      )
+        val ast = MeltFile(
+          script       = sections.rawScript.map(r => ScriptSection(r.code, r.imports)),
+          template     = nodes,
+          style        = sections.style.map((content, lang) => StyleSection(content, lang)),
+          moduleScript = sections.moduleScript.map(r => ScriptSection(r.code, r.imports))
+        )
 
-      // ── Source-position bookmarks (used for source-map LINES metadata) ────
-      // We locate each section in the original source via a short-prefix search
-      // rather than tracking byte offsets through the splitter transformations.
-      // This is correct for the common case; edge-cases (e.g. duplicated content)
-      // are tolerated as approximations.
-      val scriptBodyLine: Int = sections.rawScript match
-        case None     => 1
-        case Some(rs) => SourcePosition.searchLine(source, rs.code.trim, default = 1)
+        // ── Source-position bookmarks (used for source-map LINES metadata) ────
+        // We locate each section in the original source via a short-prefix search
+        // rather than tracking byte offsets through the splitter transformations.
+        // This is correct for the common case; edge-cases (e.g. duplicated content)
+        // are tolerated as approximations.
+        val scriptBodyLine: Int = sections.rawScript match
+          case None     => 1
+          case Some(rs) => SourcePosition.searchLine(source, rs.code.trim, default = 1)
 
-      val moduleBodyLine: Int = sections.moduleScript match
-        case None     => 1
-        case Some(ms) => SourcePosition.searchLine(source, ms.code.trim, default = 1)
+        val moduleBodyLine: Int = sections.moduleScript match
+          case None     => 1
+          case Some(ms) => SourcePosition.searchLine(source, ms.code.trim, default = 1)
 
-      val templateStartLine: Int =
-        SourcePosition.searchLine(source, sections.templateSource, default = 1)
+        val templateStartLine: Int =
+          SourcePosition.searchLine(source, sections.templateSource, default = 1)
 
-      ParseResult(
-        ast,
-        templateWarnings ++ importWarningTuples ++ moduleImportWarningTuples,
-        scriptBodyLine,
-        templateStartLine,
-        sections.templateSource,
-        positions,
-        moduleBodyLine = moduleBodyLine
-      )
-    }
+        ParseResult(
+          ast,
+          templateWarnings ++ importWarningTuples ++ moduleImportWarningTuples,
+          scriptBodyLine,
+          templateStartLine,
+          sections.templateSource,
+          positions,
+          moduleBodyLine = moduleBodyLine
+        )
+      }
+    catch case e: MeltParseException => Left(e.errorMessage)

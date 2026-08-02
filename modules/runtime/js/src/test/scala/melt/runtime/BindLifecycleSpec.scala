@@ -80,10 +80,9 @@ class BindLifecycleSpec extends munit.FunSuite:
     assertEquals(cancelCalls, 2)
   }
 
-  test("Bind.show does not double-cancel when the same element remains current") {
-    // When condition doesn't actually swap (same value), subscribe callback fires
-    // but the render produces a NEW element each time (no caching). Here we verify
-    // that two distinct swaps produce two distinct cancels.
+  test("Bind.show does not re-render when the value does not change (dedup)") {
+    // Writing the same State value is deduped, so no re-render and no extra cancel:
+    // only the first real change swaps the element.
     var cancelCalls = 0
     val condition   = State(true)
     val container   = dom.document.createElement("div")
@@ -95,12 +94,12 @@ class BindLifecycleSpec extends munit.FunSuite:
     }
     Lifecycle.register(container, compOwner)
 
-    condition.set(false)
-    condition.set(false) // same value again → subscribe still fires → new render
-    assertEquals(cancelCalls, 2, "each swap destroys the previous element exactly once")
+    condition.set(false) // real change → destroys the previous element once
+    condition.set(false) // same value → deduped: no re-render, no extra cancel
+    assertEquals(cancelCalls, 1, "same-value set is deduped, no extra render/cancel")
 
     Lifecycle.destroyTree(container)
-    assertEquals(cancelCalls, 3)
+    assertEquals(cancelCalls, 2)
   }
 
   // ── Bind.list ────────────────────────────────────────────────────────────

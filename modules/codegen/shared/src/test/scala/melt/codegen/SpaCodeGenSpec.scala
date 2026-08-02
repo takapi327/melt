@@ -2224,6 +2224,31 @@ class SpaCodeGenSpec extends munit.FunSuite:
     assert(!code.contains("((Int, String)) => dom.Node"), code)
   }
 
+  test("duplicate sibling snippet names are a clean compile error") {
+    val src =
+      """<div>
+        |  {#snippet row(x: Int)}<li>{x.toString}</li>{/snippet}
+        |  {#snippet row(y: Int)}<li>{y.toString}</li>{/snippet}
+        |  {@render row(1)}
+        |</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(
+      result.errors.exists(_.message.toLowerCase.contains("snippet")),
+      s"expected a duplicate-snippet error, got: ${ result.errors.map(_.message) }"
+    )
+  }
+
+  test("distinct sibling snippet names compile fine") {
+    val src =
+      """<div>
+        |  {#snippet a(x: Int)}<li>{x.toString}</li>{/snippet}
+        |  {#snippet b(y: Int)}<li>{y.toString}</li>{/snippet}
+        |  {@render a(1)}
+        |</div>""".stripMargin
+    val result = MeltCompiler.compile(src, "App.melt", "App", "")
+    assert(!result.errors.exists(_.message.toLowerCase.contains("snippet")), result.errors.map(_.message).toString)
+  }
+
   test("{@render expr} appends the expression result") {
     val src  = """<div>{@render mySnippet()}</div>"""
     val code = compile(src)
