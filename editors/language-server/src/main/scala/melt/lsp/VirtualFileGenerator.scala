@@ -126,8 +126,13 @@ object VirtualFileGenerator:
     line.trim.startsWith("<style")
 
   /** Returns the 0-based (openLine, closeLine) indices for a section delimited by
-    * a matching open predicate and a close tag string.
+    * a matching open predicate and a close tag.
     * Returns None if the section is absent or malformed.
+    *
+    * The close tag is matched only when it begins the (trimmed) line — as the
+    * `</script>` / `</style>` tags conventionally do — so a `</script>` appearing
+    * mid-line inside a Scala string (e.g. `val s = "</script>"`) does not close the
+    * section early.
     */
   private def findSection(
     lines:    Vector[String],
@@ -138,6 +143,6 @@ object VirtualFileGenerator:
       .collectFirst { case (line, idx) if isOpen(line) => idx }
       .flatMap { openIdx =>
         lines.zipWithIndex
-          .collectFirst { case (line, idx) if idx > openIdx && line.contains(closeTag) => idx }
+          .collectFirst { case (line, idx) if idx > openIdx && line.trim.startsWith(closeTag) => idx }
           .map((openIdx, _))
       }

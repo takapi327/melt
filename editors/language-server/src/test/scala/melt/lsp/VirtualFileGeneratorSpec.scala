@@ -79,6 +79,24 @@ class VirtualFileGeneratorSpec extends munit.FunSuite:
     assertEquals(virtLines, srcLines)
   }
 
+  test("a </script> inside a Scala string does not close the section early") {
+    val source = """|<script lang="scala">
+                    |  val a = 1
+                    |  val s = "</script>"
+                    |  val b = 2
+                    |</script>
+                    |<div>{b}</div>""".stripMargin
+    val vf    = VirtualFileGenerator.generate(source)
+    val lines = vf.content.split("\n", -1).toVector
+    // Lines after the string-embedded tag must still be treated as script body.
+    assertEquals(lines(2), """  val s = "</script>"""")
+    assertEquals(lines(3), "  val b = 2")
+    // The real </script> (line 4) closes the section; the template stays blank.
+    assertEquals(lines(5), "")
+    assertEquals(vf.mapper.sectionAt(3), MeltSection.Script)
+    assertEquals(vf.mapper.sectionAt(5), MeltSection.Template)
+  }
+
   test("file with no script section produces all-blank virtual file") {
     val source = "<div>Hello</div>"
     val vf     = VirtualFileGenerator.generate(source)

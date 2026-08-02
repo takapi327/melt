@@ -6,7 +6,14 @@
 
 package melt.lsp
 
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{
+  CompletableFuture,
+  ConcurrentHashMap,
+  Executors,
+  ScheduledExecutorService,
+  ScheduledFuture,
+  TimeUnit
+}
 import java.util.Collections
 
 import scala.concurrent.{ blocking, ExecutionContext, Future }
@@ -37,7 +44,11 @@ import org.eclipse.lsp4j.services.*
   *     using [[ScriptDefinitionFinder]]
   *   - Style section: no-op (returns empty)
   */
-class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocumentService, WorkspaceService:
+class MeltLanguageServer(debounceMs: Long = 250L)
+  extends LanguageServer,
+          LanguageClientAware,
+          TextDocumentService,
+          WorkspaceService:
 
   private given ExecutionContext = ExecutionContext.global
 
@@ -64,6 +75,16 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
 
   /** Open documents: URI → current .melt source text. */
   private val documents = scala.collection.concurrent.TrieMap.empty[String, String]
+
+  // Debounce per-keystroke validation: `didChange` reschedules a single validation
+  // per URI after a quiet period instead of running the full compiler on every key.
+  private val validationScheduler: ScheduledExecutorService =
+    Executors.newSingleThreadScheduledExecutor { r =>
+      val t = Thread(r, "melt-lsp-validate")
+      t.setDaemon(true)
+      t
+    }
+  private val pendingValidations = ConcurrentHashMap[String, ScheduledFuture[?]]()
 
   // ── LanguageClientAware ───────────────────────────────────────────────────
 
@@ -145,6 +166,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def shutdown(): CompletableFuture[Object] =
     metals.shutdown()
     requestExecutor.shutdownNow()
+    validationScheduler.shutdownNow()
     CompletableFuture.completedFuture(null.asInstanceOf[Object])
 
   override def exit(): Unit = System.exit(0)
@@ -164,12 +186,33 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   override def didChange(params: DidChangeTextDocumentParams): Unit =
     val changes = params.getContentChanges
     if !changes.isEmpty then
-      val text = changes.get(0).getText
-      documents(params.getTextDocument.getUri) = text
-      fastValidate(params.getTextDocument.getUri, text)
+      val uri = params.getTextDocument.getUri
+      // Update the in-memory text synchronously so completion/hover see it, but
+      // defer the (full-compile) validation so it runs once per typing pause.
+      documents(uri) = changes.get(0).getText
+      scheduleFastValidate(uri)
+
+  /** Schedules `fastValidate` for `uri` after the debounce window, cancelling any
+    * validation already pending for that URI so a burst of keystrokes triggers a
+    * single compile. The task re-reads the latest text at fire time. */
+  private def scheduleFastValidate(uri: String): Unit =
+    Option(pendingValidations.remove(uri)).foreach(_.cancel(false))
+    try
+      val task = validationScheduler.schedule(
+        new Runnable:
+          def run(): Unit =
+            pendingValidations.remove(uri)
+            documents.get(uri).foreach(text => fastValidate(uri, text))
+        ,
+        debounceMs,
+        TimeUnit.MILLISECONDS
+      )
+      pendingValidations.put(uri, task)
+    catch case _: java.util.concurrent.RejectedExecutionException => () // scheduler shut down
 
   override def didClose(params: DidCloseTextDocumentParams): Unit =
     val uri = params.getTextDocument.getUri
+    Option(pendingValidations.remove(uri)).foreach(_.cancel(false))
     documents.remove(uri)
     metals.closeDoc(uri)
     client.foreach(_.publishDiagnostics(PublishDiagnosticsParams(uri, Collections.emptyList())))
