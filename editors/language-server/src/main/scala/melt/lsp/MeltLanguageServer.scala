@@ -310,7 +310,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     */
   private def fastValidate(uri: String, content: String): Unit =
     client.foreach { c =>
-      val filename = uriToFilename(uri)
+      val filename = UriUtil.filename(uri)
       val result   = melt.MeltCompiler.compile(content, filename)
       val diags    =
         result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
@@ -332,7 +332,7 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
   private def fullValidate(uri: String, content: String): Unit =
     // Guard against races with didClose: skip if the client is not yet connected or the document is already closed.
     client.filter(_ => documents.contains(uri)).foreach { c =>
-      val filename = uriToFilename(uri)
+      val filename = UriUtil.filename(uri)
       val result   = melt.MeltCompiler.compile(content, filename)
 
       val meltDiags =
@@ -361,7 +361,3 @@ class MeltLanguageServer extends LanguageServer, LanguageClientAware, TextDocume
     d.setSeverity(severity)
     d.setSource("melt")
     d
-
-  private def uriToFilename(uri: String): String =
-    val path = uri.stripPrefix("file:///").stripPrefix("file://").stripPrefix("file:")
-    java.nio.file.Paths.get(path).getFileName.toString
