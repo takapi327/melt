@@ -6,8 +6,8 @@
 
 package melt.lsp
 
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CompletableFuture
 
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.services.LanguageClient
@@ -21,9 +21,10 @@ class DidChangeDebounceSpec extends munit.FunSuite:
     * publishes once). Avoids the LSP4J launcher entirely. */
   private class CountingClient extends LanguageClient:
     val count = new AtomicInteger(0)
-    override def telemetryEvent(o: Any):        Unit = ()
-    override def publishDiagnostics(p: PublishDiagnosticsParams): Unit = { count.incrementAndGet(); () }
-    override def showMessage(p: MessageParams): Unit = ()
+    override def telemetryEvent(o: Any):                          Unit = ()
+    override def publishDiagnostics(p: PublishDiagnosticsParams): Unit =
+      count.incrementAndGet(); ()
+    override def showMessage(p: MessageParams):                   Unit                                 = ()
     override def showMessageRequest(p: ShowMessageRequestParams): CompletableFuture[MessageActionItem] =
       CompletableFuture.completedFuture(null)
     override def logMessage(p: MessageParams): Unit = ()

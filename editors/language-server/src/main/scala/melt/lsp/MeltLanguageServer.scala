@@ -355,9 +355,10 @@ class MeltLanguageServer(debounceMs: Long = 250L)
     client.foreach { c =>
       val filename = UriUtil.filename(uri)
       val result   = melt.MeltCompiler.compile(content, filename)
+      val srcLines = content.split("\n", -1)
       val diags    =
-        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
-          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, DiagnosticSeverity.Warning))
+        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, srcLines, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, srcLines, DiagnosticSeverity.Warning))
       c.publishDiagnostics(PublishDiagnosticsParams(uri, diags.asJava))
     }
 
@@ -377,10 +378,11 @@ class MeltLanguageServer(debounceMs: Long = 250L)
     client.filter(_ => documents.contains(uri)).foreach { c =>
       val filename = UriUtil.filename(uri)
       val result   = melt.MeltCompiler.compile(content, filename)
+      val srcLines = content.split("\n", -1)
 
       val meltDiags =
-        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, DiagnosticSeverity.Error)) ++
-          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, DiagnosticSeverity.Warning))
+        result.errors.map(e => makeDiagnostic(e.message, e.line, e.column, srcLines, DiagnosticSeverity.Error)) ++
+          result.warnings.map(w => makeDiagnostic(w.message, w.line, w.column, srcLines, DiagnosticSeverity.Warning))
 
       val metalsDiags: List[Diagnostic] =
         if result.errors.nonEmpty then Nil
@@ -396,11 +398,18 @@ class MeltLanguageServer(debounceMs: Long = 250L)
         c.publishDiagnostics(PublishDiagnosticsParams(uri, (meltDiags ++ metalsDiags).asJava))
     }
 
-  private def makeDiagnostic(message: String, line: Int, column: Int, severity: DiagnosticSeverity): Diagnostic =
-    val zeroLine = math.max(0, line - 1)
-    val zeroCol  = math.max(0, column - 1)
-    val range    = Range(Position(zeroLine, zeroCol), Position(zeroLine, Int.MaxValue))
-    val d        = Diagnostic(range, message)
+  private def makeDiagnostic(
+    message:  String,
+    line:     Int,
+    column:   Int,
+    srcLines: Array[String],
+    severity: DiagnosticSeverity
+  ): Diagnostic =
+    val zeroLine           = math.max(0, line - 1)
+    val sourceLine         = srcLines.lift(zeroLine).getOrElse("")
+    val (startCol, endCol) = DiagnosticRange.locate(message, column, sourceLine)
+    val range              = Range(Position(zeroLine, startCol), Position(zeroLine, endCol))
+    val d                  = Diagnostic(range, message)
     d.setSeverity(severity)
     d.setSource("melt")
     d
