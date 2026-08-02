@@ -53,20 +53,23 @@ class BindEachReconcileSpec extends munit.FunSuite:
     items.set(next)
     assertEquals(order(container), next.map(_.toString), s"$initial -> $next")
 
-  test("reverse")            { check(List(1, 2, 3), List(3, 2, 1)) }
-  test("shuffle")            { check(List(1, 2, 3, 4, 5), List(3, 1, 4, 5, 2)) }
-  test("move one to end")    { check(List(1, 2, 3, 4), List(1, 3, 4, 2)) }
-  test("prepend")            { check(List(2, 3), List(1, 2, 3)) }
-  test("remove middle")      { check(List(1, 2, 3), List(1, 3)) }
+  test("reverse") { check(List(1, 2, 3), List(3, 2, 1)) }
+  test("shuffle") { check(List(1, 2, 3, 4, 5), List(3, 1, 4, 5, 2)) }
+  test("move one to end") { check(List(1, 2, 3, 4), List(1, 3, 4, 2)) }
+  test("prepend") { check(List(2, 3), List(1, 2, 3)) }
+  test("remove middle") { check(List(1, 2, 3), List(1, 3)) }
   test("add + remove + reorder") { check(List(1, 2, 3), List(3, 4, 1)) }
-  test("clear then refill")  { check(List(1, 2, 3), Nil); check(Nil, List(1, 2)) }
+  test("clear then refill") { check(List(1, 2, 3), Nil); check(Nil, List(1, 2)) }
 
   test("nodes are reused by key across a reorder (same identity)") {
     val (items, container, _) = setup(List(1, 2, 3))
     def nodeOf(key: Int): dom.Node =
-      (0 until container.childNodes.length).map(container.childNodes(_)).collect {
-        case el: dom.Element if el.textContent == key.toString => el
-      }.head
+      (0 until container.childNodes.length)
+        .map(container.childNodes(_))
+        .collect {
+          case el: dom.Element if el.textContent == key.toString => el
+        }
+        .head
     val n1 = nodeOf(1)
     val n2 = nodeOf(2)
     items.set(List(3, 2, 1)) // reorder
