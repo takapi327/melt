@@ -43,6 +43,34 @@ object FieldDecoder:
   /** Every [[FieldCodec]] is also a decoder. */
   given [A](using codec: FieldCodec[A]): FieldDecoder[A] = codec
 
+  /** Decodes a repeated field (e.g. `?tag=a&tag=b`) into a `Set`, deduping. An
+    * absent field decodes to the empty set (mirroring how `List` decodes to
+    * `Nil`). */
+  given [A](using list: FieldDecoder[List[A]]): FieldDecoder[Set[A]] with
+    def decode(name: String, values: List[String]): Either[String, Set[A]] =
+      list.decode(name, values).map(_.toSet)
+
+  /** Decodes a single whitespace-delimited value (e.g. OIDC `scope=openid profile`)
+    * into a `Set`, decoding each token with the element decoder. An absent or blank
+    * value decodes to the empty set. Surrounding and repeated whitespace is ignored.
+    *
+    * Unlike the [[given_FieldDecoder_A]] `Set` instance (which reads *repeated*
+    * parameters), this reads a *single* value and splits it — so it is provided as
+    * an explicit constructor rather than a `given`, e.g.
+    * `given FieldDecoder[Set[Scope]] = FieldDecoder.spaceDelimited[Scope]`.
+    */
+  def spaceDelimited[A](using elem: FieldDecoder[A]): FieldDecoder[Set[A]] =
+    (name, values) =>
+      values.headOption.map(_.trim).filter(_.nonEmpty) match
+        case None => Right(Set.empty)
+        case Some(joined) =>
+          joined.split("\\s+").toList.foldLeft[Either[String, Set[A]]](Right(Set.empty)) { (acc, token) =>
+            for
+              set     <- acc
+              decoded <- elem.decode(name, List(token))
+            yield set + decoded
+          }
+
   /** A string-keyed map field is treated as server-populated output — e.g. the
     * per-field validation issues a form model carries back
     * (`errors: Map[String, List[String]]`). A flat form submission never contains

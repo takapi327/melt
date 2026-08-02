@@ -8,6 +8,8 @@ package meltkit
 
 import scala.NamedTuple.AnyNamedTuple
 
+import melt.runtime.forms.codec.FieldDecoder
+
 import meltkit.codec.BodyEncoder
 
 /** The handler context provided to each route handler.
@@ -95,6 +97,23 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     * }}}
     */
   def queryParams: Map[String, List[String]]
+
+  /** Decodes the named query parameter into a typed value using a [[FieldDecoder]].
+    *
+    * Requiredness is expressed by the type: a scalar (`queryAs[Int]`) fails when the
+    * parameter is absent, while `queryAs[Option[Int]]` decodes an absent parameter
+    * to `None`. `List`/`Set` collect repeated parameters; `FieldDecoder.spaceDelimited`
+    * decodes a single whitespace-separated value. The `Left` message is left for the
+    * caller to map to a domain error (e.g. an OIDC error response).
+    *
+    * {{{
+    * ctx.queryAs[RedirectUri]("redirect_uri") // Either[String, RedirectUri]
+    * ctx.queryAs[Option[Display]]("display")  // absent -> Right(None)
+    * ctx.queryAs[Long]("max_age")
+    * }}}
+    */
+  def queryAs[A](name: String)(using decoder: FieldDecoder[A]): Either[String, A] =
+    decoder.decode(name, queryAll(name))
 
   /** Renders a Melt component and returns a 200 response.
     *

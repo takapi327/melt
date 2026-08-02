@@ -30,6 +30,11 @@ case class Url(
   def queryAll(name: String): List[String] =
     searchParams.getOrElse(name, Nil)
 
+  /** Decodes the named query parameter into a typed value using a [[FieldDecoder]].
+    * See [[MeltContext.queryAs]] for the requiredness/collection semantics. */
+  def queryAs[A](name: String)(using decoder: melt.runtime.forms.codec.FieldDecoder[A]): Either[String, A] =
+    decoder.decode(name, queryAll(name))
+
 object Url:
 
   /** Parses a raw URL string (path + optional query string) with the given origin.
