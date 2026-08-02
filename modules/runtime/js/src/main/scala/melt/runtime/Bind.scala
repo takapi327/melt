@@ -932,51 +932,66 @@ object Bind:
       parent.insertBefore(node, anchor)
     }
 
-  /** Renders a list of items before `anchor`. Rebuilds on each change.
-    * Used for `{items.map(renderFn)}` in templates.
+  private def destroyNode(n: dom.Node): Unit = n match
+    case el: dom.Element => Lifecycle.destroyTree(el)
+    case _               => ()
+
+  /** Positional reconciliation for an unkeyed list: reuse the existing node at each
+    * position whose item is unchanged (`==`), re-render only positions whose item
+    * changed, remove surplus, and append new items — instead of tearing the whole
+    * list down and rebuilding it on every change. */
+  private def reconcileList[A](
+    next:      Vector[A],
+    prevItems: Vector[A],
+    prevNodes: Vector[dom.Node],
+    renderFn:  A => dom.Node,
+    anchor:    dom.Node
+  ): Vector[dom.Node] =
+    val parent   = anchor.parentNode
+    val common   = math.min(prevItems.length, next.length)
+    val newNodes = mutable.ArrayBuffer.empty[dom.Node]
+    var i        = 0
+    while i < next.length do
+      if i < common && prevItems(i) == next(i) then newNodes += prevNodes(i)
+      else
+        val fresh = renderFn(next(i))
+        if i < common then
+          parent.insertBefore(fresh, prevNodes(i))
+          parent.removeChild(prevNodes(i))
+          destroyNode(prevNodes(i))
+        else parent.insertBefore(fresh, anchor)
+        newNodes += fresh
+      i += 1
+    var k = common
+    while k < prevItems.length do
+      parent.removeChild(prevNodes(k))
+      destroyNode(prevNodes(k))
+      k += 1
+    newNodes.toVector
+
+  /** Renders a list of items before `anchor`, reconciling positionally on each
+    * change (see [[reconcileList]]). Used for `{items.map(renderFn)}` in templates.
     */
   def list[A](source: State[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    var nodes = mutable.ListBuffer.empty[dom.Node]
-
-    def rebuild(items: Iterable[A]): Unit =
-      val parent = anchor.parentNode
-      nodes.foreach { n =>
-        parent.removeChild(n)
-        n match
-          case el: dom.Element => Lifecycle.destroyTree(el)
-          case _               =>
-      }
-      nodes.clear()
-      items.foreach { item =>
-        val node = renderFn(item)
-        parent.insertBefore(node, anchor)
-        nodes += node
-      }
-
-    rebuild(source.value)
-    val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
+    var prevItems = Vector.empty[A]
+    var nodes     = Vector.empty[dom.Node]
+    def update(items: Iterable[A]): Unit =
+      val next = items.toVector
+      nodes     = reconcileList(next, prevItems, nodes, renderFn, anchor)
+      prevItems = next
+    update(source.value)
+    val cancel = source.subscribe(items => update(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
   def list[A](source: Signal[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
-    var nodes = mutable.ListBuffer.empty[dom.Node]
-
-    def rebuild(items: Iterable[A]): Unit =
-      val parent = anchor.parentNode
-      nodes.foreach { n =>
-        parent.removeChild(n)
-        n match
-          case el: dom.Element => Lifecycle.destroyTree(el)
-          case _               =>
-      }
-      nodes.clear()
-      items.foreach { item =>
-        val node = renderFn(item)
-        parent.insertBefore(node, anchor)
-        nodes += node
-      }
-
-    rebuild(source.value)
-    val cancel = source.subscribe(items => rebuild(items.asInstanceOf[Iterable[A]]))
+    var prevItems = Vector.empty[A]
+    var nodes     = Vector.empty[dom.Node]
+    def update(items: Iterable[A]): Unit =
+      val next = items.toVector
+      nodes     = reconcileList(next, prevItems, nodes, renderFn, anchor)
+      prevItems = next
+    update(source.value)
+    val cancel = source.subscribe(items => update(items.asInstanceOf[Iterable[A]]))
     Cleanup.register(cancel)
 
   @scala.annotation.targetName("listInvalidSource")

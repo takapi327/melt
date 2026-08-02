@@ -104,7 +104,7 @@ class BindLifecycleSpec extends munit.FunSuite:
 
   // ── Bind.list ────────────────────────────────────────────────────────────
 
-  test("Bind.list destroys all old nodes' subscriptions on full rebuild") {
+  test("Bind.list reconciles positionally: unchanged items keep their nodes, only surplus is destroyed") {
     var cancelCalls = 0
     val items       = State(List("a", "b", "c"))
     val container   = dom.document.createElement("div")
@@ -120,12 +120,48 @@ class BindLifecycleSpec extends munit.FunSuite:
 
     assertEquals(cancelCalls, 0, "initial render: 3 nodes created, no cancels yet")
 
-    // Full rebuild: all 3 old nodes removed → 2 new nodes created
+    // Positions 0,1 ("a","b") are unchanged → reused; only surplus "c" is destroyed.
     items.set(List("a", "b"))
-    assertEquals(cancelCalls, 3, "all 3 old nodes' subscriptions cleaned up on rebuild")
+    assertEquals(cancelCalls, 1, "only the removed tail item is destroyed, not the whole list")
 
     Lifecycle.destroyTree(container) // 2 current nodes cleaned up
-    assertEquals(cancelCalls, 5)
+    assertEquals(cancelCalls, 3)
+  }
+
+  test("Bind.list reuses all existing nodes when appending (no re-render of prefix)") {
+    var renders   = 0
+    val items     = State(List("a", "b"))
+    val container = dom.document.createElement("div")
+    val anchor    = dom.document.createComment("")
+    container.appendChild(anchor)
+
+    val renderFn: String => dom.Node = s =>
+      renders += 1; makeTrackedEl {}
+
+    val (_, compOwner) = Owner.withNew { Bind.list(items, renderFn, anchor) }
+    Lifecycle.register(container, compOwner)
+    assertEquals(renders, 2, "initial: 2 renders")
+
+    items.set(List("a", "b", "c")) // append one → only the new item renders
+    assertEquals(renders, 3, "append reuses the existing prefix; only 'c' is rendered")
+  }
+
+  test("Bind.list re-renders only the changed position") {
+    var renders   = 0
+    val items     = State(List("a", "b", "c"))
+    val container = dom.document.createElement("div")
+    val anchor    = dom.document.createComment("")
+    container.appendChild(anchor)
+
+    val renderFn: String => dom.Node = _ =>
+      renders += 1; makeTrackedEl {}
+
+    val (_, compOwner) = Owner.withNew { Bind.list(items, renderFn, anchor) }
+    Lifecycle.register(container, compOwner)
+    assertEquals(renders, 3)
+
+    items.set(List("a", "X", "c")) // only position 1 differs
+    assertEquals(renders, 4, "only the changed position is re-rendered")
   }
 
   test("Bind.list(Signal) destroys all old nodes' subscriptions on full rebuild") {
@@ -146,10 +182,10 @@ class BindLifecycleSpec extends munit.FunSuite:
     assertEquals(cancelCalls, 0)
 
     v.set(List(1))
-    assertEquals(cancelCalls, 2, "both old nodes destroyed on rebuild")
+    assertEquals(cancelCalls, 1, "position 0 (1) reused; only the removed tail is destroyed")
 
     Lifecycle.destroyTree(container)
-    assertEquals(cancelCalls, 3)
+    assertEquals(cancelCalls, 2)
   }
 
   // ── Bind.each ────────────────────────────────────────────────────────────

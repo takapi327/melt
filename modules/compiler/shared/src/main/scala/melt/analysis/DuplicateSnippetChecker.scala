@@ -46,12 +46,12 @@ object DuplicateSnippetChecker:
 
     def recurse(node: TemplateNode): Unit =
       node match
-        case TemplateNode.Element(_, _, children)        => checkSiblings(children)
-        case TemplateNode.Component(_, _, children)      => checkSiblings(children)
-        case TemplateNode.Head(children)                 => checkSiblings(children)
-        case TemplateNode.DynamicElement(_, _, children) => checkSiblings(children)
-        case TemplateNode.KeyBlock(_, children)          => checkSiblings(children)
-        case TemplateNode.SnippetDef(_, _, children)     => checkSiblings(children)
+        case TemplateNode.Element(_, _, children)                => checkSiblings(children)
+        case TemplateNode.Component(_, _, children)              => checkSiblings(children)
+        case TemplateNode.Head(children)                         => checkSiblings(children)
+        case TemplateNode.DynamicElement(_, _, children)         => checkSiblings(children)
+        case TemplateNode.KeyBlock(_, children)                  => checkSiblings(children)
+        case TemplateNode.SnippetDef(_, _, children)             => checkSiblings(children)
         case TemplateNode.Boundary(_, children, pending, failed) =>
           checkSiblings(children)
           pending.foreach(p => checkSiblings(p.children))
