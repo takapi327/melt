@@ -34,6 +34,23 @@ sealed trait Response:
   /** Returns a copy with the given headers (replaces all existing headers). */
   def withHeaders(h: Map[String, String]): Response
 
+  /** Returns a copy with a single header added, merged with the existing headers
+    * (an existing header of the same name is overwritten).
+    *
+    * Unlike [[withHeaders]], this preserves other headers, so it is safe to combine
+    * with `redirect` (which sets `Location`):
+    * {{{
+    * ctx.redirect("/next").withHeader("Content-Security-Policy", csp) // Location kept
+    * }}}
+    */
+  def withHeader(name: String, value: String): Response =
+    withHeaders(headers + (name -> value))
+
+  /** Returns a copy with the given headers merged into (not replacing) the existing
+    * ones; entries in `h` overwrite existing headers of the same name. */
+  def addHeaders(h: Map[String, String]): Response =
+    withHeaders(headers ++ h)
+
   /** Returns a copy with the given cookie appended to the response.
     *
     * Can be chained to add multiple cookies:
