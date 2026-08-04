@@ -916,31 +916,26 @@ object Bind:
 
   // ── List rendering ────────────────────────────────────────────────────
 
-  /** Renders a plain (non-reactive) collection before `anchor`. Used
-    * when a `.melt` template references `{items.map(renderFn)}` where
-    * `items` is a plain `List` / `Seq` / `Iterable`, not a `State` /
-    * `Signal`.
+  /** Renders a plain (non-reactive) collection before `anchor`. Used when a
+    * `.melt` template references `{items.map(renderFn)}` where `items` is a plain
+    * `IterableOnce` — any `List` / `Seq` / `Set` / `Map`, plus `Option` (rendered
+    * as a 0-or-1 element list) and `Iterator` — not a `State` / `Signal`.
     *
-    * This is a one-shot render: subsequent changes to `items` (if any)
-    * are not reflected. For reactive list rendering use `State[List[A]]`
-    * and the overload below.
+    * This is a one-shot render: subsequent changes to `items` (if any) are not
+    * reflected. For reactive list rendering use `State[List[A]]` and the overload
+    * below.
     */
-  def list[A](source: Iterable[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+  def list[A](source: IterableOnce[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
-    source.foreach { item =>
+    source.iterator.foreach { item =>
       val node = renderFn(item)
       parent.insertBefore(node, anchor)
     }
 
-  /** Renders an `Option` before `anchor` as a 0-or-1 element list. Used when a
-    * `.melt` template references `{maybe.map(renderFn)}` where `maybe` is a plain
-    * `Option`: `None` renders nothing, `Some(a)` renders a single node.
-    *
-    * `Option` is not an `Iterable`, so without this overload such templates would
-    * fall through to the `listInvalidSource` compile error. One-shot, like the
-    * `Iterable` overload above.
-    */
-  def list[A](source: Option[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+  /** `Array` is outside the collection hierarchy (not even an `IterableOnce`), so
+    * `{arr.map(renderFn)}` would otherwise fall through to the `listInvalidSource`
+    * compile error. One-shot, like the `IterableOnce` overload above. */
+  def list[A](source: Array[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
     val parent = anchor.parentNode
     source.foreach { item =>
       val node = renderFn(item)
@@ -987,32 +982,33 @@ object Bind:
   /** Renders a list of items before `anchor`, reconciling positionally on each
     * change (see [[reconcileList]]). Used for `{items.map(renderFn)}` in templates.
     */
-  def list[A](source: State[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+  def list[A](source: State[? <: IterableOnce[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
     var prevItems = Vector.empty[A]
     var nodes     = Vector.empty[dom.Node]
-    def update(items: Iterable[A]): Unit =
-      val next = items.toVector
+    def update(items: IterableOnce[A]): Unit =
+      val next = items.iterator.toVector
       nodes     = reconcileList(next, prevItems, nodes, renderFn, anchor)
       prevItems = next
     update(source.value)
-    val cancel = source.subscribe(items => update(items.asInstanceOf[Iterable[A]]))
+    val cancel = source.subscribe(items => update(items.asInstanceOf[IterableOnce[A]]))
     Cleanup.register(cancel)
 
-  def list[A](source: Signal[? <: Iterable[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+  def list[A](source: Signal[? <: IterableOnce[A]], renderFn: A => dom.Node, anchor: dom.Node): Unit =
     var prevItems = Vector.empty[A]
     var nodes     = Vector.empty[dom.Node]
-    def update(items: Iterable[A]): Unit =
-      val next = items.toVector
+    def update(items: IterableOnce[A]): Unit =
+      val next = items.iterator.toVector
       nodes     = reconcileList(next, prevItems, nodes, renderFn, anchor)
       prevItems = next
     update(source.value)
-    val cancel = source.subscribe(items => update(items.asInstanceOf[Iterable[A]]))
+    val cancel = source.subscribe(items => update(items.asInstanceOf[IterableOnce[A]]))
     Cleanup.register(cancel)
 
   @scala.annotation.targetName("listInvalidSource")
   inline def list(source: Any, renderFn: Nothing => dom.Node, anchor: Any): Unit =
     scala.compiletime.error(
-      "A reactive list ({items.map(...)}) needs `items` to be an Iterable, or a State[?] / Signal[?] of one.\n" +
+      "A reactive list ({items.map(...)}) needs `items` to be an IterableOnce (Iterable / Option / Iterator), an Array,\n" +
+        "or a State[?] / Signal[?] of an IterableOnce.\n" +
         "If you derived the source (e.g. .zipWithIndex), map it back into a State/Signal first."
     )
 

@@ -188,6 +188,63 @@ class BindLifecycleSpec extends munit.FunSuite:
     assertEquals(cancelCalls, 2)
   }
 
+  // ── Bind.list: IterableOnce (Option / Array) sources ───────────────────────
+
+  test("Bind.list(Option) renders Some as a single node and None as nothing") {
+    var renders   = 0
+    val container = dom.document.createElement("div")
+    val anchor    = dom.document.createComment("")
+    container.appendChild(anchor)
+
+    val renderFn: String => dom.Node = _ =>
+      renders += 1; makeTrackedEl {}
+
+    Owner.withNew { Bind.list(Option("a"), renderFn, anchor) }
+    assertEquals(renders, 1, "Some renders a single node")
+    assertEquals(container.childNodes.length, 2, "one element + the anchor")
+
+    Owner.withNew { Bind.list(Option.empty[String], renderFn, anchor) }
+    assertEquals(renders, 1, "None renders nothing (renderFn not called)")
+  }
+
+  test("Bind.list(Array) renders one node per element") {
+    var renders   = 0
+    val container = dom.document.createElement("div")
+    val anchor    = dom.document.createComment("")
+    container.appendChild(anchor)
+
+    val renderFn: Int => dom.Node = _ =>
+      renders += 1; makeTrackedEl {}
+
+    Owner.withNew { Bind.list(Array(1, 2, 3), renderFn, anchor) }
+    assertEquals(renders, 3, "one node per array element")
+    assertEquals(container.childNodes.length, 4, "3 elements + the anchor")
+  }
+
+  test("Bind.list(State[Option]) toggles a single node and cleans it up") {
+    var cancelCalls = 0
+    val opt         = State(Option.empty[String])
+    val container   = dom.document.createElement("div")
+    val anchor      = dom.document.createComment("")
+    container.appendChild(anchor)
+
+    val renderFn: String => dom.Node = _ => makeTrackedEl { cancelCalls += 1 }
+
+    val (_, compOwner) = Owner.withNew { Bind.list(opt, renderFn, anchor) }
+    Lifecycle.register(container, compOwner)
+    assertEquals(cancelCalls, 0, "starts as None: nothing rendered")
+    assertEquals(container.childNodes.length, 1, "only the anchor is present")
+
+    opt.set(Some("a")) // None → Some: one node appears
+    assertEquals(container.childNodes.length, 2, "Some renders one node")
+
+    opt.set(None) // Some → None: node removed and its subscription destroyed
+    assertEquals(cancelCalls, 1, "the removed node's subscription is cleaned up")
+    assertEquals(container.childNodes.length, 1, "only the anchor remains")
+
+    Lifecycle.destroyTree(container)
+  }
+
   // ── Bind.each ────────────────────────────────────────────────────────────
 
   test("Bind.each destroys only removed keyed items' subscriptions") {
