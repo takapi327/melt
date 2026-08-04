@@ -743,3 +743,30 @@ class Http4sAdapterTest extends CatsEffectSuite:
         resp.get.as[String]
       }
       .map(body => assertEquals(body, "raw=a=1&b=2,form=1"))
+
+  // ── #1: GET handlers can read request headers / cookies ────────────────────
+  // Previously only POST/PUT/DELETE/PATCH handlers received ServerMeltContext
+  // (with header/cookie access); GET handlers got the base MeltContext. Header
+  // and cookie readers now live on the base MeltContext so GET can use them too.
+
+  test("GET handler can read request header and cookie via ctx.header / ctx.cookie"):
+    val app = MeltKit[IO]()
+    app.get("whoami") { ctx =>
+      val user = ctx.header("X-User").getOrElse("anon")
+      val sid  = ctx.cookie("sid").getOrElse("none")
+      IO.pure(ctx.text(s"$user:$sid"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/whoami")
+      .putHeaders(Header.Raw(ci"X-User", "alice"))
+      .addCookie("sid", "xyz")
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assertEquals(body, "alice:xyz"))

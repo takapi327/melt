@@ -108,6 +108,14 @@ val base = props.basePath + "/" + props.lang
       <td><code>ctx.locals</code></td>
       <td>{t.ctxLocalsDesc}</td>
     </tr>
+    <tr>
+      <td><code>ctx.header(...)</code></td>
+      <td>{t.ctxHeaderDesc}</td>
+    </tr>
+    <tr>
+      <td><code>ctx.cookie(...)</code></td>
+      <td>{t.ctxCookieDesc}</td>
+    </tr>
   </tbody>
 </table>
 

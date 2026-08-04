@@ -98,6 +98,31 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     */
   def queryParams: Map[String, List[String]]
 
+  /** Returns the value of the named request header (case-insensitive), if present.
+    *
+    * Defaults to `None`. Server-side contexts ([[ServerMeltContext]]) override this
+    * with the actual request headers, so it is available on **all** handlers —
+    * including `GET`, not just handlers with a request body.
+    *
+    * {{{
+    * ctx.header("Authorization") // Some("Bearer abc")
+    * }}}
+    */
+  def header(name: String): Option[String] = None
+
+  /** Returns all request headers as a lower-cased `name → value` map (empty by default). */
+  def headers: Map[String, String] = Map.empty
+
+  /** Returns the value of the named cookie from the request `Cookie` header, if present.
+    *
+    * Defaults to `None`. Server-side contexts override this with the actual request
+    * cookies, so it is available on all handlers — including `GET`.
+    */
+  def cookie(name: String): Option[String] = None
+
+  /** Returns all request cookies as a `name → value` map (empty by default). */
+  def cookies: Map[String, String] = Map.empty
+
   /** Decodes the named query parameter into a typed value using a [[FieldDecoder]].
     *
     * Requiredness is expressed by the type: a scalar (`queryAs[Int]`) fails when the

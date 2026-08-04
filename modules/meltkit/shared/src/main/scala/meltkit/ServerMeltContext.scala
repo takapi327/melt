@@ -47,48 +47,10 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     */
   def body: RequestBody[F, B]
 
-  /** Returns the value of the named cookie from the request `Cookie` header, if present.
-    *
-    * {{{
-    * app.on(Endpoint.get("profile").response[Profile]) { ctx =>
-    *   ctx.cookie("session_id") match
-    *     case None     => IO.pure(Left(Unauthorized()))
-    *     case Some(id) => sessionStore.get(id).map(ctx.ok(_))
-    * }
-    * }}}
-    */
-  def cookie(name: String): Option[String]
-
-  /** Returns all cookies from the request `Cookie` header as a `name → value` map.
-    *
-    * If the same cookie name appears more than once the last value wins.
-    */
-  def cookies: Map[String, String]
-
-  /** Returns the value of the named request header (case-insensitive).
-    *
-    * If the same header name appears more than once, values are joined with
-    * `", "` per RFC 7230 §3.2.2.
-    *
-    * {{{
-    * ctx.header("Authorization")  // Some("Bearer abc")
-    * ctx.header("authorization")  // Some("Bearer abc")  ← case-insensitive
-    * ctx.header("X-Missing")      // None
-    * }}}
-    */
-  def header(name: String): Option[String]
-
-  /** Returns all request headers as a `name → value` map.
-    *
-    * - Header names are normalized to **lowercase**.
-    * - If the same header name appears more than once, values are joined with `", "`.
-    *
-    * {{{
-    * ctx.headers                  // Map("authorization" -> "Bearer abc", "content-type" -> "application/json", ...)
-    * ctx.headers("authorization") // "Bearer abc"
-    * }}}
-    */
-  def headers: Map[String, String]
+  // NOTE: `cookie` / `cookies` / `header` / `headers` moved up to the base
+  // `MeltContext` (with `None` / empty defaults) so that GET handlers — which
+  // receive the base `MeltContext` — can read request headers and cookies too.
+  // Server-side contexts (e.g. `JvmMeltContext`) override them with real values.
 
   /** Renders a component with **blocking async SSR**: every `<melt:await>` boundary
     * is resolved server-side (in-process, no HTTP loopback) and its branch is
