@@ -90,7 +90,7 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.templateRefExample}</code></pre>
 </div>
 
-{t.commentTitle.map(title =>
+{t.commentTitle.map((title: String) =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>
     <p>{t.commentText.getOrElse("")}</p>

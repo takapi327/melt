@@ -33,10 +33,10 @@ val base = props.basePath + "/" + props.lang
 
 <pre><code>{GuideCodes.lifecycleEffectCleanupExample}</code></pre>
 
-{t.destroyH2.map(h => <h2>{h}</h2>)}
-{t.destroyText.map(p => <p>{p}</p>)}
+{t.destroyH2.map((h: String) => <h2>{h}</h2>)}
+{t.destroyText.map((p: String) => <p>{p}</p>)}
 
-{t.warnTitle.map(title =>
+{t.warnTitle.map((title: String) =>
   <div class="callout callout-warn">
     <div class="callout-title">{title}</div>
     <p>{t.warnText.getOrElse("")}</p>

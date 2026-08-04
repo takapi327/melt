@@ -62,7 +62,7 @@ val base = props.basePath + "/" + props.lang
   <p>{t.snapshotText}</p>
 </div>
 
-{t.nextStepTitle.map(title =>
+{t.nextStepTitle.map((title: String) =>
   <div class="callout callout-tip">
     <div class="callout-title">{title}</div>
     <p>{t.nextStepText.getOrElse("")}<a href={base + "/guide/quick-start"}>{t.nextStepLink.getOrElse("")}</a></p>

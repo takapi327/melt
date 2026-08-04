@@ -24,7 +24,7 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.quickStartCounterMelt}</code></pre>
 </div>
 
-{t.step2Outro.map(text => <p>{text}</p>)}
+{t.step2Outro.map((text: String) => <p>{text}</p>)}
 
 <h3>{t.step3H3}</h3>
 <p>{t.step3Intro}</p>

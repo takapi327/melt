@@ -37,11 +37,11 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.routingPathParamsExample}</code></pre>
 </div>
 
-{t.pathParamsOutro.map(p => <p>{p}</p>)}
+{t.pathParamsOutro.map((p: String) => <p>{p}</p>)}
 
-{t.ctxTableH2.map(h => <h2>{h}</h2>)}
+{t.ctxTableH2.map((h: String) => <h2>{h}</h2>)}
 
-{t.ctxMethodH.map(methodH =>
+{t.ctxMethodH.map((methodH: String) =>
   <table>
     <thead>
       <tr>
@@ -81,8 +81,8 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.routingPageOptionsExample}</code></pre>
 </div>
 
-{t.layoutsH2.map(h => <h2>{h}</h2>)}
-{t.layoutsIntro.map(p => <p>{p}</p>)}
+{t.layoutsH2.map((h: String) => <h2>{h}</h2>)}
+{t.layoutsIntro.map((p: String) => <p>{p}</p>)}
 
 {t.layoutsH2.map(_ =>
   <div class="code-block">
@@ -90,7 +90,7 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
-{t.layoutsHydrationIntro.map(p => <p>{p}</p>)}
+{t.layoutsHydrationIntro.map((p: String) => <p>{p}</p>)}
 
 {t.layoutsHydrationIntro.map(_ =>
   <div class="code-block">
@@ -98,14 +98,14 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
-{t.layoutsNote.map(note =>
+{t.layoutsNote.map((note: String) =>
   <div class="callout callout-info">
     <p>{note}</p>
   </div>
 )}
 
-{t.prefetchH2.map(h => <h2>{h}</h2>)}
-{t.prefetchIntro.map(p => <p>{p}</p>)}
+{t.prefetchH2.map((h: String) => <h2>{h}</h2>)}
+{t.prefetchIntro.map((p: String) => <p>{p}</p>)}
 
 {t.prefetchH2.map(_ =>
   <div class="code-block">
@@ -113,13 +113,13 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
-{t.prefetchNote.map(note =>
+{t.prefetchNote.map((note: String) =>
   <div class="callout callout-info">
     <p>{note}</p>
   </div>
 )}
 
-{t.infoTitle.map(title =>
+{t.infoTitle.map((title: String) =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>
     <p>{t.infoText.getOrElse("")}</p>

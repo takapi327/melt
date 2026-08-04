@@ -84,7 +84,7 @@ object GuideCodes:
        |
        |@JSExportTopLevel("main")
        |def main(): Unit =
-       |  Mount(dom.document.getElementById("app").asInstanceOf[dom.Element], Counter(Counter.Props()))""".stripMargin
+       |  Mount(dom.document.getElementById("app").asInstanceOf[dom.Element], Counter())""".stripMargin
 
   val quickStartIndexHtml: String =
     """|<!DOCTYPE html>
@@ -193,7 +193,7 @@ object GuideCodes:
 
   val templateEventsExample: String =
     """|<button onclick={_ => count += 1}>+</button>
-       |<input oninput={e => name.set(e.target.value)} />
+       |<input bind:value={name} />
        |<form onsubmit={e => { e.preventDefault(); submit() }}>""".stripMargin
 
   val templateSpreadExample: String =
@@ -319,8 +319,8 @@ object GuideCodes:
        |<button onclick={_ => count.set(0)}>Reset</button>""".stripMargin
 
   val eventsObjExample: String =
-    """|<input oninput={e => name.set(e.target.asInstanceOf[dom.html.Input].value)} />
-       |<form onsubmit={e => { e.preventDefault(); submit() }}></form>""".stripMargin
+    """|<form onsubmit={e => { e.preventDefault(); submit() }}></form>
+       |<input onkeydown={e => if e.key == "Enter" then submit()} />""".stripMargin
 
   val eventsBindValueExample: String =
     """|val text = State("")
@@ -582,18 +582,18 @@ object GuideCodes:
        |class CounterSpec extends MeltSuite:
        |
        |  test("counter starts at zero") {
-       |    val c = mount(Counter(Counter.Props()))
+       |    val c = mount(Counter())
        |    assertEquals(c.text("h1"), "0")
        |  }
        |
        |  test("increment button updates count") {
-       |    val c = mount(Counter(Counter.Props()))
+       |    val c = mount(Counter())
        |    c.click("button:first-child")
        |    assertEquals(c.text("h1"), "1")
        |  }
        |
        |  test("reset returns to zero") {
-       |    val c = mount(Counter(Counter.Props()))
+       |    val c = mount(Counter())
        |    c.click("button:first-child")
        |    c.click("button:last-child")
        |    assertEquals(c.text("h1"), "0")
@@ -623,7 +623,7 @@ object GuideCodes:
        |
        |class LoginSpec extends MeltSuite:
        |  test("a validation failure shows the error without a reload") {
-       |    val page = mount(LoginPage(LoginPage.Props()))
+       |    val page = mount(LoginPage())
        |    val body = EnhanceResult.failure(422, "{\"errors\":[\"invalid email\"]}")
        |    val stub = FetchStub.install(body = body)
        |    page.userEvent.submit("form")
@@ -649,7 +649,8 @@ object GuideCodes:
   // ── Routing ───────────────────────────────────────────────────────────────
 
   val routingDepExample: String =
-    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s" % "0.1.0-SNAPSHOT""""
+    """|// Routing is part of meltkit core — add the adapter for your runtime separately (see Adapters)
+       |libraryDependencies += "io.github.takapi327" %% "meltkit" % "0.1.0-SNAPSHOT"""".stripMargin
 
   val routingMainScala: String =
     """|import meltkit.*
@@ -660,7 +661,7 @@ object GuideCodes:
        |
        |// Static route
        |app.get("") { ctx =>
-       |  Future.successful(ctx.render(Home(Home.Props())))
+       |  Future.successful(ctx.render(Home()))
        |}
        |
        |// Dynamic route with a path parameter

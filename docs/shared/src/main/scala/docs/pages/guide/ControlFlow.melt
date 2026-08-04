@@ -30,8 +30,8 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.controlFlowListExample}</code></pre>
 </div>
 
-{t.keyedH2.map(h => <h2>{h}</h2>)}
-{t.keyedText.map(p => <p>{p}</p>)}
+{t.keyedH2.map((h: String) => <h2>{h}</h2>)}
+{t.keyedText.map((p: String) => <p>{p}</p>)}
 
 <h2>{t.keyBlockH2}</h2>
 <p>{t.keyBlockIntro}</p>

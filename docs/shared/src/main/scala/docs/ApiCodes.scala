@@ -138,7 +138,7 @@ object ApiCodes:
        |val app = MeltKit[IO]()
        |
        |app.get("") { ctx =>
-       |  ctx.render(AppPage(AppPage.Props()))
+       |  ctx.render(AppPage())
        |}
        |
        |val lang = param[String]("lang")

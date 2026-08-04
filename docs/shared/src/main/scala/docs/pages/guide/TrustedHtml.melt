@@ -42,7 +42,7 @@ val base = props.basePath + "/" + props.lang
 
 <p>{t.trustedUrlOutro}</p>
 
-{t.secTableH2.map(h => <h2>{h}</h2>)}
+{t.secTableH2.map((h: String) => <h2>{h}</h2>)}
 
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/transitions"}>

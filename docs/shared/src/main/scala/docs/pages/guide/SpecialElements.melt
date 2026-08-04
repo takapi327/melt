@@ -37,8 +37,8 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.specialElementExample}</code></pre>
 </div>
 
-{t.documentH2.map(h => <h2>{h}</h2>)}
-{t.documentIntro.map(p => <p>{p}</p>)}
+{t.documentH2.map((h: String) => <h2>{h}</h2>)}
+{t.documentIntro.map((p: String) => <p>{p}</p>)}
 
 <h2>{t.snippetsH2}</h2>
 <p>{t.snippetsIntro}</p>
@@ -47,7 +47,7 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.specialSnippetExample}</code></pre>
 </div>
 
-{t.tableElemH.map(elemH =>
+{t.tableElemH.map((elemH: String) =>
   <table>
     <thead>
       <tr>

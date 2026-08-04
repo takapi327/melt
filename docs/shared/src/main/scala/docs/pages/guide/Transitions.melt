@@ -59,10 +59,10 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{GuideCodes.transitionsCssExample}</code></pre>
 </div>
 
-{t.inOutH2.map(h => <h2>{h}</h2>)}
-{t.inOutIntro.map(p => <p>{p}</p>)}
+{t.inOutH2.map((h: String) => <h2>{h}</h2>)}
+{t.inOutIntro.map((p: String) => <p>{p}</p>)}
 
-{t.perfTitle.map(title =>
+{t.perfTitle.map((title: String) =>
   <div class="callout callout-tip">
     <div class="callout-title">{title}</div>
     <p>{t.perfText.getOrElse("")}</p>

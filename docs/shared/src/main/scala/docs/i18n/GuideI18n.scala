@@ -427,7 +427,11 @@ case class GuideSsr(
   hydrationModesRouter: Option[String] = None,
   partialTitle:         String,
   partialText:          String,
-  spaVsSsrH2:           Option[String]
+  spaVsSsrH2:           Option[String],
+  spaVsSsrIntro:        Option[String] = None,
+  spaVsSsrSpa:          Option[String] = None,
+  spaVsSsrSsr:          Option[String] = None,
+  spaVsSsrNote:         Option[String] = None
 )
 
 // ── SSG ───────────────────────────────────────────────────────────────────────
@@ -675,9 +679,9 @@ object GuideI18n:
       snapshotTitle = "SNAPSHOT releases",
       snapshotText  =
         "Melt is currently in active development. Add the Sonatype snapshots resolver to project/repositories or build.sbt if dependencies are not found.",
-      nextStepTitle = None,
-      nextStepText  = None,
-      nextStepLink  = None
+      nextStepTitle = Option.empty[String],
+      nextStepText  = Option.empty[String],
+      nextStepLink  = Option.empty[String]
     ),
 
     quickStart = GuideQuickStart(
@@ -687,7 +691,7 @@ object GuideI18n:
       step1Link  = "Installation",
       step2H3    = "Write your first component",
       step2Intro = "Create src/main/scala/Counter.melt:",
-      step2Outro = None,
+      step2Outro = Option.empty[String],
       step3H3    = "Mount the component",
       step3Intro = "Create a Scala.js entry point that mounts the component into the DOM:",
       step4H3    = "Create index.html",
@@ -712,8 +716,8 @@ object GuideI18n:
       usageIntro       = "Import and use components like HTML elements with a capital first letter:",
       childrenH2       = "Children (slot)",
       childrenIntro    = "Use the built-in children value to render nested content:",
-      defaultsH2       = None,
-      defaultsText     = None,
+      defaultsH2       = Option.empty[String],
+      defaultsText     = Option.empty[String],
       scopedStylesH2   = "Scoped styles",
       scopedStylesText =
         "CSS written in a component's <style> block is automatically scoped to that component. A unique attribute is added to rendered elements so styles never leak to children or siblings.",
@@ -750,8 +754,8 @@ object GuideI18n:
       spreadIntro     = "Spread a map of attributes onto an element:",
       refH2           = "Element references",
       refIntro        = "Capture a DOM element with bind:this:",
-      commentTitle    = None,
-      commentText     = None
+      commentTitle    = Option.empty[String],
+      commentText     = Option.empty[String]
     ),
 
     reactivity = GuideReactivity(
@@ -826,9 +830,9 @@ object GuideI18n:
         "Instead of wiring oninput manually, use bind:value for a two-way sync between a text input and a State[String]:",
       windowH2    = "Window and body events",
       windowIntro = "Attach global listeners using <melt:window> and <melt:body> special elements (see ",
-      windowOutro = None,
-      customTitle = None,
-      customText  = None
+      windowOutro = Option.empty[String],
+      customTitle = Option.empty[String],
+      customText  = Option.empty[String]
     ),
 
     lifecycle = GuideLifecycle(
@@ -845,10 +849,10 @@ object GuideI18n:
       effectCleanH2    = "Effect cleanup",
       effectCleanIntro =
         "onCleanup inside an effect block runs before each re-execution of the effect, and once more on component destroy:",
-      destroyH2   = None,
-      destroyText = None,
-      warnTitle   = None,
-      warnText    = None
+      destroyH2   = Option.empty[String],
+      destroyText = Option.empty[String],
+      warnTitle   = Option.empty[String],
+      warnText    = Option.empty[String]
     ),
 
     controlFlow = GuideControlFlow(
@@ -861,8 +865,8 @@ object GuideI18n:
         "Accessing loggedIn.value directly in a template expression reads the value once but does not subscribe to future changes. Wrapping with .map() creates a reactive subscription that updates the DOM automatically.",
       listH2        = "List rendering",
       listIntro     = "Render a list with Scala's .map() on a State[List[_]] or Signal[List[_]]:",
-      keyedH2       = None,
-      keyedText     = None,
+      keyedH2       = Option.empty[String],
+      keyedText     = Option.empty[String],
       keyBlockH2    = "Key block",
       keyBlockIntro =
         "Force Melt to destroy and re-create a subtree when a key expression changes using the <melt:key> element. Useful for resetting component state:",
@@ -883,13 +887,13 @@ object GuideI18n:
       boundaryIntro = "Wrap a subtree in an error boundary that catches rendering errors and shows a fallback UI:",
       elementH2     = "<melt:element>",
       elementIntro  = "Render a dynamic tag name at runtime:",
-      documentH2    = None,
-      documentIntro = None,
+      documentH2    = Option.empty[String],
+      documentIntro = Option.empty[String],
       snippetsH2    = "Snippets and render",
       snippetsIntro = "Define reusable template fragments with {#snippet} and call them with {@render}:",
-      tableElemH    = None,
-      tableMountH   = None,
-      tableUseH     = None
+      tableElemH    = Option.empty[String],
+      tableMountH   = Option.empty[String],
+      tableUseH     = Option.empty[String]
     ),
 
     transitions = GuideTransitions(
@@ -909,10 +913,10 @@ object GuideI18n:
       precisionDesc = "Distance at which motion stops",
       cssH2         = "CSS transitions",
       cssIntro      = "For class-based transitions, pair class: directives with CSS transition properties:",
-      inOutH2       = None,
-      inOutIntro    = None,
-      perfTitle     = None,
-      perfText      = None
+      inOutH2       = Option.empty[String],
+      inOutIntro    = Option.empty[String],
+      perfTitle     = Option.empty[String],
+      perfText      = Option.empty[String]
     ),
 
     trustedHtml = GuideTrustedHtml(
@@ -934,7 +938,7 @@ object GuideI18n:
         "Melt also validates href and src attributes that accept URLs. Use TrustedUrl for dynamic values:",
       trustedUrlOutro =
         "Without wrapping, dangerous protocols (javascript:, vbscript:, data:text/html) are blocked at compile time.",
-      secTableH2 = None
+      secTableH2 = Option.empty[String]
     ),
 
     css = GuideCss(
@@ -944,8 +948,8 @@ object GuideI18n:
       scopedIntro =
         "Any CSS written inside a component's <style> block is automatically scoped. The compiler adds a unique attribute to each element, and prefixes every rule to match:",
       scopedGenText = "Generated HTML (simplified):",
-      globalH2      = None,
-      globalIntro   = None,
+      globalH2      = Option.empty[String],
+      globalIntro   = Option.empty[String],
       dynamicH2     = "Dynamic styles",
       dynamicIntro  = "Use the style:property directive for reactive inline styles:",
       customH2      = "CSS custom properties",
@@ -955,8 +959,8 @@ object GuideI18n:
       dartTitle     = "SCSS requires Dart Sass",
       dartText      =
         "The melt-sass-preprocessor module wraps Dart Sass. Add it to your JVM classpath and set meltStylePreprocessor := Some(SassPreprocessor) in your sbt config.",
-      nestingH2    = None,
-      nestingIntro = None
+      nestingH2    = Option.empty[String],
+      nestingIntro = Option.empty[String]
     ),
 
     testing = GuideTesting(
@@ -977,11 +981,11 @@ object GuideI18n:
       getByTextDesc = "Find element by text content",
       getByRoleDesc = "Find element by ARIA role",
       waitForDesc   = "Wait for async state changes",
-      reactiveH2    = None,
-      reactiveIntro = None,
-      eventH2       = None,
-      jvmTitle      = None,
-      jvmText       = None,
+      reactiveH2    = Option.empty[String],
+      reactiveIntro = Option.empty[String],
+      eventH2       = Option.empty[String],
+      jvmTitle      = Option.empty[String],
+      jvmText       = Option.empty[String],
       formH2        = "Testing form actions",
       formIntro     =
         "Form actions are tested at three layers, each with a helper so no HTTP server or real browser is needed.",
@@ -1004,19 +1008,19 @@ object GuideI18n:
       routesH2        = "Defining routes",
       pathParamsH2    = "Path parameters",
       pathParamsIntro = "Declare parameters with param[T](\"name\") and combine them with /:",
-      pathParamsOutro = None,
-      ctxTableH2      = None,
-      ctxMethodH      = None,
-      ctxDescH        = None,
-      ctxRenderDesc   = None,
-      ctxHtmlDesc     = None,
-      ctxParamsDesc   = None,
-      ctxQueryDesc    = None,
-      ctxLocalsDesc   = None,
+      pathParamsOutro = Option.empty[String],
+      ctxTableH2      = Option.empty[String],
+      ctxMethodH      = Option.empty[String],
+      ctxDescH        = Option.empty[String],
+      ctxRenderDesc   = Option.empty[String],
+      ctxHtmlDesc     = Option.empty[String],
+      ctxParamsDesc   = Option.empty[String],
+      ctxQueryDesc    = Option.empty[String],
+      ctxLocalsDesc   = Option.empty[String],
       pageOptsH2      = "PageOptions",
       pageOptsIntro   = "Control SSR, CSR, and prerendering per route:",
-      infoTitle       = None,
-      infoText        = None,
+      infoTitle       = Option.empty[String],
+      infoText        = Option.empty[String],
       layoutsH2       = Some("Nested layouts"),
       layoutsIntro    = Some(
         "A layout is a component with a {children} slot. Register layouts by path prefix with app.layout: the empty prefix \"\" is the root layout, and deeper prefixes nest inside it (shortest prefix = outermost). Each page under a prefix is composed inside its layouts during SSR."
@@ -1051,8 +1055,8 @@ object GuideI18n:
       propsH2     = "Props serialization",
       propsIntro  =
         "For hydration to work, props are serialized to JSON by the server and deserialized by the client. Derive a PropsCodec automatically:",
-      viteH2              = None,
-      viteIntro           = None,
+      viteH2              = Option.empty[String],
+      viteIntro           = Option.empty[String],
       hydrationModesH2    = Some("Hydration modes"),
       hydrationModesIntro = Some(
         "Melt has two hydration modes. Per-component (the default) hydrates each component independently; router-driven hydrates the whole route tree from one entry and takes over client navigation."
@@ -1066,7 +1070,7 @@ object GuideI18n:
       partialTitle = "No hydration (static)",
       partialText  =
         "Set csr = false to render a component as pure static HTML with no client-side JavaScript at all — the third option alongside the two hydration modes above.",
-      spaVsSsrH2 = None
+      spaVsSsrH2 = Option.empty[String]
     ),
 
     ssg = GuideSsg(
@@ -1079,14 +1083,14 @@ object GuideI18n:
       runIntro    = "Create a generate main method that calls SsgGenerator.run:",
       runCmd      = "Run it with sbt:",
       outputH2    = "Output structure",
-      deployH2    = None,
-      deployIntro = None,
-      deployLi1   = None,
-      deployLi2   = None,
-      deployLi3   = None,
-      deployLi4   = None,
-      dynTitle    = None,
-      dynText     = None
+      deployH2    = Option.empty[String],
+      deployIntro = Option.empty[String],
+      deployLi1   = Option.empty[String],
+      deployLi2   = Option.empty[String],
+      deployLi3   = Option.empty[String],
+      deployLi4   = Option.empty[String],
+      dynTitle    = Option.empty[String],
+      dynText     = Option.empty[String]
     ),
 
     adapters = GuideAdapters(
@@ -1103,16 +1107,16 @@ object GuideI18n:
       adapterH     = "Adapter",
       platformH    = "Platform",
       viaVite      = "via Vite",
-      choiceH2     = None,
-      choiceLi1Pre = None,
-      choiceLi1Kit = None,
-      choiceLi2Pre = None,
-      choiceLi2Kit = None,
-      choiceLi3Pre = None,
-      choiceLi3Kit = None,
-      choiceLi4Pre = None,
-      multiTitle   = None,
-      multiText    = None
+      choiceH2     = Option.empty[String],
+      choiceLi1Pre = Option.empty[String],
+      choiceLi1Kit = Option.empty[String],
+      choiceLi2Pre = Option.empty[String],
+      choiceLi2Kit = Option.empty[String],
+      choiceLi3Pre = Option.empty[String],
+      choiceLi3Kit = Option.empty[String],
+      choiceLi4Pre = Option.empty[String],
+      multiTitle   = Option.empty[String],
+      multiText    = Option.empty[String]
     ),
 
     formActions = GuideFormActions(
@@ -1685,7 +1689,19 @@ object GuideI18n:
       ),
       partialTitle = "ハイドレーションなし(静的)",
       partialText  = "csr = false を設定すると、クライアント側の JavaScript を一切使わない純粋な静的 HTML になります。上記 2 方式に加えた第 3 の選択肢です。",
-      spaVsSsrH2   = Some("SSR と SPA の違い")
+      spaVsSsrH2    = Some("SSR と SPA の違い"),
+      spaVsSsrIntro = Some(
+        "どちらのモードも同じ `.melt` コンポーネントを描画します。違いは「最初の描画をどこで・いつ行うか」だけです。"
+      ),
+      spaVsSsrSpa = Some(
+        "SPA(meltMode Browser): ブラウザが JavaScript バンドルをダウンロードし、クライアント側で DOM を構築します。最初の HTML レスポンスは空のシェルで、セットアップは最もシンプルですが、初回描画はバンドルの読み込みを待ち、クローラは JS を実行しないと内容をほとんど認識できません。"
+      ),
+      spaVsSsrSsr = Some(
+        "SSR(meltMode Http4s / Node): サーバがリクエストごとに HTML を描画するため、最初のレスポンスに既にページ内容が含まれます — SEO と初回描画に有利です。その後クライアントがそのマークアップをハイドレーションして対話可能にします(上記のハイドレーションモード参照)。"
+      ),
+      spaVsSsrNote = Some(
+        "同じコンポーネントのソースが両モードで動作します。コンポーネントを書き換えることなく、プロジェクトごとに meltMode(または codegen mode の spa / ssr / auto)で選択できます。"
+      )
     ),
 
     ssg = GuideSsg(

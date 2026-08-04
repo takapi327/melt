@@ -74,9 +74,9 @@ val base = props.basePath + "/" + props.lang
 
 <pre><code>{GuideCodes.eventsWindowExample}</code></pre>
 
-{t.windowOutro.map(text => <p>{text}</p>)}
+{t.windowOutro.map((text: String) => <p>{text}</p>)}
 
-{t.customTitle.map(title =>
+{t.customTitle.map((title: String) =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>
     <p>{t.customText.getOrElse("")}</p>

@@ -36,19 +36,19 @@ val base = props.basePath + "/" + props.lang
 
 <pre><code>{GuideCodes.ssgOutputStructure}</code></pre>
 
-{t.deployH2.map(h => <h2>{h}</h2>)}
-{t.deployIntro.map(p => <p>{p}</p>)}
+{t.deployH2.map((h: String) => <h2>{h}</h2>)}
+{t.deployIntro.map((p: String) => <p>{p}</p>)}
 
-{t.deployLi1.map(li1 =>
+{t.deployLi1.map((li1: String) =>
   <ul>
     <li>{li1}</li>
-    {t.deployLi2.map(li2 => <li>{li2}</li>)}
-    {t.deployLi3.map(li3 => <li>{li3}</li>)}
-    {t.deployLi4.map(li4 => <li>{li4}</li>)}
+    {t.deployLi2.map((li2: String) => <li>{li2}</li>)}
+    {t.deployLi3.map((li3: String) => <li>{li3}</li>)}
+    {t.deployLi4.map((li4: String) => <li>{li4}</li>)}
   </ul>
 )}
 
-{t.dynTitle.map(title =>
+{t.dynTitle.map((title: String) =>
   <div class="callout callout-tip">
     <div class="callout-title">{title}</div>
     <p>{t.dynText.getOrElse("")}</p>

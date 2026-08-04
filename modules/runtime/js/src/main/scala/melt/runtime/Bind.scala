@@ -932,6 +932,21 @@ object Bind:
       parent.insertBefore(node, anchor)
     }
 
+  /** Renders an `Option` before `anchor` as a 0-or-1 element list. Used when a
+    * `.melt` template references `{maybe.map(renderFn)}` where `maybe` is a plain
+    * `Option`: `None` renders nothing, `Some(a)` renders a single node.
+    *
+    * `Option` is not an `Iterable`, so without this overload such templates would
+    * fall through to the `listInvalidSource` compile error. One-shot, like the
+    * `Iterable` overload above.
+    */
+  def list[A](source: Option[A], renderFn: A => dom.Node, anchor: dom.Node): Unit =
+    val parent = anchor.parentNode
+    source.foreach { item =>
+      val node = renderFn(item)
+      parent.insertBefore(node, anchor)
+    }
+
   private def destroyNode(n: dom.Node): Unit = n match
     case el: dom.Element => Lifecycle.destroyTree(el)
     case _               => ()

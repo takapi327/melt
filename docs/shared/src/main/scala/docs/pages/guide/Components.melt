@@ -56,8 +56,8 @@ val base = props.basePath + "/" + props.lang
 
 <pre><code>{GuideCodes.componentsCardUsage}</code></pre>
 
-{t.defaultsH2.map(h => <h2>{h}</h2>)}
-{t.defaultsText.map(p => <p>{p}</p>)}
+{t.defaultsH2.map((h: String) => <h2>{h}</h2>)}
+{t.defaultsText.map((p: String) => <p>{p}</p>)}
 
 <h2>{t.scopedStylesH2}</h2>
 <p>{t.scopedStylesText}</p>

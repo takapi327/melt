@@ -85,18 +85,18 @@ val base = props.basePath + "/" + props.lang
   </tbody>
 </table>
 
-{t.choiceH2.map(h => <h2>{h}</h2>)}
+{t.choiceH2.map((h: String) => <h2>{h}</h2>)}
 
-{t.choiceLi1Pre.map(li1Pre =>
+{t.choiceLi1Pre.map((li1Pre: String) =>
   <ul>
     <li>{li1Pre}<code>{t.choiceLi1Kit.getOrElse("")}</code></li>
-    {t.choiceLi2Pre.map(li2Pre => <li>{li2Pre}<code>{t.choiceLi2Kit.getOrElse("")}</code></li>)}
-    {t.choiceLi3Pre.map(li3Pre => <li>{li3Pre}<code>{t.choiceLi3Kit.getOrElse("")}</code></li>)}
-    {t.choiceLi4Pre.map(li4Pre => <li>{li4Pre}</li>)}
+    {t.choiceLi2Pre.map((li2Pre: String) => <li>{li2Pre}<code>{t.choiceLi2Kit.getOrElse("")}</code></li>)}
+    {t.choiceLi3Pre.map((li3Pre: String) => <li>{li3Pre}<code>{t.choiceLi3Kit.getOrElse("")}</code></li>)}
+    {t.choiceLi4Pre.map((li4Pre: String) => <li>{li4Pre}</li>)}
   </ul>
 )}
 
-{t.multiTitle.map(title =>
+{t.multiTitle.map((title: String) =>
   <div class="callout callout-tip">
     <div class="callout-title">{title}</div>
     <p>{t.multiText.getOrElse("")}</p>

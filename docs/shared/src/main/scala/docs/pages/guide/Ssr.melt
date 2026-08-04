@@ -40,8 +40,8 @@ val base = props.basePath + "/" + props.lang
 
 <pre><code>{GuideCodes.ssrPropsExample}</code></pre>
 
-{t.viteH2.map(h => <h2>{h}</h2>)}
-{t.viteIntro.map(p => <p>{p}</p>)}
+{t.viteH2.map((h: String) => <h2>{h}</h2>)}
+{t.viteIntro.map((p: String) => <p>{p}</p>)}
 
 {t.viteH2.map(_ =>
   <div class="code-block">
@@ -52,10 +52,10 @@ val base = props.basePath + "/" + props.lang
   </div>
 )}
 
-{t.hydrationModesH2.map(h => <h2>{h}</h2>)}
-{t.hydrationModesIntro.map(p => <p>{p}</p>)}
-{t.hydrationModesPer.map(p => <p>{p}</p>)}
-{t.hydrationModesRouter.map(p => <p>{p}</p>)}
+{t.hydrationModesH2.map((h: String) => <h2>{h}</h2>)}
+{t.hydrationModesIntro.map((p: String) => <p>{p}</p>)}
+{t.hydrationModesPer.map((p: String) => <p>{p}</p>)}
+{t.hydrationModesRouter.map((p: String) => <p>{p}</p>)}
 
 {t.hydrationModesH2.map(_ =>
   <div class="code-block">
@@ -68,7 +68,11 @@ val base = props.basePath + "/" + props.lang
   <p>{t.partialText}</p>
 </div>
 
-{t.spaVsSsrH2.map(h => <h2>{h}</h2>)}
+{t.spaVsSsrH2.map((h: String) => <h2>{h}</h2>)}
+{t.spaVsSsrIntro.map((p: String) => <p>{p}</p>)}
+{t.spaVsSsrSpa.map((p: String) => <p>{p}</p>)}
+{t.spaVsSsrSsr.map((p: String) => <p>{p}</p>)}
+{t.spaVsSsrNote.map((p: String) => <p>{p}</p>)}
 
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/routing"}>
