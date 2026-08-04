@@ -475,7 +475,6 @@ case class GuideAdapters(
   choiceLi2Kit: Option[String],
   choiceLi3Pre: Option[String],
   choiceLi3Kit: Option[String],
-  choiceLi4Pre: Option[String],
   multiTitle:   Option[String],
   multiText:    Option[String]
 )
@@ -1107,16 +1106,15 @@ object GuideI18n:
       adapterH     = "Adapter",
       platformH    = "Platform",
       viaVite      = "via Vite",
-      choiceH2     = Option.empty[String],
-      choiceLi1Pre = Option.empty[String],
-      choiceLi1Kit = Option.empty[String],
-      choiceLi2Pre = Option.empty[String],
-      choiceLi2Kit = Option.empty[String],
-      choiceLi3Pre = Option.empty[String],
-      choiceLi3Kit = Option.empty[String],
-      choiceLi4Pre = Option.empty[String],
-      multiTitle   = Option.empty[String],
-      multiText    = Option.empty[String]
+      choiceH2     = Some("Choosing an Adapter"),
+      choiceLi1Pre = Some("Already using http4s → "),
+      choiceLi1Kit = Some("meltkit-adapter-http4s"),
+      choiceLi2Pre = Some("Want to run on the Node.js ecosystem → "),
+      choiceLi2Kit = Some("meltkit-adapter-node"),
+      choiceLi3Pre = Some("Building a serverless SPA → "),
+      choiceLi3Kit = Some("meltkit-adapter-browser"),
+      multiTitle   = Some("Combining Multiple Adapters"),
+      multiText    = Some("You can also switch by environment — for example, start quickly with the Node.js adapter during development and deploy to http4s in production.")
     ),
 
     formActions = GuideFormActions(
@@ -1735,13 +1733,12 @@ object GuideI18n:
       platformH    = "プラットフォーム",
       viaVite      = "Vite 経由",
       choiceH2     = Some("アダプターの選び方"),
-      choiceLi1Pre = Some("既に "),
-      choiceLi1Kit = Some(" を使っている → meltkit-adapter-http4s"),
-      choiceLi2Pre = Some(""),
-      choiceLi2Kit = Some(" エコシステムで動かしたい → meltkit-adapter-node"),
-      choiceLi3Pre = Some("サーバーなしの "),
-      choiceLi3Kit = Some(" を作りたい → meltkit-adapter-browser"),
-      choiceLi4Pre = Some(""),
+      choiceLi1Pre = Some("既に http4s を使っている → "),
+      choiceLi1Kit = Some("meltkit-adapter-http4s"),
+      choiceLi2Pre = Some("Node.js エコシステムで動かしたい → "),
+      choiceLi2Kit = Some("meltkit-adapter-node"),
+      choiceLi3Pre = Some("サーバーなしの SPA を作りたい → "),
+      choiceLi3Kit = Some("meltkit-adapter-browser"),
       multiTitle   = Some("複数アダプターの組み合わせ"),
       multiText    = Some("開発時は Node.js アダプターで素早く起動し、プロダクションでは http4s にデプロイするような環境別の切り替えも可能です。")
     ),

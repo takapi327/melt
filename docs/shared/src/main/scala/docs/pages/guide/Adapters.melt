@@ -92,7 +92,6 @@ val base = props.basePath + "/" + props.lang
     <li>{li1Pre}<code>{t.choiceLi1Kit.getOrElse("")}</code></li>
     {t.choiceLi2Pre.map((li2Pre: String) => <li>{li2Pre}<code>{t.choiceLi2Kit.getOrElse("")}</code></li>)}
     {t.choiceLi3Pre.map((li3Pre: String) => <li>{li3Pre}<code>{t.choiceLi3Kit.getOrElse("")}</code></li>)}
-    {t.choiceLi4Pre.map((li4Pre: String) => <li>{li4Pre}</li>)}
   </ul>
 )}
 

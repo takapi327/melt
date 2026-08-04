@@ -134,22 +134,25 @@ object ApiCodes:
 
   val meltkitRoutes: String =
     """|import meltkit.*
+       |import cats.effect.IO
        |
        |val app = MeltKit[IO]()
        |
+       |// Handlers return F[Response]; ctx.render(...) is a synchronous
+       |// PlainResponse, so wrap it with IO.pure (or IO.delay).
        |app.get("") { ctx =>
-       |  ctx.render(AppPage())
+       |  IO.pure(ctx.render(AppPage()))
        |}
        |
        |val lang = param[String]("lang")
        |app.get(lang) { ctx =>
        |  val l = ctx.params.lang
-       |  ctx.render(AppPage(AppPage.Props(lang = l)))
+       |  IO.pure(ctx.render(AppPage(AppPage.Props(lang = l))))
        |}
        |
        |val slug = param[String]("slug")
        |app.get(lang / "guide" / slug) { ctx =>
-       |  ctx.render(GuidePage(GuidePage.Props(lang = ctx.params.lang, slug = ctx.params.slug)))
+       |  IO.pure(ctx.render(GuidePage(GuidePage.Props(lang = ctx.params.lang, slug = ctx.params.slug))))
        |}""".stripMargin
 
   val meltkitPathParams: String =
@@ -159,16 +162,16 @@ object ApiCodes:
        |app.get(lang / "posts" / id) { ctx =>
        |  val language: String = ctx.params.lang
        |  val postId:   Int    = ctx.params.id
-       |  ctx.json(fetchPost(postId))
+       |  IO.pure(ctx.json(fetchPost(postId)))
        |}""".stripMargin
 
   val meltkitHttpMethods: String =
     """|val app = MeltKit[IO]()
        |
-       |app.get("api/users")      { ctx => ctx.json(getUsers()) }
-       |app.post("api/users")     { ctx => ctx.json(createUser(ctx.body)) }
-       |app.put("api/users/1")    { ctx => ctx.json(updateUser(ctx.body)) }
-       |app.delete("api/users/1") { ctx => ctx.json(deleteUser()) }""".stripMargin
+       |app.get("api/users")      { ctx => IO.pure(ctx.json(getUsers())) }
+       |app.post("api/users")     { ctx => IO.pure(ctx.json(createUser(ctx.body))) }
+       |app.put("api/users/1")    { ctx => IO.pure(ctx.json(updateUser(ctx.body))) }
+       |app.delete("api/users/1") { ctx => IO.pure(ctx.json(deleteUser())) }""".stripMargin
 
   val meltkitMiddleware: String =
     """|val app = MeltKit[IO]()
@@ -180,9 +183,11 @@ object ApiCodes:
        |}
        |
        |app.get("protected") { ctx =>
-       |  if ctx.locals.get(AuthKey).isEmpty
-       |  then ctx.redirect("/login")
-       |  else ctx.render(ProtectedPage())
+       |  IO.pure(
+       |    if ctx.locals.get(AuthKey).isEmpty
+       |    then ctx.redirect("/login")
+       |    else ctx.render(ProtectedPage())
+       |  )
        |}""".stripMargin
 
   val meltkitFormActions: String =
