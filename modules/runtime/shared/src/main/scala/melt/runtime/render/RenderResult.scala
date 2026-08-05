@@ -6,6 +6,8 @@
 
 package melt.runtime.render
 
+import melt.runtime.Escape
+
 /** The immutable outcome of an SSR render.
   *
   * `RenderResult` is deliberately a plain `case class` so it is immutable
@@ -51,6 +53,47 @@ final case class RenderResult(
 
 object RenderResult:
   val empty: RenderResult = RenderResult("", "")
+
+extension (result: RenderResult)
+
+  /** Wraps this SSR result in a complete, **self-contained** HTML document —
+    * `<!DOCTYPE html>` through `</html>` — with the component-scoped CSS inlined.
+    *
+    * Unlike [[meltkit.Template.render]], this references **no** client bundle,
+    * Vite manifest, or hydration script: the output is pure server-rendered HTML.
+    * It is the building block for the hydration-independent SSR path used by
+    * server-only apps (auth screens, admin pages) that never ship a Scala.js
+    * client. See `ctx.renderPage`.
+    *
+    * Head composition mirrors [[meltkit.Template.renderInternal]]: free-form
+    * `<melt:head>` content and global CSS links ([[head]]) come first, then the
+    * scoped `<style id="…">` blocks ([[css]], sorted by `scopeId`), then the
+    * caller's `head` extras — so scoped styles win over global ones at equal
+    * specificity. The document `<title>` prefers the component-supplied
+    * [[title]] (last `renderer.head.title(...)` wins) and falls back to `title`.
+    *
+    * @param title fallback `<title>` used only when the component set none
+    * @param lang  the `<html lang="…">` value
+    * @param head  extra raw HTML injected at the end of `<head>` (meta tags,
+    *              a CSS reset, etc.); the caller is responsible for its safety
+    */
+  def toHtmlDocument(title: String = "", lang: String = "en", head: String = ""): String =
+    val cssHtml = result.css.toList
+      .sortBy(_.scopeId)
+      .map(e => s"""<style id="${ e.scopeId }">${ e.code }</style>""")
+      .mkString("\n")
+    val headContent = List(result.head, cssHtml, head).filter(_.nonEmpty).mkString("\n")
+    val pageTitle   = result.title.getOrElse(title)
+    s"""<!DOCTYPE html>
+<html lang="${ Escape.attr(lang) }">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${ Escape.html(pageTitle) }</title>
+$headContent
+</head>
+<body>${ result.body }</body>
+</html>"""
 
 /** A single scoped CSS block discovered during rendering. */
 final case class CssEntry(scopeId: String, code: String)

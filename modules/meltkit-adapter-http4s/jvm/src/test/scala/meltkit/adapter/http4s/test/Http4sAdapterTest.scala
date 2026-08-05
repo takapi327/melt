@@ -770,3 +770,43 @@ class Http4sAdapterTest extends CatsEffectSuite:
         resp.get.as[String]
       }
       .map(body => assertEquals(body, "alice:xyz"))
+
+  // ── #2: hydration-independent SSR — renderPage needs no Template/manifest ──
+  // `ctx.render` requires a Template (index.html) + Vite manifest, which are the
+  // artifacts of the Scala.js client build (hydration). `ctx.renderPage` wraps a
+  // component's SSR RenderResult into a complete, self-contained HTML document —
+  // scoped CSS inlined, no client bundle, no hydration script — so server-only
+  // apps (auth screens, admin pages) can serve pure SSR HTML.
+
+  test("ctx.renderPage renders a complete standalone HTML document without a Template"):
+    import melt.runtime.render.{ CssEntry, RenderResult }
+
+    val app = MeltKit[IO]() // deliberately no Template configured
+    app.get("page") { ctx =>
+      val page = RenderResult(
+        body  = "<main><h1>Hello</h1></main>",
+        head  = "",
+        title = Some("Welcome"),
+        css   = Set(CssEntry("melt-abc", ".x{color:red}"))
+      )
+      IO.pure(ctx.renderPage(page, title = "Fallback"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/page")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        val r = resp.get
+        assertEquals(r.status.code, 200)
+        assertEquals(r.contentType.map(_.mediaType), Some(MediaType.text.html))
+        r.as[String]
+      }
+      .map { body =>
+        assert(body.contains("<!DOCTYPE html>"), body)
+        assert(body.contains("<title>Welcome</title>"), body) // result.title wins over the fallback
+        assert(body.contains("<main><h1>Hello</h1></main>"), body)
+        assert(body.contains("""<style id="melt-abc">.x{color:red}</style>"""), body)
+      }

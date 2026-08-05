@@ -187,6 +187,17 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
   /** Builds a 200 application/json response from a raw JSON string. */
   def json(value: String): PlainResponse
 
+  /** Builds a 200 `text/html; charset=utf-8` response from a pre-rendered HTML string.
+    *
+    * Use this to return HTML produced outside the component renderer — an SSR
+    * document from `RenderResult.toHtmlDocument`, or any externally templated page:
+    *
+    * {{{
+    * app.get("login") { ctx => IO.pure(ctx.html(page.toHtmlDocument("Login"))) }
+    * }}}
+    */
+  def html(value: String): PlainResponse = Response.html(value)
+
   /** Builds a 400 Bad Request response from a [[BodyError]]. */
   def badRequest(err: BodyError): BadRequest
 

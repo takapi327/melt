@@ -93,6 +93,14 @@ val base = props.basePath + "/" + props.lang
       <td>{t.ctxHtmlDesc}</td>
     </tr>
     <tr>
+      <td><code>ctx.renderPage(...)</code></td>
+      <td>{t.ctxRenderPageDesc}</td>
+    </tr>
+    <tr>
+      <td><code>ctx.html(...)</code></td>
+      <td>{t.ctxHtmlRespDesc}</td>
+    </tr>
+    <tr>
       <td><code>ctx.json(...)</code></td>
       <td>{t.ctxJsonDesc}</td>
     </tr>

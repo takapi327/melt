@@ -74,6 +74,17 @@ val base = props.basePath + "/" + props.lang
 {t.spaVsSsrSsr.map((p: String) => <p>{p}</p>)}
 {t.spaVsSsrNote.map((p: String) => <p>{p}</p>)}
 
+<h2>{t.serverOnlyH2}</h2>
+<p>{t.serverOnlyIntro}</p>
+
+<div class="code-block">
+  <pre><code>{GuideCodes.ssrServerOnly}</code></pre>
+</div>
+
+<div class="callout callout-info">
+  <p>{t.serverOnlyNote}</p>
+</div>
+
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/routing"}>
     <span class="doc-nav-dir">{nav.prev}</span>

@@ -431,7 +431,10 @@ case class GuideSsr(
   spaVsSsrIntro:        Option[String] = None,
   spaVsSsrSpa:          Option[String] = None,
   spaVsSsrSsr:          Option[String] = None,
-  spaVsSsrNote:         Option[String] = None
+  spaVsSsrNote:         Option[String] = None,
+  serverOnlyH2:         String,
+  serverOnlyIntro:      String,
+  serverOnlyNote:       String
 )
 
 // ── SSG ───────────────────────────────────────────────────────────────────────
@@ -1054,8 +1057,10 @@ object GuideI18n:
       propsH2     = "Props serialization",
       propsIntro  =
         "For hydration to work, props are serialized to JSON by the server and deserialized by the client. Derive a PropsCodec automatically:",
-      viteH2              = Option.empty[String],
-      viteIntro           = Option.empty[String],
+      viteH2              = Some("Vite configuration"),
+      viteIntro           = Some(
+        "For an SSR + hydration production build, Rollup's default settings can strip the named hydrate export. Add the following to vite.config.mjs:"
+      ),
       hydrationModesH2    = Some("Hydration modes"),
       hydrationModesIntro = Some(
         "Melt has two hydration modes. Per-component (the default) hydrates each component independently; router-driven hydrates the whole route tree from one entry and takes over client navigation."
@@ -1069,7 +1074,24 @@ object GuideI18n:
       partialTitle = "No hydration (static)",
       partialText  =
         "Set csr = false to render a component as pure static HTML with no client-side JavaScript at all — the third option alongside the two hydration modes above.",
-      spaVsSsrH2 = Option.empty[String]
+      spaVsSsrH2 = Some("SSR vs SPA"),
+      spaVsSsrIntro = Some(
+        "Both modes render the same .melt components. The only difference is where and when the first render happens."
+      ),
+      spaVsSsrSpa = Some(
+        "SPA (meltMode Browser): the browser downloads the JavaScript bundle and builds the DOM on the client. The first HTML response is an empty shell — the simplest setup, but the first paint waits for the bundle to load, and crawlers see almost no content unless they execute JS."
+      ),
+      spaVsSsrSsr = Some(
+        "SSR (meltMode Http4s / Node): the server renders HTML on every request, so the first response already contains the page content — better for SEO and first paint. The client then hydrates that markup to make it interactive (see the hydration modes above)."
+      ),
+      spaVsSsrNote = Some(
+        "The same component source works in both modes. You choose per project via meltMode (or the codegen mode spa / ssr / auto) without rewriting components."
+      ),
+      serverOnlyH2 = "Server-only SSR (no client)",
+      serverOnlyIntro =
+        "The default SSR path pairs server rendering with client hydration, so it needs a Template (index.html) and a Vite manifest — both produced by the Scala.js client build, and ctx.render throws when they are absent. For apps that ship no client at all (auth screens, admin panels, simple content pages), call ctx.renderPage instead: it wraps the component's SSR output into a complete, self-contained HTML document — scoped CSS inlined, no hydration script — with no Template or manifest required.",
+      serverOnlyNote =
+        "renderPage takes optional title, lang, and head arguments; the component's own <title> wins when it sets one. The result is plain server-rendered HTML, so it works on any handler (including GET) and needs no Scala.js build step."
     ),
 
     ssg = GuideSsg(
@@ -1699,7 +1721,12 @@ object GuideI18n:
       ),
       spaVsSsrNote = Some(
         "同じコンポーネントのソースが両モードで動作します。コンポーネントを書き換えることなく、プロジェクトごとに meltMode(または codegen mode の spa / ssr / auto)で選択できます。"
-      )
+      ),
+      serverOnlyH2 = "server-only SSR（クライアント無し）",
+      serverOnlyIntro =
+        "既定の SSR はサーバー描画とクライアントのハイドレーションを組み合わせるため、Template(index.html)と Vite マニフェストが必要です。これらは Scala.js クライアントビルドの成果物で、無い場合 ctx.render は例外を投げます。クライアントを一切持たないアプリ(認証画面・管理画面・単純なコンテンツページ)では、代わりに ctx.renderPage を呼びます。コンポーネントの SSR 出力を完全な自己完結型 HTML 文書に包み(スコープ付き CSS をインライン化、ハイドレーションスクリプト無し)、Template もマニフェストも不要です。",
+      serverOnlyNote =
+        "renderPage は任意の title・lang・head 引数を取り、コンポーネント自身が <title> を設定していればそちらが優先されます。出力は純粋なサーバー描画 HTML なので、あらゆるハンドラー(GET を含む)で動作し、Scala.js のビルド手順も不要です。"
     ),
 
     ssg = GuideSsg(

@@ -768,6 +768,18 @@ object GuideCodes:
     """|case class Props(title: String, count: Int)
        |// Codec is derived automatically for case classes with simple types""".stripMargin
 
+  val ssrServerOnly: String =
+    """|import meltkit.*
+       |import cats.effect.IO
+       |
+       |// No Template (index.html), no Vite manifest, no client bundle.
+       |val app = MeltKit[IO]()
+       |
+       |app.get("login") { ctx =>
+       |  // renderPage wraps the SSR output into a full, self-contained document.
+       |  IO.pure(ctx.renderPage(LoginPage(), title = "Login"))
+       |}""".stripMargin
+
   val ssrHydrationModes: String =
     """|// Per-component (default): each component self-hydrates in place, via one
        |// import(chunk).hydrate() per component. Best for independent SSR pages —

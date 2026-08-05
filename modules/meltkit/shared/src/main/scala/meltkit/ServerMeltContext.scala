@@ -9,6 +9,7 @@ package meltkit
 import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
+import melt.runtime.render.toHtmlDocument
 
 /** Server-side extension of [[MeltContext]] that adds request-body access.
   *
@@ -87,6 +88,35 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
   * callable from `app.get` handlers, whose `ctx` is statically a [[MeltContext]]
   * but is always a server context at runtime. */
 extension [F[_], P <: AnyNamedTuple, B](ctx: MeltContext[F, P, B, RenderResult])
+
+  /** Renders a component as a complete, **self-contained** HTML page — the
+    * hydration-independent SSR path.
+    *
+    * Unlike [[MeltContext.render]], this needs **no** [[Template]] (`index.html`)
+    * and no Vite manifest: those are artifacts of the Scala.js client build, so
+    * `render` throws when they are absent. `renderPage` instead wraps the
+    * component's [[RenderResult]] (body + scoped CSS) into a full document via
+    * `RenderResult.toHtmlDocument`, referencing no client bundle or hydration
+    * script. This lets server-only apps (auth screens, admin panels) serve pure
+    * SSR HTML without a client build at all.
+    *
+    * {{{
+    * app.get("login") { ctx => IO.pure(ctx.renderPage(LoginPage(), title = "Login")) }
+    * }}}
+    *
+    * @param component the component to render (by-name, evaluated here)
+    * @param title     fallback `<title>` used only when the component sets none
+    * @param lang      the `<html lang="…">` value
+    * @param head      extra raw HTML appended to `<head>` (meta tags, a CSS reset)
+    */
+  def renderPage(
+    component: => RenderResult,
+    title:     String = "",
+    lang:      String = "en",
+    head:      String = ""
+  ): PlainResponse =
+    ctx.html(component.toHtmlDocument(title, lang, head))
+
   def renderAsync(component: => RenderResult): F[Response] =
     ctx match
       case s: ServerMeltContext[F, P, B, RenderResult] @unchecked => s.renderAsync(component)
