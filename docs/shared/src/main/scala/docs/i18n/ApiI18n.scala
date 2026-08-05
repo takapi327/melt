@@ -121,6 +121,8 @@ case class ApiMeltkit(
   ctxLocalsDesc:        String,
   ctxHeaderDesc:        String,
   ctxCookieDesc:        String,
+  withStatusH2:         String,
+  withStatusDesc:       String,
   httpMethodsH2:        String,
   middlewareH2:         String,
   formActionsH2:        String,
@@ -369,6 +371,9 @@ object ApiI18n:
       ctxLocalsDesc   = "Request-scoped storage (type-safe)",
       ctxHeaderDesc   = "Read a request header, case-insensitive (ctx.headers for all). Available on every handler, including GET.",
       ctxCookieDesc   = "Read a request cookie (ctx.cookies for all). Available on every handler, including GET.",
+      withStatusH2    = "Response status (withStatus)",
+      withStatusDesc  =
+        "Body builders default to 200 (json / text / html / ok) or their natural code (created = 201). withStatus is the single, uniform way to override the status — chain it onto any Response, including SSR pages from render / renderPage.",
       httpMethodsH2   = "HTTP methods",
       middlewareH2    = "Middleware (use)",
       formActionsH2   = "Form actions",
@@ -607,6 +612,9 @@ object ApiI18n:
       ctxLocalsDesc   = "リクエストスコープの型安全ストレージ",
       ctxHeaderDesc   = "リクエストヘッダーを取得（大文字小文字を区別しない。全件は ctx.headers）。GET を含むすべてのハンドラーで利用可能。",
       ctxCookieDesc   = "リクエストのクッキーを取得（全件は ctx.cookies）。GET を含むすべてのハンドラーで利用可能。",
+      withStatusH2    = "レスポンスステータス (withStatus)",
+      withStatusDesc  =
+        "ボディビルダーは既定で 200（json / text / html / ok）またはそれぞれの自然なコード（created = 201）を返します。withStatus はステータスを変更する唯一かつ統一的な手段で、render / renderPage の SSR ページを含む任意の Response にチェーンできます。",
       httpMethodsH2   = "HTTP メソッド",
       middlewareH2    = "ミドルウェア (use)",
       formActionsH2   = "フォームアクション",

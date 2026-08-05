@@ -17,6 +17,30 @@ case class Props(basePath: String = "", lang: String = "en")
 
     <div class="release">
       <div class="release-header">
+        <span class="release-version">Unreleased</span>
+        <span class="release-badge release-badge-planned">Unreleased</span>
+      </div>
+      <p class="release-summary">Server-side ergonomics for MeltKit: request headers/cookies on every handler, hydration-independent SSR, and a uniform response status setter.</p>
+
+      <div class="release-section">
+        <div class="release-section-label">New</div>
+        <ul class="release-list">
+          <li><strong>Headers &amp; cookies on every handler</strong> — <code>ctx.header</code> / <code>ctx.headers</code> / <code>ctx.cookie</code> / <code>ctx.cookies</code> moved to the base <code>MeltContext</code>, so <code>app.get</code> handlers can read them too — not just body-bearing routes. No middleware/Locals workaround needed for <code>Authorization</code> or session cookies.</li>
+          <li><strong>Hydration-independent SSR</strong> — <code>ctx.renderPage(component, title)</code> and <code>RenderResult.toHtmlDocument</code> render a complete, self-contained HTML document (scoped CSS inlined) with no Template (<code>index.html</code>), Vite manifest, or client bundle — for server-only apps (auth screens, admin panels). Plus <code>ctx.html(String)</code> to return a pre-rendered HTML string.</li>
+          <li><strong>Uniform response status</strong> — <code>Response.withStatus(code)</code> is the single way to set the status on any builder (<code>json</code> / <code>text</code> / <code>html</code> / <code>ok</code> / <code>render</code> / <code>renderPage</code>), mirroring <code>withContentType</code> / <code>withCookie</code>.</li>
+        </ul>
+      </div>
+
+      <div class="release-section">
+        <div class="release-section-label">Changed</div>
+        <ul class="release-list">
+          <li><strong>Removed</strong> the <code>render(component, status)</code> overload — chain <code>.withStatus(code)</code> instead, so every builder sets its status the same way.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="release">
+      <div class="release-header">
         <span class="release-version">v0.1.0</span>
         <span class="release-date">2026-06-07</span>
         <span class="release-badge release-badge-latest">Latest</span>

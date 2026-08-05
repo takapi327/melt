@@ -173,6 +173,20 @@ object ApiCodes:
        |app.put("api/users/1")    { ctx => IO.pure(ctx.json(updateUser(ctx.body))) }
        |app.delete("api/users/1") { ctx => IO.pure(ctx.json(deleteUser())) }""".stripMargin
 
+  val meltkitWithStatus: String =
+    """|val app = MeltKit[IO]()
+       |
+       |// Every body builder defaults to 200 (json / text / html / ok).
+       |// withStatus is the single, uniform way to override it — chain it on:
+       |app.get("api/quota") { ctx =>
+       |  IO.pure(ctx.text("Too many requests").withStatus(429))
+       |}
+       |
+       |// Works on any Response, including SSR pages (render / renderPage):
+       |app.get("missing") { ctx =>
+       |  IO.pure(ctx.renderPage(NotFoundPage(), title = "Not Found").withStatus(404))
+       |}""".stripMargin
+
   val meltkitMiddleware: String =
     """|val app = MeltKit[IO]()
        |

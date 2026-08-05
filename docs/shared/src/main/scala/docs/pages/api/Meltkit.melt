@@ -127,6 +127,13 @@ val base = props.basePath + "/" + props.lang
   </tbody>
 </table>
 
+<h2>{t.withStatusH2}</h2>
+<p>{t.withStatusDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.meltkitWithStatus}</code></pre>
+</div>
+
 <h2>{t.httpMethodsH2}</h2>
 
 <div class="code-block">
