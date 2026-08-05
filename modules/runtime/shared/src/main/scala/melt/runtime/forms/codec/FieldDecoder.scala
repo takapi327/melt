@@ -36,7 +36,7 @@ trait FieldDecoder[A]:
   def emap[B](f: A => Either[String, B]): FieldDecoder[B] =
     (name, values) => self.decode(name, values).flatMap(f)
 
-object FieldDecoder:
+object FieldDecoder extends LowPriorityFieldDecoders:
 
   def apply[A](using d: FieldDecoder[A]): FieldDecoder[A] = d
 
@@ -78,3 +78,22 @@ object FieldDecoder:
     * `Nil` when absent). The server fills it in on the response. */
   given [V]: FieldDecoder[Map[String, V]] with
     def decode(name: String, values: List[String]): Either[String, Map[String, V]] = Right(Map.empty)
+
+/** Lower-priority [[FieldDecoder]] givens, kept off the companion body so that a
+  * [[FieldCodec]]-backed instance (e.g. `FieldCodec[Option[A]]` via the codec →
+  * decoder bridge) always wins when one exists — avoiding an ambiguity with the
+  * `Option` wrapper below.
+  */
+trait LowPriorityFieldDecoders:
+
+  /** Decode-only `Option` wrapping: an absent field decodes to `None`, otherwise the
+    * inner decoder runs and its result is wrapped in `Some`.
+    *
+    * Unlike `FieldCodec[Option[A]]`, this needs only a [[FieldDecoder]] on `A`, so a
+    * decode-only field type — e.g. one built with [[FieldDecoder.spaceDelimited]] —
+    * can be wrapped in `Option` too (`Option[Set[Scope]]` for an optional OIDC
+    * space-delimited `scope`).
+    */
+  given optionFieldDecoder[A](using inner: FieldDecoder[A]): FieldDecoder[Option[A]] with
+    def decode(name: String, values: List[String]): Either[String, Option[A]] =
+      if values.isEmpty then Right(None) else inner.decode(name, values).map(Some(_))

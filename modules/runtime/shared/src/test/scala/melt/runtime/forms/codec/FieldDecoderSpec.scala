@@ -37,3 +37,21 @@ class FieldDecoderSpec extends munit.FunSuite:
   test("spaceDelimited composes with emap for domain types"):
     val d = FieldDecoder.spaceDelimited[String].emap(set => Right(set.map(_.toUpperCase)))
     assertEquals(d.decode("s", List("a b")), Right(Set("A", "B")))
+
+  // ── Option wrapping at the FieldDecoder level (decode-only) ────────────────
+  // FieldCodec[Option[A]] already covers codec-backed types; this low-priority
+  // given lets a decode-only FieldDecoder (e.g. spaceDelimited) be wrapped in
+  // Option too, so `Option[Set[Scope]]` (OIDC token `scope`) can be decoded.
+
+  test("Option wraps a decode-only FieldDecoder (spaceDelimited): absent -> None"):
+    given FieldDecoder[Set[String]] = FieldDecoder.spaceDelimited[String]
+    assertEquals(FieldDecoder[Option[Set[String]]].decode("scope", Nil), Right(None))
+    assertEquals(
+      FieldDecoder[Option[Set[String]]].decode("scope", List("openid profile")),
+      Right(Some(Set("openid", "profile")))
+    )
+
+  test("Option over a codec-backed scalar still works (no ambiguity)"):
+    assertEquals(FieldDecoder[Option[Int]].decode("n", Nil), Right(None))
+    assertEquals(FieldDecoder[Option[Int]].decode("n", List("42")), Right(Some(42)))
+    assert(FieldDecoder[Option[Int]].decode("n", List("x")).isLeft)

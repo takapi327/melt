@@ -6,6 +6,8 @@
 
 package meltkit
 
+import melt.runtime.forms.codec.FieldDecoder
+
 import meltkit.codec.BodyDecoder
 
 /** Represents parsed form data from an `application/x-www-form-urlencoded` request body.
@@ -42,6 +44,22 @@ final case class FormData(fields: Map[String, List[String]]):
   /** Returns all values for the given field name (empty list if absent). */
   def getAll(name: String): List[String] =
     fields.getOrElse(name, List.empty)
+
+  /** Decodes the named field into a typed value using a [[FieldDecoder]] — the form
+    * twin of `ctx.queryAs[A]`, sharing the exact same `FieldCodec` / `FieldDecoder`
+    * givens (so a domain type decodes identically from a query or a form field).
+    *
+    * Requiredness is expressed by the type: `getAs[Int]` fails when the field is
+    * absent, while `getAs[Option[Int]]` decodes an absent field to `None`. The
+    * `Left` message is left for the caller to map to a domain error.
+    *
+    * {{{
+    * form.getAs[RedirectUri]("redirect_uri")   // Either[String, RedirectUri]
+    * form.getAs[Option[Set[Scope]]]("scope")   // absent -> Right(None)
+    * }}}
+    */
+  def getAs[A](name: String)(using decoder: FieldDecoder[A]): Either[String, A] =
+    decoder.decode(name, getAll(name))
 
   /** Returns a flat `Map[String, String]` using the first value for each field.
     *

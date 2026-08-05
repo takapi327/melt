@@ -82,6 +82,20 @@ class FormDataTest extends munit.FunSuite:
     val form = FormData.parse("a=1&a=2&b=3").toOption.get
     assertEquals(form.toMap, Map("a" -> "1", "b" -> "3"))
 
+  // ── FormData.getAs (typed single-field decode, twin of ctx.queryAs) ────────
+
+  test("getAs decodes a scalar field via FieldDecoder"):
+    val form = FormData.parse("age=30").toOption.get
+    assertEquals(form.getAs[Int]("age"), Right(30))
+
+  test("getAs[Option[A]] decodes an absent field to None"):
+    val form = FormData.parse("name=Alice").toOption.get
+    assertEquals(form.getAs[Option[Int]]("age"), Right(None))
+
+  test("getAs surfaces a decode error as Left(String)"):
+    val form = FormData.parse("age=abc").toOption.get
+    assert(form.getAs[Int]("age").isLeft)
+
   // ── BodyDecoder[FormData] ─────────────────────────────────────────────────
 
   test("BodyDecoder[FormData] given is available without import"):
