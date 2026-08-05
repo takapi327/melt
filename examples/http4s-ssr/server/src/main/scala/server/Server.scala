@@ -88,6 +88,14 @@ object Server extends IOApp.Simple:
       IO.pure(ctx.text("Too many requests").withStatus(429))
     }
 
+    // ── redirectExternal: leave the site to an absolute URL ────────────────
+    // ctx.redirect only allows relative paths (open-redirect safe); an OAuth-style
+    // redirect to an external, pre-validated URL uses redirectExternal instead.
+
+    app.get("outbound") { ctx =>
+      IO.pure(ctx.redirectExternal("https://scala-lang.org", 302))
+    }
+
     // ── Todo API ──────────────────────────────────────────────────────────
 
     app.get("api/todos") { ctx =>
