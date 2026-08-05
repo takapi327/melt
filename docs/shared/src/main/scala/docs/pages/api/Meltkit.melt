@@ -113,6 +113,10 @@ val base = props.basePath + "/" + props.lang
       <td>{t.ctxRedirectDesc}</td>
     </tr>
     <tr>
+      <td><code>ctx.redirectExternal(...)</code></td>
+      <td>{t.ctxRedirectExternalDesc}</td>
+    </tr>
+    <tr>
       <td><code>ctx.locals</code></td>
       <td>{t.ctxLocalsDesc}</td>
     </tr>

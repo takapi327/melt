@@ -185,6 +185,14 @@ object ApiCodes:
        |// Works on any Response, including SSR pages (render / renderPage):
        |app.get("missing") { ctx =>
        |  IO.pure(ctx.renderPage(NotFoundPage(), title = "Not Found").withStatus(404))
+       |}
+       |
+       |// A literal is checked at compile time; StatusCode.fromInt brings a
+       |// runtime Int (e.g. relayed from a downstream call) into the union safely:
+       |app.get("proxy") { ctx =>
+       |  val code: Int = downstreamStatus() // dynamic
+       |  val status    = StatusCode.fromInt(code).getOrElse(502)
+       |  IO.pure(ctx.text("proxied").withStatus(status))
        |}""".stripMargin
 
   val meltkitMiddleware: String =
