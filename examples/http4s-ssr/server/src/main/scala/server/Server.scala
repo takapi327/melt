@@ -54,6 +54,10 @@ object Server extends IOApp.Simple:
   ): MeltKit[IO] =
     val app = MeltKit[IO]()
 
+    // CORS: declarative policy applied by the adapter (answers preflight OPTIONS,
+    // adds Access-Control-* to actual responses). Dev shortcut reflects any origin.
+    app.cors(CorsConfig.permissiveDev)
+
     // Locals example: attach a request-id to every request via middleware,
     // then read it in a handler using IO.pure (works because of Defer).
     app.use { (event, resolve) =>
