@@ -1057,8 +1057,8 @@ object GuideI18n:
       propsH2     = "Props serialization",
       propsIntro  =
         "For hydration to work, props are serialized to JSON by the server and deserialized by the client. Derive a PropsCodec automatically:",
-      viteH2              = Some("Vite configuration"),
-      viteIntro           = Some(
+      viteH2    = Some("Vite configuration"),
+      viteIntro = Some(
         "For an SSR + hydration production build, Rollup's default settings can strip the named hydrate export. Add the following to vite.config.mjs:"
       ),
       hydrationModesH2    = Some("Hydration modes"),
@@ -1074,7 +1074,7 @@ object GuideI18n:
       partialTitle = "No hydration (static)",
       partialText  =
         "Set csr = false to render a component as pure static HTML with no client-side JavaScript at all — the third option alongside the two hydration modes above.",
-      spaVsSsrH2 = Some("SSR vs SPA"),
+      spaVsSsrH2    = Some("SSR vs SPA"),
       spaVsSsrIntro = Some(
         "Both modes render the same .melt components. The only difference is where and when the first render happens."
       ),
@@ -1087,7 +1087,7 @@ object GuideI18n:
       spaVsSsrNote = Some(
         "The same component source works in both modes. You choose per project via meltMode (or the codegen mode spa / ssr / auto) without rewriting components."
       ),
-      serverOnlyH2 = "Server-only SSR (no client)",
+      serverOnlyH2    = "Server-only SSR (no client)",
       serverOnlyIntro =
         "The default SSR path pairs server rendering with client hydration, so it needs a Template (index.html) and a Vite manifest — both produced by the Scala.js client build, and ctx.render throws when they are absent. For apps that ship no client at all (auth screens, admin panels, simple content pages), call ctx.renderPage instead: it wraps the component's SSR output into a complete, self-contained HTML document — scoped CSS inlined, no hydration script — with no Template or manifest required.",
       serverOnlyNote =
@@ -1136,7 +1136,9 @@ object GuideI18n:
       choiceLi3Pre = Some("Building a serverless SPA → "),
       choiceLi3Kit = Some("meltkit-adapter-browser"),
       multiTitle   = Some("Combining Multiple Adapters"),
-      multiText    = Some("You can also switch by environment — for example, start quickly with the Node.js adapter during development and deploy to http4s in production.")
+      multiText    = Some(
+        "You can also switch by environment — for example, start quickly with the Node.js adapter during development and deploy to http4s in production."
+      )
     ),
 
     formActions = GuideFormActions(
@@ -1707,8 +1709,8 @@ object GuideI18n:
       hydrationModesRouter = Some(
         "router 駆動(meltkitRouterHydration): 単一エントリがルータをハイドレーションモードで再実行し、サーバ描画済みツリー全体を claim して、その後クライアントナビ(SPA)を担います。ネストレイアウトには必須(per-component は routing 層の合成を認識できない)で、SSR 後に SvelteKit 的なクライアントナビをしたい場合の選択肢です。トレードオフは初期エントリが大きくなること(ルータ+ルート)と、クライアントが同じツリーを再構築すること(query データは seeded/data-melt-queries 経由)。"
       ),
-      partialTitle = "ハイドレーションなし(静的)",
-      partialText  = "csr = false を設定すると、クライアント側の JavaScript を一切使わない純粋な静的 HTML になります。上記 2 方式に加えた第 3 の選択肢です。",
+      partialTitle  = "ハイドレーションなし(静的)",
+      partialText   = "csr = false を設定すると、クライアント側の JavaScript を一切使わない純粋な静的 HTML になります。上記 2 方式に加えた第 3 の選択肢です。",
       spaVsSsrH2    = Some("SSR と SPA の違い"),
       spaVsSsrIntro = Some(
         "どちらのモードも同じ `.melt` コンポーネントを描画します。違いは「最初の描画をどこで・いつ行うか」だけです。"
@@ -1722,7 +1724,7 @@ object GuideI18n:
       spaVsSsrNote = Some(
         "同じコンポーネントのソースが両モードで動作します。コンポーネントを書き換えることなく、プロジェクトごとに meltMode(または codegen mode の spa / ssr / auto)で選択できます。"
       ),
-      serverOnlyH2 = "server-only SSR（クライアント無し）",
+      serverOnlyH2    = "server-only SSR（クライアント無し）",
       serverOnlyIntro =
         "既定の SSR はサーバー描画とクライアントのハイドレーションを組み合わせるため、Template(index.html)と Vite マニフェストが必要です。これらは Scala.js クライアントビルドの成果物で、無い場合 ctx.render は例外を投げます。クライアントを一切持たないアプリ(認証画面・管理画面・単純なコンテンツページ)では、代わりに ctx.renderPage を呼びます。コンポーネントの SSR 出力を完全な自己完結型 HTML 文書に包み(スコープ付き CSS をインライン化、ハイドレーションスクリプト無し)、Template もマニフェストも不要です。",
       serverOnlyNote =

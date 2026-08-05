@@ -150,6 +150,13 @@ val base = props.basePath + "/" + props.lang
   <pre><code>{ApiCodes.meltkitMiddleware}</code></pre>
 </div>
 
+<h2>{t.corsH2}</h2>
+<p>{t.corsDesc}</p>
+
+<div class="code-block">
+  <pre><code>{ApiCodes.meltkitCors}</code></pre>
+</div>
+
 <h2>{t.formActionsH2}</h2>
 <p>{t.formActionsDesc}</p>
 

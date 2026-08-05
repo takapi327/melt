@@ -195,6 +195,20 @@ object ApiCodes:
        |  IO.pure(ctx.text("proxied").withStatus(status))
        |}""".stripMargin
 
+  val meltkitCors: String =
+    """|val app = MeltKit[IO]()
+       |
+       |// Declarative CORS — answered before routing, applied by every adapter.
+       |app.cors(CorsConfig(
+       |  allowedOrigins   = CorsOrigins.allowlist("https://app.example.com"),
+       |  allowedMethods   = Set[HttpMethod]("GET", "POST", "PUT"),
+       |  allowedHeaders   = CorsHeaders.Explicit(Set("Content-Type", "Authorization")),
+       |  allowCredentials = true
+       |))
+       |
+       |// Development shortcut: reflect any origin, no credentials.
+       |app.cors(CorsConfig.permissiveDev)""".stripMargin
+
   val meltkitMiddleware: String =
     """|val app = MeltKit[IO]()
        |
