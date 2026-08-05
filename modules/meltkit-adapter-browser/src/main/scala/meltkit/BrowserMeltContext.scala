@@ -72,9 +72,6 @@ final class BrowserMeltContext[F[_], P <: AnyNamedTuple, B](
     stack.render(requestPath, () => component, hydrating)
     Response.noContent
 
-  override def render(component: => dom.Element, status: StatusCode): PlainResponse =
-    render(component)
-
   override def ok[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(200, "application/json", summon[BodyEncoder[A]].encode(value))
 

@@ -69,6 +69,25 @@ sealed trait Response:
     */
   def withDeletedCookie(name: String, path: String = "/"): Response
 
+  /** Returns a copy with the given HTTP status code — the single, uniform way to
+    * set a status on any response, mirroring [[withContentType]] / [[withCookie]].
+    *
+    * The body builders default to `200` (`json` / `text` / `html` / `ok`) or their
+    * natural code (`created` = 201); `withStatus` overrides it:
+    *
+    * {{{
+    * ctx.json(err).withStatus(401)                 // 401 application/json
+    * ctx.render(NotFoundPage()).withStatus(404)    // 404 SSR error page
+    * }}}
+    *
+    * The general-purpose [[PlainResponse]] / [[StreamingResponse]] keep their
+    * concrete type. The semantic subtypes ([[NotFound]], [[BadRequest]], …) have a
+    * status fixed by design, so changing it returns a [[PlainResponse]] carrying
+    * the same body / headers / cookies — it is no longer, say, "a NotFound".
+    */
+  def withStatus(status: StatusCode): Response =
+    PlainResponse(status, contentType, body, headers, responseCookies)
+
 final case class NotFound(
   message:         String               = "Not Found",
   contentType:     String               = "text/plain; charset=utf-8",
@@ -173,6 +192,7 @@ final case class PlainResponse(
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
   override def withDeletedCookie(name: String, path: String): PlainResponse =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
+  override def withStatus(status: StatusCode): PlainResponse = copy(status = status)
 
 /** Opaque, effect-library-neutral marker for a streaming response body.
   *
@@ -200,6 +220,7 @@ final case class StreamingResponse(
     copy(responseCookies = responseCookies :+ ResponseCookie(name, value, options))
   override def withDeletedCookie(name: String, path: String): StreamingResponse =
     copy(responseCookies = responseCookies :+ ResponseCookie.deleted(name, path))
+  override def withStatus(status: StatusCode): StreamingResponse = copy(status = status)
 
 object Response:
   def text(value: String): PlainResponse =

@@ -95,9 +95,6 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
   // ── MeltContext: render ────────────────────────────────────────────────
 
   override def render(component: => RenderResult): PlainResponse =
-    render(component, 200)
-
-  override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
@@ -106,7 +103,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
             case Some(a) => a.wrapLayouts(requestPath, () => component)
             case None    => component
         }
-        composeResponse(template, composed, status)
+        composeResponse(template, composed, 200)
 
   /** Blocking async SSR on a synchronous effect: resolve every `<melt:await>`
     * boundary in-process (via the app's server-function registry) and splice the

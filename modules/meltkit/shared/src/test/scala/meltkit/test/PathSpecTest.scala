@@ -136,7 +136,6 @@ private class TestMeltContext[P <: AnyNamedTuple](val params: P) extends MeltCon
   override def queryAll(name:    String):                         List[String]              = Nil
   override def queryParams:                                       Map[String, List[String]] = Map.empty
   override def render(component: => Nothing):                     PlainResponse             = ???
-  override def render(component: => Nothing, status: StatusCode): PlainResponse             = ???
   override def ok[A: BodyEncoder](value: A):      PlainResponse = Response.json(summon[BodyEncoder[A]].encode(value))
   override def created[A: BodyEncoder](value: A): PlainResponse =
     PlainResponse(201, "application/json", summon[BodyEncoder[A]].encode(value))

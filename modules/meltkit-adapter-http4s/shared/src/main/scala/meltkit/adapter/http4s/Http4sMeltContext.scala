@@ -125,9 +125,6 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
     * `Router.currentPath` returns the correct path during SSR rendering.
     */
   override def render(component: => RenderResult): PlainResponse =
-    render(component, 200)
-
-  override def render(component: => RenderResult, status: StatusCode): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
@@ -136,7 +133,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             case Some(a) => a.wrapLayouts(requestPath, () => component)
             case None    => component
         }
-        composeResponse(template, composed, status)
+        composeResponse(template, composed, 200)
 
   /** Blocking async SSR: evaluate the shell inside a [[SsrRenderScope]], then
     * resolve each `<melt:await>` boundary in-process (via the app's server-function

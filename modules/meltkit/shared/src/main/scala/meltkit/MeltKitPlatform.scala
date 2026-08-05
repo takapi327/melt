@@ -425,7 +425,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
         r match
           case ActionResult.Redirect(loc, seeOther) =>
             if seeOther then Response.seeOther(loc) else Response.redirect(loc)
-          case ActionResult.Failure(status, data) => ctx.render(render(ctx, Some(data)), status)
+          case ActionResult.Failure(status, data) => ctx.render(render(ctx, Some(data))).withStatus(status)
           case ActionResult.Success(data)         => ctx.render(render(ctx, Some(data)))
     }
 

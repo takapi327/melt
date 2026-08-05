@@ -810,3 +810,32 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assert(body.contains("<main><h1>Hello</h1></main>"), body)
         assert(body.contains("""<style id="melt-abc">.x{color:red}</style>"""), body)
       }
+
+  // ── #3: withStatus — one way to set an arbitrary status on any builder ──────
+  // The body builders (json/text/html/ok/render) default to 200; `withStatus`
+  // is the single, uniform way to change it (matching withContentType/withCookie),
+  // replacing per-builder status overloads.
+
+  test("ctx.json(...).withStatus(code) overrides the default 200 status"):
+    val app = MeltKit[IO]()
+    app.get("boom") { ctx => IO.pure(ctx.json("""{"error":"nope"}""").withStatus(401)) }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/boom")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        val r = resp.get
+        assertEquals(r.status.code, 401)
+        assertEquals(r.contentType.map(_.mediaType), Some(MediaType.application.json))
+        r.as[String]
+      }
+      .map(body => assertEquals(body, """{"error":"nope"}"""))
+
+  test("withStatus on a semantic subtype yields a PlainResponse carrying the new status"):
+    val r = NotFound("gone").withStatus(410)
+    assert(r.isInstanceOf[PlainResponse])
+    assert(r.status == 410)
+    assertEquals(r.body, "gone")
