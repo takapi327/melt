@@ -96,6 +96,20 @@ object Server extends IOApp.Simple:
       IO.pure(ctx.redirectExternal("https://scala-lang.org", 302))
     }
 
+    // ── FormData.getAs: decode one form field by type (twin of ctx.queryAs) ─
+    // getAs reuses the same FieldCodec/FieldDecoder givens as ctx.queryAs, so a
+    // field decodes identically whether it arrives in the query or the form body.
+
+    app.post("api/double") { ctx =>
+      ctx.body.form.map {
+        case Right(form) =>
+          form.getAs[Int]("n") match
+            case Right(n)  => ctx.text((n * 2).toString)
+            case Left(msg) => ctx.badRequest(BodyError.DecodeError(msg))
+        case Left(err) => ctx.badRequest(err)
+      }
+    }
+
     // ── Todo API ──────────────────────────────────────────────────────────
 
     app.get("api/todos") { ctx =>
