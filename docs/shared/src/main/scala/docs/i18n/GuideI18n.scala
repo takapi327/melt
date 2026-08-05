@@ -1178,7 +1178,7 @@ object GuideI18n:
         "Under use:form, plain name controls bind automatically: <input> (text/checkbox/radio), <select>/<option> (selected on match) and <textarea> (content seeded); add data-form-ignore to opt one out. Each also has a type-checked selector spread for manual use — form.text, form.checkbox, form.radio(_.f, option), form.select/form.option — reusing the same FieldCodec:",
       customH2    = "Custom field types",
       customIntro =
-        "Fields are decoded/encoded by a FieldCodec. String, Int, Long, Double, Boolean, Option and List are built in; add your own domain types by mapping an existing codec with imap/eimap. One FieldCodec drives both the server decode and the form.text value, so a custom type round-trips correctly. Nested case classes decode from hierarchical `field.subfield` keys, and nameOf/text accept nested selectors (form.nameOf(_.address.city)):",
+        "Fields are decoded/encoded by a FieldCodec. String, Int, Long, Double, Boolean, Option and List are built in; add your own domain types by mapping an existing codec with imap/eimap. One FieldCodec drives both the server decode and the form.text value, so a custom type round-trips correctly. The same givens also power ctx.queryAs[A] (query params) and FormData.getAs[A] (a single form field), so a domain type decodes identically from a query or a form; a decode-only FieldDecoder (e.g. FieldDecoder.spaceDelimited) can be wrapped in Option too. Nested case classes decode from hierarchical `field.subfield` keys, and nameOf/text accept nested selectors (form.nameOf(_.address.city)):",
       csrfH2    = "CSRF protection",
       csrfIntro =
         "Guard your actions against cross-site form submissions with the CSRF hook. For any state-changing form POST it requires the request Origin to match the server (rejecting others with 403); it covers both the native and the use:enhance submit, and loopback hosts default to http so it works in local development:",
@@ -1802,7 +1802,7 @@ object GuideI18n:
         "use:form 配下では、プレーンな name コントロールが自動でバインドされます。<input>（text/checkbox/radio）、<select>/<option>（一致時に selected）、<textarea>（内容を初期化）。対象から外すには data-form-ignore を付けます。各コントロールには手書き用の型チェック済みセレクタ spread（form.text・form.checkbox・form.radio(_.f, option)・form.select/form.option）もあり、同じ FieldCodec を再利用します。",
       customH2    = "カスタムフィールド型",
       customIntro =
-        "フィールドは FieldCodec でデコード/エンコードされます。String・Int・Long・Double・Boolean・Option・List は組み込みで、独自ドメイン型は既存コーデックを imap/eimap でマップして追加します。1 つの FieldCodec がサーバのデコードと form.text の value の両方を駆動するので、カスタム型も正しく往復します。ネストした case class は階層キー（field.subfield）でデコードされ、nameOf/text はネストしたセレクタ（form.nameOf(_.address.city)）を受け付けます。",
+        "フィールドは FieldCodec でデコード/エンコードされます。String・Int・Long・Double・Boolean・Option・List は組み込みで、独自ドメイン型は既存コーデックを imap/eimap でマップして追加します。1 つの FieldCodec がサーバのデコードと form.text の value の両方を駆動するので、カスタム型も正しく往復します。同じ given は ctx.queryAs[A]（クエリパラメータ）と FormData.getAs[A]（フォームの単一フィールド）も駆動するため、ドメイン型はクエリとフォームで同一にデコードされます。decode 専用の FieldDecoder（例: FieldDecoder.spaceDelimited）も Option で包めます。ネストした case class は階層キー（field.subfield）でデコードされ、nameOf/text はネストしたセレクタ（form.nameOf(_.address.city)）を受け付けます。",
       csrfH2    = "CSRF 保護",
       csrfIntro =
         "CSRF フックでクロスサイトのフォーム送信からアクションを守ります。状態を変更するフォーム POST に対し、リクエストの Origin がサーバと一致することを要求し（不一致は 403）、ネイティブと use:enhance の両方の送信をカバーします。ループバックホストは http を既定とするのでローカル開発でもそのまま動きます。",
