@@ -73,6 +73,21 @@ object Server extends IOApp.Simple:
       IO.pure(ctx.ok(ctx.locals.get(requestId).getOrElse("(not set)")))
     }
 
+    // ── Header access on GET ──────────────────────────────────────────────
+    // header / cookie readers live on the base MeltContext, so a plain app.get
+    // handler can read them directly — no middleware or Locals round-trip.
+
+    app.get("api/whoami") { ctx =>
+      IO.pure(ctx.text(ctx.header("user-agent").getOrElse("unknown")))
+    }
+
+    // ── withStatus: arbitrary status on any response builder ───────────────
+    // Body builders default to 200; withStatus is the one way to override it.
+
+    app.get("api/quota") { ctx =>
+      IO.pure(ctx.text("Too many requests").withStatus(429))
+    }
+
     // ── Todo API ──────────────────────────────────────────────────────────
 
     app.get("api/todos") { ctx =>
