@@ -254,6 +254,20 @@ object Response:
     requireRelativePath(location)
     PlainResponse(303, "text/plain", "", Map("Location" -> location))
 
+  /** Redirects to an **absolute, external** URL — deliberately bypassing the
+    * relative-path / open-redirect guard that [[redirect]] and [[seeOther]] enforce.
+    *
+    * '''Security:''' the caller is fully responsible for validating `url`. Only pass
+    * a URL you trust (e.g. a pre-registered OAuth/OIDC `redirect_uri`, a verified
+    * payment-callback target). Never pass unvalidated user input here — that is an
+    * open-redirect vulnerability.
+    *
+    * @param url    the absolute destination URL (used verbatim as `Location`)
+    * @param status a redirect status — 301 / 302 / 303 / 307 / 308 (default 302)
+    */
+  def redirectExternal(url: String, status: StatusCode = 302): PlainResponse =
+    PlainResponse(status, "text/plain; charset=utf-8", "", Map("Location" -> url))
+
   /** Throws [[IllegalArgumentException]] if `path` is not a safe relative path.
     *
     * Uses an allowlist approach: only paths starting with `/` (but not `//` or `/\`)

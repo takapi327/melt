@@ -211,5 +211,18 @@ trait MeltContext[F[_], P <: AnyNamedTuple, B, C]:
     */
   def redirect(path: String, permanent: Boolean = false): PlainResponse
 
+  /** Builds a redirect to an **absolute, external** URL, bypassing the relative-path
+    * guard that [[redirect]] enforces. See [[Response.redirectExternal]].
+    *
+    * '''Security:''' the caller must validate `url` (e.g. a pre-registered OAuth
+    * `redirect_uri`). Never pass unvalidated user input — that is an open redirect.
+    *
+    * {{{
+    * ctx.redirectExternal(client.registeredRedirectUri, 302)
+    * }}}
+    */
+  def redirectExternal(url: String, status: StatusCode = 302): PlainResponse =
+    Response.redirectExternal(url, status)
+
   /** Builds a 404 Not Found response. */
   def notFound(message: String = "Not Found"): NotFound

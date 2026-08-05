@@ -839,3 +839,51 @@ class Http4sAdapterTest extends CatsEffectSuite:
     assert(r.isInstanceOf[PlainResponse])
     assert(r.status == 410)
     assertEquals(r.body, "gone")
+
+  // ── #4: StatusCode.fromInt — bring a runtime Int into the literal union ────
+  // The union is compile-time-checked for literals; fromInt is the safe entry
+  // point for a dynamic Int (e.g. a status from a downstream HTTP call).
+
+  test("StatusCode.fromInt accepts known codes and rejects unknown ones"):
+    assert(StatusCode.fromInt(200).contains(200))
+    assert(StatusCode.fromInt(404).contains(404))
+    assert(StatusCode.fromInt(503).contains(503))
+    assert(StatusCode.fromInt(418).isEmpty) // valid HTTP code, but not in the union
+    assert(StatusCode.fromInt(299).isEmpty)
+    assert(StatusCode.fromInt(-1).isEmpty)
+
+  // ── #5: redirectExternal — redirect to an absolute URL (caller-validated) ──
+  // ctx.redirect blocks absolute URLs (open-redirect protection). OAuth/OIDC
+  // callbacks legitimately need to redirect to a registered external URL.
+
+  test("ctx.redirectExternal issues an absolute-URL redirect that ctx.redirect would reject"):
+    val app = MeltKit[IO]()
+    app.get("go") { ctx =>
+      IO.pure(ctx.redirectExternal("https://op.example.com/cb?code=abc"))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/go")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(resp.isDefined)
+        val r   = resp.get
+        val loc = r.headers.headers.find(_.name.toString.equalsIgnoreCase("Location")).map(_.value)
+        assertEquals(r.status.code, 302) // default
+        assertEquals(loc, Some("https://op.example.com/cb?code=abc"))
+      }
+
+  test("ctx.redirectExternal honours an explicit redirect status"):
+    val app = MeltKit[IO]()
+    app.get("go") { ctx =>
+      IO.pure(ctx.redirectExternal("https://op.example.com/cb", 303))
+    }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/go")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map(resp => assertEquals(resp.get.status.code, 303))
