@@ -45,21 +45,22 @@ trait ServerAdapter[F[_]]:
   *                      client cannot exhaust memory. Default: 10 MiB.
   */
 case class ServerConfig(
-  host:                String            = "0.0.0.0",
-  port:                Int               = 3000,
+  host:                String             = "0.0.0.0",
+  port:                Int                = 3000,
   template:            Template,
-  manifest:            ViteManifest      = ViteManifest.empty,
-  basePath:            String            = "",
-  cspConfig:           Option[CspConfig] = None,
-  clientDistDir:       Option[String]    = None,
-  defaultTitle:        String            = "",
-  defaultLang:         String            = "en",
-  outputDir:           Option[String]    = None,
-  assetsDir:           Option[String]    = None,
-  publicDir:           Option[String]    = None,
-  cleanOutput:         Boolean           = true,
-  quiet:               Boolean           = false,
-  maxRequestBodyBytes: Long              = 10L * 1024 * 1024,
+  manifest:            ViteManifest       = ViteManifest.empty,
+  basePath:            String             = "",
+  cspConfig:           Option[CspConfig]  = None,
+  corsConfig:          Option[CorsConfig] = None,
+  clientDistDir:       Option[String]     = None,
+  defaultTitle:        String             = "",
+  defaultLang:         String             = "en",
+  outputDir:           Option[String]     = None,
+  assetsDir:           Option[String]     = None,
+  publicDir:           Option[String]     = None,
+  cleanOutput:         Boolean            = true,
+  quiet:               Boolean            = false,
+  maxRequestBodyBytes: Long               = 10L * 1024 * 1024,
   // When set, the app is hydrated by a single router-driven entry module
   // (`@JSExportTopLevel("hydrate", moduleID = <this>)`) instead of one hydrate call
   // per component — required for nested layouts under client hydration.

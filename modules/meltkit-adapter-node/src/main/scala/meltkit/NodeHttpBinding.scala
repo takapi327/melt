@@ -51,6 +51,35 @@ private[meltkit] class NodeHttpBinding(
     val routeMethod  = if isHead then "GET" else method
     val parsedMethod = HttpMethod.fromString(routeMethod)
 
+    val corsView = new CorsRequestView:
+      def method:               String         = req.method.toUpperCase
+      def header(name: String): Option[String] = hdrs.get(name.toLowerCase)
+
+    // CORS preflight is answered before static serving / routing.
+    config.corsConfig match
+      case Some(cfg) if Cors.isPreflight(corsView) =>
+        val dict = js.Dictionary[String]("Content-Type" -> "text/plain; charset=utf-8")
+        Cors.preflightHeaders(cfg, corsView).foreach { case (k, v) => dict(k) = v }
+        res.writeHead(204, dict)
+        res.end()
+        return
+      case _ =>
+
+    // Adds the actual-request CORS headers (merging Vary) to a response effect.
+    def applyCors(effect: Future[Response]): Future[Response] =
+      config.corsConfig match
+        case None      => effect
+        case Some(cfg) =>
+          val cors = Cors.actualHeaders(cfg, corsView)
+          if cors.isEmpty then effect
+          else
+            effect.map { r =>
+              val merged = cors.get("Vary").fold(cors) { v =>
+                cors + ("Vary" -> Cors.mergeVary(r.headers.get("Vary"), v))
+              }
+              r.addHeaders(merged)
+            }
+
     val locals = new Locals()
     nonce.foreach(n => locals.set(CspNonce.localsKey, n))
 
@@ -97,7 +126,7 @@ private[meltkit] class NodeHttpBinding(
             val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
             val inner = Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
             val wrapped = runHooks(app.hooks, event, inner)
-            writeResponse(wrapped, res, isHead, nonce)
+            writeResponse(applyCors(wrapped), res, isHead, nonce)
 
       case Some(route) =>
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -109,7 +138,7 @@ private[meltkit] class NodeHttpBinding(
             val event   = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
             val inner   = Future(()).flatMap(_ => thunk())
             val wrapped = runHooks(app.hooks, event, inner)
-            writeResponse(wrapped, res, isHead, nonce)
+            writeResponse(applyCors(wrapped), res, isHead, nonce)
 
   private def writeResponse(
     effect: Future[Response],

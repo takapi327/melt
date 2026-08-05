@@ -8,8 +8,8 @@ package meltkit
 
 import scala.NamedTuple.AnyNamedTuple
 
-import melt.runtime.render.RenderResult
 import melt.runtime.render.toHtmlDocument
+import melt.runtime.render.RenderResult
 
 /** Server-side extension of [[MeltContext]] that adds request-body access.
   *

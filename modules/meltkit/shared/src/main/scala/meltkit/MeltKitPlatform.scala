@@ -452,6 +452,22 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   /** Returns the CSP configuration, if set. */
   def cspConfig: Option[CspConfig] = _cspConfig
 
+  // ── CORS Configuration ────────────────────────────────────────────────
+
+  private var _corsConfig: Option[CorsConfig] = None
+
+  /** Configures Cross-Origin Resource Sharing. Read by every server adapter, which
+    * answers preflight `OPTIONS` requests and attaches `Access-Control-*` headers.
+    *
+    * {{{
+    * app.cors(CorsConfig(allowedOrigins = CorsOrigins.allowlist("https://app.example.com")))
+    * }}}
+    */
+  def cors(config: CorsConfig): Unit = _corsConfig = Some(config)
+
+  /** Returns the CORS configuration, if set. */
+  def corsConfig: Option[CorsConfig] = _corsConfig
+
   // ── API Routes ────────────────────────────────────────────────────────
 
   /** Convenient HTTP method constants for use with [[api]]. */

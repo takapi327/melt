@@ -64,6 +64,7 @@ object NodeServer:
         manifest      = manifest,
         basePath      = basePath,
         cspConfig     = app.cspConfig,
+        corsConfig    = app.corsConfig,
         clientDistDir = clientDistDir
       )
       NodeServerAdapter().start(app, config)

@@ -58,6 +58,35 @@ private[meltkit] class UndertowHttpBinding(
       val routeMethod  = if isHead then "GET" else method
       val parsedMethod = HttpMethod.fromString(routeMethod)
 
+      val corsView = new CorsRequestView:
+        def method:               String         = exchange.getRequestMethod.toString.toUpperCase
+        def header(name: String): Option[String] = hdrs.get(name.toLowerCase)
+
+      // CORS preflight is answered before static serving / routing.
+      config.corsConfig match
+        case Some(cfg) if Cors.isPreflight(corsView) =>
+          Cors.preflightHeaders(cfg, corsView).foreach {
+            case (k, v) => exchange.getResponseHeaders.put(new HttpString(k), v)
+          }
+          sendText(exchange, 204, "")
+          return
+        case _ =>
+
+      // Adds the actual-request CORS headers (merging Vary) to a response effect.
+      def applyCors(effect: Future[Response]): Future[Response] =
+        config.corsConfig match
+          case None      => effect
+          case Some(cfg) =>
+            val cors = Cors.actualHeaders(cfg, corsView)
+            if cors.isEmpty then effect
+            else
+              effect.map { r =>
+                val merged = cors.get("Vary").fold(cors) { v =>
+                  cors + ("Vary" -> Cors.mergeVary(r.headers.get("Vary"), v))
+                }
+                r.addHeaders(merged)
+              }
+
       val locals = new Locals()
       nonce.foreach(n => locals.set(CspNonce.localsKey, n))
 
@@ -105,7 +134,7 @@ private[meltkit] class UndertowHttpBinding(
               val inner =
                 Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
               val wrapped = runHooks(app.hooks, event, inner)
-              writeResponse(wrapped, exchange, isHead, nonce)
+              writeResponse(applyCors(wrapped), exchange, isHead, nonce)
 
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -116,7 +145,7 @@ private[meltkit] class UndertowHttpBinding(
               val event   = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
               val inner   = Future(()).flatMap(_ => thunk())
               val wrapped = runHooks(app.hooks, event, inner)
-              writeResponse(wrapped, exchange, isHead, nonce)
+              writeResponse(applyCors(wrapped), exchange, isHead, nonce)
     catch
       case e: Throwable =>
         try sendText(exchange, 500, "Internal Server Error")

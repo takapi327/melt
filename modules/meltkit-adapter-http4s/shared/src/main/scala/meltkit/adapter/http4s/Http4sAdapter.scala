@@ -85,8 +85,9 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
   private val manifest:        ViteManifest,
   private val lang:            String,
   private val basePath:        String,
-  private val cspConfig:       Option[CspConfig] = None,
-  private val routerHydration: Option[String]    = None
+  private val cspConfig:       Option[CspConfig]  = None,
+  private val routerHydration: Option[String]     = None,
+  private val corsConfig:      Option[CorsConfig] = None
 ):
 
   /** Builds [[HttpRoutes]] from the [[MeltKit]] router with SSR support.
@@ -95,7 +96,23 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
     * server-side and return the resulting HTML response.
     */
   def routes: HttpRoutes[F] =
-    HttpRoutes[F] { request =>
+    val corsCfg = corsConfig.orElse(app.corsConfig)
+
+    // CORS preflight is answered before routing (OPTIONS is not a routable method).
+    val preflightRoutes = HttpRoutes[F] { request =>
+      corsCfg match
+        case Some(cfg) if Cors.isPreflight(Http4sAdapter.corsView(request)) =>
+          OptionT.liftF(
+            Concurrent[F].pure(Http4sAdapter.toHttp4sResponse[F](Http4sAdapter.corsPreflight(cfg, request)))
+          )
+        case _ => OptionT.none
+    }
+
+    preflightRoutes <+> HttpRoutes[F] { request =>
+      // Attach the actual-request CORS headers after the handler completes.
+      def applyCors(effect: F[Response]): F[Response] =
+        corsCfg.fold(effect)(cfg => Http4sAdapter.withCorsHeaders(cfg, request, effect))
+
       val method   = HttpMethod.fromString(request.method.name)
       val segments = request.pathInfo.segments.toList.map(_.decoded())
 
@@ -150,7 +167,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
                 handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]]))
               }
               val wrapped = Http4sAdapter.runHooks(app.hooks, event, innerEffect)
-              OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
+              OptionT.liftF(withCspHeader(applyCors(wrapped)).map(Http4sAdapter.toHttp4sResponse[F]))
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
           route.tryHandle(rawValues, factory) match
@@ -171,7 +188,7 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
                 }
               }
               val wrapped = Http4sAdapter.runHooks(app.hooks, event, innerEffect)
-              OptionT.liftF(withCspHeader(wrapped).map(Http4sAdapter.toHttp4sResponse[F]))
+              OptionT.liftF(withCspHeader(applyCors(wrapped)).map(Http4sAdapter.toHttp4sResponse[F]))
     }
 
 object Http4sAdapter:
@@ -318,38 +335,47 @@ object Http4sAdapter:
     */
   def routes[F[_]: Concurrent: meltkit.Defer](app: ServerMeltKitPlatform[F]): HttpRoutes[F] =
     HttpRoutes[F] { request =>
-      val method   = HttpMethod.fromString(request.method.name)
-      val segments = request.pathInfo.segments.toList.map(_.decoded())
+      val corsCfg = app.corsConfig
 
-      val matched = method.flatMap { m =>
-        app.routes.find { r =>
-          r.method == m && PathSegment.matches(r.segments, segments)
-        }
-      }
+      // CORS preflight is answered before routing (OPTIONS is not a routable method,
+      // so it would otherwise fall through to a 404 without CORS headers).
+      corsCfg match
+        case Some(cfg) if Cors.isPreflight(corsView(request)) =>
+          OptionT.liftF(Concurrent[F].pure(toHttp4sResponse[F](corsPreflight(cfg, request))))
+        case _ =>
+          val method   = HttpMethod.fromString(request.method.name)
+          val segments = request.pathInfo.segments.toList.map(_.decoded())
 
-      matched match
-        case None        => OptionT.none
-        case Some(route) =>
-          val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
-          val locals    = new Locals()
-          val factory   = new MeltContextFactory[F, RenderResult]:
-            def build[P <: AnyNamedTuple, B](
-              params:      P,
-              bodyDecoder: BodyDecoder[B]
-            ): MeltContext[F, P, B, RenderResult] =
-              Http4sMeltContext(params, request, bodyDecoder, locals = locals)
-          route.tryHandle(rawValues, factory) match
+          val matched = method.flatMap { m =>
+            app.routes.find { r =>
+              r.method == m && PathSegment.matches(r.segments, segments)
+            }
+          }
+
+          matched match
             case None        => OptionT.none
-            case Some(thunk) =>
-              val event      = buildRequestEvent(request, locals)
-              val lazyEffect = meltkit.Defer[F].defer {
-                thunk().handleErrorWith {
-                  case e: BodyDecodeException =>
-                    Concurrent[F].pure(Response.badRequest(e.error.message))
-                }
-              }
-              val wrapped = runHooks(app.hooks, event, lazyEffect)
-              OptionT.liftF(wrapped.map(toHttp4sResponse[F]))
+            case Some(route) =>
+              val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
+              val locals    = new Locals()
+              val factory   = new MeltContextFactory[F, RenderResult]:
+                def build[P <: AnyNamedTuple, B](
+                  params:      P,
+                  bodyDecoder: BodyDecoder[B]
+                ): MeltContext[F, P, B, RenderResult] =
+                  Http4sMeltContext(params, request, bodyDecoder, locals = locals)
+              route.tryHandle(rawValues, factory) match
+                case None        => OptionT.none
+                case Some(thunk) =>
+                  val event      = buildRequestEvent(request, locals)
+                  val lazyEffect = meltkit.Defer[F].defer {
+                    thunk().handleErrorWith {
+                      case e: BodyDecodeException =>
+                        Concurrent[F].pure(Response.badRequest(e.error.message))
+                    }
+                  }
+                  val wrapped     = runHooks(app.hooks, event, lazyEffect)
+                  val corsWrapped = corsCfg.fold(wrapped)(cfg => withCorsHeaders(cfg, request, wrapped))
+                  OptionT.liftF(corsWrapped.map(toHttp4sResponse[F]))
     }
 
   /** Builds [[HttpRoutes]] for a full SPA setup:
@@ -395,6 +421,38 @@ object Http4sAdapter:
     }
 
   // ── private helpers ────────────────────────────────────────────────────────
+
+  // ── CORS ───────────────────────────────────────────────────────────────────
+
+  /** Adapts an http4s request to the platform-neutral [[CorsRequestView]]. */
+  private[http4s] def corsView[F2[_]](request: org.http4s.Request[F2]): CorsRequestView =
+    new CorsRequestView:
+      def method:               String         = request.method.name
+      def header(name: String): Option[String] =
+        request.headers.get(org.typelevel.ci.CIString(name)).map(_.head.value)
+
+  /** The preflight `204` response carrying the CORS headers for `cfg` (empty when
+    * the origin is not allowed, so the browser blocks). */
+  private[http4s] def corsPreflight[F2[_]](cfg: CorsConfig, request: org.http4s.Request[F2]): Response =
+    PlainResponse(204, "text/plain; charset=utf-8", "", Cors.preflightHeaders(cfg, corsView(request)))
+
+  /** Adds the actual-request CORS headers to a response effect, merging `Vary`
+    * with any value the handler already set. No-op when the request is not a CORS
+    * request or the origin is not allowed. */
+  private[http4s] def withCorsHeaders[F2[_]: Concurrent](
+    cfg:     CorsConfig,
+    request: org.http4s.Request[F2],
+    effect:  F2[Response]
+  ): F2[Response] =
+    val cors = Cors.actualHeaders(cfg, corsView(request))
+    if cors.isEmpty then effect
+    else
+      effect.map { resp =>
+        val merged = cors.get("Vary").fold(cors) { v =>
+          cors + ("Vary" -> Cors.mergeVary(resp.headers.get("Vary"), v))
+        }
+        resp.addHeaders(merged)
+      }
 
   /** Runs a list of hooks around an inner effect, producing the final response. */
   private[http4s] def runHooks[F2[_]](

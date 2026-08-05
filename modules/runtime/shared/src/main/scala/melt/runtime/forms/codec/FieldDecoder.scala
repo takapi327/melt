@@ -62,7 +62,7 @@ object FieldDecoder extends LowPriorityFieldDecoders:
   def spaceDelimited[A](using elem: FieldDecoder[A]): FieldDecoder[Set[A]] =
     (name, values) =>
       values.headOption.map(_.trim).filter(_.nonEmpty) match
-        case None => Right(Set.empty)
+        case None         => Right(Set.empty)
         case Some(joined) =>
           joined.split("\\s+").toList.foldLeft[Either[String, Set[A]]](Right(Set.empty)) { (acc, token) =>
             for

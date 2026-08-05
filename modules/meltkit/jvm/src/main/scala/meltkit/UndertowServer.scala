@@ -62,6 +62,7 @@ object UndertowServer:
         manifest      = manifest,
         basePath      = basePath,
         cspConfig     = app.cspConfig,
+        corsConfig    = app.corsConfig,
         clientDistDir = clientDistDir,
         publicDir     = publicDir
       )
