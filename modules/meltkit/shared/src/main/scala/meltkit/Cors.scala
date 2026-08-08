@@ -44,9 +44,9 @@ object Cors:
   def actualHeaders(cfg: CorsConfig, req: CorsRequestView): Map[String, String] =
     withAllowedOrigin(cfg, req) { allow =>
       var hs = Map("Access-Control-Allow-Origin" -> allow)
-      if cfg.allowCredentials then hs += "Access-Control-Allow-Credentials" -> "true"
+      if cfg.allowCredentials then hs += "Access-Control-Allow-Credentials"     -> "true"
       if cfg.exposedHeaders.nonEmpty then hs += "Access-Control-Expose-Headers" -> cfg.exposedHeaders.mkString(", ")
-      if allow != "*" then hs += "Vary" -> "Origin"
+      if allow != "*" then hs += "Vary"                                         -> "Origin"
       hs
     }
 
@@ -59,8 +59,7 @@ object Cors:
       allowHeadersValue(cfg, req).foreach(v => hs += "Access-Control-Allow-Headers" -> v)
       if cfg.allowCredentials then hs += "Access-Control-Allow-Credentials" -> "true"
       cfg.maxAge.foreach(d => hs += "Access-Control-Max-Age" -> d.toSeconds.toString)
-      if allow != "*" then
-        hs += "Vary" -> "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+      if allow != "*" then hs += "Vary" -> "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
       hs
     }
 

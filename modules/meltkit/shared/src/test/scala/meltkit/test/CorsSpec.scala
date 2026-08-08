@@ -19,7 +19,7 @@ class CorsSpec extends munit.FunSuite:
   /** Minimal request view for tests: case-insensitive header lookup. */
   private def req(m: String, hs: (String, String)*): CorsRequestView =
     new CorsRequestView:
-      def method: String = m
+      def method:               String         = m
       def header(name: String): Option[String] =
         hs.find(_._1.equalsIgnoreCase(name)).map(_._2)
 
