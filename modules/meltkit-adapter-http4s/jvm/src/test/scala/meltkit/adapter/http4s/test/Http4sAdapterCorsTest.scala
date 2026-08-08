@@ -76,13 +76,18 @@ class Http4sAdapterCorsTest extends CatsEffectSuite:
 
   test("actual GET with allowed origin → 200 body + ACAO + Vary"):
     val req = Request[IO](Method.GET, uri"/api/x").putHeaders(origin)
-    Http4sAdapter.routes(appWith(allowlist)).run(req).value.flatMap { resp =>
-      val r = resp.get
-      assertEquals(r.status.code, 200)
-      assertEquals(hdr(r, "Access-Control-Allow-Origin"), Some("https://app.example.com"))
-      assertEquals(hdr(r, "Vary"), Some("Origin"))
-      r.as[String]
-    }.map(body => assertEquals(body, "ok"))
+    Http4sAdapter
+      .routes(appWith(allowlist))
+      .run(req)
+      .value
+      .flatMap { resp =>
+        val r = resp.get
+        assertEquals(r.status.code, 200)
+        assertEquals(hdr(r, "Access-Control-Allow-Origin"), Some("https://app.example.com"))
+        assertEquals(hdr(r, "Vary"), Some("Origin"))
+        r.as[String]
+      }
+      .map(body => assertEquals(body, "ok"))
 
   test("actual GET without Origin → no CORS headers (unchanged behaviour)"):
     val req = Request[IO](Method.GET, uri"/api/x")

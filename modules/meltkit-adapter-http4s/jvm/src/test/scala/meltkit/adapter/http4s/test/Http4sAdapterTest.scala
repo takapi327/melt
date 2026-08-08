@@ -744,6 +744,38 @@ class Http4sAdapterTest extends CatsEffectSuite:
       }
       .map(body => assertEquals(body, "raw=a=1&b=2,form=1"))
 
+  test("reads a one-shot request body only once across multiple body accessors"):
+    val app = MeltKit[IO]()
+    app.post("dual-once") { ctx =>
+      for
+        raw  <- ctx.body.text
+        form <- ctx.body.form
+      yield ctx.text(s"raw=$raw,form=${ form.toOption.flatMap(_.get("a")).getOrElse("?") }")
+    }
+
+    // A body stream that yields its bytes on the first pull and nothing afterwards,
+    // emulating a socket-backed (non-replayable) request body. Unlike `withEntity`
+    // (a replayable in-memory stream), this fails if the body is consumed twice —
+    // which is exactly what the previous `memoize(...).flatten` did.
+    val consumed = new java.util.concurrent.atomic.AtomicBoolean(false)
+    val oneShot: fs2.Stream[IO, Byte] =
+      fs2.Stream.suspend(
+        if consumed.getAndSet(true) then fs2.Stream.empty
+        else fs2.Stream.emits("a=1&b=2".getBytes("UTF-8"))
+      )
+
+    val req = Request[IO](method = Method.POST, uri = uri"/dual-once").withBodyStream(oneShot)
+
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assert(resp.isDefined)
+        resp.get.as[String]
+      }
+      .map(body => assertEquals(body, "raw=a=1&b=2,form=1"))
+
   // ── #1: GET handlers can read request headers / cookies ────────────────────
   // Previously only POST/PUT/DELETE/PATCH handlers received ServerMeltContext
   // (with header/cookie access); GET handlers got the base MeltContext. Header

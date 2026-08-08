@@ -56,12 +56,29 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   private val routerEntry: Option[String]                   = None
 ) extends ServerMeltContext[F, P, B, RenderResult]:
 
+  // The request body is a one-shot stream (drained from the socket), yet several
+  // context methods may read it in a single request — e.g. `ctx.body.form[A]`
+  // for the happy path and `ctx.body.form` afterwards to recover the raw fields
+  // for an error re-render. `memoize(fa).flatten` does NOT achieve this: `.flatten`
+  // re-runs `memoize` on every evaluation, so a fresh memo cell is allocated each
+  // time and the body is consumed again (empty on the second read). Instead we run
+  // `memoize` exactly once, publish the resulting memoized effect through an
+  // `AtomicReference`, and share it across all reads so the stream is consumed once.
+  private val bodyCell = new java.util.concurrent.atomic.AtomicReference[F[String]]()
+
+  private val readBodyOnce: F[String] =
+    request.body.through(fs2.text.utf8.decode).compile.string
+
   private val cachedBody: F[String] =
-    Concurrent[F]
-      .memoize(
-        request.body.through(fs2.text.utf8.decode).compile.string
-      )
-      .flatten
+    Concurrent[F].unit.flatMap { _ =>
+      bodyCell.get() match
+        case null =>
+          Concurrent[F].memoize(readBodyOnce).flatMap { memoized =>
+            if bodyCell.compareAndSet(null.asInstanceOf[F[String]], memoized) then memoized
+            else bodyCell.get()
+          }
+        case cached => cached
+    }
 
   override def requestPath: String = request.uri.path.renderString
 
