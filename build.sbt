@@ -123,6 +123,30 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform)
   )
   .dependsOn(preprocessor)
 
+// ── .melt formatter (JVM only) ──
+// Phase 0 skeleton: scan (via melt-compiler's MeltRegionScanner) + splice.
+// JVM-only because Phase 1 depends on scalafmt-dynamic (JVM). Mirrors the
+// sass-preprocessor JVM-only `project` pattern.
+lazy val meltFormat = project
+  .in(file("modules/format"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name := "melt-format",
+    libraryDependencies ++= Seq(
+      "org.scalameta"          %% "scalafmt-dynamic"       % "3.11.5",
+      // scalafmt-dynamic's Coursier downloader needs scala-collection-compat at
+      // runtime; it is not pulled transitively onto a Scala 3 classpath.
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.13.0",
+      "org.scalameta"          %% "munit"                  % "1.3.0" % Test
+    ),
+    // `run` is forked (commonSettings); point the forked working directory at
+    // the build root so MeltFmtMain's relative paths (.scalafmt.conf, examples,
+    // docs) resolve there.
+    run / baseDirectory := (LocalRootProject / baseDirectory).value
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(compiler.jvm)
+
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
 // JVM side: no-op stubs + server-render helpers under melt.runtime.render.
@@ -305,6 +329,7 @@ lazy val root = project
     `sass-preprocessor`,
     compiler.jvm,
     compiler.js,
+    meltFormat,
     runtime.jvm,
     runtime.js,
     codegen.jvm,
@@ -323,5 +348,11 @@ lazy val root = project
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty // root project does not cross-compile
+    crossScalaVersions := Seq.empty, // root project does not cross-compile
+    // `.melt` formatter (Phase 1: <script> sections). Runs in-process so cwd is
+    // the build root; scans examples/ and docs/ for .melt files.
+    commands ++= Seq(
+      Command.command("meltFmt")(s => "meltFormat/runMain melt.format.MeltFmtMain examples docs" :: s),
+      Command.command("meltFmtCheck")(s => "meltFormat/runMain melt.format.MeltFmtMain --check examples docs" :: s)
+    )
   )
