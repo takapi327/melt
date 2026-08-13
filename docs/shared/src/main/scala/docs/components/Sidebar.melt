@@ -1,20 +1,21 @@
 <script lang="scala">
-import docs.I18n
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", section: String = "", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", section: String = "", slug: String = "")
 
-val base = props.basePath + "/" + props.lang
-val t    = I18n(props.lang)
-val ss   = t.sidebarSections
+  val base = props.basePath + "/" + props.lang
+  val t    = I18n(props.lang)
+  val ss   = t.sidebarSections
 
-def isActive(sec: String, s: String): Boolean = props.section == sec && props.slug == s
+  def isActive(sec: String, s: String): Boolean = props.section == sec && props.slug == s
 
-val introItems    = List("introduction", "installation", "quick-start")
-val basicsItems   = List("components", "template-syntax", "reactivity", "computed", "effects", "events", "lifecycle")
-val advancedItems = List("control-flow", "special-elements", "transitions", "trusted-html", "css", "testing")
-val serverItems   = List("routing", "ssr", "ssg", "adapters", "form-actions", "server-functions", "async-ssr", "server-env")
-val apiItems      = List("template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin")
-val exampleItems  = List("counter", "todo-app")
+  val introItems    = List("introduction", "installation", "quick-start")
+  val basicsItems   = List("components", "template-syntax", "reactivity", "computed", "effects", "events", "lifecycle")
+  val advancedItems = List("control-flow", "special-elements", "transitions", "trusted-html", "css", "testing")
+  val serverItems   =
+    List("routing", "ssr", "ssg", "adapters", "form-actions", "server-functions", "async-ssr", "server-env")
+  val apiItems     = List("template-syntax", "runtime", "meltkit", "meltkit-ssg", "compiler", "sbt-plugin")
+  val exampleItems = List("counter", "todo-app")
 </script>
 
 <aside class="sidebar">

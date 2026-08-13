@@ -8,9 +8,9 @@
   val editEmail = State("")
   val editRole  = State("")
 
-  val userName:  Signal[String]  = user.map(_.map(_.name).getOrElse(""))
-  val userEmail: Signal[String]  = user.map(_.map(_.email).getOrElse(""))
-  val userRole:  Signal[String]  = user.map(_.map(_.role).getOrElse(""))
+  val userName:   Signal[String]  = user.map(_.map(_.name).getOrElse(""))
+  val userEmail:  Signal[String]  = user.map(_.map(_.email).getOrElse(""))
+  val userRole:   Signal[String]  = user.map(_.map(_.role).getOrElse(""))
   val userExists: Signal[Boolean] = user.map(_.isDefined)
 
   Api.fetchUser(props.userId, user, loaded)

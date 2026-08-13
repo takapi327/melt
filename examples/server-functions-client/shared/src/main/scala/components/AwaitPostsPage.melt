@@ -1,12 +1,12 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// Async SSR: no prop and no manual seed. The query resolves on the server inside
-// the <melt:await> boundary below (in-process, via `app.serve(Api.list)`), the
-// resolved branch is spliced into the HTML, and the client hydrates from the
-// injected `data-melt-queries` seed — no loading flash, no redundant initial
-// fetch. This is the async-SSR counterpart of PostsPage's seeded prop.
-val posts = Api.list()
+  // Async SSR: no prop and no manual seed. The query resolves on the server inside
+  // the <melt:await> boundary below (in-process, via `app.serve(Api.list)`), the
+  // resolved branch is spliced into the HTML, and the client hydrates from the
+  // injected `data-melt-queries` seed — no loading flash, no redundant initial
+  // fetch. This is the async-SSR counterpart of PostsPage's seeded prop.
+  val posts = Api.list()
 </script>
 
 <main class="posts">

@@ -1,14 +1,15 @@
 <script lang="scala">
-import melt.runtime.forms.*
-import meltkit.enhance
+  import melt.runtime.forms.*
 
-case class Props(form: Option[LoginForm] = None)
+  import meltkit.enhance
 
-// Seed a reactive Form from the SSR/hydration `form` prop. Reactivity comes from
-// passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
-// `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
-// `if form.data.value.… then …` conditional whose source is `form.data`.
-val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
+  case class Props(form: Option[LoginForm] = None)
+
+  // Seed a reactive Form from the SSR/hydration `form` prop. Reactivity comes from
+  // passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
+  // `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
+  // `if form.data.value.… then …` conditional whose source is `form.data`.
+  val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 </script>
 
 <main class="login">

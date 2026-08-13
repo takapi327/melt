@@ -1,16 +1,16 @@
 <script lang="scala">
-// ── textarea bind:value ────────────────────────────────────────────
-val message = State("Hello, Melt!")
+  // ── textarea bind:value ────────────────────────────────────────────
+  val message = State("Hello, Melt!")
 
-// ── select bind:value (single) ────────────────────────────────────
-val language = State("scala")
+  // ── select bind:value (single) ────────────────────────────────────
+  val language = State("scala")
 
-// ── select multiple bind:value ────────────────────────────────────
-val features = State(List("reactive", "typesafe"))
+  // ── select multiple bind:value ────────────────────────────────────
+  val features = State(List("reactive", "typesafe"))
 
-// ── form reset demo ───────────────────────────────────────────────
-val resetNote = State("")
-val resetLang = State("scala")
+  // ── form reset demo ───────────────────────────────────────────────
+  val resetNote = State("")
+  val resetLang = State("scala")
 </script>
 
 <div class="app">

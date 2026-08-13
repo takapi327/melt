@@ -1,7 +1,7 @@
 <script lang="scala">
-// `action` echoes which named action ran ("draft" from ?/save, "published" from
-// ?/publish), passed through the redirect target `/result/:action`.
-case class Props(action: String = "")
+  // `action` echoes which named action ran ("draft" from ?/save, "published" from
+  // ?/publish), passed through the redirect target `/result/:action`.
+  case class Props(action: String = "")
 </script>
 
 <main class="result">

@@ -1,14 +1,15 @@
 <script lang="scala">
-import melt.runtime.forms.*
-import meltkit.enhance
+  import melt.runtime.forms.*
 
-case class Props(form: Option[PostForm] = None)
+  import meltkit.enhance
 
-// One reactive Form shared by both submit buttons. Reactivity comes from passing
-// a State/Signal (subscribes), not a `.value` (reads once): `disabled={form.submitting}`
-// passes the State, and `if form.data.value.… then …` makes `form.data` the
-// reactive source of the conditional (see the error display below).
-val form = Form(props.form.getOrElse(PostForm("", "", errors = Nil)))
+  case class Props(form: Option[PostForm] = None)
+
+  // One reactive Form shared by both submit buttons. Reactivity comes from passing
+  // a State/Signal (subscribes), not a `.value` (reads once): `disabled={form.submitting}`
+  // passes the State, and `if form.data.value.… then …` makes `form.data` the
+  // reactive source of the conditional (see the error display below).
+  val form = Form(props.form.getOrElse(PostForm("", "", errors = Nil)))
 </script>
 
 <main class="editor">

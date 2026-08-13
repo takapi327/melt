@@ -1,21 +1,23 @@
 <script lang="scala">
-import models.Todo
+  import models.Todo
 
-val todos = State(List(
-  Todo(1, "Learn Melt", false),
-  Todo(2, "Build a Todo app", false)
-))
-var nextId = 3
+  val todos = State(
+    List(
+      Todo(1, "Learn Melt", false),
+      Todo(2, "Build a Todo app", false)
+    )
+  )
+  var nextId = 3
 
-def addTodo(text: String): Unit =
-  todos.append(Todo(nextId, text, false))
-  nextId += 1
+  def addTodo(text: String): Unit =
+    todos.append(Todo(nextId, text, false))
+    nextId += 1
 
-def toggleTodo(id: Int): Unit =
-  todos.updateWhere(_.id == id)(t => t.copy(done = !t.done))
+  def toggleTodo(id: Int): Unit =
+    todos.updateWhere(_.id == id)(t => t.copy(done = !t.done))
 
-def removeTodo(id: Int): Unit =
-  todos.removeWhere(_.id == id)
+  def removeTodo(id: Int): Unit =
+    todos.removeWhere(_.id == id)
 </script>
 
 <div class="app">

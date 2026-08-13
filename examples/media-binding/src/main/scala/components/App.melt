@@ -1,48 +1,46 @@
 <script lang="scala">
-// ── DOM refs ─────────────────────────────────────────────────────────────────
-val progressRef = Ref.empty[dom.Element]
+  // ── DOM refs ─────────────────────────────────────────────────────────────────
+  val progressRef = Ref.empty[dom.Element]
 
-// ── Playback state ───────────────────────────────────────────────────────────
-val currentTime  = State(0.0)
-val duration     = State(0.0)
-val paused       = State(true)
-val volume       = State(1.0)
-val muted        = State(false)
-val playbackRate = State(1.0)
+  // ── Playback state ───────────────────────────────────────────────────────────
+  val currentTime  = State(0.0)
+  val duration     = State(0.0)
+  val paused       = State(true)
+  val volume       = State(1.0)
+  val muted        = State(false)
+  val playbackRate = State(1.0)
 
-// ── Read-only state ──────────────────────────────────────────────────────────
-val seeking    = State(false)
-val ended      = State(false)
-val readyState = State(0)
+  // ── Read-only state ──────────────────────────────────────────────────────────
+  val seeking    = State(false)
+  val ended      = State(false)
+  val readyState = State(0)
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-def formatTime(secs: Double): String =
-  if secs.isNaN || secs.isInfinite then "--:--"
-  else
-    val m = (secs / 60).toInt
-    val s = (secs % 60).toInt
-    f"$m%02d:$s%02d"
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  def formatTime(secs: Double): String =
+    if secs.isNaN || secs.isInfinite then "--:--"
+    else
+      val m = (secs / 60).toInt
+      val s = (secs % 60).toInt
+      f"$m%02d:$s%02d"
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-def rateClass(r: Double): Signal[String] =
-  playbackRate.map(pr => "rate-btn" + (if pr == r then " active" else ""))
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  def rateClass(r: Double): Signal[String] =
+    playbackRate.map(pr => "rate-btn" + (if pr == r then " active" else ""))
 
-// ── Derived values ───────────────────────────────────────────────────────────
-val progressPct = currentTime.map(t =>
-  if duration.value > 0 then (t / duration.value * 100).toInt else 0
-)
+  // ── Derived values ───────────────────────────────────────────────────────────
+  val progressPct = currentTime.map(t => if duration.value > 0 then (t / duration.value * 100).toInt else 0)
 
-val currentTimeLabel = currentTime.map(t => formatTime(t))
-val durationLabel    = duration.map(t => formatTime(t))
+  val currentTimeLabel = currentTime.map(t => formatTime(t))
+  val durationLabel    = duration.map(t => formatTime(t))
 
-val readyStateLabel = readyState.map {
-  case 0 => "0 — HAVE_NOTHING"
-  case 1 => "1 — HAVE_METADATA"
-  case 2 => "2 — HAVE_CURRENT_DATA"
-  case 3 => "3 — HAVE_FUTURE_DATA"
-  case 4 => "4 — HAVE_ENOUGH_DATA"
-  case n => s"$n — unknown"
-}
+  val readyStateLabel = readyState.map {
+    case 0 => "0 — HAVE_NOTHING"
+    case 1 => "1 — HAVE_METADATA"
+    case 2 => "2 — HAVE_CURRENT_DATA"
+    case 3 => "3 — HAVE_FUTURE_DATA"
+    case 4 => "4 — HAVE_ENOUGH_DATA"
+    case n => s"$n — unknown"
+  }
 </script>
 
 <div class="demo">

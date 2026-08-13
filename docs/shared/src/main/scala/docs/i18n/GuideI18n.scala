@@ -586,6 +586,20 @@ case class GuideServerEnv(
 
 // ── Top-level Guide container ─────────────────────────────────────────────────
 
+case class GuideTypeSafety(
+  lead:            String,
+  routingH2:       String,
+  routingIntro:    String,
+  reqRespH2:       String,
+  reqRespIntro:    String,
+  renderH2:        String,
+  renderIntro:     String,
+  validationH2:    String,
+  validationIntro: String,
+  fullstackH2:     String,
+  fullstackIntro:  String
+)
+
 case class GuideI18n(
   nav:             GuideNav,
   introduction:    GuideIntroduction,
@@ -611,7 +625,8 @@ case class GuideI18n(
   formActions:     GuideFormActions,
   serverFunctions: GuideServerFunctions,
   asyncSsr:        GuideAsyncSsr,
-  serverEnv:       GuideServerEnv
+  serverEnv:       GuideServerEnv,
+  typeSafety:      GuideTypeSafety
 )
 
 object GuideI18n:
@@ -1283,6 +1298,25 @@ object GuideI18n:
       propsTitle = "Props cross the boundary as data",
       propsText  =
         "A secret passed to a hydrated component as a prop is serialized into the page (props are the SSR→client data channel), so the checker can't catch it. Keep secrets in handlers and pass only the non-secret values a component needs."
+    ),
+    typeSafety = GuideTypeSafety(
+      lead =
+        "Melt and MeltKit lean on Scala 3's type system so that whole classes of mistakes — a mistyped path parameter, an unhandled decode failure, an invalid status code, an XSS hole, server/client drift — surface as compile errors instead of runtime surprises. This page is a cookbook: for each situation, the type-safe way to write it and what the compiler guarantees.",
+      routingH2 = "Routing",
+      routingIntro =
+        "Declare path parameters with param[T] and compose them with /. The handler's ctx.params is a NamedTuple, so ctx.params.id is statically an Int and referencing a field that isn't in the path is a compile error. Read query parameters with ctx.queryAs[T], where the type expresses requiredness: a scalar fails when absent, Option[T] maps absence to Right(None), and any decode failure surfaces as a Left you must handle.",
+      reqRespH2 = "Requests & responses",
+      reqRespIntro =
+        "Decode a request body into a typed value with ctx.body.form[T] or json[T]; the result is Either[BodyError, T], so the failure branch cannot be forgotten. Response status codes are a union type — withStatus(429) compiles, withStatus(999) does not, and a runtime Int must pass through StatusCode.fromInt. Request-scoped values live in typed Locals: a LocalKey[A] carries its value type, so get returns Option[A].",
+      renderH2 = "Components & rendering",
+      renderIntro =
+        "Component props are a case class that derives PropsCodec: SSR encodes them to JSON and hydration decodes the same type on the client, so the two sides can never drift. Raw HTML is gated by type — bind:innerHTML accepts only TrustedHtml, so a plain String (or user input) won't compile. You opt in explicitly with TrustedHtml.unsafe for developer-controlled markup, or TrustedHtml.sanitize for user input.",
+      validationH2 = "Validation",
+      validationIntro =
+        "A form model derives FormDataDecoder, so decoding validates field types automatically and accumulates errors per field. In an action, return fail(status, data): the status is checked against the StatusCode union, and because the failed value keeps the same type as the form, the page re-renders with the user's input and inline errors.",
+      fullstackH2 = "Full-stack",
+      fullstackIntro =
+        "Declare a server function once as a typed contract with ServerFn.query / command; the server implements it and the client calls it against the same In / Out — no URLs or JSON assembled by hand. Put contracts, props and models in a crossProject shared source set so they compile on both the JVM server and the JS client: change a shared type and both sides must agree, or the build fails."
     )
   )
 
@@ -1904,6 +1938,25 @@ object GuideI18n:
       propsTitle = "Props はデータとして境界を越える",
       propsText  =
         "hydrate されるコンポーネントに props として渡した秘密はページに serialize されます（props は SSR→client のデータ経路）。checker は拾えません。秘密は handler に留め、コンポーネントに必要な非秘密の値だけを渡してください。"
+    ),
+    typeSafety = GuideTypeSafety(
+      lead =
+        "Melt と MeltKit は Scala 3 の型システムを活用し、パスパラメータの打ち間違い・デコード失敗の握り漏れ・不正なステータスコード・XSS・サーバー/クライアントの型ずれといった誤りのクラス全体を、実行時の事故ではなくコンパイルエラーとして表面化させます。本ページは cookbook です。状況ごとに「型安全な書き方」と「コンパイラが何を保証するか」をまとめます。",
+      routingH2 = "ルーティング",
+      routingIntro =
+        "パスパラメータは param[T] で宣言し / で合成します。ハンドラの ctx.params は NamedTuple なので、ctx.params.id は静的に Int となり、パスに無いフィールドを参照するとコンパイルエラーになります。クエリは ctx.queryAs[T] で読み、必須/任意を型で表現します。スカラは不在で失敗、Option[T] は不在を Right(None) にマップし、デコード失敗は必ず処理すべき Left として現れます。",
+      reqRespH2 = "リクエストとレスポンス",
+      reqRespIntro =
+        "リクエスト本文は ctx.body.form[T] / json[T] で型付きにデコードします。結果は Either[BodyError, T] なので、失敗ケースを握り漏らせません。レスポンスのステータスコードは union 型で、withStatus(429) は通り withStatus(999) はコンパイルエラー、実行時 Int は StatusCode.fromInt を通す必要があります。リクエストスコープの値は型付き Locals に置き、LocalKey[A] が値型を保持するので get は Option[A] を返します。",
+      renderH2 = "コンポーネントと描画",
+      renderIntro =
+        "コンポーネントの Props は PropsCodec を derives した case class です。SSR が JSON にエンコードし、hydration がクライアントで同じ型にデコードするため、両者がずれることはありません。生 HTML は型でガードされます。bind:innerHTML は TrustedHtml のみを受け付けるため、素の String（やユーザー入力）はコンパイルできません。開発者管理のマークアップには TrustedHtml.unsafe、ユーザー入力には TrustedHtml.sanitize で明示的にオプトインします。",
+      validationH2 = "バリデーション",
+      validationIntro =
+        "フォームモデルは FormDataDecoder を derives するため、デコード時にフィールド型が自動検証され、エラーはフィールド単位で蓄積されます。アクションでは fail(status, data) を返します。status は StatusCode union で検査され、失敗値はフォームと同じ型を保つため、ユーザーの入力とインラインエラー付きでページを再描画できます。",
+      fullstackH2 = "フルスタック",
+      fullstackIntro =
+        "サーバー関数は ServerFn.query / command で型付き契約として一度だけ宣言します。サーバーが実装し、クライアントは同じ In / Out に対して呼び出すので、URL や JSON を手で組み立てる必要はありません。契約・Props・モデルは crossProject の shared ソースセットに置き、JVM サーバーと JS クライアントの両方でコンパイルします。共有型を変えると両側が一致しなければビルドが失敗します。"
     )
   )
 

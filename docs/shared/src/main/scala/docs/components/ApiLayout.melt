@@ -1,11 +1,11 @@
 <script lang="scala">
-import docs.I18n
-import docs.components.Layout
+  import docs.components.Layout
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val pageTitle  = I18n(props.lang).apiLinks(props.slug)
-val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
+  val pageTitle  = I18n(props.lang).apiLinks(props.slug)
+  val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>

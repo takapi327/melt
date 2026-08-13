@@ -1,18 +1,19 @@
 <script lang="scala">
-import melt.runtime.forms.*
-import meltkit.enhance
+  import melt.runtime.forms.*
 
-case class Props(form: Option[NewPost] = None)
+  import meltkit.enhance
 
-// A progressively-enhanced form. On a validation failure the server returns the
-// submitted data with a per-field `errors` map, which re-seeds `form.data`; the
-// `if form.data.value.errors.contains(...)` conditionals below then show each
-// message next to its input.
-val form = Form(props.form.getOrElse(NewPost("", "", errors = Map.empty)))
+  case class Props(form: Option[NewPost] = None)
 
-// First issue message for a field, or "" when the field is valid.
-def issue(field: String): String =
-  form.data.value.errors.getOrElse(field, Nil).headOption.getOrElse("")
+  // A progressively-enhanced form. On a validation failure the server returns the
+  // submitted data with a per-field `errors` map, which re-seeds `form.data`; the
+  // `if form.data.value.errors.contains(...)` conditionals below then show each
+  // message next to its input.
+  val form = Form(props.form.getOrElse(NewPost("", "", errors = Map.empty)))
+
+  // First issue message for a field, or "" when the field is valid.
+  def issue(field: String): String =
+    form.data.value.errors.getOrElse(field, Nil).headOption.getOrElse("")
 </script>
 
 <main class="new-post">

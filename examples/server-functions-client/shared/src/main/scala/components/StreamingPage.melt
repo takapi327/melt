@@ -1,13 +1,13 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// Streaming SSR: rendered with `ctx.renderStream` on the server. The shell (with
-// each boundary's <melt:pending> fallback) is flushed immediately, then each
-// resolved branch streams in as a chunk the client swaps over its fallback. The
-// two boundaries below are independent and resolve concurrently, so the faster
-// `stats` chunk arrives before the slower `posts` one (out-of-order).
-val posts = Api.streamPosts()
-val stats = Api.streamStats()
+  // Streaming SSR: rendered with `ctx.renderStream` on the server. The shell (with
+  // each boundary's <melt:pending> fallback) is flushed immediately, then each
+  // resolved branch streams in as a chunk the client swaps over its fallback. The
+  // two boundaries below are independent and resolve concurrently, so the faster
+  // `stats` chunk arrives before the slower `posts` one (out-of-order).
+  val posts = Api.streamPosts()
+  val stats = Api.streamStats()
 </script>
 
 <main class="stream">

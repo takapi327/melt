@@ -1,104 +1,103 @@
 <script lang="scala">
-import scala.scalajs.js
-import scala.scalajs.js.timers.*
+  import scala.scalajs.js
+  import scala.scalajs.js.timers.*
 
-// ── Panel 1: make — manage acquire/release as a pair ─────────────────────────
-// Typical example: pass the ID returned by setInterval to clearInterval.
-// "Start" calls allocated; "Stop" calls cancel().
+  // ── Panel 1: make — manage acquire/release as a pair ─────────────────────────
+  // Typical example: pass the ID returned by setInterval to clearInterval.
+  // "Start" calls allocated; "Stop" calls cancel().
 
-val ticker1   = State(0)
-val running1  = State(false)
-var cancel1: () => Unit = () => ()
+  val ticker1  = State(0)
+  val running1 = State(false)
+  var cancel1: () => Unit = () => ()
 
-def start1(): Unit =
-  val scope =
-    ReactiveScope.make(setInterval(1000.0) { ticker1.update(_ + 1) })(clearInterval)
-  cancel1 = scope.allocated
-  running1.set(true)
+  def start1(): Unit =
+    val scope =
+      ReactiveScope.make(setInterval(1000.0) { ticker1.update(_ + 1) })(clearInterval)
+    cancel1 = scope.allocated
+    running1.set(true)
 
-def stop1(): Unit =
-  cancel1()
-  cancel1 = () => ()
-  running1.set(false)
+  def stop1(): Unit =
+    cancel1()
+    cancel1 = () => ()
+    running1.set(false)
 
-// ── Panel 2: resource — independent side-effect pair ─────────────────────────
-// Use when no value needs to be passed from acquire to release.
-// Manages a window keydown listener with resource.
+  // ── Panel 2: resource — independent side-effect pair ─────────────────────────
+  // Use when no value needs to be passed from acquire to release.
+  // Manages a window keydown listener with resource.
 
-val lastKey   = State("—")
-val running2  = State(false)
-var cancel2: () => Unit = () => ()
+  val lastKey  = State("—")
+  val running2 = State(false)
+  var cancel2: () => Unit = () => ()
 
-val onKeyDown: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
-  lastKey.set(e.key)
+  val onKeyDown: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e => lastKey.set(e.key)
 
-def start2(): Unit =
-  val scope =
-    ReactiveScope.resource {
-      org.scalajs.dom.window.addEventListener("keydown", onKeyDown)
-    } {
-      org.scalajs.dom.window.removeEventListener("keydown", onKeyDown)
-    }
-  cancel2 = scope.allocated
-  running2.set(true)
+  def start2(): Unit =
+    val scope =
+      ReactiveScope.resource {
+        org.scalajs.dom.window.addEventListener("keydown", onKeyDown)
+      } {
+        org.scalajs.dom.window.removeEventListener("keydown", onKeyDown)
+      }
+    cancel2 = scope.allocated
+    running2.set(true)
 
-def stop2(): Unit =
-  cancel2()
-  cancel2 = () => ()
-  running2.set(false)
-  lastKey.set("—")
+  def stop2(): Unit =
+    cancel2()
+    cancel2 = () => ()
+    running2.set(false)
+    lastKey.set("—")
 
-// ── Panel 3: for-comprehension — composing multiple resources ─────────────────
-// Combine a timer, key log, and effect into one scope.
-// A single cancel() releases all of them in LIFO order.
+  // ── Panel 3: for-comprehension — composing multiple resources ─────────────────
+  // Combine a timer, key log, and effect into one scope.
+  // A single cancel() releases all of them in LIFO order.
 
-val ticker3  = State(0)
-val keyLog   = State(List.empty[String])
-val running3 = State(false)
-var cancel3: () => Unit = () => ()
+  val ticker3  = State(0)
+  val keyLog   = State(List.empty[String])
+  val running3 = State(false)
+  var cancel3: () => Unit = () => ()
 
-val onKeyDown3: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
-  keyLog.update(ls => (s"key: ${e.key}" :: ls).take(5))
+  val onKeyDown3: js.Function1[org.scalajs.dom.KeyboardEvent, Unit] = e =>
+    keyLog.update(ls => (s"key: ${ e.key }" :: ls).take(5))
 
-def start3(): Unit =
-  val program =
-    for
-      _ <- ReactiveScope.make(setInterval(1000.0) { ticker3.update(_ + 1) })(clearInterval)
-      _ <- ReactiveScope.resource {
-             org.scalajs.dom.window.addEventListener("keydown", onKeyDown3)
-           } {
-             org.scalajs.dom.window.removeEventListener("keydown", onKeyDown3)
-           }
-      _ <- ReactiveScope.effect(ticker3) { n =>
-             org.scalajs.dom.console.log(s"[ReactiveScope] ticker3 = $n")
-           }
-    yield ()
-  cancel3 = program.allocated
-  running3.set(true)
+  def start3(): Unit =
+    val program =
+      for
+        _ <- ReactiveScope.make(setInterval(1000.0) { ticker3.update(_ + 1) })(clearInterval)
+        _ <- ReactiveScope.resource {
+               org.scalajs.dom.window.addEventListener("keydown", onKeyDown3)
+             } {
+               org.scalajs.dom.window.removeEventListener("keydown", onKeyDown3)
+             }
+        _ <- ReactiveScope.effect(ticker3) { n =>
+               org.scalajs.dom.console.log(s"[ReactiveScope] ticker3 = $n")
+             }
+      yield ()
+    cancel3 = program.allocated
+    running3.set(true)
 
-def stop3(): Unit =
-  cancel3()
-  cancel3   = () => ()
-  running3.set(false)
-  ticker3.set(0)
-  keyLog.set(List.empty)
+  def stop3(): Unit =
+    cancel3()
+    cancel3 = () => ()
+    running3.set(false)
+    ticker3.set(0)
+    keyLog.set(List.empty)
 
-// ── Panel 4: onMount integration ─────────────────────────────────────────────
-// Start a ReactiveScope when the component mounts and release it automatically
-// on unmount by registering the cancel function via ctx.onCleanup.
+  // ── Panel 4: onMount integration ─────────────────────────────────────────────
+  // Start a ReactiveScope when the component mounts and release it automatically
+  // on unmount by registering the cancel function via ctx.onCleanup.
 
-val elapsed = State(0)
+  val elapsed = State(0)
 
-onMount { ctx =>
-  val program =
-    for
-      _ <- ReactiveScope.make(setInterval(1000.0) { elapsed.update(_ + 1) })(clearInterval)
-      _ <- ReactiveScope.effect(elapsed) { n =>
-             org.scalajs.dom.console.log(s"[onMount scope] elapsed = $n s")
-           }
-    yield ()
-  ctx.onCleanup(program.allocated)
-}
+  onMount { ctx =>
+    val program =
+      for
+        _ <- ReactiveScope.make(setInterval(1000.0) { elapsed.update(_ + 1) })(clearInterval)
+        _ <- ReactiveScope.effect(elapsed) { n =>
+               org.scalajs.dom.console.log(s"[onMount scope] elapsed = $n s")
+             }
+      yield ()
+    ctx.onCleanup(program.allocated)
+  }
 </script>
 
 <div class="app">

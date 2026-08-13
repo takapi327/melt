@@ -1,14 +1,14 @@
 <script lang="scala">
-import docs.I18n
-import docs.CodeSamples
-import docs.components.Layout
+  import docs.components.Layout
+  import docs.CodeSamples
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en")
+  case class Props(basePath: String = "", lang: String = "en")
 
-val base    = props.basePath + "/" + props.lang
-val t       = I18n(props.lang).home
-val count   = State(0)
-val doubled = count.map(_ * 2)
+  val base    = props.basePath + "/" + props.lang
+  val t       = I18n(props.lang).home
+  val count   = State(0)
+  val doubled = count.map(_ * 2)
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang}>

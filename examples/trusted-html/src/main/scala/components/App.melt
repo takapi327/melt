@@ -1,12 +1,12 @@
 <script lang="scala">
-val showExtra = State(false)
+  val showExtra = State(false)
 
-// Demo sanitizer: removes <script> tags (production code should use jsoup / DOMPurify)
-def demoSanitize(html: String): String =
-  html.replaceAll("(?i)<script[^>]*>[\\s\\S]*?</script>", "")
+  // Demo sanitizer: removes <script> tags (production code should use jsoup / DOMPurify)
+  def demoSanitize(html: String): String =
+    html.replaceAll("(?i)<script[^>]*>[\\s\\S]*?</script>", "")
 
-val userInput   = State("<p>User <strong>content</strong></p><script>alert('xss')</script>")
-val safeContent = userInput.map(TrustedHtml.sanitize(_, demoSanitize))
+  val userInput   = State("<p>User <strong>content</strong></p><script>alert('xss')</script>")
+  val safeContent = userInput.map(TrustedHtml.sanitize(_, demoSanitize))
 </script>
 
 <div class="app">

@@ -1,35 +1,34 @@
 <script lang="scala">
-import docs.{ CodeSamples, I18n }
-import docs.components.Layout
-import melt.{ CompileMode, MeltCompiler }
+  import melt.{ CompileMode, MeltCompiler }
 
-case class Props(basePath: String = "", lang: String = "en")
+  import docs.{ CodeSamples, I18n }
+  import docs.components.Layout
 
-val t       = I18n(props.lang)
-val source  = State(CodeSamples.counterMelt)
-val modeStr = State("spa")
+  case class Props(basePath: String = "", lang: String = "en")
 
-val result = source.flatMap(s =>
-  modeStr.map { m =>
-    val mode = if m == "spa" then CompileMode.SPA else CompileMode.SSR
-    MeltCompiler.compile(s, "Playground.melt", "Playground", "", mode)
+  val t       = I18n(props.lang)
+  val source  = State(CodeSamples.counterMelt)
+  val modeStr = State("spa")
+
+  val result = source.flatMap(s =>
+    modeStr.map { m =>
+      val mode = if m == "spa" then CompileMode.SPA else CompileMode.SSR
+      MeltCompiler.compile(s, "Playground.melt", "Playground", "", mode)
+    }
+  )
+
+  val outputText = result.map { r =>
+    if r.errors.nonEmpty then r.errors.map(e => s"// Error (line ${ e.line }): ${ e.message }").mkString("\n\n")
+    else r.scalaCode.getOrElse("// (no output)")
   }
-)
 
-val outputText = result.map { r =>
-  if r.errors.nonEmpty then
-    r.errors.map(e => s"// Error (line ${e.line}): ${e.message}").mkString("\n\n")
-  else
-    r.scalaCode.getOrElse("// (no output)")
-}
+  val hasError    = result.map(_.errors.nonEmpty)
+  val errorLabel  = hasError.map(b => if b then "Error" else "")
+  val warnings    = result.map(_.warnings)
+  val hasWarnings = warnings.map(_.nonEmpty)
 
-val hasError    = result.map(_.errors.nonEmpty)
-val errorLabel  = hasError.map(b => if b then "Error" else "")
-val warnings    = result.map(_.warnings)
-val hasWarnings = warnings.map(_.nonEmpty)
-
-val isSpa = modeStr.map(_ == "spa")
-val isSsr = modeStr.map(_ == "ssr")
+  val isSpa = modeStr.map(_ == "spa")
+  val isSsr = modeStr.map(_ == "ssr")
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="playground" slug="">

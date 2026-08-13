@@ -1,7 +1,7 @@
 <script lang="scala">
-import docs.components.Layout
+  import docs.components.Layout
 
-case class Props(basePath: String = "", lang: String = "en")
+  case class Props(basePath: String = "", lang: String = "en")
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="changelog">

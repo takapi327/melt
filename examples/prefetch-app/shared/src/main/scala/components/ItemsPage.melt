@@ -1,11 +1,11 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// Api.items() adopts a fresh prefetch (from hovering the nav link) as Async.Done,
-// so this renders with no loading flash. Without a prefetch it starts Loading and
-// fetches now.
-val items = Api.items()
-val list  = items.state.map(_.toOption.getOrElse(Nil))
+  // Api.items() adopts a fresh prefetch (from hovering the nav link) as Async.Done,
+  // so this renders with no loading flash. Without a prefetch it starts Loading and
+  // fetches now.
+  val items = Api.items()
+  val list  = items.state.map(_.toOption.getOrElse(Nil))
 </script>
 
 <div class="items">

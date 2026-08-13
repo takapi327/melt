@@ -1,60 +1,60 @@
 <script lang="scala">
-// ── State ───────────────────────────────────────────────────────────────────
-val pageTitle   = State("Special Elements Demo")
-val description = State("Melt special elements: melt:head, melt:window, melt:body, melt:document")
+  // ── State ───────────────────────────────────────────────────────────────────
+  val pageTitle   = State("Special Elements Demo")
+  val description = State("Melt special elements: melt:head, melt:window, melt:body, melt:document")
 
-val windowWidth  = State(0.0)
-val windowHeight = State(0.0)
-val scrollY      = State(0.0)
-val isOnline     = State(true)
+  val windowWidth  = State(0.0)
+  val windowHeight = State(0.0)
+  val scrollY      = State(0.0)
+  val isOnline     = State(true)
 
-val bodyHovered  = State(false)
-val shortcutLog  = State(List.empty[String])
+  val bodyHovered = State(false)
+  val shortcutLog = State(List.empty[String])
 
-// ── melt:document state ──────────────────────────────────────────────────────
-val visibilityState   = State("visible")
-val activeElement     = State(Option.empty[dom.Element])
-val visibilityLog     = State(List.empty[String])
-val selectedText      = State("")
+  // ── melt:document state ──────────────────────────────────────────────────────
+  val visibilityState = State("visible")
+  val activeElement   = State(Option.empty[dom.Element])
+  val visibilityLog   = State(List.empty[String])
+  val selectedText    = State("")
 
-def activeElementLabel(el: Option[dom.Element]): String =
-  el match
-    case None    => "none"
-    case Some(e) =>
-      val cls = e.getAttribute("class")
-      if cls == null || cls.isEmpty then e.tagName.toLowerCase
-      else s"${e.tagName.toLowerCase}.$cls"
+  def activeElementLabel(el: Option[dom.Element]): String =
+    el match
+      case None    => "none"
+      case Some(e) =>
+        val cls = e.getAttribute("class")
+        if cls == null || cls.isEmpty then e.tagName.toLowerCase
+        else s"${ e.tagName.toLowerCase }.$cls"
 
-def selectedTextLabel(t: String): String =
-  if t.isEmpty then "(none)" else s""""$t""""
+  def selectedTextLabel(t: String): String =
+    if t.isEmpty then "(none)" else s""""$t""""
 
-def handleVisibilityChange(e: Event): Unit =
-  val state = dom.document.visibilityState
-  val label = if state == "visible" then "Tab became visible" else "Tab hidden"
-  visibilityLog.update(log => s"[$state] $label" :: log.take(9))
+  def handleVisibilityChange(e: Event): Unit =
+    val state = dom.document.visibilityState
+    val label = if state == "visible" then "Tab became visible" else "Tab hidden"
+    visibilityLog.update(log => s"[$state] $label" :: log.take(9))
 
-def handleSelectionChange(e: Event): Unit =
-  val sel = dom.window.getSelection()
-  if sel != null then selectedText.set(sel.toString)
+  def handleSelectionChange(e: Event): Unit =
+    val sel = dom.window.getSelection()
+    if sel != null then selectedText.set(sel.toString)
 
-// ── Keyboard handler ────────────────────────────────────────────────────────
-def handleKeydown(e: Event): Unit =
-  val ke = e.asInstanceOf[KeyboardEvent]
-  if ke.key == "Escape" then
-    shortcutLog.update(log => s"[Escape] scroll to top" :: log.take(9))
-    dom.window.scrollTo(0, 0)
-  else if ke.key == "ArrowUp" && ke.altKey then
-    ke.preventDefault()
-    shortcutLog.update(log => s"[Alt+↑] scrolled up" :: log.take(9))
-  else if ke.key == "ArrowDown" && ke.altKey then
-    ke.preventDefault()
-    shortcutLog.update(log => s"[Alt+↓] scrolled down" :: log.take(9))
+  // ── Keyboard handler ────────────────────────────────────────────────────────
+  def handleKeydown(e: Event): Unit =
+    val ke = e.asInstanceOf[KeyboardEvent]
+    if ke.key == "Escape" then
+      shortcutLog.update(log => s"[Escape] scroll to top" :: log.take(9))
+      dom.window.scrollTo(0, 0)
+    else if ke.key == "ArrowUp" && ke.altKey then
+      ke.preventDefault()
+      shortcutLog.update(log => s"[Alt+↑] scrolled up" :: log.take(9))
+    else if ke.key == "ArrowDown" && ke.altKey then
+      ke.preventDefault()
+      shortcutLog.update(log => s"[Alt+↓] scrolled down" :: log.take(9))
 
-// ── Title updates with scroll depth ─────────────────────────────────────────
-effect(scrollY) { y =>
-  val depth = if y < 100 then "Top" else if y < 400 then "Middle" else "Bottom"
-  pageTitle.set(s"[$depth] Special Elements Demo")
-}
+  // ── Title updates with scroll depth ─────────────────────────────────────────
+  effect(scrollY) { y =>
+    val depth = if y < 100 then "Top" else if y < 400 then "Middle" else "Bottom"
+    pageTitle.set(s"[$depth] Special Elements Demo")
+  }
 </script>
 
 <!-- ── melt:head — reactive document head ────────────────────────────────── -->

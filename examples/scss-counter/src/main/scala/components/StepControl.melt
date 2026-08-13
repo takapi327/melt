@@ -1,5 +1,5 @@
 <script lang="scala">
-case class Props(count: State[Int], step: Int)
+  case class Props(count: State[Int], step: Int)
 </script>
 
 <div class="step-control">

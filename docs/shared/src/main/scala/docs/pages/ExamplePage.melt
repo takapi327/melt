@@ -1,24 +1,24 @@
 <script lang="scala">
-import docs.components.Layout
-import docs.CodeSamples
+  import docs.components.Layout
+  import docs.CodeSamples
 
-case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val base = props.basePath + "/" + props.lang
+  val base = props.basePath + "/" + props.lang
 
-val pageTitle = props.slug match
-  case "counter"      => "Counter"
-  case "todo-app"     => "Todo App"
-  case "transitions"  => "Transitions"
-  case "trusted-html" => "Trusted HTML"
-  case "ssr"          => "SSR + Hydration"
-  case "routing"      => "MeltKit Routing"
-  case other          => other.replace("-", " ").split(" ").map(_.capitalize).mkString(" ")
+  val pageTitle = props.slug match
+    case "counter"      => "Counter"
+    case "todo-app"     => "Todo App"
+    case "transitions"  => "Transitions"
+    case "trusted-html" => "Trusted HTML"
+    case "ssr"          => "SSR + Hydration"
+    case "routing"      => "MeltKit Routing"
+    case other          => other.replace("-", " ").split(" ").map(_.capitalize).mkString(" ")
 
-val code = props.slug match
-  case "counter"  => CodeSamples.counterMelt
-  case "todo-app" => CodeSamples.todoMelt
-  case _          => CodeSamples.helloMelt
+  val code = props.slug match
+    case "counter"  => CodeSamples.counterMelt
+    case "todo-app" => CodeSamples.todoMelt
+    case _          => CodeSamples.helloMelt
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="examples" slug={props.slug}>

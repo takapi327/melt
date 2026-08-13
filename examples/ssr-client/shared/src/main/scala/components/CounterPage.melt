@@ -1,10 +1,10 @@
 <script lang="scala">
-val count   = State(0)
-val doubled = count.map(_ * 2)
-val isEven  = count.memo(_ % 2 == 0)
+  val count   = State(0)
+  val doubled = count.map(_ * 2)
+  val isEven  = count.memo(_ % 2 == 0)
 
-def resetAll(): Unit =
-  count.set(0)
+  def resetAll(): Unit =
+    count.set(0)
 </script>
 
 <Layout>

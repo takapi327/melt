@@ -1,19 +1,19 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// PublicEnv is generated at build time from `meltPublicEnv` (see build.sbt) and is
-// safe to read on the client — these values are meant for the browser.
-val appName = generated.PublicEnv.appName
-val apiBase = generated.PublicEnv.apiBase
+  // PublicEnv is generated at build time from `meltPublicEnv` (see build.sbt) and is
+  // safe to read on the client — these values are meant for the browser.
+  val appName = generated.PublicEnv.appName
+  val apiBase = generated.PublicEnv.apiBase
 
-// The greeting comes from the server, which built it from a PRIVATE env value
-// (see Server.scala). Only the non-secret result reaches the client.
-val greeting = Api.greeting()
+  // The greeting comes from the server, which built it from a PRIVATE env value
+  // (see Server.scala). Only the non-secret result reaches the client.
+  val greeting = Api.greeting()
 
-// Uncommenting the next line would NOT compile: meltkit.env.PrivateEnv is JVM-only,
-// so a browser-reachable component cannot reference it — the secret boundary is a
-// real compile error, not a lint.
-// val leaked = meltkit.env.PrivateEnv.get("SECRET_TOKEN")
+  // Uncommenting the next line would NOT compile: meltkit.env.PrivateEnv is JVM-only,
+  // so a browser-reachable component cannot reference it — the secret boundary is a
+  // real compile error, not a lint.
+  // val leaked = meltkit.env.PrivateEnv.get("SECRET_TOKEN")
 </script>
 
 <main>

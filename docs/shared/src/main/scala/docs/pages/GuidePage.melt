@@ -1,17 +1,37 @@
 <script lang="scala">
-import docs.I18n
-import docs.components.Layout
-import docs.pages.guide.{
-  Introduction, Installation, QuickStart, Components, TemplateSyntax,
-  Reactivity, Computed, Effects, Events, LifecyclePage, ControlFlow,
-  SpecialElements, Transitions, TrustedHtml as HtmlPage, Css, Testing, Routing,
-  Ssr, Ssg, Adapters, FormActions, ServerFunctions, AsyncSsr, ServerEnv
-}
+  import docs.components.Layout
+  import docs.pages.guide.{
+    Adapters,
+    AsyncSsr,
+    Components,
+    Computed,
+    ControlFlow,
+    Css,
+    Effects,
+    Events,
+    FormActions,
+    Installation,
+    Introduction,
+    LifecyclePage,
+    QuickStart,
+    Reactivity,
+    Routing,
+    ServerEnv,
+    ServerFunctions,
+    SpecialElements,
+    Ssg,
+    Ssr,
+    TemplateSyntax,
+    Testing,
+    Transitions,
+    TrustedHtml as HtmlPage
+  }
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val pageTitle  = I18n(props.lang).guideLinks(props.slug)
-val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
+  val pageTitle  = I18n(props.lang).guideLinks(props.slug)
+  val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="guide" slug={props.slug}>

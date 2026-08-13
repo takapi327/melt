@@ -1,5 +1,5 @@
 <script lang="scala">
-case class Props(email: String = "")
+  case class Props(email: String = "")
 </script>
 
 <main class="dashboard">

@@ -1,12 +1,12 @@
 <script lang="scala">
-import "/styles/global.css"
-import docs.I18n
+  import "/styles/global.css"
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", section: String = "", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", section: String = "", slug: String = "")
 
-val base     = props.basePath + "/" + props.lang
-val t        = I18n(props.lang)
-val menuOpen = State(false)
+  val base     = props.basePath + "/" + props.lang
+  val t        = I18n(props.lang)
+  val menuOpen = State(false)
 </script>
 
 <header class="topnav">

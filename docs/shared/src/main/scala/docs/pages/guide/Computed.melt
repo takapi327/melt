@@ -1,12 +1,12 @@
 <script lang="scala">
-import docs.i18n.GuideI18n
-import docs.GuideCodes
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
 
-case class Props(lang: String = "en", basePath: String = "")
+  case class Props(lang: String = "en", basePath: String = "")
 
-val t    = GuideI18n(props.lang).computed
-val nav  = GuideI18n(props.lang).nav
-val base = props.basePath + "/" + props.lang
+  val t    = GuideI18n(props.lang).computed
+  val nav  = GuideI18n(props.lang).nav
+  val base = props.basePath + "/" + props.lang
 </script>
 
 <p>{t.lead}</p>

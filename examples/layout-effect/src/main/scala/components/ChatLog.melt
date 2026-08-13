@@ -1,44 +1,44 @@
 <script lang="scala">
-// ── State ──────────────────────────────────────────────────────────────────
-val messages = State(List("👋 Welcome to the Melt layoutEffect demo!"))
-val input    = State("")
-val phaseLog = State(List.empty[String])
+  // ── State ──────────────────────────────────────────────────────────────────
+  val messages = State(List("👋 Welcome to the Melt layoutEffect demo!"))
+  val input    = State("")
+  val phaseLog = State(List.empty[String])
 
-// ── Auto-scroll via layoutEffect + effect ──────────────────────────────────
-//
-// The canonical layoutEffect use case:
-//   - layoutEffect fires BEFORE the DOM is mutated → read pre-update state
-//   - effect fires AFTER the DOM is mutated       → act on post-update state
-//
-// This pattern lets us scroll to the bottom only when the user was already
-// there, so reading history is not interrupted.
+  // ── Auto-scroll via layoutEffect + effect ──────────────────────────────────
+  //
+  // The canonical layoutEffect use case:
+  //   - layoutEffect fires BEFORE the DOM is mutated → read pre-update state
+  //   - effect fires AFTER the DOM is mutated       → act on post-update state
+  //
+  // This pattern lets us scroll to the bottom only when the user was already
+  // there, so reading history is not interrupted.
 
-val logRef = Ref.empty[dom.Element]
-var atBottom = true
+  val logRef   = Ref.empty[dom.Element]
+  var atBottom = true
 
-// PRE phase: capture scroll position before new <p> elements are injected
-layoutEffect(messages) { _ =>
-  logRef.foreach { el =>
-    atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+  // PRE phase: capture scroll position before new <p> elements are injected
+  layoutEffect(messages) { _ =>
+    logRef.foreach { el =>
+      atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1
+    }
+    phaseLog.append(s"[PRE ] messages changed — atBottom=$atBottom")
   }
-  phaseLog.append(s"[PRE ] messages changed — atBottom=$atBottom")
-}
 
-// POST phase: if we were at the bottom, scroll to the new bottom
-effect(messages) { msgs =>
-  if atBottom then logRef.foreach(el => el.scrollTop = el.scrollHeight)
-  phaseLog.append(s"[POST] DOM updated — ${msgs.size} messages")
-}
+  // POST phase: if we were at the bottom, scroll to the new bottom
+  effect(messages) { msgs =>
+    if atBottom then logRef.foreach(el => el.scrollTop = el.scrollHeight)
+    phaseLog.append(s"[POST] DOM updated — ${ msgs.size } messages")
+  }
 
-// ── Input helpers ───────────────────────────────────────────────────────────
-def send(): Unit =
-  val text = input.value.trim
-  if text.nonEmpty then
-    messages.append(text)
-    input.set("")
+  // ── Input helpers ───────────────────────────────────────────────────────────
+  def send(): Unit =
+    val text = input.value.trim
+    if text.nonEmpty then
+      messages.append(text)
+      input.set("")
 
-def onKey(e: dom.KeyboardEvent): Unit =
-  if e.key == "Enter" then send()
+  def onKey(e: dom.KeyboardEvent): Unit =
+    if e.key == "Enter" then send()
 </script>
 
 <div class="chat-demo">

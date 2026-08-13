@@ -1,21 +1,21 @@
 <script lang="scala">
-val count   = State(0)
-val name    = State("")
-val doubled = count.map(_ * 2)
-val isEven  = count.memo(_ % 2 == 0)
+  val count   = State(0)
+  val name    = State("")
+  val doubled = count.map(_ * 2)
+  val isEven  = count.memo(_ % 2 == 0)
 
-effect(count) { n =>
-  dom.console.log(s"Count changed to: $n")
-}
+  effect(count) { n =>
+    dom.console.log(s"Count changed to: $n")
+  }
 
-def resetAll(): Unit = batch {
-  count.set(0)
-  name.set("")
-}
+  def resetAll(): Unit = batch {
+    count.set(0)
+    name.set("")
+  }
 
-val windowWidth = Window.innerWidth
+  val windowWidth = Window.innerWidth
 
-Document.title(name.map(n => if n.isEmpty then "Melt SCSS Counter" else s"Hello, $n!"))
+  Document.title(name.map(n => if n.isEmpty then "Melt SCSS Counter" else s"Hello, $n!"))
 </script>
 
 <div class="counter">

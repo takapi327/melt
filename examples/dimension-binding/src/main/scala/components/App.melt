@@ -1,20 +1,20 @@
 <script lang="scala">
-// ── Resizable box dimensions ─────────────────────────────────────────────────
-// bind:clientWidth / clientHeight: visible size (content + padding, no border)
-// bind:offsetWidth / offsetHeight: full size (content + padding + border)
-val clientW = State(0.0)
-val clientH = State(0.0)
-val offsetW = State(0.0)
-val offsetH = State(0.0)
+  // ── Resizable box dimensions ─────────────────────────────────────────────────
+  // bind:clientWidth / clientHeight: visible size (content + padding, no border)
+  // bind:offsetWidth / offsetHeight: full size (content + padding + border)
+  val clientW = State(0.0)
+  val clientH = State(0.0)
+  val offsetW = State(0.0)
+  val offsetH = State(0.0)
 
-// ── Responsive container ─────────────────────────────────────────────────────
-// Tracks the container width to switch layout at a breakpoint
-val containerW = State(0.0)
+  // ── Responsive container ─────────────────────────────────────────────────────
+  // Tracks the container width to switch layout at a breakpoint
+  val containerW = State(0.0)
 
-val isNarrow = containerW.map(_ < 500)
+  val isNarrow = containerW.map(_ < 500)
 
-// ── Text content for the resizable box ──────────────────────────────────────
-val boxText = State("Resize me by dragging the bottom-right corner!")
+  // ── Text content for the resizable box ──────────────────────────────────────
+  val boxText = State("Resize me by dragging the bottom-right corner!")
 </script>
 
 <div class="demo">
