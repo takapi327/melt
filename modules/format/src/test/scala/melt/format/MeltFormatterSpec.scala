@@ -79,24 +79,23 @@ class MeltFormatterSpec extends munit.FunSuite:
       else
         val here = Option(dir.listFiles).getOrElse(Array.empty[java.io.File]).toList
         here.flatMap {
-          case d if d.isDirectory                  => meltFiles(d)
-          case f if f.getName.endsWith(".melt")    => List(f)
-          case _                                   => Nil
+          case d if d.isDirectory               => meltFiles(d)
+          case f if f.getName.endsWith(".melt") => List(f)
+          case _                                => Nil
         }
 
     val files = List("examples", "docs").flatMap(d => meltFiles(new java.io.File(d)))
     assume(files.nonEmpty, "no .melt files found relative to cwd; skipping real-file round-trip")
 
     val broken = files.flatMap { f =>
-      val src = scala.io.Source.fromFile(f, "UTF-8")
+      val src  = scala.io.Source.fromFile(f, "UTF-8")
       val text =
         try src.mkString
         finally src.close()
       MeltFormatter.format(text) match
         case Right(out) if out == text => None
-        case Right(_)                  => Some(s"${f.getPath}: identity format changed bytes")
-        case Left(err)                 => Some(s"${f.getPath}: scan Left: $err")
+        case Right(_)                  => Some(s"${ f.getPath }: identity format changed bytes")
+        case Left(err)                 => Some(s"${ f.getPath }: scan Left: $err")
     }
-    assert(broken.isEmpty, s"${broken.size} file(s) failed round-trip:\n${broken.mkString("\n")}")
+    assert(broken.isEmpty, s"${ broken.size } file(s) failed round-trip:\n${ broken.mkString("\n") }")
   }
-

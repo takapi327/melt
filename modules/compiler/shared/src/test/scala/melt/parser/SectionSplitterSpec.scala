@@ -62,7 +62,10 @@ class SectionSplitterSpec extends munit.FunSuite:
     // `\"\"\"` == a `"""` triple-quote in the body under test.
     val tripleBody = "val s = \"\"\"x</script>y\"\"\"\n</script>"
     assertEquals(SectionSplitter.findScriptClose(tripleBody, 0), "val s = \"\"\"x</script>y\"\"\"\n".length)
-    assertEquals(SectionSplitter.findScriptClose("// a </script> in a comment\n</script>", 0), "// a </script> in a comment\n".length)
+    assertEquals(
+      SectionSplitter.findScriptClose("// a </script> in a comment\n</script>", 0),
+      "// a </script> in a comment\n".length
+    )
     assertEquals(SectionSplitter.findScriptClose("/* </script> */\n</script>", 0), "/* </script> */\n".length)
     assertEquals(SectionSplitter.findScriptClose("val a = 1", 0), -1) // no closing tag
     // Quote runs > 3: `s""""$t""""` — the last 3 quotes close the triple string.

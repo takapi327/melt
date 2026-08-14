@@ -13,8 +13,8 @@ class ScriptFormatterSpec extends munit.FunSuite:
   // A self-contained scalafmt config (mirrors the repo: scala3, align) so the
   // test does not depend on cwd. Uses the repo's pinned version.
   private val confFixture: Fixture[Path] = new Fixture[Path]("scalafmt-conf"):
-    private var path: Path = null
-    def apply(): Path = path
+    private var path:         Path = null
+    def apply():              Path = path
     override def beforeAll(): Unit =
       path = Files.createTempFile("melt-scalafmt", ".conf")
       Files.writeString(
@@ -36,9 +36,9 @@ class ScriptFormatterSpec extends munit.FunSuite:
 
   test("formats a script with a top-level statement (no dialect override needed)") {
     val out = fmt("\n  val users = State(List.empty[User])\n  Api.fetchUsers(users)\n")
-    assert(out.contains("Api.fetchUsers(users)"), out)                 // top-level stmt survives
+    assert(out.contains("Api.fetchUsers(users)"), out) // top-level stmt survives
     assert(out.contains("val users = State(List.empty[User])"), out)
-    assert(out.startsWith("\n  val users"), out)                       // indent level (2) preserved
+    assert(out.startsWith("\n  val users"), out) // indent level (2) preserved
     assert(out.endsWith("\n"), out)
   }
 
@@ -46,7 +46,7 @@ class ScriptFormatterSpec extends munit.FunSuite:
     val out = fmt("\n  val x=State(0)\n  val yy   =State(1)\n")
     assert(out.contains("val x") && out.contains("State(0)"), out)
     assert(out.contains("val yy") && out.contains("State(1)"), out)
-    assert(!out.contains("=State"), out)                               // spacing normalised
+    assert(!out.contains("=State"), out)                                              // spacing normalised
     assert(out.linesIterator.filter(_.trim.nonEmpty).forall(_.startsWith("  ")), out) // indent 2
   }
 

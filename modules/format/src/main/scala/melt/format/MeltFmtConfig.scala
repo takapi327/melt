@@ -75,14 +75,14 @@ object MeltFmtConfig:
         if cfg.hasPath("melt.css.selectorList") then
           cfg.getString("melt.css.selectorList").trim.toLowerCase match
             case "single-line" | "singleline" => SelectorListStyle.SingleLine
-            case _                             => SelectorListStyle.Newline
+            case _                            => SelectorListStyle.Newline
         else SelectorListStyle.Newline
 
       val scriptIndent =
         if cfg.hasPath("melt.script.indent") then cfg.getInt("melt.script.indent") else 2
 
       MeltFmtConfig(CssFormatOptions(indent, selectorList), ScriptFormatOptions(scriptIndent))
-    }.toEither.left.map(e => s"$path: ${e.getMessage}")
+    }.toEither.left.map(e => s"$path: ${ e.getMessage }")
 
   /** Discovers a `.meltfmt.conf` from `from` and loads it; defaults if none. */
   def loadFrom(from: Path): Either[String, MeltFmtConfig] =

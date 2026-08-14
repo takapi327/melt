@@ -11,8 +11,8 @@ import java.nio.file.{ Files, Path }
 class MeltFmtSpec extends munit.FunSuite:
 
   private val confFixture: Fixture[Path] = new Fixture[Path]("scalafmt-conf"):
-    private var path: Path = null
-    def apply(): Path = path
+    private var path:         Path = null
+    def apply():              Path = path
     override def beforeAll(): Unit =
       path = Files.createTempFile("melt-scalafmt", ".conf")
       Files.writeString(path, "version = 3.11.0\nrunner.dialect = scala3\nmaxColumn = 120\n")

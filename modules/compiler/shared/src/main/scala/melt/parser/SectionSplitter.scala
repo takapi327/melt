@@ -121,23 +121,31 @@ private[parser] object SectionSplitter:
         if c == '\n' then inLine = false
         i += 1
       else if block > 0 then
-        if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then { block += 1; i += 2 }
-        else if c == '*' && i + 1 < n && source.charAt(i + 1) == '/' then { block -= 1; i += 2 }
+        if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then
+          block += 1; i += 2
+        else if c == '*' && i + 1 < n && source.charAt(i + 1) == '/' then
+          block -= 1; i += 2
         else i += 1
       else if inTriple then
         // In a run of >3 quotes (e.g. `s""""x""""`), the *last* 3 close the
         // string; earlier quotes are content. So `"""` only closes when it is
         // not followed by another `"`.
-        if triAt(i) && !(i + 3 < n && source.charAt(i + 3) == '"') then { inTriple = false; i += 3 }
+        if triAt(i) && !(i + 3 < n && source.charAt(i + 3) == '"') then
+          inTriple = false; i += 3
         else i += 1
       else if inStr then
         if c == '\\' then i += 2 // skip escaped char
-        else if c == '"' then { inStr = false; i += 1 }
+        else if c == '"' then
+          inStr = false; i += 1
         else i += 1
-      else if triAt(i) then { inTriple = true; i += 3 }
-      else if c == '"' then { inStr = true; i += 1 }
-      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '/' then { inLine = true; i += 2 }
-      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then { block = 1; i += 2 }
+      else if triAt(i) then
+        inTriple = true; i += 3
+      else if c == '"' then
+        inStr = true; i += 1
+      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '/' then
+        inLine = true; i += 2
+      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then
+        block = 1; i += 2
       else if source.startsWith(CloseScript, i) then return i
       else i += 1
     -1

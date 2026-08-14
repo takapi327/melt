@@ -39,11 +39,11 @@ final class ScriptFormatter(scalafmtConfig: Path, indent: Int = 2):
   private val errors = ListBuffer.empty[String]
 
   private val reporter: ScalafmtReporter = new ScalafmtReporter:
-    def error(file: Path, message: String): Unit         = errors += message
-    def error(file: Path, e: Throwable): Unit            = errors += Option(e.getMessage).getOrElse(e.toString)
-    def excluded(file: Path): Unit                       = errors += s"excluded by project filters: $file"
-    def parsedConfig(config: Path, ver: String): Unit    = ()
-    def downloadWriter(): PrintWriter                     = new PrintWriter(System.err)
+    def error(file:          Path, message: String):    Unit = errors += message
+    def error(file:          Path, e:       Throwable): Unit = errors += Option(e.getMessage).getOrElse(e.toString)
+    def excluded(file:       Path):                     Unit = errors += s"excluded by project filters: $file"
+    def parsedConfig(config: Path, ver:     String):    Unit = ()
+    def downloadWriter():             PrintWriter        = new PrintWriter(System.err)
     def downloadOutputStreamWriter(): OutputStreamWriter = new OutputStreamWriter(System.err)
 
   private val scalafmt: Scalafmt =
@@ -52,7 +52,7 @@ final class ScriptFormatter(scalafmtConfig: Path, indent: Int = 2):
       .withReporter(reporter)
       .withRespectProjectFilters(false)
 
-  private val virtualFile          = Paths.get("melt-script.scala")
+  private val virtualFile = Paths.get("melt-script.scala")
   private val StringImport: String => Boolean = _.matches("""\s*import\s+".*""")
 
   /** Formats the raw inner text between `<script ...>` and `</script>`.
@@ -62,7 +62,7 @@ final class ScriptFormatter(scalafmtConfig: Path, indent: Int = 2):
   def format(rawInner: String): Either[String, String] =
     val lines = rawInner.split("\n", -1).toList
     // Drop leading/trailing blank lines but keep the indentation of real lines.
-    val body  = lines.dropWhile(_.trim.isEmpty).reverse.dropWhile(_.trim.isEmpty).reverse
+    val body = lines.dropWhile(_.trim.isEmpty).reverse.dropWhile(_.trim.isEmpty).reverse
     if body.forall(_.trim.isEmpty) then Right(rawInner) // empty/comment-free script → leave as-is
     else
       val baseIndent = body.filter(_.trim.nonEmpty).map(leadingSpaces).min

@@ -29,9 +29,9 @@ object MeltFmtMain:
 
   def main(args: Array[String]): Unit =
     val (check, configOpt, targets) = parse(args.toList)
-    val conf = configOpt.getOrElse(Paths.get(".scalafmt.conf"))
+    val conf                        = configOpt.getOrElse(Paths.get(".scalafmt.conf"))
     if !Files.isRegularFile(conf) then
-      throw new RuntimeException(s"[meltfmt] .scalafmt.conf not found: ${conf.toAbsolutePath}")
+      throw new RuntimeException(s"[meltfmt] .scalafmt.conf not found: ${ conf.toAbsolutePath }")
 
     // Discover `.meltfmt.conf` from the working directory (walking up). A
     // malformed config fails the run loudly rather than silently falling back.
@@ -65,21 +65,25 @@ object MeltFmtMain:
     // Unparseable files are warned about but never fail the run: meltFmt cannot
     // fix them and must not touch them (e.g. a `</script>` inside a script string).
     if skipped.nonEmpty then
-      System.err.println(s"[meltfmt] skipped ${skipped.size} unparseable file(s):")
+      System.err.println(s"[meltfmt] skipped ${ skipped.size } unparseable file(s):")
       skipped.foreach(s => System.err.println("  " + s))
 
     if check then
       if unformatted.nonEmpty then
         throw new RuntimeException(
-          s"[meltfmt] ${unformatted.size} of ${files.size} file(s) need formatting (run `sbt meltFmt`):\n" +
+          s"[meltfmt] ${ unformatted.size } of ${ files.size } file(s) need formatting (run `sbt meltFmt`):\n" +
             unformatted.map("  " + _).mkString("\n")
         )
-      else println(s"[meltfmt] check OK (${files.size} file(s), ${skipped.size} skipped)")
-    else
-      println(s"[meltfmt] formatted $changed of ${files.size} file(s), ${skipped.size} skipped")
+      else println(s"[meltfmt] check OK (${ files.size } file(s), ${ skipped.size } skipped)")
+    else println(s"[meltfmt] formatted $changed of ${ files.size } file(s), ${ skipped.size } skipped")
 
   private def parse(args: List[String]): (Boolean, Option[Path], List[Path]) =
-    def loop(as: List[String], check: Boolean, cfg: Option[Path], acc: List[Path]): (Boolean, Option[Path], List[Path]) =
+    def loop(
+      as:    List[String],
+      check: Boolean,
+      cfg:   Option[Path],
+      acc:   List[Path]
+    ): (Boolean, Option[Path], List[Path]) =
       as match
         case Nil                     => (check, cfg, acc.reverse)
         case "--check" :: rest       => loop(rest, true, cfg, acc)
@@ -88,8 +92,7 @@ object MeltFmtMain:
     loop(args, false, None, Nil)
 
   private def meltFiles(target: Path): List[Path] =
-    if Files.isRegularFile(target) then
-      if target.toString.endsWith(".melt") then List(target) else Nil
+    if Files.isRegularFile(target) then if target.toString.endsWith(".melt") then List(target) else Nil
     else if Files.isDirectory(target) then
       Files
         .walk(target)
