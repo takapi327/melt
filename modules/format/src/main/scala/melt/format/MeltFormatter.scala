@@ -7,7 +7,7 @@
 package melt.format
 
 import melt.parser.MeltRegionScanner
-import melt.parser.MeltRegionScanner.RegionKind
+import melt.parser.MeltRegionScanner.{ Region, RegionKind }
 
 /** Formats a `.melt` file by reformatting each recognized section's inner text
   * and splicing the results back in place — everything outside the sections
@@ -25,13 +25,14 @@ object MeltFormatter:
     source:        String,
     formatSection: (RegionKind, String) => String = (_, inner) => inner
   ): Either[String, String] =
-    formatE(source, (k, s) => Right(formatSection(k, s)))
+    formatE(source, (r, s) => Right(formatSection(r.kind, s)))
 
-  /** Like [[format]] but each section transform may fail with `Left(message)`;
+  /** Like [[format]] but the transform receives the whole [[Region]] (so a
+    * `<style>` handler can see its `styleLang`) and may fail with `Left(message)`;
     * the first failure short-circuits and the source is not modified. */
   def formatE(
     source:        String,
-    formatSection: (RegionKind, String) => Either[String, String]
+    formatSection: (Region, String) => Either[String, String]
   ): Either[String, String] =
     MeltRegionScanner.scan(source).flatMap { regions =>
       // Splice from the last region to the first so earlier offsets stay valid.
@@ -39,7 +40,7 @@ object MeltFormatter:
         .sortBy(-_.innerStart)
         .foldLeft[Either[String, String]](Right(source)) { (accE, r) =>
           accE.flatMap { acc =>
-            formatSection(r.kind, acc.substring(r.innerStart, r.innerEnd)).map { formatted =>
+            formatSection(r, acc.substring(r.innerStart, r.innerEnd)).map { formatted =>
               acc.substring(0, r.innerStart) + formatted + acc.substring(r.innerEnd)
             }
           }

@@ -48,13 +48,14 @@ object MeltFmtMain:
       return
 
     val formatter   = new ScriptFormatter(conf, meltCfg.script.indent)
+    val cssOptions  = toCssOptions(meltCfg.css)
     val unformatted = scala.collection.mutable.ListBuffer.empty[String] // fixable by meltFmt
     val skipped     = scala.collection.mutable.ListBuffer.empty[String] // unparseable — left as-is
     var changed     = 0
 
     files.foreach { f =>
       val src = Files.readString(f)
-      MeltFmt.format(src, formatter) match
+      MeltFmt.format(src, formatter, cssOptions) match
         case Right(out) if out == src => ()
         case Right(_) if check        => unformatted += f.toString
         case Right(out)               =>
@@ -76,6 +77,13 @@ object MeltFmtMain:
         )
       else println(s"[meltfmt] check OK (${ files.size } file(s), ${ skipped.size } skipped)")
     else println(s"[meltfmt] formatted $changed of ${ files.size } file(s), ${ skipped.size } skipped")
+
+  /** Maps the `.meltfmt.conf` CSS options onto the compiler's [[CssFormatter]]. */
+  private def toCssOptions(css: CssFormatOptions): melt.css.CssFormatter.Options =
+    val sel = css.selectorList match
+      case SelectorListStyle.SingleLine => melt.css.CssFormatter.SelectorList.SingleLine
+      case SelectorListStyle.Newline    => melt.css.CssFormatter.SelectorList.Newline
+    melt.css.CssFormatter.Options(indent = css.indent, selectorList = sel)
 
   private def parse(args: List[String]): (Boolean, Option[Path], List[Path]) =
     def loop(

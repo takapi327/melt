@@ -8,14 +8,16 @@ package melt.format
 
 import java.nio.file.Path
 
+import melt.css.CssFormatter
 import melt.parser.MeltRegionScanner.RegionKind
 
-/** Top-level `.melt` formatter (Phase 1).
+/** Top-level `.melt` formatter.
   *
-  * Formats the Scala `<script>` / `<script module>` sections with scalafmt; the
-  * `<style>` section and the template are left untouched (Phase 1 passthrough —
-  * see `memo/design-melt-fmt.md`). Everything outside the formatted sections is
-  * preserved byte-for-byte.
+  * Formats the Scala `<script>` / `<script module>` sections with scalafmt and
+  * the `<style>` CSS with [[CssFormatter]] (SCSS is passed through). The
+  * template is left untouched. Everything outside the formatted sections is
+  * preserved byte-for-byte. See `memo/design-melt-fmt.md` /
+  * `memo/design-melt-css-fmt.md`.
   */
 object MeltFmt:
 
@@ -23,12 +25,19 @@ object MeltFmt:
   def format(source: String, scalafmtConfig: Path): Either[String, String] =
     format(source, new ScriptFormatter(scalafmtConfig))
 
-  /** Formats using an existing [[ScriptFormatter]] (reuse across many files). */
-  def format(source: String, scriptFormatter: ScriptFormatter): Either[String, String] =
+  /** Formats using an existing [[ScriptFormatter]] and CSS options (reuse across
+    * many files). `cssOptions` drives the `<style>` formatter (`.meltfmt.conf`).
+    */
+  def format(
+    source:          String,
+    scriptFormatter: ScriptFormatter,
+    cssOptions:      CssFormatter.Options = CssFormatter.Options()
+  ): Either[String, String] =
     MeltFormatter.formatE(
       source,
-      {
-        case (RegionKind.Style, inner) => Right(inner) // Phase 1: passthrough
-        case (_, inner)                => scriptFormatter.format(inner)
+      { (region, inner) =>
+        region.kind match
+          case RegionKind.Style => StyleFormatter.format(inner, region.styleLang, cssOptions)
+          case _                => scriptFormatter.format(inner)
       }
     )
