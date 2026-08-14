@@ -18,6 +18,10 @@ import scala.jdk.CollectionConverters.*
   *   - `--check`         verify only; throw (non-zero task exit) if any file would change
   *   - `--config <path>` path to `.scalafmt.conf` (default: `./.scalafmt.conf`)
   *
+  * Melt-specific options (script left-margin indent, CSS layout) come from a
+  * `.meltfmt.conf` discovered by walking up from the working directory; the
+  * scalafmt *style* still comes from `.scalafmt.conf`.
+  *
   * Directories are scanned recursively for `*.melt`. Runs in-process, so it
   * throws (rather than `System.exit`) on failure to avoid killing a host sbt JVM.
   */
@@ -29,12 +33,21 @@ object MeltFmtMain:
     if !Files.isRegularFile(conf) then
       throw new RuntimeException(s"[meltfmt] .scalafmt.conf not found: ${conf.toAbsolutePath}")
 
+    // Discover `.meltfmt.conf` from the working directory (walking up). A
+    // malformed config fails the run loudly rather than silently falling back.
+    val meltCfg = MeltFmtConfig.loadFrom(Paths.get("").toAbsolutePath.resolve("_")) match
+      case Right(c)  => c
+      case Left(err) => throw new RuntimeException(s"[meltfmt] $err")
+    MeltFmtConfig.find(Paths.get("").toAbsolutePath.resolve("_")).foreach { p =>
+      println(s"[meltfmt] using $p")
+    }
+
     val files = targets.flatMap(meltFiles).distinct
     if files.isEmpty then
       println("[meltfmt] no .melt files found")
       return
 
-    val formatter   = new ScriptFormatter(conf)
+    val formatter   = new ScriptFormatter(conf, meltCfg.script.indent)
     val unformatted = scala.collection.mutable.ListBuffer.empty[String] // fixable by meltFmt
     val skipped     = scala.collection.mutable.ListBuffer.empty[String] // unparseable — left as-is
     var changed     = 0
