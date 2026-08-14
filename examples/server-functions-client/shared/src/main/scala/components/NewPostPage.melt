@@ -44,9 +44,30 @@
 </main>
 
 <style>
-.new-post { max-width: 28rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
-.new-post label { display: block; margin: 0.75rem 0; }
-.new-post input, .new-post textarea { display: block; width: 100%; padding: 0.5rem; }
-.error { color: #c0392b; margin: 0.25rem 0; }
-button[disabled] { opacity: 0.6; }
+  .new-post {
+    max-width: 28rem;
+    margin: 3rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .new-post label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+
+  .new-post input,
+  .new-post textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .error {
+    color: #c0392b;
+    margin: 0.25rem 0;
+  }
+
+  button[disabled] {
+    opacity: 0.6;
+  }
 </style>

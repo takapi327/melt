@@ -24,10 +24,31 @@
 </div>
 
 <style>
-.items h2 { margin-top: 0; }
-.items ul { list-style: none; padding: 0; }
-.items li { padding: 0.6rem 0; border-bottom: 1px solid #eee; }
-.name { font-weight: 600; margin-right: 0.5rem; }
-.blurb { color: #777; }
-.loading { color: #888; font-style: italic; }
+  .items h2 {
+    margin-top: 0;
+  }
+
+  .items ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .items li {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .name {
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+
+  .blurb {
+    color: #777;
+  }
+
+  .loading {
+    color: #888;
+    font-style: italic;
+  }
 </style>

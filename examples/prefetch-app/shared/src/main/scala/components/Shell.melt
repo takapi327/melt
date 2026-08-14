@@ -17,10 +17,41 @@
 </div>
 
 <style>
-.app { max-width: 40rem; margin: 2rem auto; font-family: system-ui, sans-serif; color: #222; }
-header { border-bottom: 2px solid #ff3e00; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
-h1 { font-size: 1.2rem; margin: 0 0 0.5rem; }
-nav { display: flex; gap: 0.5rem; }
-nav a { padding: 0.35rem 0.9rem; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; color: #555; font-size: 0.9rem; }
-nav a.active { border-color: #ff3e00; color: #ff3e00; font-weight: 600; }
+  .app {
+    max-width: 40rem;
+    margin: 2rem auto;
+    font-family: system-ui, sans-serif;
+    color: #222;
+  }
+
+  header {
+    border-bottom: 2px solid #ff3e00;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  nav {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  nav a {
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #555;
+    font-size: 0.9rem;
+  }
+
+  nav a.active {
+    border-color: #ff3e00;
+    color: #ff3e00;
+    font-weight: 600;
+  }
 </style>

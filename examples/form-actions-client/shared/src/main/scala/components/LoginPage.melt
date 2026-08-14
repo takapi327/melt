@@ -55,10 +55,35 @@
 </main>
 
 <style>
-.login { max-width: 22rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
-.login label { display: block; margin: 0.75rem 0; }
-.login input { display: block; width: 100%; padding: 0.5rem; }
-.error { color: #c0392b; margin: 0.25rem 0; }
-.hint { margin-top: 1.5rem; font-size: 0.9rem; color: #555; }
-button[disabled] { opacity: 0.6; }
+  .login {
+    max-width: 22rem;
+    margin: 4rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .login label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+
+  .login input {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .error {
+    color: #c0392b;
+    margin: 0.25rem 0;
+  }
+
+  .hint {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  button[disabled] {
+    opacity: 0.6;
+  }
 </style>

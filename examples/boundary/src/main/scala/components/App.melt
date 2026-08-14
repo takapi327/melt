@@ -85,86 +85,185 @@
 </div>
 
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: sans-serif; color: #222; background: #f0f2f5; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-.demo { max-width: 960px; margin: 0 auto; padding: 1.5em 1em 4em; }
+  body {
+    font-family: sans-serif;
+    color: #222;
+    background: #f0f2f5;
+  }
 
-.hero { text-align: center; padding: 2em 1em 1.5em; }
-.hero h1 { font-size: 2em; color: #ff3e00; }
-.subtitle { margin-top: 0.6em; color: #555; font-size: 0.95em; }
+  .demo {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5em 1em 4em;
+  }
 
-.panels { display: flex; flex-wrap: wrap; gap: 1.2em; margin-top: 1em; }
+  .hero {
+    text-align: center;
+    padding: 2em 1em 1.5em;
+  }
 
-.panel {
-  flex: 1 1 280px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1.2em;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8em;
-}
+  .hero h1 {
+    font-size: 2em;
+    color: #ff3e00;
+  }
 
-.panel-title { font-size: 1em; font-weight: 700; color: #333; }
-.hint { color: #777; font-size: 0.82em; line-height: 1.55; }
+  .subtitle {
+    margin-top: 0.6em;
+    color: #555;
+    font-size: 0.95em;
+  }
 
-/* Boundary output box */
-.boundary-box {
-  background: #fafafa;
-  border: 1px dashed #ccc;
-  border-radius: 6px;
-  padding: 0.7em 1em;
-  min-height: 48px;
-}
+  .panels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2em;
+    margin-top: 1em;
+  }
 
-/* Fallback (error) UI */
-.fallback {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5em;
-}
-.error-title { font-weight: 600; color: #c0392b; }
-.error-msg   { font-family: monospace; font-size: 0.82em; color: #555; }
+  .panel {
+    flex: 1 1 280px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.2em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+  }
 
-/* Async */
-.async-row { display: flex; flex-direction: column; gap: 0.35em; }
-.label { font-size: 0.82em; color: #666; font-weight: 600; }
-.pending { color: #e67e22; font-size: 0.88em; }
-.result { font-size: 0.9em; }
-.result.ok  { color: #27ae60; }
-.result.err { color: #c0392b; font-family: monospace; }
+  .panel-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: #333;
+  }
 
-/* Retry / action button */
-.btn {
-  display: inline-block;
-  padding: 0.35em 0.9em;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background 0.15s;
-}
-.btn:hover { background: #f0f0f0; }
-.btn-row { display: flex; gap: 0.5em; }
+  .hint {
+    color: #777;
+    font-size: 0.82em;
+    line-height: 1.55;
+  }
 
-/* Error log */
-.log-box {
-  min-height: 80px;
-  max-height: 160px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  padding: 0.5em 0.7em;
-  background: #fafafa;
-  font-family: monospace;
-  font-size: 0.8em;
-}
-.log-box ul { padding-left: 1.2em; list-style: disc; }
-.log-box li { margin: 0.15em 0; color: #333; }
-.empty { color: #aaa; }
+  /* Boundary output box */
 
-code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.88em; }
+  .boundary-box {
+    background: #fafafa;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    padding: 0.7em 1em;
+    min-height: 48px;
+  }
+
+  /* Fallback (error) UI */
+
+  .fallback {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+  }
+
+  .error-title {
+    font-weight: 600;
+    color: #c0392b;
+  }
+
+  .error-msg {
+    font-family: monospace;
+    font-size: 0.82em;
+    color: #555;
+  }
+
+  /* Async */
+
+  .async-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+  }
+
+  .label {
+    font-size: 0.82em;
+    color: #666;
+    font-weight: 600;
+  }
+
+  .pending {
+    color: #e67e22;
+    font-size: 0.88em;
+  }
+
+  .result {
+    font-size: 0.9em;
+  }
+
+  .result.ok {
+    color: #27ae60;
+  }
+
+  .result.err {
+    color: #c0392b;
+    font-family: monospace;
+  }
+
+  /* Retry / action button */
+
+  .btn {
+    display: inline-block;
+    padding: 0.35em 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.15s;
+  }
+
+  .btn:hover {
+    background: #f0f0f0;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 0.5em;
+  }
+
+  /* Error log */
+
+  .log-box {
+    min-height: 80px;
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 0.5em 0.7em;
+    background: #fafafa;
+    font-family: monospace;
+    font-size: 0.8em;
+  }
+
+  .log-box ul {
+    padding-left: 1.2em;
+    list-style: disc;
+  }
+
+  .log-box li {
+    margin: 0.15em 0;
+    color: #333;
+  }
+
+  .empty {
+    color: #aaa;
+  }
+
+  code {
+    background: #f4f4f4;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
 </style>

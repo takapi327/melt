@@ -13,6 +13,15 @@
 </main>
 
 <style>
-.result { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
-.result code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }
+  .result {
+    max-width: 32rem;
+    margin: 4rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .result code {
+    background: #f0f0f0;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+  }
 </style>

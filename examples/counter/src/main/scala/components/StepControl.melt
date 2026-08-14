@@ -12,19 +12,20 @@
 </div>
 
 <style>
-.step-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 0.2em 0.5em;
-  background: #fafafa;
-}
-.step-value {
-  min-width: 2.5em;
-  text-align: center;
-  font-weight: 600;
-  font-size: 1em;
-}
+  .step-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.2em 0.5em;
+    background: #fafafa;
+  }
+
+  .step-value {
+    min-width: 2.5em;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1em;
+  }
 </style>

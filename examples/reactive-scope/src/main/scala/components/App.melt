@@ -162,113 +162,116 @@
 </div>
 
 <style>
-.app {
-  font-family: sans-serif;
-  max-width: 640px;
-  margin: 2em auto;
-  padding: 1em;
-}
+  .app {
+    font-family: sans-serif;
+    max-width: 640px;
+    margin: 2em auto;
+    padding: 1em;
+  }
 
-h1 { color: #ff3e00; margin-bottom: 0.2em; }
+  h1 {
+    color: #ff3e00;
+    margin-bottom: 0.2em;
+  }
 
-.subtitle {
-  color: #555;
-  font-size: 0.9em;
-  margin-top: 0;
-  margin-bottom: 1.5em;
-}
+  .subtitle {
+    color: #555;
+    font-size: 0.9em;
+    margin-top: 0;
+    margin-bottom: 1.5em;
+  }
 
-.panel {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1em 1.2em;
-  margin-bottom: 1.2em;
-  background: #fafafa;
-}
+  .panel {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1em 1.2em;
+    margin-bottom: 1.2em;
+    background: #fafafa;
+  }
 
-h2 {
-  margin: 0 0 0.4em;
-  font-size: 1em;
-  color: #333;
-}
+  h2 {
+    margin: 0 0 0.4em;
+    font-size: 1em;
+    color: #333;
+  }
 
-h2 code {
-  color: #ff3e00;
-  font-size: 0.95em;
-}
+  h2 code {
+    color: #ff3e00;
+    font-size: 0.95em;
+  }
 
-.desc {
-  color: #666;
-  font-size: 0.85em;
-  margin: 0 0 0.8em;
-}
+  .desc {
+    color: #666;
+    font-size: 0.85em;
+    margin: 0 0 0.8em;
+  }
 
-.controls {
-  display: flex;
-  gap: 0.5em;
-  margin-bottom: 0.8em;
-}
+  .controls {
+    display: flex;
+    gap: 0.5em;
+    margin-bottom: 0.8em;
+  }
 
-button {
-  padding: 0.4em 1em;
-  cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fff;
-}
+  button {
+    padding: 0.4em 1em;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+  }
 
-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
+  button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 
-.display {
-  display: flex;
-  align-items: center;
-  gap: 1em;
-}
+  .display {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+  }
 
-.badge {
-  display: inline-block;
-  padding: 0.2em 0.6em;
-  border-radius: 12px;
-  font-size: 0.8em;
-  background: #eee;
-  color: #888;
-}
+  .badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 12px;
+    font-size: 0.8em;
+    background: #eee;
+    color: #888;
+  }
 
-.badge.active {
-  background: #d4edda;
-  color: #155724;
-}
+  .badge.active {
+    background: #d4edda;
+    color: #155724;
+  }
 
-.count {
-  font-size: 1.4em;
-  font-weight: 600;
-  color: #333;
-}
+  .count {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: #333;
+  }
 
-.key-display {
-  font-size: 0.95em;
-  color: #444;
-}
+  .key-display {
+    font-size: 0.95em;
+    color: #444;
+  }
 
-.hint {
-  font-size: 0.8em;
-  color: #999;
-  margin: 0.5em 0 0;
-}
+  .hint {
+    font-size: 0.8em;
+    color: #999;
+    margin: 0.5em 0 0;
+  }
 
-.key-log {
-  list-style: none;
-  padding: 0;
-  margin: 0.5em 0 0;
-  min-height: 2em;
-}
+  .key-log {
+    list-style: none;
+    padding: 0;
+    margin: 0.5em 0 0;
+    min-height: 2em;
+  }
 
-.key-log li {
-  font-size: 0.8em;
-  color: #555;
-  padding: 0.1em 0;
-}
+  .key-log li {
+    font-size: 0.8em;
+    color: #555;
+    padding: 0.1em 0;
+  }
 </style>

@@ -70,27 +70,31 @@
 </Layout>
 
 <style>
-.doc-page { padding: 0; }
+  .doc-page {
+    padding: 0;
+  }
 
-.doc-page-header {
-  padding-bottom: 28px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--line);
-}
-.doc-breadcrumb {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--fg-4);
-  margin-bottom: 12px;
-}
-.doc-title {
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  color: var(--fg);
-}
+  .doc-page-header {
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-4);
+    margin-bottom: 12px;
+  }
+
+  .doc-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--fg);
+  }
 </style>

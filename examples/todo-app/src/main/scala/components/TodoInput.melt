@@ -9,7 +9,19 @@
 </div>
 
 <style>
-.todo-input { display: flex; gap: 0.5em; margin-bottom: 1em; }
-input { flex: 1; padding: 0.5em; }
-button { padding: 0.5em 1em; cursor: pointer; }
+  .todo-input {
+    display: flex;
+    gap: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  input {
+    flex: 1;
+    padding: 0.5em;
+  }
+
+  button {
+    padding: 0.5em 1em;
+    cursor: pointer;
+  }
 </style>

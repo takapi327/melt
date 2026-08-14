@@ -116,113 +116,208 @@
 </div>
 
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: sans-serif; color: #222; background: #f5f5f5; }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-.demo { max-width: 960px; margin: 0 auto; padding: 1.5em 1em 4em; }
+  body {
+    font-family: sans-serif;
+    color: #222;
+    background: #f5f5f5;
+  }
 
-.hero { text-align: center; padding: 2em 1em; }
-.hero h1 { font-size: 2em; color: #ff3e00; }
-.subtitle { margin-top: 0.5em; color: #555; font-size: 0.95em; line-height: 1.6; }
+  .demo {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5em 1em 4em;
+  }
 
-.panels { display: flex; flex-wrap: wrap; gap: 1em; margin-top: 1.5em; }
+  .hero {
+    text-align: center;
+    padding: 2em 1em;
+  }
 
-.panel {
-  flex: 1 1 300px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1.2em;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8em;
-}
+  .hero h1 {
+    font-size: 2em;
+    color: #ff3e00;
+  }
 
-.panel-title { font-size: 1em; font-weight: 600; color: #333; }
-.hint { color: #777; font-size: 0.82em; line-height: 1.5; }
+  .subtitle {
+    margin-top: 0.5em;
+    color: #555;
+    font-size: 0.95em;
+    line-height: 1.6;
+  }
 
-/* Resizable box with a visible border to illustrate client vs offset */
-.resizable-box {
-  resize: both;
-  overflow: auto;
-  min-width: 200px;
-  min-height: 80px;
-  width: 280px;
-  height: 100px;
-  background: #fff8f5;
-  border: 4px solid #ff3e00;
-  border-radius: 4px;
-  padding: 0.8em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  .panels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    margin-top: 1.5em;
+  }
 
-.box-label { font-size: 0.82em; color: #555; text-align: center; }
+  .panel {
+    flex: 1 1 300px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.2em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+  }
 
-.metrics { display: flex; flex-direction: column; gap: 0.35em; }
-.metric-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5em;
-  font-size: 0.88em;
-  flex-wrap: wrap;
-}
-.metric-label { color: #555; min-width: 100px; flex-shrink: 0; font-family: monospace; }
-.metric-value {
-  background: #f4f4f4;
-  padding: 0.1em 0.4em;
-  border-radius: 3px;
-  font-family: monospace;
-  min-width: 80px;
-  text-align: right;
-}
-.metric-desc { color: #aaa; font-size: 0.82em; }
-.diff-row .metric-label { color: #ff3e00; }
-.diff-row .metric-value { background: #fff0ec; color: #cc2200; }
+  .panel-title {
+    font-size: 1em;
+    font-weight: 600;
+    color: #333;
+  }
 
-.btn-row { display: flex; flex-wrap: wrap; gap: 0.5em; }
-button {
-  padding: 0.4em 0.9em;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.85em;
-}
-button:hover { background: #f0f0f0; }
+  .hint {
+    color: #777;
+    font-size: 0.82em;
+    line-height: 1.5;
+  }
 
-/* Responsive container demo */
-.responsive-container {
-  border: 2px dashed #ccc;
-  border-radius: 4px;
-  padding: 0.8em;
-  background: #fafafa;
-}
+  /* Resizable box with a visible border to illustrate client vs offset */
 
-.width-badge {
-  font-size: 0.82em;
-  color: #555;
-  margin-bottom: 0.8em;
-  line-height: 1.5;
-}
+  .resizable-box {
+    resize: both;
+    overflow: auto;
+    min-width: 200px;
+    min-height: 80px;
+    width: 280px;
+    height: 100px;
+    background: #fff8f5;
+    border: 4px solid #ff3e00;
+    border-radius: 4px;
+    padding: 0.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-.card-group { display: flex; gap: 0.5em; }
-.card-group.column { flex-direction: column; }
-.card-group.row    { flex-direction: row; }
+  .box-label {
+    font-size: 0.82em;
+    color: #555;
+    text-align: center;
+  }
 
-.card {
-  flex: 1;
-  padding: 0.8em;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 0.88em;
-  color: #444;
-  font-weight: 600;
-}
+  .metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+  }
 
-code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.88em; font-family: monospace; }
-strong { font-weight: 600; }
+  .metric-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    font-size: 0.88em;
+    flex-wrap: wrap;
+  }
+
+  .metric-label {
+    color: #555;
+    min-width: 100px;
+    flex-shrink: 0;
+    font-family: monospace;
+  }
+
+  .metric-value {
+    background: #f4f4f4;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .metric-desc {
+    color: #aaa;
+    font-size: 0.82em;
+  }
+
+  .diff-row .metric-label {
+    color: #ff3e00;
+  }
+
+  .diff-row .metric-value {
+    background: #fff0ec;
+    color: #cc2200;
+  }
+
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+  }
+
+  button {
+    padding: 0.4em 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+
+  button:hover {
+    background: #f0f0f0;
+  }
+
+  /* Responsive container demo */
+
+  .responsive-container {
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    padding: 0.8em;
+    background: #fafafa;
+  }
+
+  .width-badge {
+    font-size: 0.82em;
+    color: #555;
+    margin-bottom: 0.8em;
+    line-height: 1.5;
+  }
+
+  .card-group {
+    display: flex;
+    gap: 0.5em;
+  }
+
+  .card-group.column {
+    flex-direction: column;
+  }
+
+  .card-group.row {
+    flex-direction: row;
+  }
+
+  .card {
+    flex: 1;
+    padding: 0.8em;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.88em;
+    color: #444;
+    font-weight: 600;
+  }
+
+  code {
+    background: #f4f4f4;
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+    font-size: 0.88em;
+    font-family: monospace;
+  }
+
+  strong {
+    font-weight: 600;
+  }
 </style>

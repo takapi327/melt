@@ -38,10 +38,36 @@
 </main>
 
 <style>
-.posts { max-width: 32rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
-.posts ul { list-style: none; padding: 0; }
-.posts li { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
-.title { flex: 1; }
-.likes { color: #c0392b; min-width: 3rem; }
-.error, .loading { color: #666; }
+  .posts {
+    max-width: 32rem;
+    margin: 3rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .posts ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .posts li {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .title {
+    flex: 1;
+  }
+
+  .likes {
+    color: #c0392b;
+    min-width: 3rem;
+  }
+
+  .error,
+  .loading {
+    color: #666;
+  }
 </style>

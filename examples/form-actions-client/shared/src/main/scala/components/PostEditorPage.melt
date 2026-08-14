@@ -64,11 +64,40 @@
 </main>
 
 <style>
-.editor { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
-.editor label { display: block; margin: 0.75rem 0; }
-.editor input, .editor textarea { display: block; width: 100%; padding: 0.5rem; }
-.editor textarea { min-height: 8rem; }
-.actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
-.error { color: #c0392b; margin: 0.25rem 0; }
-button[disabled] { opacity: 0.6; }
+  .editor {
+    max-width: 32rem;
+    margin: 4rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .editor label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+
+  .editor input,
+  .editor textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .editor textarea {
+    min-height: 8rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .error {
+    color: #c0392b;
+    margin: 0.25rem 0;
+  }
+
+  button[disabled] {
+    opacity: 0.6;
+  }
 </style>

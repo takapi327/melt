@@ -9,5 +9,9 @@
 </main>
 
 <style>
-.dashboard { max-width: 32rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
+  .dashboard {
+    max-width: 32rem;
+    margin: 4rem auto;
+    font-family: system-ui, sans-serif;
+  }
 </style>
