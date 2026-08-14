@@ -25,7 +25,7 @@ class MeltFmtSpec extends munit.FunSuite:
       case Right(s)  => s
       case Left(err) => fail(s"unexpected Left: $err")
 
-  test("formats the script but leaves template and style untouched") {
+  test("formats the script and style, leaves the template untouched") {
     val src =
       "<script lang=\"scala\">\n" +
         "  val x=State(0)\n" +
@@ -40,10 +40,20 @@ class MeltFmtSpec extends munit.FunSuite:
     assert(out.contains("val x = State(0)"), out)
     // template preserved verbatim
     assert(out.contains("<div class=\"c\">{x}</div>"), out)
-    // style preserved verbatim (Phase 1 passthrough — not reformatted)
-    assert(out.contains("  .c{color:red}"), out)
+    // style reformatted (indented, one declaration per line, `;` added)
+    assert(out.contains("  .c {"), out)
+    assert(out.contains("    color: red;"), out)
     // tags intact
     assert(out.contains("<script lang=\"scala\">") && out.contains("</script>"), out)
+  }
+
+  test("SCSS <style lang=\"scss\"> is left untouched (passthrough)") {
+    val src =
+      "<script lang=\"scala\">\n  val a = 1\n</script>\n" +
+        "<style lang=\"scss\">\n  $c: red;\n  .c{color:$c}\n</style>\n"
+    val out = fmt(src)
+    assert(out.contains("  $c: red;"), out)
+    assert(out.contains("  .c{color:$c}"), out) // not reformatted as CSS
   }
 
   test("idempotent on a full .melt source") {
