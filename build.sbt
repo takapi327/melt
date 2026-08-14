@@ -133,11 +133,12 @@ lazy val meltFormat = project
   .settings(
     name := "melt-format",
     libraryDependencies ++= Seq(
-      "org.scalameta"          %% "scalafmt-dynamic"       % "3.11.5",
+      "org.scalameta" %% "scalafmt-dynamic" % "3.11.5",
       // scalafmt-dynamic's Coursier downloader needs scala-collection-compat at
       // runtime; it is not pulled transitively onto a Scala 3 classpath.
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.13.0",
-      "org.scalameta"          %% "munit"                  % "1.3.0" % Test
+      "com.typesafe"            % "config"                  % "1.4.3",
+      "org.scalameta"          %% "munit"                   % "1.3.0" % Test
     ),
     // `run` is forked (commonSettings); point the forked working directory at
     // the build root so MeltFmtMain's relative paths (.scalafmt.conf, examples,
