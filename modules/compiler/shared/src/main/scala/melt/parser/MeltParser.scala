@@ -121,29 +121,69 @@ object MeltParser:
 
   /** Recursively removes [[TemplateNode.Comment]] nodes from a template AST.
     * Comments are non-rendering; the compiler pipeline never handled them, so
-    * they are dropped here (after the formatter-facing parse has kept them). */
+    * they are dropped here (after the formatter-facing parse has kept them).
+    *
+    * Identity-preserving: a node/list whose subtree contains no comment is
+    * returned unchanged (`eq`), so the [[melt.NodePositions]] IdentityHashMap
+    * built during parsing still resolves source spans for the surviving nodes.
+    */
   private def stripComments(nodes: List[TemplateNode]): List[TemplateNode] =
-    nodes.iterator.filterNot(_.isInstanceOf[TemplateNode.Comment]).map(stripNode).toList
+    var changed = false
+    val out     = List.newBuilder[TemplateNode]
+    nodes.foreach {
+      case _: TemplateNode.Comment => changed = true
+      case n =>
+        val sn = stripNode(n)
+        if sn ne n then changed = true
+        out += sn
+    }
+    if changed then out.result() else nodes
 
   private def stripNode(node: TemplateNode): TemplateNode = node match
-    case TemplateNode.Element(tag, attrs, children)    => TemplateNode.Element(tag, attrs, stripComments(children))
-    case TemplateNode.Component(name, attrs, children) => TemplateNode.Component(name, attrs, stripComments(children))
-    case TemplateNode.Head(children)                   => TemplateNode.Head(stripComments(children))
+    case TemplateNode.Element(tag, attrs, children) =>
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.Element(tag, attrs, sc)
+    case TemplateNode.Component(name, attrs, children) =>
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.Component(name, attrs, sc)
+    case TemplateNode.Head(children) =>
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.Head(sc)
     case TemplateNode.DynamicElement(tag, attrs, children) =>
-      TemplateNode.DynamicElement(tag, attrs, stripComments(children))
-    case TemplateNode.KeyBlock(keyExpr, children)        => TemplateNode.KeyBlock(keyExpr, stripComments(children))
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.DynamicElement(tag, attrs, sc)
+    case TemplateNode.KeyBlock(keyExpr, children) =>
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.KeyBlock(keyExpr, sc)
     case TemplateNode.SnippetDef(name, params, children) =>
-      TemplateNode.SnippetDef(name, params, stripComments(children))
-    case TemplateNode.InlineTemplate(parts)                      => TemplateNode.InlineTemplate(parts.map(stripPart))
+      val sc = stripComments(children); if sc eq children then node else TemplateNode.SnippetDef(name, params, sc)
+    case TemplateNode.InlineTemplate(parts) =>
+      val sp = stripParts(parts); if sp eq parts then node else TemplateNode.InlineTemplate(sp)
     case TemplateNode.Boundary(attrs, children, pending, failed) =>
-      TemplateNode.Boundary(attrs, stripComments(children), pending.map(stripPending), failed.map(stripFailed))
+      val sc = stripComments(children)
+      val sp = stripPendingOpt(pending)
+      val sf = stripFailedOpt(failed)
+      if (sc eq children) && (sp eq pending) && (sf eq failed) then node
+      else TemplateNode.Boundary(attrs, sc, sp, sf)
     case TemplateNode.Await(valueExpr, handler, pending, failed) =>
-      TemplateNode.Await(valueExpr, handler.map(stripPart), pending.map(stripPending), failed.map(stripFailed))
-    case other => other // Text/Expression/RenderCall/Window/Body/Document/Comment(already filtered)
+      val sh = stripParts(handler)
+      val sp = stripPendingOpt(pending)
+      val sf = stripFailedOpt(failed)
+      if (sh eq handler) && (sp eq pending) && (sf eq failed) then node
+      else TemplateNode.Await(valueExpr, sh, sp, sf)
+    case other => other // Text/Expression/RenderCall/Window/Body/Document
 
-  private def stripPart(part: InlineTemplatePart): InlineTemplatePart = part match
-    case InlineTemplatePart.Html(nodes) => InlineTemplatePart.Html(stripComments(nodes))
-    case code                           => code
+  private def stripParts(parts: List[InlineTemplatePart]): List[InlineTemplatePart] =
+    var changed = false
+    val out     = parts.map {
+      case h @ InlineTemplatePart.Html(nodes) =>
+        val sn = stripComments(nodes)
+        if sn eq nodes then h else { changed = true; InlineTemplatePart.Html(sn) }
+      case code => code
+    }
+    if changed then out else parts
 
-  private def stripPending(p: PendingBlock): PendingBlock = PendingBlock(stripComments(p.children))
-  private def stripFailed(f: FailedBlock): FailedBlock = FailedBlock(f.errorVar, f.resetVar, stripComments(f.children))
+  private def stripPendingOpt(p: Option[PendingBlock]): Option[PendingBlock] = p match
+    case Some(pb) => val sc = stripComments(pb.children); if sc eq pb.children then p else Some(PendingBlock(sc))
+    case None     => p
+
+  private def stripFailedOpt(f: Option[FailedBlock]): Option[FailedBlock] = f match
+    case Some(fb) =>
+      val sc = stripComments(fb.children)
+      if sc eq fb.children then f else Some(FailedBlock(fb.errorVar, fb.resetVar, sc))
+    case None => f
