@@ -243,8 +243,8 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: sbt publishLocal
-        run: sbt publishLocal
+      - name: sbt compile publishLocal
+        run: sbt compile publishLocal
 
       - name: sbt scripted
         run: sbt scripted

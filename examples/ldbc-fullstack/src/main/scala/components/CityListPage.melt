@@ -1,0 +1,39 @@
+<!--
+  Scala imports must live in the module script: the instance script body is
+  emitted inside `apply`, while `Props` is hoisted to the object level, so an
+  import in the instance script is not in scope for `Props`.
+-->
+<script lang="scala" module>
+  import models.City
+</script>
+
+<script lang="scala">
+  case class Props(cities: List[City])
+</script>
+
+<div class="page">
+  <h1>Cities</h1>
+  <p class="count">{props.cities.size} cities</p>
+
+  <ul class="city-list">
+    {props.cities.map(c =>
+      <li>
+        <a href={s"/cities/${c.id}"}>{c.name}</a>
+        <span class="code">{c.countryCode}</span>
+        <span class="pop">{c.population / 1000}k people</span>
+      </li>
+    )}
+  </ul>
+</div>
+
+<style>
+  .page { font-family: system-ui, sans-serif; max-width: 720px; margin: 2em auto; padding: 0 1em; }
+  h1 { color: #ff3e00; margin-bottom: 0.2em; }
+  .count { color: #888; font-size: 0.9rem; margin-top: 0; }
+  .city-list { list-style: none; padding: 0; }
+  .city-list li { display: flex; align-items: baseline; gap: 0.8em; padding: 0.6em 0; border-bottom: 1px solid #eee; }
+  .city-list a { color: #333; font-weight: 600; text-decoration: none; flex: 1; }
+  .city-list a:hover { color: #ff3e00; }
+  .code { font-size: 0.75rem; background: #f0f0f0; border-radius: 10px; padding: 0.1em 0.6em; color: #555; }
+  .pop { font-size: 0.85rem; color: #888; }
+</style>
