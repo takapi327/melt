@@ -331,6 +331,7 @@ lazy val `language-server` = project
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "1.0.0",
       "org.scalameta"    %% "munit"             % "1.2.4" % Test
     ),
+    scalacOptions += "-Xmixin-force-forwarders:false",
     // Fat JAR: java -jar melt-language-server.jar
     assembly / assemblyJarName       := "melt-language-server.jar",
     assembly / mainClass             := Some("melt.lsp.MeltLanguageServerLauncher"),
