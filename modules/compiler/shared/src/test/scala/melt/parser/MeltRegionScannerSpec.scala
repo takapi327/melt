@@ -29,10 +29,11 @@ class MeltRegionScannerSpec extends munit.FunSuite:
         |</style>
         |""".stripMargin
     val rs = scan(src)
-    assertEquals(rs.map(_.kind), List(RegionKind.InstanceScript, RegionKind.Style))
+    assertEquals(rs.map(_.kind), List(RegionKind.InstanceScript, RegionKind.Template, RegionKind.Style))
     assertEquals(inner(src, rs(0)), "\nval x = 1\n")
-    assertEquals(inner(src, rs(1)), "\n.a { color: red; }\n")
-    assertEquals(rs(1).styleLang, Some(StyleLang.Css))
+    assertEquals(inner(src, rs(1)), "<div>{x}</div>") // template, trimmed to content
+    assertEquals(inner(src, rs(2)), "\n.a { color: red; }\n")
+    assertEquals(rs(2).styleLang, Some(StyleLang.Css))
   }
 
   test("finds module + instance script and reports source order") {
@@ -46,9 +47,13 @@ class MeltRegionScannerSpec extends munit.FunSuite:
         |<p/>
         |""".stripMargin
     val rs = scan(src)
-    assertEquals(rs.map(_.kind), List(RegionKind.ModuleScript, RegionKind.InstanceScript))
+    assertEquals(
+      rs.map(_.kind),
+      List(RegionKind.ModuleScript, RegionKind.InstanceScript, RegionKind.Template)
+    )
     assertEquals(inner(src, rs(0)).trim, "val shared = 1")
     assertEquals(inner(src, rs(1)).trim, "val local = 2")
+    assertEquals(inner(src, rs(2)), "<p/>") // template
   }
 
   test("detects scss lang") {
@@ -57,9 +62,30 @@ class MeltRegionScannerSpec extends munit.FunSuite:
     assertEquals(rs.map(_.styleLang), List(Some(StyleLang.Scss)))
   }
 
-  test("ignores <style scoped> (non-lang attribute) like SectionSplitter") {
+  test("ignores <style scoped> (non-lang attribute) — it stays part of the template") {
     val src = """<div></div><style scoped>.a{}</style>"""
-    assertEquals(scan(src), Nil)
+    val rs  = scan(src)
+    // <style scoped> is not a Style region; the whole thing is one template.
+    assertEquals(rs.map(_.kind), List(RegionKind.Template))
+    assertEquals(inner(src, rs.head), src)
+  }
+
+  test("template-only file → one Template region spanning the content") {
+    val src = "  <div>{x}</div>\n"
+    val rs  = scan(src)
+    assertEquals(rs.map(_.kind), List(RegionKind.Template))
+    assertEquals(inner(src, rs.head), "<div>{x}</div>") // trimmed
+  }
+
+  test("no Template region when the leftover is whitespace only") {
+    val src =
+      """<script lang="scala">
+        |val x = 1
+        |</script>
+        |<style>.a{}</style>
+        |""".stripMargin
+    val rs = scan(src)
+    assertEquals(rs.map(_.kind), List(RegionKind.InstanceScript, RegionKind.Style))
   }
 
   test("does not treat a <style in a script string as a region") {

@@ -12,6 +12,25 @@ class MeltParserSpec extends munit.FunSuite:
 
   private def parse(src: String) = MeltParser.parse(src)
 
+  test("comments are stripped from the compiled template AST (recursively)") {
+    val src =
+      """<script lang="scala">val x = 1</script>
+        |<!-- top -->
+        |<div>
+        |  <!-- inner -->
+        |  <span>{x}</span>
+        |</div>
+        |""".stripMargin
+    val template = parse(src).fold(err => fail(err), _.template)
+    def countComments(ns: List[TemplateNode]): Int =
+      ns.map {
+        case _: TemplateNode.Comment              => 1
+        case TemplateNode.Element(_, _, children) => countComments(children)
+        case _                                    => 0
+      }.sum
+    assertEquals(countComments(template), 0)
+  }
+
   // ── Counter.melt (Appendix A) — Phase 2 acceptance test ───────────────────
 
   test("parses Counter.melt from Appendix A correctly") {
