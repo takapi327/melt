@@ -33,6 +33,17 @@ final case class ScriptFormatOptions(
   indent: Int = 2
 )
 
+/** How an element's leaf/text content is laid out in the template formatter. */
+enum TemplateContentStyle:
+  case Inline   // `<p>hello</p>` (default)
+  case Expanded // `<p>\n  hello\n</p>`
+
+/** Options for the HTML template formatter. */
+final case class TemplateFormatOptions(
+  indent:  Int                  = 2,
+  content: TemplateContentStyle = TemplateContentStyle.Inline
+)
+
 /** The `.meltfmt.conf` model.
   *
   * Only the `melt.*` namespace is read here; scalafmt style keys (whether inline
@@ -41,8 +52,9 @@ final case class ScriptFormatOptions(
   * only its left-margin `indent` from here. Missing keys fall back to defaults.
   */
 final case class MeltFmtConfig(
-  css:    CssFormatOptions    = CssFormatOptions(),
-  script: ScriptFormatOptions = ScriptFormatOptions()
+  css:      CssFormatOptions      = CssFormatOptions(),
+  script:   ScriptFormatOptions   = ScriptFormatOptions(),
+  template: TemplateFormatOptions = TemplateFormatOptions()
 )
 
 object MeltFmtConfig:
@@ -81,7 +93,20 @@ object MeltFmtConfig:
       val scriptIndent =
         if cfg.hasPath("melt.script.indent") then cfg.getInt("melt.script.indent") else 2
 
-      MeltFmtConfig(CssFormatOptions(indent, selectorList), ScriptFormatOptions(scriptIndent))
+      val templateIndent =
+        if cfg.hasPath("melt.template.indent") then cfg.getInt("melt.template.indent") else 2
+      val templateContent =
+        if cfg.hasPath("melt.template.content") then
+          cfg.getString("melt.template.content").trim.toLowerCase match
+            case "expanded" | "expand" => TemplateContentStyle.Expanded
+            case _                     => TemplateContentStyle.Inline
+        else TemplateContentStyle.Inline
+
+      MeltFmtConfig(
+        CssFormatOptions(indent, selectorList),
+        ScriptFormatOptions(scriptIndent),
+        TemplateFormatOptions(templateIndent, templateContent)
+      )
     }.toEither.left.map(e => s"$path: ${ e.getMessage }")
 
   /** Discovers a `.meltfmt.conf` from `from` and loads it; defaults if none. */

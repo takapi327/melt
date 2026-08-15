@@ -50,6 +50,14 @@ class MeltFmtConfigSpec extends munit.FunSuite:
     assertEquals(cfg.css.indent, 2) // css untouched → default
   }
 
+  test("reads melt.template.content (defaults to inline)") {
+    val dir = tmpDir()
+    assertEquals(MeltFmtConfig.default.template.content, TemplateContentStyle.Inline)
+    write(dir, ".meltfmt.conf", """melt { template { content = "expanded" } }""")
+    val cfg = MeltFmtConfig.loadFrom(dir.resolve("x.melt")).fold(fail(_), identity)
+    assertEquals(cfg.template.content, TemplateContentStyle.Expanded)
+  }
+
   test("include \".scalafmt.conf\" is tolerated (scalafmt keys ignored)") {
     val dir = tmpDir()
     write(dir, ".scalafmt.conf", "version = 3.11.0\nrunner.dialect = scala3\nmaxColumn = 120\n")

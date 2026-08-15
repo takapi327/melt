@@ -60,3 +60,34 @@ class TemplateFmtSpec extends munit.FunSuite:
     val once = fmt("<section><h1>t</h1><p>hi <b>there</b></p></section>")
     assertEquals(fmt(once), once)
   }
+
+  // ── content = expanded (melt.template.content) ──────────────────────────────
+
+  private def fmtExpanded(inner: String): String =
+    TemplateFmt
+      .format(inner, melt.template.TemplateFormatter.Options(expandContent = true))
+      .fold(err => fail(s"unexpected Left: $err"), identity)
+
+  test("expanded: text content goes on its own indented line") {
+    assertNoDiff(fmtExpanded("<p>hogehoge</p>"), "<p>\n  hogehoge\n</p>")
+  }
+
+  test("expanded: nested content expands at each level") {
+    assertNoDiff(
+      fmtExpanded("<div><p>hi</p></div>"),
+      """<div>
+        |  <p>
+        |    hi
+        |  </p>
+        |</div>""".stripMargin
+    )
+  }
+
+  test("inline (default): text content stays on one line") {
+    assertNoDiff(fmt("<p>hogehoge</p>"), "<p>hogehoge</p>")
+  }
+
+  test("expanded output re-parses to the same AST (valve) and is idempotent") {
+    val once = fmtExpanded("<p>Hello <b>x</b></p>")
+    assertEquals(fmtExpanded(once), once)
+  }

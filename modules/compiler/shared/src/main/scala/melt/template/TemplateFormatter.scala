@@ -30,7 +30,12 @@ final class TemplateFormatUnsupported(val what: String) extends RuntimeException
   */
 object TemplateFormatter:
 
-  final case class Options(indent: Int = 2)
+  final case class Options(
+    indent:        Int     = 2,
+    // When true, an element's leaf/inline content goes on its own indented line
+    // (`<p>\n  hi\n</p>`) instead of staying inline (`<p>hi</p>`).
+    expandContent: Boolean = false
+  )
 
   private final class Ctx(val positions: NodePositions, val source: String, val opts: Options)
 
@@ -108,8 +113,14 @@ object TemplateFormatter:
       if HtmlVoidElements.isVoid(tag) then List(s"$open />")
       else List(s"$open></$tag>")
     else if inlineMode(children) then
-      // one line: <tag>...children...</tag> (may carry newlines only from a verbatim InlineTemplate)
-      (s"$open>" + renderChildrenInline(children, ctx) + s"</$tag>").split("\n", -1).toList
+      val inner = renderChildrenInline(children, ctx)
+      if ctx.opts.expandContent then
+        // content on its own indented line (still a single inline flow, valve-safe)
+        val innerPad = " " * (ctx.opts.indent * (depth + 1))
+        (s"$open>" :: reindentFirst(inner, innerPad)) :+ s"$pad</$tag>"
+      else
+        // one line: <tag>...children...</tag> (may carry newlines only from a verbatim InlineTemplate)
+        (s"$open>" + inner + s"</$tag>").split("\n", -1).toList
     else
       (s"$open>" :: renderBlock(children, depth + 1, ctx)) :+ s"$pad</$tag>"
 
@@ -131,7 +142,11 @@ object TemplateFormatter:
     val footer = s"$pad{/snippet}"
     if children.isEmpty then List(header, footer)
     else if inlineMode(children) then
-      (header + renderChildrenInline(children, ctx) + s"{/snippet}").split("\n", -1).toList
+      val inner = renderChildrenInline(children, ctx)
+      if ctx.opts.expandContent then
+        val innerPad = " " * (ctx.opts.indent * (depth + 1))
+        (header :: reindentFirst(inner, innerPad)) :+ footer
+      else (header + inner + s"{/snippet}").split("\n", -1).toList
     else (header :: renderBlock(children, depth + 1, ctx)) :+ footer
 
   // ── Children layout ─────────────────────────────────────────────────────────

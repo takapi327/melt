@@ -49,13 +49,14 @@ object MeltFmtMain:
 
     val formatter   = new ScriptFormatter(conf, meltCfg.script.indent)
     val cssOptions  = toCssOptions(meltCfg.css)
+    val tmplOptions = toTemplateOptions(meltCfg.template)
     val unformatted = scala.collection.mutable.ListBuffer.empty[String] // fixable by meltFmt
     val skipped     = scala.collection.mutable.ListBuffer.empty[String] // unparseable — left as-is
     var changed     = 0
 
     files.foreach { f =>
       val src = Files.readString(f)
-      MeltFmt.format(src, formatter, cssOptions) match
+      MeltFmt.format(src, formatter, cssOptions, tmplOptions) match
         case Right(out) if out == src => ()
         case Right(_) if check        => unformatted += f.toString
         case Right(out)               =>
@@ -84,6 +85,13 @@ object MeltFmtMain:
       case SelectorListStyle.SingleLine => melt.css.CssFormatter.SelectorList.SingleLine
       case SelectorListStyle.Newline    => melt.css.CssFormatter.SelectorList.Newline
     melt.css.CssFormatter.Options(indent = css.indent, selectorList = sel)
+
+  /** Maps the `.meltfmt.conf` template options onto the compiler's [[melt.template.TemplateFormatter]]. */
+  private def toTemplateOptions(t: TemplateFormatOptions): melt.template.TemplateFormatter.Options =
+    melt.template.TemplateFormatter.Options(
+      indent        = t.indent,
+      expandContent = t.content == TemplateContentStyle.Expanded
+    )
 
   private def parse(args: List[String]): (Boolean, Option[Path], List[Path]) =
     def loop(

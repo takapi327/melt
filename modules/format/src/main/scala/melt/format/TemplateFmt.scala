@@ -30,11 +30,11 @@ import melt.template.{ TemplateFormatter, TemplateFormatUnsupported }
   */
 object TemplateFmt:
 
-  def format(inner: String): Either[String, String] =
+  def format(inner: String, opts: TemplateFormatter.Options = TemplateFormatter.Options()): Either[String, String] =
     parse(inner) match
       case None => skip(inner, "it could not be parsed")
       case Some((nodesA, positions)) =>
-        renderSafely(nodesA, positions, inner) match
+        renderSafely(nodesA, positions, inner, opts) match
           case Left(reason) => skip(inner, reason)
           case Right(out)   =>
             parse(out).map(_._1) match
@@ -44,9 +44,10 @@ object TemplateFmt:
   private def renderSafely(
     nodes:     List[melt.ast.TemplateNode],
     positions: melt.NodePositions,
-    inner:     String
+    inner:     String,
+    opts:      TemplateFormatter.Options
   ): Either[String, String] =
-    try Right(TemplateFormatter.format(nodes, positions, inner))
+    try Right(TemplateFormatter.format(nodes, positions, inner, opts))
     catch case e: TemplateFormatUnsupported => Left(s"it contains ${ e.what }")
 
   private def parse(src: String): Option[(List[melt.ast.TemplateNode], melt.NodePositions)] =

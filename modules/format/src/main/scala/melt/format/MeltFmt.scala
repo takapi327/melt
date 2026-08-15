@@ -32,14 +32,15 @@ object MeltFmt:
   def format(
     source:          String,
     scriptFormatter: ScriptFormatter,
-    cssOptions:      CssFormatter.Options = CssFormatter.Options()
+    cssOptions:      CssFormatter.Options              = CssFormatter.Options(),
+    templateOptions: melt.template.TemplateFormatter.Options = melt.template.TemplateFormatter.Options()
   ): Either[String, String] =
     MeltFormatter.formatE(
       source,
       { (region, inner) =>
         region.kind match
           case RegionKind.Style    => StyleFormatter.format(inner, region.styleLang, cssOptions)
-          case RegionKind.Template => TemplateFmt.format(inner)
+          case RegionKind.Template => TemplateFmt.format(inner, templateOptions)
           case _                   => scriptFormatter.format(inner)
       }
     )
