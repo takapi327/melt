@@ -64,6 +64,17 @@ class MeltFmtSpec extends munit.FunSuite:
     assertEquals(twice, once)
   }
 
+  test("no scalafmt config: <script> is passed through, CSS/template still format") {
+    val src =
+      "<script lang=\"scala\">\n  val x=1\n</script>\n" +
+        "<div><p>hi</p></div>\n" +
+        "<style>\n.a{color:red}\n</style>\n"
+    val out = MeltFmt.format(src, None).fold(err => fail(s"unexpected Left: $err"), identity)
+    assert(out.contains("val x=1"), out)       // script untouched (not scalafmt'd)
+    assert(out.contains("  <p>hi</p>"), out)   // template reformatted
+    assert(out.contains("  color: red;"), out) // css reformatted
+  }
+
   test("already-formatted source is unchanged") {
     val src =
       "<script lang=\"scala\">\n  val a = 1\n  g(a)\n</script>\n<p>{a}</p>\n"

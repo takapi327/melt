@@ -10,17 +10,25 @@ import java.nio.file.{ Files, Path, Paths }
 
 import scala.jdk.CollectionConverters.*
 
-/** CLI entry point for the `.melt` formatter (Phase 1: `<script>` sections only).
+import com.typesafe.config.{ ConfigFactory, ConfigRenderOptions }
+
+/** CLI entry point for the `.melt` formatter.
   *
   * {{{
   * MeltFmtMain [--check] [--config <path>] <file-or-dir>...
   * }}}
   *   - `--check`         verify only; throw (non-zero task exit) if any file would change
-  *   - `--config <path>` path to `.scalafmt.conf` (default: `./.scalafmt.conf`)
+  *   - `--config <path>` explicit scalafmt config path (overrides discovery)
   *
-  * Melt-specific options (script left-margin indent, CSS layout) come from a
-  * `.meltfmt.conf` discovered by walking up from the working directory; the
-  * scalafmt *style* still comes from `.scalafmt.conf`.
+  * A `.melt` file is configured by `.meltfmt.conf` (discovered by walking up from
+  * the working directory). The `<script>` scalafmt *style* is resolved from that
+  * same file — typically via `include ".scalafmt.conf"` — so a project only needs
+  * one config for `.melt`. Resolution order for the scalafmt style:
+  *   1. `--config <path>` (must exist);
+  *   2. `.meltfmt.conf` if it carries a scalafmt config (a `version` key, e.g. via
+  *      `include`) — the `melt.*` keys are stripped and the rest handed to scalafmt;
+  *   3. a bare `.scalafmt.conf` in the working directory (backward compatible).
+  * If none is found, `<script>` sections are left unchanged (CSS/template still run).
   *
   * Directories are scanned recursively for `*.melt`. Runs in-process, so it
   * throws (rather than `System.exit`) on failure to avoid killing a host sbt JVM.
@@ -29,25 +37,27 @@ object MeltFmtMain:
 
   def main(args: Array[String]): Unit =
     val (check, configOpt, targets) = parse(args.toList)
-    val conf                        = configOpt.getOrElse(Paths.get(".scalafmt.conf"))
-    if !Files.isRegularFile(conf) then
-      throw new RuntimeException(s"[meltfmt] .scalafmt.conf not found: ${ conf.toAbsolutePath }")
+    val cwd                         = Paths.get("").toAbsolutePath.resolve("_")
 
-    // Discover `.meltfmt.conf` from the working directory (walking up). A
-    // malformed config fails the run loudly rather than silently falling back.
-    val meltCfg = MeltFmtConfig.loadFrom(Paths.get("").toAbsolutePath.resolve("_")) match
+    val meltfmtPath = MeltFmtConfig.find(cwd)
+    meltfmtPath.foreach(p => println(s"[meltfmt] using $p"))
+    // A malformed config fails the run loudly rather than silently falling back.
+    val meltCfg = MeltFmtConfig.loadFrom(cwd) match
       case Right(c)  => c
       case Left(err) => throw new RuntimeException(s"[meltfmt] $err")
-    MeltFmtConfig.find(Paths.get("").toAbsolutePath.resolve("_")).foreach { p =>
-      println(s"[meltfmt] using $p")
-    }
 
     val files = targets.flatMap(meltFiles).distinct
     if files.isEmpty then
       println("[meltfmt] no .melt files found")
       return
 
-    val formatter   = new ScriptFormatter(conf, meltCfg.script.indent)
+    val scalafmtConf = resolveScalafmtConfig(configOpt, meltfmtPath)
+    val formatter    = scalafmtConf.map(new ScriptFormatter(_, meltCfg.script.indent))
+    if formatter.isEmpty then
+      System.err.println(
+        "[meltfmt] no scalafmt config found — <script> sections will be left unchanged " +
+          "(add `include \".scalafmt.conf\"` to .meltfmt.conf, or provide .scalafmt.conf)"
+      )
     val cssOptions  = toCssOptions(meltCfg.css)
     val tmplOptions = toTemplateOptions(meltCfg.template)
     val unformatted = scala.collection.mutable.ListBuffer.empty[String] // fixable by meltFmt
@@ -78,6 +88,44 @@ object MeltFmtMain:
         )
       else println(s"[meltfmt] check OK (${ files.size } file(s), ${ skipped.size } skipped)")
     else println(s"[meltfmt] formatted $changed of ${ files.size } file(s), ${ skipped.size } skipped")
+
+  /** Resolves the scalafmt config for `<script>` formatting.
+    *
+    *   1. `--config` (must exist, else error — an explicit request that can't be met);
+    *   2. `.meltfmt.conf` carrying a scalafmt config (`version` present, e.g. via
+    *      `include ".scalafmt.conf"`) — strip `melt.*` and write the rest to a temp
+    *      file scalafmt-dynamic can read;
+    *   3. a bare `.scalafmt.conf`;
+    *   otherwise `None` (scripts are skipped).
+    */
+  private def resolveScalafmtConfig(explicit: Option[Path], meltfmt: Option[Path]): Option[Path] =
+    explicit match
+      case Some(p) if Files.isRegularFile(p) => Some(p)
+      case Some(p)                           => throw new RuntimeException(s"[meltfmt] --config not found: ${ p.toAbsolutePath }")
+      case None                              =>
+        scalafmtFromMeltfmt(meltfmt).orElse {
+          val fallback = Paths.get(".scalafmt.conf")
+          Option.when(Files.isRegularFile(fallback))(fallback)
+        }
+
+  /** If `.meltfmt.conf` resolves to a config that includes/inlines scalafmt
+    * settings (detected by a top-level `version`), returns a temp file holding the
+    * scalafmt config with the `melt.*` namespace removed (scalafmt-dynamic rejects
+    * unknown keys). Returns `None` when no scalafmt config is present. */
+  private def scalafmtFromMeltfmt(meltfmt: Option[Path]): Option[Path] =
+    meltfmt.flatMap { mp =>
+      val cfg = ConfigFactory.parseFile(mp.toFile).resolve()
+      Option.when(cfg.hasPath("version")) {
+        val scalafmt = cfg.withoutPath("melt")
+        val rendered = scalafmt.root().render(
+          ConfigRenderOptions.defaults().setOriginComments(false).setComments(false).setJson(false)
+        )
+        val tmp = Files.createTempFile("melt-scalafmt", ".conf")
+        tmp.toFile.deleteOnExit()
+        Files.writeString(tmp, rendered)
+        tmp
+      }
+    }
 
   /** Maps the `.meltfmt.conf` CSS options onto the compiler's [[CssFormatter]]. */
   private def toCssOptions(css: CssFormatOptions): melt.css.CssFormatter.Options =
