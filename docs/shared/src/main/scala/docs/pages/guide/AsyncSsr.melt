@@ -9,64 +9,108 @@
   val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.whatH2}</h2>
-<p>{t.whatText}</p>
-<p>{t.whatContrast}</p>
-
-<h2>{t.syntaxH2}</h2>
-<p>{t.syntaxIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.whatH2}
+</h2>
+<p>
+  {t.whatText}
+</p>
+<p>
+  {t.whatContrast}
+</p>
+<h2>
+  {t.syntaxH2}
+</h2>
+<p>
+  {t.syntaxIntro}
+</p>
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>AwaitPostsPage.melt
   </div>
-  <pre><code>{GuideCodes.asyncSsrPage}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.asyncSsrPage}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.serverH2}</h2>
-<p>{t.serverIntro}</p>
-
+<h2>
+  {t.serverH2}
+</h2>
+<p>
+  {t.serverIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.asyncSsrServer}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.asyncSsrServer}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.streamingH2}</h2>
-<p>{t.streamingIntro}</p>
-
+<h2>
+  {t.streamingH2}
+</h2>
+<p>
+  {t.streamingIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.asyncSsrStreaming}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.asyncSsrStreaming}
+    </code>
+  </pre>
 </div>
-
 <div class="callout callout-info">
-  <p>{t.streamingNote}</p>
+  <p>
+    {t.streamingNote}
+  </p>
 </div>
-
-<h2>{t.seedH2}</h2>
-<p>{t.seedIntro}</p>
-
-<h2>{t.whenH2}</h2>
-<p>{t.whenIntro}</p>
-
+<h2>
+  {t.seedH2}
+</h2>
+<p>
+  {t.seedIntro}
+</p>
+<h2>
+  {t.whenH2}
+</h2>
+<p>
+  {t.whenIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.asyncSsrVsSeeded}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.asyncSsrVsSeeded}
+    </code>
+  </pre>
 </div>
-
 <div class="callout callout-tip">
-  <div class="callout-title">{t.constraintsTitle}</div>
-  <p>{t.constraintsText}</p>
+  <div class="callout-title">
+    {t.constraintsTitle}
+  </div>
+  <p>
+    {t.constraintsText}
+  </p>
 </div>
-
 <div class="callout callout-info">
-  <div class="callout-title">{t.httpOnlyTitle}</div>
-  <p>{t.httpOnlyText}</p>
+  <div class="callout-title">
+    {t.httpOnlyTitle}
+  </div>
+  <p>
+    {t.httpOnlyText}
+  </p>
 </div>
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/server-functions"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "サーバー関数" else "Server Functions"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "サーバー関数" else "Server Functions"}
+    </span>
   </a>
   <span></span>
 </div>

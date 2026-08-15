@@ -2,10 +2,16 @@
      /dashboard/* page and is itself composed inside AppShell. -->
 <div class="dashboard">
   <nav class="sidebar">
-    <a href="/dashboard/stats">Stats</a>
-    <a href="/dashboard/settings">Settings</a>
+    <a href="/dashboard/stats">
+      Stats
+    </a>
+    <a href="/dashboard/settings">
+      Settings
+    </a>
   </nav>
-  <section class="content" data-melt-outlet>{children}</section>
+  <section class="content" data-melt-outlet>
+    {children}
+  </section>
 </div>
 
 <style>

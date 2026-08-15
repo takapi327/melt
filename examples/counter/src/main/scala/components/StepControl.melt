@@ -6,9 +6,15 @@
 </script>
 
 <div class="step-control">
-  <button onclick={_ => props.count.update(_ - props.step)}>−{props.step}</button>
-  <span class="step-value">{props.count}</span>
-  <button onclick={_ => props.count.update(_ + props.step)}>+{props.step}</button>
+  <button onclick={_ => props.count.update(_ - props.step)}>
+    −{props.step}
+  </button>
+  <span class="step-value">
+    {props.count}
+  </span>
+  <button onclick={_ => props.count.update(_ + props.step)}>
+    +{props.step}
+  </button>
 </div>
 
 <style>

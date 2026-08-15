@@ -35,12 +35,16 @@
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="guide" slug={props.slug}>
-<article class="doc-page">
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">{breadcrumb}</div>
-    <h1 class="doc-title">{pageTitle}</h1>
-  </div>
-  {if props.slug == "introduction" then <Introduction lang={props.lang} basePath={props.basePath} />
+  <article class="doc-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        {breadcrumb}
+      </div>
+      <h1 class="doc-title">
+        {pageTitle}
+      </h1>
+    </div>
+    {if props.slug == "introduction" then <Introduction lang={props.lang} basePath={props.basePath} />
   else if props.slug == "installation" then <Installation lang={props.lang} basePath={props.basePath} />
   else if props.slug == "quick-start" then <QuickStart lang={props.lang} basePath={props.basePath} />
   else if props.slug == "components" then <Components lang={props.lang} basePath={props.basePath} />
@@ -66,7 +70,7 @@
   else if props.slug == "server-env" then <ServerEnv lang={props.lang} basePath={props.basePath} />
   else <p>{props.slug}</p>
   }
-</article>
+  </article>
 </Layout>
 
 <style>

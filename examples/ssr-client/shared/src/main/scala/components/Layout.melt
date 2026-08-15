@@ -5,9 +5,15 @@
 
 <div class="app">
   <nav class="main-nav">
-    <a href="/" class:active={path.map(p => p == "/" || p == "")}>Todos</a>
-    <a href="/counter" class:active={path.map(_ == "/counter")}>Counter</a>
-    <a href="/users" class:active={path.map(p => p == "/users" || p.startsWith("/users/"))}>Users</a>
+    <a href="/" class:active={path.map(p => p == "/" || p == "")}>
+      Todos
+    </a>
+    <a href="/counter" class:active={path.map(_ == "/counter")}>
+      Counter
+    </a>
+    <a href="/users" class:active={path.map(p => p == "/users" || p.startsWith("/users/"))}>
+      Users
+    </a>
   </nav>
   <main id="page-root">
     {children}

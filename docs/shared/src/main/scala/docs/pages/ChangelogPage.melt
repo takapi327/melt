@@ -5,109 +5,206 @@
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="changelog">
-<article class="changelog-page">
-
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">Changelog</div>
-    <h1 class="doc-title">Changelog</h1>
-    <p class="doc-lead">All notable changes to Melt are documented here. Melt follows <a href="https://semver.org" target="_blank" rel="noopener noreferrer">semantic versioning</a>.</p>
-  </div>
-
-  <div class="changelog">
-
-    <div class="release">
-      <div class="release-header">
-        <span class="release-version">Unreleased</span>
-        <span class="release-badge release-badge-planned">Unreleased</span>
+  <article class="changelog-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        Changelog
       </div>
-      <p class="release-summary">Server-side ergonomics for MeltKit: request headers/cookies on every handler, hydration-independent SSR, and a uniform response status setter.</p>
-
-      <div class="release-section">
-        <div class="release-section-label">New</div>
-        <ul class="release-list">
-          <li><strong>Headers &amp; cookies on every handler</strong> — <code>ctx.header</code> / <code>ctx.headers</code> / <code>ctx.cookie</code> / <code>ctx.cookies</code> moved to the base <code>MeltContext</code>, so <code>app.get</code> handlers can read them too — not just body-bearing routes. No middleware/Locals workaround needed for <code>Authorization</code> or session cookies.</li>
-          <li><strong>Hydration-independent SSR</strong> — <code>ctx.renderPage(component, title)</code> and <code>RenderResult.toHtmlDocument</code> render a complete, self-contained HTML document (scoped CSS inlined) with no Template (<code>index.html</code>), Vite manifest, or client bundle — for server-only apps (auth screens, admin panels). Plus <code>ctx.html(String)</code> to return a pre-rendered HTML string.</li>
-          <li><strong>Uniform response status</strong> — <code>Response.withStatus(code)</code> is the single way to set the status on any builder (<code>json</code> / <code>text</code> / <code>html</code> / <code>ok</code> / <code>render</code> / <code>renderPage</code>), mirroring <code>withContentType</code> / <code>withCookie</code>.</li>
-          <li><strong>Dynamic status codes</strong> — <code>StatusCode.fromInt(code): Option[StatusCode]</code> brings a runtime <code>Int</code> (e.g. relayed from a downstream call) into the compile-time-checked union safely.</li>
-          <li><strong>External redirects</strong> — <code>ctx.redirectExternal(url, status)</code> / <code>Response.redirectExternal</code> redirect to an absolute URL (e.g. a registered OAuth <code>redirect_uri</code>), an explicit opt-out of the relative-path open-redirect guard that <code>redirect</code> enforces.</li>
-          <li><strong>Typed single form field</strong> — <code>FormData.getAs[A](name)</code> decodes one field via <code>FieldDecoder</code>, the form twin of <code>ctx.queryAs[A]</code>, sharing the exact same <code>FieldCodec</code> givens. A low-priority <code>FieldDecoder[Option[A]]</code> now lets decode-only field types (e.g. <code>FieldDecoder.spaceDelimited</code>) be wrapped in <code>Option</code>, so a whole record like an OAuth token request — including <code>scope: Option[Set[Scope]]</code> — decodes with <code>ctx.body.form[A]</code> reusing the query codecs.</li>
-          <li><strong>CORS</strong> — <code>app.cors(CorsConfig(...))</code> is a declarative, correct-by-construction CORS policy applied by every server adapter (http4s / Node / Undertow), mirroring <code>app.csp</code>. Preflight <code>OPTIONS</code> is answered before routing; actual responses get <code>Access-Control-*</code> headers with <code>Vary: Origin</code>. Origins are an explicit wildcard or an allowlist (no blind reflection), and a credentialed wildcard is rejected at construction.</li>
-        </ul>
+      <h1 class="doc-title">
+        Changelog
+      </h1>
+      <p class="doc-lead">
+        All notable changes to Melt are documented here. Melt follows <a href="https://semver.org" target="_blank" rel="noopener noreferrer">semantic versioning</a>.
+      </p>
+    </div>
+    <div class="changelog">
+      <div class="release">
+        <div class="release-header">
+          <span class="release-version">
+            Unreleased
+          </span>
+          <span class="release-badge release-badge-planned">
+            Unreleased
+          </span>
+        </div>
+        <p class="release-summary">
+          Server-side ergonomics for MeltKit: request headers/cookies on every handler, hydration-independent SSR, and a uniform response status setter.
+        </p>
+        <div class="release-section">
+          <div class="release-section-label">
+            New
+          </div>
+          <ul class="release-list">
+            <li>
+              <strong>Headers &amp; cookies on every handler</strong> — <code>ctx.header</code> / <code>ctx.headers</code> / <code>ctx.cookie</code> / <code>ctx.cookies</code> moved to the base <code>MeltContext</code>, so <code>app.get</code> handlers can read them too — not just body-bearing routes. No middleware/Locals workaround needed for <code>Authorization</code> or session cookies.
+            </li>
+            <li>
+              <strong>Hydration-independent SSR</strong> — <code>ctx.renderPage(component, title)</code> and <code>RenderResult.toHtmlDocument</code> render a complete, self-contained HTML document (scoped CSS inlined) with no Template (<code>index.html</code>), Vite manifest, or client bundle — for server-only apps (auth screens, admin panels). Plus <code>ctx.html(String)</code> to return a pre-rendered HTML string.
+            </li>
+            <li>
+              <strong>Uniform response status</strong> — <code>Response.withStatus(code)</code> is the single way to set the status on any builder (<code>json</code> / <code>text</code> / <code>html</code> / <code>ok</code> / <code>render</code> / <code>renderPage</code>), mirroring <code>withContentType</code> / <code>withCookie</code>.
+            </li>
+            <li>
+              <strong>Dynamic status codes</strong> — <code>StatusCode.fromInt(code): Option[StatusCode]</code> brings a runtime <code>Int</code> (e.g. relayed from a downstream call) into the compile-time-checked union safely.
+            </li>
+            <li>
+              <strong>External redirects</strong> — <code>ctx.redirectExternal(url, status)</code> / <code>Response.redirectExternal</code> redirect to an absolute URL (e.g. a registered OAuth <code>redirect_uri</code>), an explicit opt-out of the relative-path open-redirect guard that <code>redirect</code> enforces.
+            </li>
+            <li>
+              <strong>Typed single form field</strong> — <code>FormData.getAs[A](name)</code> decodes one field via <code>FieldDecoder</code>, the form twin of <code>ctx.queryAs[A]</code>, sharing the exact same <code>FieldCodec</code> givens. A low-priority <code>FieldDecoder[Option[A]]</code> now lets decode-only field types (e.g. <code>FieldDecoder.spaceDelimited</code>) be wrapped in <code>Option</code>, so a whole record like an OAuth token request — including <code>scope: Option[Set[Scope]]</code> — decodes with <code>ctx.body.form[A]</code> reusing the query codecs.
+            </li>
+            <li>
+              <strong>CORS</strong> — <code>app.cors(CorsConfig(...))</code> is a declarative, correct-by-construction CORS policy applied by every server adapter (http4s / Node / Undertow), mirroring <code>app.csp</code>. Preflight <code>OPTIONS</code> is answered before routing; actual responses get <code>Access-Control-*</code> headers with <code>Vary: Origin</code>. Origins are an explicit wildcard or an allowlist (no blind reflection), and a credentialed wildcard is rejected at construction.
+            </li>
+          </ul>
+        </div>
+        <div class="release-section">
+          <div class="release-section-label">
+            Changed
+          </div>
+          <ul class="release-list">
+            <li>
+              <strong>Removed</strong> the <code>render(component, status)</code> overload — chain <code>.withStatus(code)</code> instead, so every builder sets its status the same way.
+            </li>
+          </ul>
+        </div>
       </div>
-
-      <div class="release-section">
-        <div class="release-section-label">Changed</div>
-        <ul class="release-list">
-          <li><strong>Removed</strong> the <code>render(component, status)</code> overload — chain <code>.withStatus(code)</code> instead, so every builder sets its status the same way.</li>
-        </ul>
+      <div class="release">
+        <div class="release-header">
+          <span class="release-version">
+            v0.1.0
+          </span>
+          <span class="release-date">
+            2026-06-07
+          </span>
+          <span class="release-badge release-badge-latest">
+            Latest
+          </span>
+        </div>
+        <p class="release-summary">
+          Initial public release of Melt — a Scala.js SFC framework inspired by Svelte.
+        </p>
+        <div class="release-section">
+          <div class="release-section-label">
+            New
+          </div>
+          <ul class="release-list">
+            <li>
+              <strong>SFC compiler</strong> — Parse and compile <code>.melt</code> files to Scala 3 DOM code (Scala.js) or HTML string builders (JVM SSR)
+            </li>
+            <li>
+              <strong>Reactive runtime</strong> — <code>State[A]</code> and <code>Signal[A]</code> with three-phase update propagation (Pre → Bind → Post)
+            </li>
+            <li>
+              <strong>Template syntax</strong> — Full HTML template with <code></code> interpolation, <code>bind:</code> directives, <code>class:</code> and <code>style:</code> directives, event handlers
+            </li>
+            <li>
+              <strong>Control flow</strong> — <code>if/else</code>, list rendering with <code>.map()</code>, keyed list reconciliation
+            </li>
+            <li>
+              <strong>Components</strong> — Props, children (slots), and component composition
+            </li>
+            <li>
+              <strong>Special elements</strong> — <code>&lt;Head></code>, <code>&lt;Window></code>, <code>&lt;Body></code>, <code>&lt;Document></code>, <code>&lt;Boundary></code>, <code>&lt;Await></code>
+            </li>
+            <li>
+              <strong>Transitions</strong> — Built-in enter/exit animations with configurable easing and duration
+            </li>
+            <li>
+              <strong>TrustedHtml</strong> — Type-safe raw HTML injection that prevents accidental XSS
+            </li>
+            <li>
+              <strong>CSS scoping</strong> — Component styles automatically scoped with a unique attribute selector
+            </li>
+            <li>
+              <strong>SCSS support</strong> — Optional Dart Sass integration via <code>melt-sass-preprocessor</code>
+            </li>
+            <li>
+              <strong>SSR &amp; hydration</strong> — Server-render on the JVM, hydrate on the client with HydrationCursor DOM reuse
+            </li>
+            <li>
+              <strong>SSG</strong> — Static site generation via <code>SsgGenerator.run</code>
+            </li>
+            <li>
+              <strong>MeltKit routing</strong> — Type-safe routing DSL with <code>NamedTuple</code> path parameters (requires Scala 3.8+)
+            </li>
+            <li>
+              <strong>Adapters</strong> — Browser SPA, http4s (JVM), Node.js
+            </li>
+            <li>
+              <strong>sbt-melt plugin</strong> — Watch, compile, and integrate <code>.melt</code> files into the sbt build pipeline
+            </li>
+            <li>
+              <strong>Language Server</strong> — LSP server for IDE support (syntax highlighting, diagnostics)
+            </li>
+            <li>
+              <strong>Security checker</strong> — Compile-time warnings for unsafe iframes, forms, and missing <code>rel="noopener"</code>
+            </li>
+            <li>
+              <strong>A11y checker</strong> — Compile-time warnings for missing ARIA attributes and semantic HTML issues
+            </li>
+            <li>
+              <strong>Testkit</strong> — Testing utilities for component rendering and reactivity assertions
+            </li>
+          </ul>
+        </div>
+        <div class="release-section">
+          <div class="release-section-label">
+            Architecture
+          </div>
+          <ul class="release-list">
+            <li>
+              Compiler pipeline: Parse → Semantic checks → CSS preprocessing → AST→IR → Static hoist optimization → Code emit
+            </li>
+            <li>
+              <code>sbt-melt</code> (compiler layer) and <code>sbt-meltkit</code> (server integration) split into separate plugins
+            </li>
+            <li>
+              CSS parser fully rewritten from regex-based to AST-based with CSS Nesting support
+            </li>
+            <li>
+              Static element hoisting (<code>StaticHoistPass</code>) for improved runtime performance
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="release release-future">
+        <div class="release-header">
+          <span class="release-version">
+            v0.2.0
+          </span>
+          <span class="release-date">
+            Planned
+          </span>
+          <span class="release-badge release-badge-planned">
+            Planned
+          </span>
+        </div>
+        <div class="release-section">
+          <div class="release-section-label">
+            Planned
+          </div>
+          <ul class="release-list">
+            <li>
+              Hot module replacement (HMR) in development mode
+            </li>
+            <li>
+              Snippet and <code>&lt;RenderCall></code> support in SPA mode
+            </li>
+            <li>
+              Tween and Spring motion primitives
+            </li>
+            <li>
+              Official VS Code extension
+            </li>
+            <li>
+              Incremental compiler support
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
-
-    <div class="release">
-      <div class="release-header">
-        <span class="release-version">v0.1.0</span>
-        <span class="release-date">2026-06-07</span>
-        <span class="release-badge release-badge-latest">Latest</span>
-      </div>
-      <p class="release-summary">Initial public release of Melt — a Scala.js SFC framework inspired by Svelte.</p>
-
-      <div class="release-section">
-        <div class="release-section-label">New</div>
-        <ul class="release-list">
-          <li><strong>SFC compiler</strong> — Parse and compile <code>.melt</code> files to Scala 3 DOM code (Scala.js) or HTML string builders (JVM SSR)</li>
-          <li><strong>Reactive runtime</strong> — <code>State[A]</code> and <code>Signal[A]</code> with three-phase update propagation (Pre → Bind → Post)</li>
-          <li><strong>Template syntax</strong> — Full HTML template with <code>{}</code> interpolation, <code>bind:</code> directives, <code>class:</code> and <code>style:</code> directives, event handlers</li>
-          <li><strong>Control flow</strong> — <code>if/else</code>, list rendering with <code>.map()</code>, keyed list reconciliation</li>
-          <li><strong>Components</strong> — Props, children (slots), and component composition</li>
-          <li><strong>Special elements</strong> — <code>&lt;Head&gt;</code>, <code>&lt;Window&gt;</code>, <code>&lt;Body&gt;</code>, <code>&lt;Document&gt;</code>, <code>&lt;Boundary&gt;</code>, <code>&lt;Await&gt;</code></li>
-          <li><strong>Transitions</strong> — Built-in enter/exit animations with configurable easing and duration</li>
-          <li><strong>TrustedHtml</strong> — Type-safe raw HTML injection that prevents accidental XSS</li>
-          <li><strong>CSS scoping</strong> — Component styles automatically scoped with a unique attribute selector</li>
-          <li><strong>SCSS support</strong> — Optional Dart Sass integration via <code>melt-sass-preprocessor</code></li>
-          <li><strong>SSR &amp; hydration</strong> — Server-render on the JVM, hydrate on the client with HydrationCursor DOM reuse</li>
-          <li><strong>SSG</strong> — Static site generation via <code>SsgGenerator.run</code></li>
-          <li><strong>MeltKit routing</strong> — Type-safe routing DSL with <code>NamedTuple</code> path parameters (requires Scala 3.8+)</li>
-          <li><strong>Adapters</strong> — Browser SPA, http4s (JVM), Node.js</li>
-          <li><strong>sbt-melt plugin</strong> — Watch, compile, and integrate <code>.melt</code> files into the sbt build pipeline</li>
-          <li><strong>Language Server</strong> — LSP server for IDE support (syntax highlighting, diagnostics)</li>
-          <li><strong>Security checker</strong> — Compile-time warnings for unsafe iframes, forms, and missing <code>rel="noopener"</code></li>
-          <li><strong>A11y checker</strong> — Compile-time warnings for missing ARIA attributes and semantic HTML issues</li>
-          <li><strong>Testkit</strong> — Testing utilities for component rendering and reactivity assertions</li>
-        </ul>
-      </div>
-
-      <div class="release-section">
-        <div class="release-section-label">Architecture</div>
-        <ul class="release-list">
-          <li>Compiler pipeline: Parse → Semantic checks → CSS preprocessing → AST→IR → Static hoist optimization → Code emit</li>
-          <li><code>sbt-melt</code> (compiler layer) and <code>sbt-meltkit</code> (server integration) split into separate plugins</li>
-          <li>CSS parser fully rewritten from regex-based to AST-based with CSS Nesting support</li>
-          <li>Static element hoisting (<code>StaticHoistPass</code>) for improved runtime performance</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="release release-future">
-      <div class="release-header">
-        <span class="release-version">v0.2.0</span>
-        <span class="release-date">Planned</span>
-        <span class="release-badge release-badge-planned">Planned</span>
-      </div>
-      <div class="release-section">
-        <div class="release-section-label">Planned</div>
-        <ul class="release-list">
-          <li>Hot module replacement (HMR) in development mode</li>
-          <li>Snippet and <code>&lt;RenderCall&gt;</code> support in SPA mode</li>
-          <li>Tween and Spring motion primitives</li>
-          <li>Official VS Code extension</li>
-          <li>Incremental compiler support</li>
-        </ul>
-      </div>
-    </div>
-
-  </div>
-
-</article>
+  </article>
 </Layout>
 
 <style>

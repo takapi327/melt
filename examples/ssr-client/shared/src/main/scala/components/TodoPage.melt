@@ -18,10 +18,11 @@
 </script>
 
 <Layout>
-<div class="todo-page">
-  <h2>Todos</h2>
-
-  {if !loaded then
+  <div class="todo-page">
+    <h2>
+      Todos
+    </h2>
+    {if !loaded then
     <p class="loading">Loading...</p>
   else
     <div class="add-form">
@@ -29,9 +30,8 @@
       <button class="btn-add" onclick={_ => { val text = newText.value.trim; if text.nonEmpty then { newText.set(""); Api.addTodo(text, todos) } }}>Add</button>
     </div>
   }
-
-  <ul>
-    {todos.value.map(t =>
+    <ul>
+      {todos.value.map(t =>
       <li class:done={t.done}>
         <button class="toggle" onclick={_ => { toggleTodo(t.id); Api.toggleTodo(t.id) }}>
           {if t.done then "✓" else "○"}
@@ -40,12 +40,13 @@
         <button class="delete" onclick={_ => { deleteTodo(t.id); Api.deleteTodo(t.id) }}>×</button>
       </li>
     )}
-  </ul>
-
-  <div class="footer">
-    <span class="summary">Total: {totalCount} / Done: {doneCount}</span>
+    </ul>
+    <div class="footer">
+      <span class="summary">
+        Total: {totalCount} / Done: {doneCount}
+      </span>
+    </div>
   </div>
-</div>
 </Layout>
 
 <style>

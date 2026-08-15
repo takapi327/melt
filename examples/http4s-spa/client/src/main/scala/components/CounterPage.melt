@@ -8,31 +8,52 @@
 </script>
 
 <div class="counter-page">
-  <h2>Counter</h2>
-
+  <h2>
+    Counter
+  </h2>
   <div class="display">
     <div class="stat">
-      <span class="label">Count</span>
-      <span class="value">{count}</span>
+      <span class="label">
+        Count
+      </span>
+      <span class="value">
+        {count}
+      </span>
     </div>
     <div class="stat">
-      <span class="label">Doubled</span>
-      <span class="value">{doubled}</span>
+      <span class="label">
+        Doubled
+      </span>
+      <span class="value">
+        {doubled}
+      </span>
     </div>
     <div class="stat">
-      <span class="label">Even?</span>
-      <span class="value">{isEven}</span>
+      <span class="label">
+        Even?
+      </span>
+      <span class="value">
+        {isEven}
+      </span>
     </div>
   </div>
-
   <div class="controls">
-    <button onclick={_ => count -= 1}>-1</button>
-    <button onclick={_ => count += 1}>+1</button>
-    <button onclick={_ => count += 5}>+5</button>
-    <button onclick={_ => count *= 2}>×2</button>
-    <button class="btn-reset" onclick={_ => resetAll()}>Reset</button>
+    <button onclick={_ => count -= 1}>
+      -1
+    </button>
+    <button onclick={_ => count += 1}>
+      +1
+    </button>
+    <button onclick={_ => count += 5}>
+      +5
+    </button>
+    <button onclick={_ => count *= 2}>
+      ×2
+    </button>
+    <button class="btn-reset" onclick={_ => resetAll()}>
+      Reset
+    </button>
   </div>
-
 </div>
 
 <style>

@@ -11,12 +11,13 @@
 
 <div class="user-page">
   <div class="user-header">
-    <h2>Users</h2>
+    <h2>
+      Users
+    </h2>
     <button class="btn-add-user" onclick={_ => showForm.set(!showForm.value)}>
       {if showForm.value then "Cancel" else "+ Add User"}
     </button>
   </div>
-
   {if showForm.value then
     <div class="add-form">
       <input bind:value={newName} placeholder="Name" />
@@ -42,13 +43,11 @@
   else
     <span class="hidden" />
   }
-
   {if !loaded then
     <p class="loading">Loading...</p>
   else
     <span class="hidden" />
   }
-
   <div class="user-grid">
     {users.value.map(u =>
       <a class="user-card" href={s"/users/${u.id}"}>

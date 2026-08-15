@@ -4,4 +4,6 @@
   throw new RuntimeException("BuggyChild: rendering failed intentionally!")
 </script>
 
-<p>This text is never rendered.</p>
+<p>
+  This text is never rendered.
+</p>

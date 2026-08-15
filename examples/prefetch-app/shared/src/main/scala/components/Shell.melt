@@ -7,10 +7,16 @@
      Main.scala), so hovering it warms Api.items; "/" simply has nothing to warm. -->
 <div class="app">
   <header>
-    <h1>Melt prefetch demo</h1>
+    <h1>
+      Melt prefetch demo
+    </h1>
     <nav data-melt-preload="hover">
-      <a class:active={path.map(p => p == "/" || p == "")} href="/">Home</a>
-      <a class:active={path.map(_ == "/items")} href="/items">Items</a>
+      <a class:active={path.map(p => p == "/" || p == "")} href="/">
+        Home
+      </a>
+      <a class:active={path.map(_ == "/items")} href="/items">
+        Items
+      </a>
     </nav>
   </header>
   <main data-melt-outlet></main>

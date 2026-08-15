@@ -59,88 +59,100 @@
 
 <!-- ── melt:head — reactive document head ────────────────────────────────── -->
 <melt:head>
-  <title>{pageTitle}</title>
+  <title>
+    {pageTitle}
+  </title>
   <meta name="description" content={description} />
 </melt:head>
-
 <!-- ── melt:window — window events & property bindings ───────────────────── -->
-<melt:window
-  onkeydown={e => handleKeydown(e)}
-  bind:innerWidth={windowWidth}
-  bind:innerHeight={windowHeight}
-  bind:scrollY={scrollY}
-  bind:online={isOnline}
-></melt:window>
-
+<melt:window onkeydown={e => handleKeydown(e)} bind:innerWidth={windowWidth} bind:innerHeight={windowHeight} bind:scrollY={scrollY} bind:online={isOnline}></melt:window>
 <!-- ── melt:body — body-level mouse detection ────────────────────────────── -->
-<melt:body
-  onmouseenter={_ => bodyHovered.set(true)}
-  onmouseleave={_ => bodyHovered.set(false)}
-></melt:body>
-
+<melt:body onmouseenter={_ => bodyHovered.set(true)} onmouseleave={_ => bodyHovered.set(false)}></melt:body>
 <!-- ── melt:document — document-level events & bindings ─────────────────── -->
-<melt:document
-  onvisibilitychange={handleVisibilityChange}
-  onselectionchange={handleSelectionChange}
-  bind:visibilityState={visibilityState}
-  bind:activeElement={activeElement}
-></melt:document>
-
+<melt:document onvisibilitychange={handleVisibilityChange} onselectionchange={handleSelectionChange} bind:visibilityState={visibilityState} bind:activeElement={activeElement}></melt:document>
 <!-- ── UI ────────────────────────────────────────────────────────────────── -->
 <div class="demo">
   <header class="hero">
-    <h1>Melt Special Elements</h1>
+    <h1>
+      Melt Special Elements
+    </h1>
     <p class="subtitle">
-      Demonstrating <code>&lt;melt:head&gt;</code>,
-      <code>&lt;melt:window&gt;</code>,
-      <code>&lt;melt:body&gt;</code>, and
-      <code>&lt;melt:document&gt;</code>
+      Demonstrating <code>&lt;melt:head></code>, <code>&lt;melt:window></code>, <code>&lt;melt:body></code>, and <code>&lt;melt:document></code>
     </p>
   </header>
-
   <div class="panels">
-
     <!-- ── melt:head panel ──────────────────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title"><span class="tag">&lt;melt:head&gt;</span></h2>
+      <h2 class="panel-title">
+        <span class="tag">
+          &lt;melt:head>
+        </span>
+      </h2>
       <p class="hint">
-        The browser tab title and meta description update reactively.
-        Scroll down to watch the title change.
+        The browser tab title and meta description update reactively. Scroll down to watch the title change.
       </p>
       <div class="info-row">
-        <span class="label">Tab title</span>
-        <code class="value">{pageTitle}</code>
+        <span class="label">
+          Tab title
+        </span>
+        <code class="value">
+          {pageTitle}
+        </code>
       </div>
       <div class="info-row">
-        <span class="label">Description</span>
-        <code class="value">{description}</code>
+        <span class="label">
+          Description
+        </span>
+        <code class="value">
+          {description}
+        </code>
       </div>
       <div class="btn-row">
-        <button onclick={_ => pageTitle.set("Special Elements Demo")}>Reset title</button>
-        <button onclick={_ => pageTitle.set("Custom Title!")}>Set custom</button>
+        <button onclick={_ => pageTitle.set("Special Elements Demo")}>
+          Reset title
+        </button>
+        <button onclick={_ => pageTitle.set("Custom Title!")}>
+          Set custom
+        </button>
       </div>
     </section>
-
     <!-- ── melt:window panel ────────────────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title"><span class="tag">&lt;melt:window&gt;</span></h2>
+      <h2 class="panel-title">
+        <span class="tag">
+          &lt;melt:window>
+        </span>
+      </h2>
       <p class="hint">
-        Window dimensions, scroll position and network status update automatically.
-        Resize the window or scroll to see live values.
+        Window dimensions, scroll position and network status update automatically. Resize the window or scroll to see live values.
       </p>
       <div class="info-row">
-        <span class="label">Width × Height</span>
-        <code class="value">{windowWidth.map(_.toInt)} × {windowHeight.map(_.toInt)} px</code>
+        <span class="label">
+          Width × Height
+        </span>
+        <code class="value">
+          {windowWidth.map(_.toInt)} × {windowHeight.map(_.toInt)} px
+        </code>
       </div>
       <div class="info-row">
-        <span class="label">Scroll Y</span>
-        <code class="value">{scrollY.map(y => s"${y.toInt} px")}</code>
+        <span class="label">
+          Scroll Y
+        </span>
+        <code class="value">
+          {scrollY.map(y => s"${y.toInt} px")}
+        </code>
       </div>
       <div class="info-row">
-        <span class="label">Network</span>
-        <code class="value">{isOnline.map(on => if on then "Online" else "Offline")}</code>
+        <span class="label">
+          Network
+        </span>
+        <code class="value">
+          {isOnline.map(on => if on then "Online" else "Offline")}
+        </code>
       </div>
-      <p class="hint">Keyboard: <strong>Esc</strong> → scroll to top</p>
+      <p class="hint">
+        Keyboard: <strong>Esc</strong> → scroll to top
+      </p>
       <div class="shortcut-log">
         {if shortcutLog.value.isEmpty then
           <p class="empty">No shortcuts pressed yet…</p>
@@ -151,18 +163,23 @@
         </ul>
       </div>
       <div class="btn-row">
-        <button onclick={_ => dom.window.scrollTo(0, 0)}>Scroll to top</button>
-        <button onclick={_ => shortcutLog.set(List.empty)}>Clear log</button>
+        <button onclick={_ => dom.window.scrollTo(0, 0)}>
+          Scroll to top
+        </button>
+        <button onclick={_ => shortcutLog.set(List.empty)}>
+          Clear log
+        </button>
       </div>
     </section>
-
     <!-- ── melt:body panel ──────────────────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title"><span class="tag">&lt;melt:body&gt;</span></h2>
+      <h2 class="panel-title">
+        <span class="tag">
+          &lt;melt:body>
+        </span>
+      </h2>
       <p class="hint">
-        Detects <code>mouseenter</code> / <code>mouseleave</code> on
-        <code>document.body</code> — events that don't reliably fire on
-        <code>window</code> in Firefox.
+        Detects <code>mouseenter</code> / <code>mouseleave</code> on <code>document.body</code> — events that don't reliably fire on <code>window</code> in Firefox.
       </p>
       <div class="body-status">
         {if bodyHovered then
@@ -171,26 +188,39 @@
           <div class="status-badge off">Cursor has left the page</div>}
       </div>
     </section>
-
     <!-- ── melt:document panel ──────────────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title"><span class="tag">&lt;melt:document&gt;</span></h2>
+      <h2 class="panel-title">
+        <span class="tag">
+          &lt;melt:document>
+        </span>
+      </h2>
       <p class="hint">
-        Document-level events and property bindings.
-        Switch tabs to trigger <code>visibilitychange</code>, click elements
-        to track <code>activeElement</code>, or select text.
+        Document-level events and property bindings. Switch tabs to trigger <code>visibilitychange</code>, click elements to track <code>activeElement</code>, or select text.
       </p>
       <div class="info-row">
-        <span class="label">visibilityState</span>
-        <code class="value">{visibilityState}</code>
+        <span class="label">
+          visibilityState
+        </span>
+        <code class="value">
+          {visibilityState}
+        </code>
       </div>
       <div class="info-row">
-        <span class="label">activeElement</span>
-        <code class="value">{activeElement.map(activeElementLabel)}</code>
+        <span class="label">
+          activeElement
+        </span>
+        <code class="value">
+          {activeElement.map(activeElementLabel)}
+        </code>
       </div>
       <div class="info-row">
-        <span class="label">selectedText</span>
-        <code class="value">{selectedText.map(selectedTextLabel)}</code>
+        <span class="label">
+          selectedText
+        </span>
+        <code class="value">
+          {selectedText.map(selectedTextLabel)}
+        </code>
       </div>
       <div class="visibility-log">
         {if visibilityLog.value.isEmpty then
@@ -202,21 +232,33 @@
         </ul>
       </div>
       <div class="btn-row">
-        <button onclick={_ => visibilityLog.set(List.empty)}>Clear log</button>
+        <button onclick={_ => visibilityLog.set(List.empty)}>
+          Clear log
+        </button>
       </div>
     </section>
-
   </div>
-
   <!-- Spacer to make the page scrollable so bind:scrollY can be tested -->
   <div class="scroll-spacer">
-    <p>↓ Scroll down to see the tab title change ↓</p>
+    <p>
+      ↓ Scroll down to see the tab title change ↓
+    </p>
     <div class="ruler">
-      <div class="ruler-mark" style="top: 100px">100 px</div>
-      <div class="ruler-mark" style="top: 200px">200 px</div>
-      <div class="ruler-mark" style="top: 300px">300 px</div>
-      <div class="ruler-mark" style="top: 400px">400 px — title → [Middle]</div>
-      <div class="ruler-mark" style="top: 500px">500 px — title → [Bottom]</div>
+      <div class="ruler-mark" style="top: 100px">
+        100 px
+      </div>
+      <div class="ruler-mark" style="top: 200px">
+        200 px
+      </div>
+      <div class="ruler-mark" style="top: 300px">
+        300 px
+      </div>
+      <div class="ruler-mark" style="top: 400px">
+        400 px — title → [Middle]
+      </div>
+      <div class="ruler-mark" style="top: 500px">
+        500 px — title → [Bottom]
+      </div>
     </div>
   </div>
 </div>

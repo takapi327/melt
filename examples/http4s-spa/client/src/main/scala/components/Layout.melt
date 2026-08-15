@@ -5,19 +5,13 @@
 
 <div class="app">
   <nav class="main-nav">
-    <a
-      class:active={path.map(p => p == "/" || p == "")}
-      href="/">
+    <a class:active={path.map(p => p == "/" || p == "")} href="/">
       Todos
     </a>
-    <a
-      class:active={path.map(_ == "/counter")}
-      href="/counter">
+    <a class:active={path.map(_ == "/counter")} href="/counter">
       Counter
     </a>
-    <a
-      class:active={path.map(p => p == "/users" || p.startsWith("/users/"))}
-      href="/users">
+    <a class:active={path.map(p => p == "/users" || p.startsWith("/users/"))} href="/users">
       Users
     </a>
   </nav>

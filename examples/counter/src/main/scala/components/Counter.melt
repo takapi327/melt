@@ -47,32 +47,59 @@
 </script>
 
 <div class="counter" bind:this={containerRef}>
-  <h1>Melt Counter</h1>
-  <p>Count: {count}</p>
-  <p>Doubled: {doubled}</p>
-  <p>Even: {isEven}</p>
-  <p class="meta">Window width: {windowWidth}</p>
-  <p class="meta">Container width: {containerWidth}px</p>
-  <p class="meta">Elapsed: {elapsed}s</p>
-  <button onclick={_ => count += 1}>+1</button>
-  <button onclick={_ => count -= 1}>-1</button>
-  <button onclick={_ => resetAll()}>Reset All</button>
+  <h1>
+    Melt Counter
+  </h1>
+  <p>
+    Count: {count}
+  </p>
+  <p>
+    Doubled: {doubled}
+  </p>
+  <p>
+    Even: {isEven}
+  </p>
+  <p class="meta">
+    Window width: {windowWidth}
+  </p>
+  <p class="meta">
+    Container width: {containerWidth}px
+  </p>
+  <p class="meta">
+    Elapsed: {elapsed}s
+  </p>
+  <button onclick={_ => count += 1}>
+    +1
+  </button>
+  <button onclick={_ => count -= 1}>
+    -1
+  </button>
+  <button onclick={_ => resetAll()}>
+    Reset All
+  </button>
   <hr />
   <input use:autoFocus bind:value={name} placeholder="Your name" />
-  <p>Hello, {name}!</p>
-
+  <p>
+    Hello, {name}!
+  </p>
   <hr />
   <!-- ── State as props: bidirectional binding ─────────────────────────── -->
   <!-- Both StepControl components receive the same State[Int].              -->
   <!-- Clicking either child's button calls .update() on the shared State,  -->
   <!-- and all three displays (parent + both children) update in sync.     -->
-  <p class="section-label">State as props — bidirectional binding</p>
-  <p class="meta">Two independent child components sharing the same <code>State[Int]</code>:</p>
+  <p class="section-label">
+    State as props — bidirectional binding
+  </p>
+  <p class="meta">
+    Two independent child components sharing the same <code>State[Int]</code>:
+  </p>
   <div class="step-row">
-    <StepControl count={count} step={1} />
-    <StepControl count={count} step={5} />
+    <StepControl count={count} step={1}></StepControl>
+    <StepControl count={count} step={5}></StepControl>
   </div>
-  <p class="meta">Parent sees: <strong>{count}</strong></p>
+  <p class="meta">
+    Parent sees: <strong>{count}</strong>
+  </p>
 </div>
 
 <style>

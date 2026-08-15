@@ -9,36 +9,56 @@
   val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.enableH2}</h2>
-<p>{t.enableIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.enableH2}
+</h2>
+<p>
+  {t.enableIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.ssgPrerenderExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.ssgPrerenderExample}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.runH2}</h2>
-<p>{t.runIntro}</p>
-
+<h2>
+  {t.runH2}
+</h2>
+<p>
+  {t.runIntro}
+</p>
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>Generate.scala
   </div>
-  <pre><code>{GuideCodes.ssgMainScala}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.ssgMainScala}
+    </code>
+  </pre>
 </div>
-
-<p>{t.runCmd}</p>
-
-<pre><code>{GuideCodes.ssgRunCmd}</code></pre>
-
-<h2>{t.outputH2}</h2>
-
-<pre><code>{GuideCodes.ssgOutputStructure}</code></pre>
-
+<p>
+  {t.runCmd}
+</p>
+<pre>
+  <code>
+    {GuideCodes.ssgRunCmd}
+  </code>
+</pre>
+<h2>
+  {t.outputH2}
+</h2>
+<pre>
+  <code>
+    {GuideCodes.ssgOutputStructure}
+  </code>
+</pre>
 {t.deployH2.map((h: String) => <h2>{h}</h2>)}
 {t.deployIntro.map((p: String) => <p>{p}</p>)}
-
 {t.deployLi1.map((li1: String) =>
   <ul>
     <li>{li1}</li>
@@ -47,21 +67,27 @@
     {t.deployLi4.map((li4: String) => <li>{li4}</li>)}
   </ul>
 )}
-
 {t.dynTitle.map((title: String) =>
   <div class="callout callout-tip">
     <div class="callout-title">{title}</div>
     <p>{t.dynText.getOrElse("")}</p>
   </div>
 )}
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/ssr"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "サーバーサイドレンダリング" else "SSR"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "サーバーサイドレンダリング" else "SSR"}
+    </span>
   </a>
   <a class="doc-nav-next" href={base + "/guide/adapters"}>
-    <span class="doc-nav-dir">{nav.next}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "アダプター" else "Adapters"}</span>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "アダプター" else "Adapters"}
+    </span>
   </a>
 </div>

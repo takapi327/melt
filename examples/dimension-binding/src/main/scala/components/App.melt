@@ -19,84 +19,105 @@
 
 <div class="demo">
   <header class="hero">
-    <h1>Element Dimension Binding</h1>
+    <h1>
+      Element Dimension Binding
+    </h1>
     <p class="subtitle">
-      Demonstrates <code>bind:clientWidth</code>, <code>bind:clientHeight</code>,
-      <code>bind:offsetWidth</code>, and <code>bind:offsetHeight</code>.
-      All values update live via <code>ResizeObserver</code>.
+      Demonstrates <code>bind:clientWidth</code>, <code>bind:clientHeight</code>, <code>bind:offsetWidth</code>, and <code>bind:offsetHeight</code>. All values update live via <code>ResizeObserver</code>.
     </p>
   </header>
-
   <div class="panels">
-
     <!-- ── Panel 1: Resizable box ─────────────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title">Resizable Box</h2>
+      <h2 class="panel-title">
+        Resizable Box
+      </h2>
       <p class="hint">
-        Drag the bottom-right corner of the box to resize it.
-        <code>clientWidth</code> / <code>clientHeight</code> exclude the border;
-        <code>offsetWidth</code> / <code>offsetHeight</code> include it.
+        Drag the bottom-right corner of the box to resize it. <code>clientWidth</code> / <code>clientHeight</code> exclude the border; <code>offsetWidth</code> / <code>offsetHeight</code> include it.
       </p>
-
-      <div
-        class="resizable-box"
-        bind:clientWidth={clientW}
-        bind:clientHeight={clientH}
-        bind:offsetWidth={offsetW}
-        bind:offsetHeight={offsetH}
-      >
-        <p class="box-label">{boxText}</p>
+      <div class="resizable-box" bind:clientWidth={clientW} bind:clientHeight={clientH} bind:offsetWidth={offsetW} bind:offsetHeight={offsetH}>
+        <p class="box-label">
+          {boxText}
+        </p>
       </div>
-
       <div class="metrics">
         <div class="metric-row">
-          <span class="metric-label">clientWidth</span>
-          <code class="metric-value">{clientW.map(v => s"${v.toInt} px")}</code>
-          <span class="metric-desc">content + padding</span>
+          <span class="metric-label">
+            clientWidth
+          </span>
+          <code class="metric-value">
+            {clientW.map(v => s"${v.toInt} px")}
+          </code>
+          <span class="metric-desc">
+            content + padding
+          </span>
         </div>
         <div class="metric-row">
-          <span class="metric-label">clientHeight</span>
-          <code class="metric-value">{clientH.map(v => s"${v.toInt} px")}</code>
-          <span class="metric-desc">content + padding</span>
+          <span class="metric-label">
+            clientHeight
+          </span>
+          <code class="metric-value">
+            {clientH.map(v => s"${v.toInt} px")}
+          </code>
+          <span class="metric-desc">
+            content + padding
+          </span>
         </div>
         <div class="metric-row">
-          <span class="metric-label">offsetWidth</span>
-          <code class="metric-value">{offsetW.map(v => s"${v.toInt} px")}</code>
-          <span class="metric-desc">+ border (4 px each side)</span>
+          <span class="metric-label">
+            offsetWidth
+          </span>
+          <code class="metric-value">
+            {offsetW.map(v => s"${v.toInt} px")}
+          </code>
+          <span class="metric-desc">
+            + border (4 px each side)
+          </span>
         </div>
         <div class="metric-row">
-          <span class="metric-label">offsetHeight</span>
-          <code class="metric-value">{offsetH.map(v => s"${v.toInt} px")}</code>
-          <span class="metric-desc">+ border (4 px each side)</span>
+          <span class="metric-label">
+            offsetHeight
+          </span>
+          <code class="metric-value">
+            {offsetH.map(v => s"${v.toInt} px")}
+          </code>
+          <span class="metric-desc">
+            + border (4 px each side)
+          </span>
         </div>
         <div class="metric-row diff-row">
-          <span class="metric-label">offset − client</span>
-          <code class="metric-value">{offsetW.map(v => s"${(v - clientW.value).toInt} px wide, ${(offsetH.value - clientH.value).toInt} px tall")}</code>
-          <span class="metric-desc">= 2 × border width (8 px)</span>
+          <span class="metric-label">
+            offset − client
+          </span>
+          <code class="metric-value">
+            {offsetW.map(v => s"${(v - clientW.value).toInt} px wide, ${(offsetH.value - clientH.value).toInt} px tall")}
+          </code>
+          <span class="metric-desc">
+            = 2 × border width (8 px)
+          </span>
         </div>
       </div>
-
       <div class="btn-row">
-        <button onclick={_ => boxText.set("Resize me by dragging the bottom-right corner!")}>Reset text</button>
-        <button onclick={_ => boxText.set("The dimensions update automatically via ResizeObserver.")}>Change text</button>
+        <button onclick={_ => boxText.set("Resize me by dragging the bottom-right corner!")}>
+          Reset text
+        </button>
+        <button onclick={_ => boxText.set("The dimensions update automatically via ResizeObserver.")}>
+          Change text
+        </button>
       </div>
     </section>
-
     <!-- ── Panel 2: Responsive container ─────────────────────────────────── -->
     <section class="panel">
-      <h2 class="panel-title">Responsive Layout</h2>
+      <h2 class="panel-title">
+        Responsive Layout
+      </h2>
       <p class="hint">
-        The inner layout switches between <strong>row</strong> and
-        <strong>column</strong> based on the container's <code>clientWidth</code>.
-        Resize the browser window to see it change.
+        The inner layout switches between <strong>row</strong> and <strong>column</strong> based on the container's <code>clientWidth</code>. Resize the browser window to see it change.
       </p>
-
       <div class="responsive-container" bind:clientWidth={containerW}>
         <p class="width-badge">
-          Container width: <strong>{containerW.map(v => s"${v.toInt} px")}</strong>
-          — {isNarrow.map(n => if n then "narrow (< 500 px) → column" else "wide (≥ 500 px) → row")}
+          Container width: <strong>{containerW.map(v => s"${v.toInt} px")}</strong> — {isNarrow.map(n => if n then "narrow (< 500 px) → column" else "wide (≥ 500 px) → row")}
         </p>
-
         {if isNarrow then
           <div class="card-group column">
             <div class="card">Card A</div>
@@ -111,7 +132,6 @@
           </div>}
       </div>
     </section>
-
   </div>
 </div>
 

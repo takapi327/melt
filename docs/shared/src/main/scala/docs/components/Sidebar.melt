@@ -21,52 +21,61 @@
 <aside class="sidebar">
   <nav class="sidebar-nav">
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{ss.intro}</div>
+      <div class="sidebar-group-label">
+        {ss.intro}
+      </div>
       {introItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>{t.guideLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{ss.basics}</div>
+      <div class="sidebar-group-label">
+        {ss.basics}
+      </div>
       {basicsItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>{t.guideLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{ss.advanced}</div>
+      <div class="sidebar-group-label">
+        {ss.advanced}
+      </div>
       {advancedItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>{t.guideLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{ss.server}</div>
+      <div class="sidebar-group-label">
+        {ss.server}
+      </div>
       {serverItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("guide", item)} href={base + "/guide/" + item}>{t.guideLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-divider"></div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{t.nav.api}</div>
+      <div class="sidebar-group-label">
+        {t.nav.api}
+      </div>
       {apiItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("api", item)} href={base + "/api/" + item}>{t.apiLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">{t.nav.examples}</div>
-      <a class="sidebar-link" class:active={props.section == "examples" && props.slug == ""} href={base + "/examples"}>All Examples</a>
+      <div class="sidebar-group-label">
+        {t.nav.examples}
+      </div>
+      <a class="sidebar-link" class:active={props.section == "examples" && props.slug == ""} href={base + "/examples"}>
+        All Examples
+      </a>
       {exampleItems.map((item: String) =>
         <a class="sidebar-link" class:active={isActive("examples", item)} href={base + "/examples/" + item}>{t.exampleLinks(item)}</a>
       )}
     </div>
-
     <div class="sidebar-group">
-      <a class="sidebar-link" class:active={props.section == "changelog"} href={base + "/changelog"}>{t.nav.changelog}</a>
+      <a class="sidebar-link" class:active={props.section == "changelog"} href={base + "/changelog"}>
+        {t.nav.changelog}
+      </a>
     </div>
   </nav>
 </aside>

@@ -9,13 +9,17 @@
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>
-<article class="doc-page">
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">{breadcrumb}</div>
-    <h1 class="doc-title">{pageTitle}</h1>
-  </div>
-  {children}
-</article>
+  <article class="doc-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        {breadcrumb}
+      </div>
+      <h1 class="doc-title">
+        {pageTitle}
+      </h1>
+    </div>
+    {children}
+  </article>
 </Layout>
 
 <style>

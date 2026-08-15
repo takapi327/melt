@@ -45,31 +45,16 @@
 
 <div class="demo">
   <header class="hero">
-    <h1>Media Element Binding</h1>
+    <h1>
+      Media Element Binding
+    </h1>
     <p class="subtitle">
-      Demonstrates <code>bind:currentTime</code>, <code>bind:paused</code>,
-      <code>bind:volume</code>, <code>bind:muted</code>, <code>bind:playbackRate</code>,
-      and read-only bindings like <code>bind:duration</code>, <code>bind:seeking</code>,
-      <code>bind:ended</code>, <code>bind:readyState</code>.
+      Demonstrates <code>bind:currentTime</code>, <code>bind:paused</code>, <code>bind:volume</code>, <code>bind:muted</code>, <code>bind:playbackRate</code>, and read-only bindings like <code>bind:duration</code>, <code>bind:seeking</code>, <code>bind:ended</code>, <code>bind:readyState</code>.
     </p>
   </header>
-
   <!-- ── Video player ──────────────────────────────────────────────────────── -->
   <div class="player-wrapper">
-    <video
-      class="player-video"
-      src="https://www.w3schools.com/html/mov_bbb.mp4"
-      bind:currentTime={currentTime}
-      bind:duration={duration}
-      bind:paused={paused}
-      bind:volume={volume}
-      bind:muted={muted}
-      bind:playbackRate={playbackRate}
-      bind:seeking={seeking}
-      bind:ended={ended}
-      bind:readyState={readyState}
-    ></video>
-
+    <video class="player-video" src="https://www.w3schools.com/html/mov_bbb.mp4" bind:currentTime={currentTime} bind:duration={duration} bind:paused={paused} bind:volume={volume} bind:muted={muted} bind:playbackRate={playbackRate} bind:seeking={seeking} bind:ended={ended} bind:readyState={readyState}></video>
     <!-- Progress bar: clicking seeks via currentTime State -->
     <div class="progress-bar" bind:this={progressRef} onclick={e => {
       val me = e.asInstanceOf[org.scalajs.dom.MouseEvent]
@@ -81,32 +66,24 @@
     }}>
       <div class="progress-fill" style={s"width: ${progressPct.value}%"}></div>
     </div>
-
     <!-- Controls -->
     <div class="controls">
       <button class="play-btn" onclick={_ => paused.update(!_)}>
         {paused.map(p => if p then "▶ Play" else "⏸ Pause")}
       </button>
-
-      <span class="time-label">{currentTimeLabel} / {durationLabel}</span>
-
+      <span class="time-label">
+        {currentTimeLabel} / {durationLabel}
+      </span>
       <button onclick={_ => muted.update(!_)}>
         {muted.map(m => if m then "🔇 Unmute" else "🔊 Mute")}
       </button>
-
-      <input
-        class="volume-slider"
-        type="range"
-        bind:value-double={volume}
-        min="0"
-        max="1"
-        step="0.05"
-      />
+      <input class="volume-slider" type="range" bind:value-double={volume} min="0" max="1" step="0.05" />
     </div>
-
     <!-- Playback rate -->
     <div class="rate-row">
-      <span class="rate-label">Speed:</span>
+      <span class="rate-label">
+        Speed:
+      </span>
       {List(0.5, 1.0, 1.5, 2.0).map(r =>
         <button
           class={rateClass(r)}
@@ -115,55 +92,110 @@
       )}
     </div>
   </div>
-
   <!-- ── State panel ───────────────────────────────────────────────────────── -->
   <section class="state-panel">
-    <h2 class="panel-title">Live Binding Values</h2>
+    <h2 class="panel-title">
+      Live Binding Values
+    </h2>
     <div class="metrics">
       <div class="metric-row">
-        <span class="metric-label">currentTime</span>
-        <code class="metric-value">{currentTimeLabel}</code>
-        <span class="metric-desc">bind:currentTime (two-way)</span>
+        <span class="metric-label">
+          currentTime
+        </span>
+        <code class="metric-value">
+          {currentTimeLabel}
+        </code>
+        <span class="metric-desc">
+          bind:currentTime (two-way)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">duration</span>
-        <code class="metric-value">{durationLabel}</code>
-        <span class="metric-desc">bind:duration (read-only)</span>
+        <span class="metric-label">
+          duration
+        </span>
+        <code class="metric-value">
+          {durationLabel}
+        </code>
+        <span class="metric-desc">
+          bind:duration (read-only)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">paused</span>
-        <code class="metric-value">{paused.map(_.toString)}</code>
-        <span class="metric-desc">bind:paused (two-way)</span>
+        <span class="metric-label">
+          paused
+        </span>
+        <code class="metric-value">
+          {paused.map(_.toString)}
+        </code>
+        <span class="metric-desc">
+          bind:paused (two-way)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">volume</span>
-        <code class="metric-value">{volume.map(v => f"$v%.2f")}</code>
-        <span class="metric-desc">bind:volume (two-way)</span>
+        <span class="metric-label">
+          volume
+        </span>
+        <code class="metric-value">
+          {volume.map(v => f"$v%.2f")}
+        </code>
+        <span class="metric-desc">
+          bind:volume (two-way)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">muted</span>
-        <code class="metric-value">{muted.map(_.toString)}</code>
-        <span class="metric-desc">bind:muted (two-way)</span>
+        <span class="metric-label">
+          muted
+        </span>
+        <code class="metric-value">
+          {muted.map(_.toString)}
+        </code>
+        <span class="metric-desc">
+          bind:muted (two-way)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">playbackRate</span>
-        <code class="metric-value">{playbackRate.map(r => s"${r}x")}</code>
-        <span class="metric-desc">bind:playbackRate (two-way)</span>
+        <span class="metric-label">
+          playbackRate
+        </span>
+        <code class="metric-value">
+          {playbackRate.map(r => s"${r}x")}
+        </code>
+        <span class="metric-desc">
+          bind:playbackRate (two-way)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">seeking</span>
-        <code class="metric-value">{seeking.map(_.toString)}</code>
-        <span class="metric-desc">bind:seeking (read-only)</span>
+        <span class="metric-label">
+          seeking
+        </span>
+        <code class="metric-value">
+          {seeking.map(_.toString)}
+        </code>
+        <span class="metric-desc">
+          bind:seeking (read-only)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">ended</span>
-        <code class="metric-value">{ended.map(_.toString)}</code>
-        <span class="metric-desc">bind:ended (read-only)</span>
+        <span class="metric-label">
+          ended
+        </span>
+        <code class="metric-value">
+          {ended.map(_.toString)}
+        </code>
+        <span class="metric-desc">
+          bind:ended (read-only)
+        </span>
       </div>
       <div class="metric-row">
-        <span class="metric-label">readyState</span>
-        <code class="metric-value">{readyStateLabel}</code>
-        <span class="metric-desc">bind:readyState (read-only)</span>
+        <span class="metric-label">
+          readyState
+        </span>
+        <code class="metric-value">
+          {readyStateLabel}
+        </code>
+        <span class="metric-desc">
+          bind:readyState (read-only)
+        </span>
       </div>
     </div>
   </section>

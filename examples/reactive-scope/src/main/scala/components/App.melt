@@ -101,62 +101,108 @@
 </script>
 
 <div class="app">
-  <h1>ReactiveScope</h1>
-  <p class="subtitle">Scala-idiomatic resource management — define acquire and release explicitly as a pair</p>
-
+  <h1>
+    ReactiveScope
+  </h1>
+  <p class="subtitle">
+    Scala-idiomatic resource management — define acquire and release explicitly as a pair
+  </p>
   <!-- Panel 1: make -->
   <section class="panel">
-    <h2>1. <code>ReactiveScope.make</code></h2>
-    <p class="desc">The value returned by acquire (interval ID) is passed to release (clearInterval).</p>
+    <h2>
+      1. <code>ReactiveScope.make</code>
+    </h2>
+    <p class="desc">
+      The value returned by acquire (interval ID) is passed to release (clearInterval).
+    </p>
     <div class="controls">
-      <button onclick={_ => start1()} disabled={running1}>Start</button>
-      <button onclick={_ => stop1()}  disabled={running1.map(!_)}>Stop</button>
+      <button onclick={_ => start1()} disabled={running1}>
+        Start
+      </button>
+      <button onclick={_ => stop1()} disabled={running1.map(!_)}>
+        Stop
+      </button>
     </div>
     <div class="display">
-      <span class="badge" class:active={running1}>{running1.map(r => if r then "running" else "stopped")}</span>
-      <span class="count">{ticker1} s</span>
+      <span class="badge" class:active={running1}>
+        {running1.map(r => if r then "running" else "stopped")}
+      </span>
+      <span class="count">
+        {ticker1} s
+      </span>
     </div>
   </section>
-
   <!-- Panel 2: resource -->
   <section class="panel">
-    <h2>2. <code>ReactiveScope.resource</code></h2>
-    <p class="desc">acquire and release are independent side effects (window keydown listener).</p>
+    <h2>
+      2. <code>ReactiveScope.resource</code>
+    </h2>
+    <p class="desc">
+      acquire and release are independent side effects (window keydown listener).
+    </p>
     <div class="controls">
-      <button onclick={_ => start2()} disabled={running2}>Start</button>
-      <button onclick={_ => stop2()}  disabled={running2.map(!_)}>Stop</button>
+      <button onclick={_ => start2()} disabled={running2}>
+        Start
+      </button>
+      <button onclick={_ => stop2()} disabled={running2.map(!_)}>
+        Stop
+      </button>
     </div>
     <div class="display">
-      <span class="badge" class:active={running2}>{running2.map(r => if r then "listening" else "stopped")}</span>
-      <span class="key-display">Last key: <strong>{lastKey}</strong></span>
+      <span class="badge" class:active={running2}>
+        {running2.map(r => if r then "listening" else "stopped")}
+      </span>
+      <span class="key-display">
+        Last key: <strong>{lastKey}</strong>
+      </span>
     </div>
-    <p class="hint">Press any key after clicking Start.</p>
+    <p class="hint">
+      Press any key after clicking Start.
+    </p>
   </section>
-
   <!-- Panel 3: for composition -->
   <section class="panel">
-    <h2>3. Composition via <code>for</code>-comprehension</h2>
-    <p class="desc">Timer + key log + effect combined into one scope; cancel() releases all in LIFO order.</p>
+    <h2>
+      3. Composition via <code>for</code>-comprehension
+    </h2>
+    <p class="desc">
+      Timer + key log + effect combined into one scope; cancel() releases all in LIFO order.
+    </p>
     <div class="controls">
-      <button onclick={_ => start3()} disabled={running3}>Start</button>
-      <button onclick={_ => stop3()}  disabled={running3.map(!_)}>Stop</button>
+      <button onclick={_ => start3()} disabled={running3}>
+        Start
+      </button>
+      <button onclick={_ => stop3()} disabled={running3.map(!_)}>
+        Stop
+      </button>
     </div>
     <div class="display">
-      <span class="badge" class:active={running3}>{running3.map(r => if r then "running" else "stopped")}</span>
-      <span class="count">{ticker3} s</span>
+      <span class="badge" class:active={running3}>
+        {running3.map(r => if r then "running" else "stopped")}
+      </span>
+      <span class="count">
+        {ticker3} s
+      </span>
     </div>
     <ul class="key-log">
       {keyLog.map(entry => <li>{entry}</li>)}
     </ul>
   </section>
-
   <!-- Panel 4: onMount -->
   <section class="panel">
-    <h2>4. <code>onMount</code> integration</h2>
-    <p class="desc">Starts automatically on mount and releases automatically on unmount.</p>
+    <h2>
+      4. <code>onMount</code> integration
+    </h2>
+    <p class="desc">
+      Starts automatically on mount and releases automatically on unmount.
+    </p>
     <div class="display">
-      <span class="badge active">auto</span>
-      <span class="count">{elapsed} s elapsed</span>
+      <span class="badge active">
+        auto
+      </span>
+      <span class="count">
+        {elapsed} s elapsed
+      </span>
     </div>
   </section>
 </div>

@@ -13,8 +13,9 @@
 </script>
 
 <main class="login">
-  <h1>Sign in</h1>
-
+  <h1>
+    Sign in
+  </h1>
   <!-- `use:form` auto-binds each plain `name` input below to the matching field of
        `form`: the compiler type-checks the name (a typo like `name="emial"` is a
        compile error) and seeds the value/checked state on the server, so a
@@ -24,31 +25,22 @@
        native POST to an in-place fetch (see PostEditorPage for the selector style). -->
   <form method="post" use:form use:enhance={form}>
     <label>
-      Email
-      <!-- auto-bound: name="email" → form.email (value seeded for SSR) -->
-      <input name="email" type="email"/>
+      Email <!-- auto-bound: name="email" → form.email (value seeded for SSR) --><input name="email" type="email" />
     </label>
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
          reactive source (Bind.show), so the error re-renders when the enhance
          result updates form.data — without a page reload. -->
     {if form.data.value.errors.nonEmpty then <p class="error">{form.data.value.errors.head}</p> else <span></span>}
-
     <label>
-      Password
-      <input name="password" type="password"/>
+      Password <input name="password" type="password" />
     </label>
-
     <label class="checkbox">
-      <!-- auto-bound checkbox: name="remember" → the Boolean field remember -->
-      <input name="remember" type="checkbox"/>
-      Remember me
+      <!-- auto-bound checkbox: name="remember" → the Boolean field remember --><input name="remember" type="checkbox" /> Remember me
     </label>
-
     <button type="submit" disabled={form.submitting}>
       {form.submitting.map(busy => if busy then "Signing in…" else "Sign in")}
     </button>
   </form>
-
   <p class="hint">
     Or try the <a href="/posts">post editor</a> (named-actions demo) →
   </p>

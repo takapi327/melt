@@ -30,180 +30,168 @@
 </script>
 
 <div class="demo">
-
   <header class="hero">
-    <h1>melt:element Demo</h1>
+    <h1>
+      melt:element Demo
+    </h1>
     <p class="subtitle">
-      Demonstrating <code>&lt;melt:element this=&#123;tag&#125;&gt;</code>
-      — dynamic HTML tag names with Scala type safety
+      Demonstrating <code>&lt;melt:element this=&lbrace;tag&rbrace;></code> — dynamic HTML tag names with Scala type safety
     </p>
   </header>
-
   <div class="panels">
-
     <!-- ── Panel 1: Reactive tag via State[HtmlTag] ─────────────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">Signal[HtmlTag]</span> Reactive Tag
       </h2>
       <p class="hint">
-        The heading level changes reactively.
-        <code>HtmlTag.trusted</code> converts the level number to a
-        compile-time-safe <code>HtmlTag</code>.
+        The heading level changes reactively. <code>HtmlTag.trusted</code> converts the level number to a compile-time-safe <code>HtmlTag</code>.
       </p>
-
       <div class="preview heading-preview">
         <melt:element this={headingTag} class="heading-el">
           Heading at level {level}
         </melt:element>
       </div>
-
       <div class="btn-row">
-        <button onclick={_ => if level > 1 then level.update(_ - 1)}>↑ Shallower</button>
-        <code class="level-badge">h{level}</code>
-        <button onclick={_ => if level < 6 then level.update(_ + 1)}>↓ Deeper</button>
+        <button onclick={_ => if level > 1 then level.update(_ - 1)}>
+          ↑ Shallower
+        </button>
+        <code class="level-badge">
+          h{level}
+        </code>
+        <button onclick={_ => if level < 6 then level.update(_ + 1)}>
+          ↓ Deeper
+        </button>
       </div>
-
       <p class="code-note hint">
-        <code>val tag: Signal[HtmlTag] = level.map(n => HtmlTag.trusted(s"h$n"))</code>
+        <code>
+          val tag: Signal[HtmlTag] = level.map(n => HtmlTag.trusted(s"h$n"))
+        </code>
       </p>
     </section>
-
     <!-- ── Panel 2: Optional element — show / hide ────────────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">Option[HtmlTag]</span> Show / Hide
       </h2>
       <p class="hint">
-        When the value is <code>None</code>, nothing is rendered (not even a
-        placeholder). When <code>Some(tag)</code>, the element appears in the
-        DOM.
+        When the value is <code>None</code>, nothing is rendered (not even a placeholder). When <code>Some(tag)</code>, the element appears in the DOM.
       </p>
-
       <div class="preview">
         <melt:element this={wrapperTag} class="optional-box">
-          This content is inside a <code>&lt;section&gt;</code> element.
+          This content is inside a <code>&lt;section></code> element.
         </melt:element>
       </div>
-
       <div class="btn-row">
         <button onclick={_ =>
           if wrapperTag.value.isDefined then wrapperTag.set(None)
-          else wrapperTag.set(Some[HtmlTag]("section"))
-        }>
+          else wrapperTag.set(Some[HtmlTag]("section"))}>
           {wrapperTag.map(opt => if opt.isDefined then "Hide (→ None)" else "Show (→ Some(\"section\"))")}
         </button>
       </div>
-
       <p class="status">
         Current: <code>{wrapperTag.map(opt => opt.fold("None")(t => s"""Some("$t")"""))}</code>
       </p>
     </section>
-
     <!-- ── Panel 3: External string via HtmlTag.fromString ────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">HtmlTag.fromString</span> External Source
       </h2>
       <p class="hint">
-        Simulates a CMS-supplied tag name.
-        <code>HtmlTag.fromString</code> returns <code>Some(tag)</code> for
-        valid HTML5 names and <code>None</code> for unknown names — rendering
-        nothing in that case.
+        Simulates a CMS-supplied tag name. <code>HtmlTag.fromString</code> returns <code>Some(tag)</code> for valid HTML5 names and <code>None</code> for unknown names — rendering nothing in that case.
       </p>
-
       <div class="input-row">
-        <label>Tag name:</label>
+        <label>
+          Tag name:
+        </label>
         <input type="text" bind:value={cmsInput} placeholder="e.g. div, article, hoge…" />
       </div>
-
       <div class="preview">
         <melt:element this={cmsTag} class="cms-block">
-          Content rendered inside <code>&lt;{cmsInput}&gt;</code>
+          Content rendered inside <code>&lt;{cmsInput}></code>
         </melt:element>
       </div>
-
       <p class="status">
         <span class:valid={cmsTag.map(_.isDefined)} class:invalid={cmsTag.map(_.isEmpty)}>
           {cmsStatus}
         </span>
       </p>
-
       <p class="code-note hint">
-        <code>val tag: Signal[Option[HtmlTag]] = cmsInput.map(HtmlTag.fromString)</code>
+        <code>
+          val tag: Signal[Option[HtmlTag]] = cmsInput.map(HtmlTag.fromString)
+        </code>
       </p>
     </section>
-
     <!-- ── Panel 4: transition:fade ───────────────────────────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">transition:fade</span> Transition
       </h2>
       <p class="hint">
-        <code>transition:</code>, <code>in:</code>, and <code>out:</code>
-        directives work on <code>&lt;melt:element&gt;</code> just like on
-        static elements. The element fades in when it appears and fades out
-        when it is removed.
+        <code>transition:</code>, <code>in:</code>, and <code>out:</code> directives work on <code>&lt;melt:element></code> just like on static elements. The element fades in when it appears and fades out when it is removed.
       </p>
-
       <div class="preview">
         <melt:element this={fadeTag} class="fade-box" transition:fade>
           Rendered as {fadeTag.map(_.map(t => s"<$t>").getOrElse("(none)"))}
         </melt:element>
       </div>
-
       <div class="btn-row">
-        <button onclick={_ => fadeTag.set(Some[HtmlTag]("div"))}>div</button>
-        <button onclick={_ => fadeTag.set(Some[HtmlTag]("p"))}>p</button>
-        <button onclick={_ => fadeTag.set(Some[HtmlTag]("section"))}>section</button>
-        <button onclick={_ => fadeTag.set(None)}>None</button>
+        <button onclick={_ => fadeTag.set(Some[HtmlTag]("div"))}>
+          div
+        </button>
+        <button onclick={_ => fadeTag.set(Some[HtmlTag]("p"))}>
+          p
+        </button>
+        <button onclick={_ => fadeTag.set(Some[HtmlTag]("section"))}>
+          section
+        </button>
+        <button onclick={_ => fadeTag.set(None)}>
+          None
+        </button>
       </div>
-
       <p class="code-note hint">
-        <code>&lt;melt:element this=&#123;tag&#125; transition:fade&gt;</code>
+        <code>
+          &lt;melt:element this=&lbrace;tag&rbrace; transition:fade>
+        </code>
       </p>
     </section>
-
     <!-- ── Panel 5: SVG namespace ──────────────────────────────────────────── -->
     <section class="panel">
       <h2 class="panel-title">
         <span class="tag">SvgTag</span> SVG Namespace
       </h2>
       <p class="hint">
-        <code>SvgTag</code> selects the SVG overload of
-        <code>Bind.dynamicElement</code>, which calls
-        <code>createElementNS("…/svg", name)</code> to produce a real SVG node.
+        <code>SvgTag</code> selects the SVG overload of <code>Bind.dynamicElement</code>, which calls <code>createElementNS("…/svg", name)</code> to produce a real SVG node.
       </p>
-
       <div class="preview svg-preview">
         <svg viewBox="0 0 100 100" width="120" height="120">
-          <melt:element this={svgShape}
-            cx="50" cy="50" r="45"
-            x="5" y="5" width="90" height="90"
-            points="50,5 95,95 5,95"
-            fill={svgFill}>
-          </melt:element>
+          <melt:element this={svgShape} cx="50" cy="50" r="45" x="5" y="5" width="90" height="90" points="50,5 95,95 5,95" fill={svgFill}></melt:element>
         </svg>
       </div>
-
       <div class="btn-row">
-        <button onclick={_ => svgShape.set("circle")}>circle</button>
-        <button onclick={_ => svgShape.set("rect")}>rect</button>
-        <button onclick={_ => svgShape.set("polygon")}>polygon</button>
+        <button onclick={_ => svgShape.set("circle")}>
+          circle
+        </button>
+        <button onclick={_ => svgShape.set("rect")}>
+          rect
+        </button>
+        <button onclick={_ => svgShape.set("polygon")}>
+          polygon
+        </button>
       </div>
-
       <div class="btn-row">
         <button class="color-btn" onclick={_ => svgFill.set("#ff3e00")} style="background:#ff3e00"></button>
         <button class="color-btn" onclick={_ => svgFill.set("#3b82f6")} style="background:#3b82f6"></button>
         <button class="color-btn" onclick={_ => svgFill.set("#22c55e")} style="background:#22c55e"></button>
         <button class="color-btn" onclick={_ => svgFill.set("#f59e0b")} style="background:#f59e0b"></button>
       </div>
-
       <p class="code-note hint">
-        <code>val shape: State[SvgTag] = State("circle")</code>
+        <code>
+          val shape: State[SvgTag] = State("circle")
+        </code>
       </p>
     </section>
-
   </div>
 </div>
 

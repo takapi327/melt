@@ -14,70 +14,128 @@
 </script>
 
 <div class="app">
-  <h1>select / textarea <code>bind:value</code></h1>
-
+  <h1>
+    select / textarea <code>bind:value</code>
+  </h1>
   <!-- ── textarea ──────────────────────────────────────────────── -->
   <section>
-    <h2>textarea</h2>
+    <h2>
+      textarea
+    </h2>
     <textarea bind:value={message} rows="4" placeholder="Type something…"></textarea>
-    <p class="preview">State value: <strong>{message}</strong></p>
+    <p class="preview">
+      State value: <strong>{message}</strong>
+    </p>
   </section>
-
   <!-- ── select (single) ───────────────────────────────────────── -->
   <section>
-    <h2>select (single)</h2>
+    <h2>
+      select (single)
+    </h2>
     <select bind:value={language}>
-      <option value="scala">Scala</option>
-      <option value="java">Java</option>
-      <option value="kotlin">Kotlin</option>
-      <option value="typescript">TypeScript</option>
+      <option value="scala">
+        Scala
+      </option>
+      <option value="java">
+        Java
+      </option>
+      <option value="kotlin">
+        Kotlin
+      </option>
+      <option value="typescript">
+        TypeScript
+      </option>
     </select>
-    <p class="preview">State value: <strong>{language}</strong></p>
+    <p class="preview">
+      State value: <strong>{language}</strong>
+    </p>
     <div class="buttons">
-      <button onclick={_ => language.set("kotlin")}>Select Kotlin</button>
-      <button onclick={_ => language.set("typescript")}>Select TypeScript</button>
+      <button onclick={_ => language.set("kotlin")}>
+        Select Kotlin
+      </button>
+      <button onclick={_ => language.set("typescript")}>
+        Select TypeScript
+      </button>
     </div>
   </section>
-
   <!-- ── select multiple ───────────────────────────────────────── -->
   <section>
-    <h2>select multiple</h2>
-    <p class="hint">Hold Ctrl / Cmd to select multiple options.</p>
+    <h2>
+      select multiple
+    </h2>
+    <p class="hint">
+      Hold Ctrl / Cmd to select multiple options.
+    </p>
     <select multiple bind:value={features} size="5">
-      <option value="reactive">Reactive</option>
-      <option value="typesafe">Type-safe</option>
-      <option value="ssr">SSR</option>
-      <option value="transitions">Transitions</option>
-      <option value="spa">SPA</option>
+      <option value="reactive">
+        Reactive
+      </option>
+      <option value="typesafe">
+        Type-safe
+      </option>
+      <option value="ssr">
+        SSR
+      </option>
+      <option value="transitions">
+        Transitions
+      </option>
+      <option value="spa">
+        SPA
+      </option>
     </select>
-    <p class="preview">State value: <strong>{features.map(_.mkString(", "))}</strong></p>
+    <p class="preview">
+      State value: <strong>{features.map(_.mkString(", "))}</strong>
+    </p>
     <div class="buttons">
-      <button onclick={_ => features.set(List("ssr", "spa"))}>Set SSR + SPA</button>
-      <button onclick={_ => features.set(Nil)}>Clear all</button>
+      <button onclick={_ => features.set(List("ssr", "spa"))}>
+        Set SSR + SPA
+      </button>
+      <button onclick={_ => features.set(Nil)}>
+        Clear all
+      </button>
     </div>
   </section>
-
   <!-- ── form reset ────────────────────────────────────────────── -->
   <section>
-    <h2>form reset</h2>
-    <p class="hint">Click Reset to restore DOM defaults; State values sync automatically.</p>
+    <h2>
+      form reset
+    </h2>
+    <p class="hint">
+      Click Reset to restore DOM defaults; State values sync automatically.
+    </p>
     <form>
       <div class="field">
-        <label>Note</label>
+        <label>
+          Note
+        </label>
         <textarea bind:value={resetNote} rows="2" placeholder="Type a note…"></textarea>
       </div>
       <div class="field">
-        <label>Language</label>
+        <label>
+          Language
+        </label>
         <select bind:value={resetLang}>
-          <option value="scala">Scala</option>
-          <option value="java">Java</option>
-          <option value="kotlin">Kotlin</option>
+          <option value="scala">
+            Scala
+          </option>
+          <option value="java">
+            Java
+          </option>
+          <option value="kotlin">
+            Kotlin
+          </option>
         </select>
       </div>
-      <button type="reset">Reset form</button>
+      <button type="reset">
+        Reset form
+      </button>
     </form>
-    <p class="preview">note State: <strong>{resetNote}</strong></p>
-    <p class="preview">language State: <strong>{resetLang}</strong></p>
+    <p class="preview">
+      note State: <strong>{resetNote}</strong>
+    </p>
+    <p class="preview">
+      language State: <strong>{resetLang}</strong>
+    </p>
   </section>
 </div>
 

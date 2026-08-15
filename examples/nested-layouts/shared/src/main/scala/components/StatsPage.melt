@@ -1,6 +1,14 @@
-<h1>Dashboard Stats</h1>
-<p>This page is composed as <code>AppShell → DashboardLayout → StatsPage</code> during SSR.</p>
+<h1>
+  Dashboard Stats
+</h1>
+<p>
+  This page is composed as <code>AppShell → DashboardLayout → StatsPage</code> during SSR.
+</p>
 <ul>
-  <li>Visitors: 1,240</li>
-  <li>Signups: 87</li>
+  <li>
+    Visitors: 1,240
+  </li>
+  <li>
+    Signups: 87
+  </li>
 </ul>

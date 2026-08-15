@@ -32,52 +32,49 @@
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="playground" slug="">
-<div class="playground">
-
-  <div class="playground-header">
-    <h1 class="playground-title">{t.nav.playground}</h1>
-    <div class="sample-picker">
-      {CodeSamples.samples.map((s: CodeSamples.Sample) =>
+  <div class="playground">
+    <div class="playground-header">
+      <h1 class="playground-title">
+        {t.nav.playground}
+      </h1>
+      <div class="sample-picker">
+        {CodeSamples.samples.map((s: CodeSamples.Sample) =>
         <button class="sample-btn" onclick={_ => source.set(s.code)}>{s.label}</button>
       )}
-    </div>
-    <div class="mode-tabs">
-      <button class:active={isSpa} onclick={_ => modeStr.set("spa")}>SPA</button>
-      <button class:active={isSsr} onclick={_ => modeStr.set("ssr")}>SSR</button>
-    </div>
-  </div>
-
-  <div class="playground-split">
-    <div class="panel editor-panel">
-      <div class="panel-label">
-        <span class="panel-label-dot"></span>Input (.melt)
       </div>
-      <textarea
-        class="editor"
-        bind:value={source}
-        spellcheck="false"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-      ></textarea>
-    </div>
-
-    <div class="panel output-panel">
-      <div class="panel-label">
-        <span class="panel-label-dot output-dot"></span>Generated Scala
-        <span class:error-badge={hasError}>{errorLabel}</span>
+      <div class="mode-tabs">
+        <button class:active={isSpa} onclick={_ => modeStr.set("spa")}>
+          SPA
+        </button>
+        <button class:active={isSsr} onclick={_ => modeStr.set("ssr")}>
+          SSR
+        </button>
       </div>
-      <pre class:has-error={hasError}><code>{outputText}</code></pre>
     </div>
-  </div>
-
-  <div class="warnings-bar" class:visible={hasWarnings}>
-    {warnings.value.map((w: melt.CompileWarning) =>
+    <div class="playground-split">
+      <div class="panel editor-panel">
+        <div class="panel-label">
+          <span class="panel-label-dot"></span>Input (.melt)
+        </div>
+        <textarea class="editor" bind:value={source} spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="panel output-panel">
+        <div class="panel-label">
+          <span class="panel-label-dot output-dot"></span>Generated Scala <span class:error-badge={hasError}>{errorLabel}</span>
+        </div>
+        <pre class:has-error={hasError}>
+          <code>
+            {outputText}
+          </code>
+        </pre>
+      </div>
+    </div>
+    <div class="warnings-bar" class:visible={hasWarnings}>
+      {warnings.value.map((w: melt.CompileWarning) =>
       <div class="warning-item">⚠ line {w.line.toString}: {w.message}</div>
     )}
+    </div>
   </div>
-
-</div>
 </Layout>
 
 <style>

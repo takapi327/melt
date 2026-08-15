@@ -8,8 +8,12 @@
   <h1>
     {if props.action == "published" then "Post published!" else "Draft saved"}
   </h1>
-  <p>Reached via 303 Post/Redirect/Get after the <code>{ props.action }</code> action.</p>
-  <a href="/posts">Write another</a>
+  <p>
+    Reached via 303 Post/Redirect/Get after the <code>{props.action}</code> action.
+  </p>
+  <a href="/posts">
+    Write another
+  </a>
 </main>
 
 <style>

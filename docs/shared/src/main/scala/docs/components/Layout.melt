@@ -16,22 +16,38 @@
         <path d="M1 1 L1 12 Q1 19 8 19 Q15 19 15 12 L15 1 L11.5 1 L11.5 12 Q11.5 15.5 8 15.5 Q4.5 15.5 4.5 12 L4.5 1 Z" fill="rgba(255,255,255,0.92)"></path>
       </svg>
     </div>
-    <span class="brand-name">Melt</span>
-    <span class="brand-version">v0.1.0</span>
+    <span class="brand-name">
+      Melt
+    </span>
+    <span class="brand-version">
+      v0.1.0
+    </span>
   </a>
-
   <nav class="topnav-links">
-    <a href={base + "/guide/introduction"} class:active={props.section == "guide"}>{t.nav.guide}</a>
-    <a href={base + "/api/template-syntax"} class:active={props.section == "api"}>{t.nav.api}</a>
-    <a href={base + "/examples"} class:active={props.section == "examples"}>{t.nav.examples}</a>
-    <a href={base + "/playground"} class:active={props.section == "playground"}>{t.nav.playground}</a>
-    <a href={base + "/changelog"} class:active={props.section == "changelog"}>{t.nav.changelog}</a>
+    <a href={base + "/guide/introduction"} class:active={props.section == "guide"}>
+      {t.nav.guide}
+    </a>
+    <a href={base + "/api/template-syntax"} class:active={props.section == "api"}>
+      {t.nav.api}
+    </a>
+    <a href={base + "/examples"} class:active={props.section == "examples"}>
+      {t.nav.examples}
+    </a>
+    <a href={base + "/playground"} class:active={props.section == "playground"}>
+      {t.nav.playground}
+    </a>
+    <a href={base + "/changelog"} class:active={props.section == "changelog"}>
+      {t.nav.changelog}
+    </a>
   </nav>
-
   <div class="topnav-end">
     <div class="lang-toggle">
-      <a href={props.basePath + "/en"} class:active={props.lang == "en"}>EN</a>
-      <a href={props.basePath + "/ja"} class:active={props.lang == "ja"}>JA</a>
+      <a href={props.basePath + "/en"} class:active={props.lang == "en"}>
+        EN
+      </a>
+      <a href={props.basePath + "/ja"} class:active={props.lang == "ja"}>
+        JA
+      </a>
     </div>
     <a class="icon-btn" href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -47,9 +63,7 @@
     </button>
   </div>
 </header>
-
 <div class="sidebar-overlay" class:open={menuOpen} onclick={_ => menuOpen.set(false)} role="presentation" tabindex="-1"></div>
-
 <div class="page-shell">
   <div class="sidebar-wrapper" class:open={menuOpen}>
     <button class="sidebar-close" onclick={_ => menuOpen.set(false)} aria-label="Close menu">
@@ -58,16 +72,23 @@
         <line x1="13" y1="1" x2="1" y2="13"></line>
       </svg>
     </button>
-    <Sidebar basePath={props.basePath} lang={props.lang} section={props.section} slug={props.slug}/>
+    <Sidebar basePath={props.basePath} lang={props.lang} section={props.section} slug={props.slug}></Sidebar>
   </div>
-  <main class="content" role="main" tabindex="-1" onclick={_ => if menuOpen.value then menuOpen.set(false)}>{children}</main>
+  <main class="content" role="main" tabindex="-1" onclick={_ => if menuOpen.value then menuOpen.set(false)}>
+    {children}
+  </main>
 </div>
-
 <footer class="footer">
-  <span class="footer-copy">© 2026 Melt · Apache 2.0</span>
+  <span class="footer-copy">
+    © 2026 Melt · Apache 2.0
+  </span>
   <div class="footer-links">
-    <a href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer">GitHub</a>
-    <a href={base + "/changelog"}>Changelog</a>
+    <a href="https://github.com/takapi327/melt" target="_blank" rel="noopener noreferrer">
+      GitHub
+    </a>
+    <a href={base + "/changelog"}>
+      Changelog
+    </a>
   </div>
 </footer>
 

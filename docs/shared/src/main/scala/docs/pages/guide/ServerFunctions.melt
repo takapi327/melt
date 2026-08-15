@@ -9,84 +9,149 @@
   val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.whatH2}</h2>
-<p>{t.whatProblem}</p>
-<p>{t.whatModel}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.whatH2}
+</h2>
+<p>
+  {t.whatProblem}
+</p>
+<p>
+  {t.whatModel}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsWhy}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsWhy}
+    </code>
+  </pre>
 </div>
-
-<p>{t.whatServerOnly}</p>
-<p>{t.whatKinds}</p>
-
-<h2>{t.contractH2}</h2>
-<p>{t.contractIntro}</p>
-
+<p>
+  {t.whatServerOnly}
+</p>
+<p>
+  {t.whatKinds}
+</p>
+<h2>
+  {t.contractH2}
+</h2>
+<p>
+  {t.contractIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsContract}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsContract}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.queryH2}</h2>
-<p>{t.queryIntro}</p>
-
+<h2>
+  {t.queryH2}
+</h2>
+<p>
+  {t.queryIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsServe}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsServe}
+    </code>
+  </pre>
 </div>
-
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>PostsPage.melt
   </div>
-  <pre><code>{GuideCodes.serverFunctionsClient}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsClient}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.commandH2}</h2>
-<p>{t.commandIntro}</p>
-
-<h2>{t.singleFlightH2}</h2>
-<p>{t.singleFlightIntro}</p>
-
-<h2>{t.optimisticH2}</h2>
-<p>{t.optimisticIntro}</p>
-
+<h2>
+  {t.commandH2}
+</h2>
+<p>
+  {t.commandIntro}
+</p>
+<h2>
+  {t.singleFlightH2}
+</h2>
+<p>
+  {t.singleFlightIntro}
+</p>
+<h2>
+  {t.optimisticH2}
+</h2>
+<p>
+  {t.optimisticIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsSingleFlight}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsSingleFlight}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.issuesH2}</h2>
-<p>{t.issuesIntro}</p>
-
+<h2>
+  {t.issuesH2}
+</h2>
+<p>
+  {t.issuesIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsIssues}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsIssues}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.invalidateH2}</h2>
-<p>{t.invalidateIntro}</p>
-
+<h2>
+  {t.invalidateH2}
+</h2>
+<p>
+  {t.invalidateIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverFunctionsInvalidate}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverFunctionsInvalidate}
+    </code>
+  </pre>
 </div>
-
 <div class="callout callout-tip">
-  <div class="callout-title">{t.serverOnlyTitle}</div>
-  <p>{t.serverOnlyText}</p>
+  <div class="callout-title">
+    {t.serverOnlyTitle}
+  </div>
+  <p>
+    {t.serverOnlyText}
+  </p>
 </div>
-
 <div class="callout callout-info">
-  <div class="callout-title">{t.handlerTitle}</div>
-  <p>{t.handlerText}</p>
+  <div class="callout-title">
+    {t.handlerTitle}
+  </div>
+  <p>
+    {t.handlerText}
+  </p>
 </div>
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/form-actions"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "フォームアクション" else "Form Actions"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "フォームアクション" else "Form Actions"}
+    </span>
   </a>
   <a class="doc-nav-next" href={base + "/guide/async-ssr"}>
-    <span class="doc-nav-dir">{nav.next}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "非同期 SSR" else "Async SSR"}</span>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "非同期 SSR" else "Async SSR"}
+    </span>
   </a>
 </div>

@@ -19,26 +19,48 @@
 </script>
 
 <div class="counter">
-  <h1>Melt SCSS Counter</h1>
-  <p class="count-display">Count: <span class="count-value">{count}</span></p>
-  <p class="count-display">Doubled: <span class="count-value">{doubled}</span></p>
-  <p class="meta">Even: {isEven}</p>
-  <p class="meta">Window width: {windowWidth}</p>
+  <h1>
+    Melt SCSS Counter
+  </h1>
+  <p class="count-display">
+    Count: <span class="count-value">{count}</span>
+  </p>
+  <p class="count-display">
+    Doubled: <span class="count-value">{doubled}</span>
+  </p>
+  <p class="meta">
+    Even: {isEven}
+  </p>
+  <p class="meta">
+    Window width: {windowWidth}
+  </p>
   <div class="button-row">
-    <button class="btn btn--primary" onclick={_ => count += 1}>+1</button>
-    <button class="btn btn--primary" onclick={_ => count -= 1}>-1</button>
-    <button class="btn btn--secondary" onclick={_ => resetAll()}>Reset</button>
+    <button class="btn btn--primary" onclick={_ => count += 1}>
+      +1
+    </button>
+    <button class="btn btn--primary" onclick={_ => count -= 1}>
+      -1
+    </button>
+    <button class="btn btn--secondary" onclick={_ => resetAll()}>
+      Reset
+    </button>
   </div>
   <hr />
   <input use:autoFocus bind:value={name} placeholder="Your name" />
-  <p>Hello, {name}!</p>
+  <p>
+    Hello, {name}!
+  </p>
   <hr />
-  <p class="section-label">State as props — bidirectional binding</p>
+  <p class="section-label">
+    State as props — bidirectional binding
+  </p>
   <div class="step-row">
-    <StepControl count={count} step={1} />
-    <StepControl count={count} step={5} />
+    <StepControl count={count} step={1}></StepControl>
+    <StepControl count={count} step={5}></StepControl>
   </div>
-  <p class="meta">Parent sees: <strong>{count}</strong></p>
+  <p class="meta">
+    Parent sees: <strong>{count}</strong>
+  </p>
 </div>
 
 <style lang="scss">

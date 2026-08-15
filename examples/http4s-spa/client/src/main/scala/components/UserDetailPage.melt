@@ -37,20 +37,19 @@
 </script>
 
 <div class="user-detail">
-  <a class="btn-back" href="/users">← Back to Users</a>
-
+  <a class="btn-back" href="/users">
+    ← Back to Users
+  </a>
   {if !loaded then
     <p class="loading">Loading...</p>
   else
     <span class="hidden" />
   }
-
   {if loaded && !userExists.value then
     <p class="not-found">User not found.</p>
   else
     <span class="hidden" />
   }
-
   {if !editing.value then
     <div class="profile">
       <div class="profile-header">

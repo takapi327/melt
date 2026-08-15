@@ -9,47 +9,75 @@
   val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.onMountH2}</h2>
-<p>{t.onMountIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.onMountH2}
+</h2>
+<p>
+  {t.onMountIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.lifecycleOnMountExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.lifecycleOnMountExample}
+    </code>
+  </pre>
 </div>
-
 <div class="callout callout-info">
-  <div class="callout-title">{t.ssrTitle}</div>
-  <p>{t.ssrText}</p>
+  <div class="callout-title">
+    {t.ssrTitle}
+  </div>
+  <p>
+    {t.ssrText}
+  </p>
 </div>
-
-<h2>{t.cleanupH2}</h2>
-<p>{t.cleanupIntro}</p>
-
-<pre><code>{GuideCodes.lifecycleCleanupExample}</code></pre>
-
-<h2>{t.effectCleanH2}</h2>
-<p>{t.effectCleanIntro}</p>
-
-<pre><code>{GuideCodes.lifecycleEffectCleanupExample}</code></pre>
-
+<h2>
+  {t.cleanupH2}
+</h2>
+<p>
+  {t.cleanupIntro}
+</p>
+<pre>
+  <code>
+    {GuideCodes.lifecycleCleanupExample}
+  </code>
+</pre>
+<h2>
+  {t.effectCleanH2}
+</h2>
+<p>
+  {t.effectCleanIntro}
+</p>
+<pre>
+  <code>
+    {GuideCodes.lifecycleEffectCleanupExample}
+  </code>
+</pre>
 {t.destroyH2.map((h: String) => <h2>{h}</h2>)}
 {t.destroyText.map((p: String) => <p>{p}</p>)}
-
 {t.warnTitle.map((title: String) =>
   <div class="callout callout-warn">
     <div class="callout-title">{title}</div>
     <p>{t.warnText.getOrElse("")}</p>
   </div>
 )}
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/events"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "イベント" else "Events"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "イベント" else "Events"}
+    </span>
   </a>
   <a class="doc-nav-next" href={base + "/guide/control-flow"}>
-    <span class="doc-nav-dir">{nav.next}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "制御フロー" else "Control Flow"}</span>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "制御フロー" else "Control Flow"}
+    </span>
   </a>
 </div>

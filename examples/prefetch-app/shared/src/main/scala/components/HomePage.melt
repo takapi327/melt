@@ -1,11 +1,13 @@
 <div class="home">
-  <h2>Home</h2>
+  <h2>
+    Home
+  </h2>
   <p>
-    Hover the <b>Items</b> link above, then click it. Because hovering fired
-    <code>Api.items.prefetch()</code>, the Items page renders instantly — no loading
-    flash — even though the query is artificially slow (800&nbsp;ms) on the server.
+    Hover the <b>Items</b> link above, then click it. Because hovering fired <code>Api.items.prefetch()</code>, the Items page renders instantly — no loading flash — even though the query is artificially slow (800 ms) on the server.
   </p>
-  <p>Navigate straight to <code>/items</code> (or without hovering) and you will see the loading state instead.</p>
+  <p>
+    Navigate straight to <code>/items</code> (or without hovering) and you will see the loading state instead.
+  </p>
 </div>
 
 <style>

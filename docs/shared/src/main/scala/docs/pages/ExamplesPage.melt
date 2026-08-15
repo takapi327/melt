@@ -7,125 +7,197 @@
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="examples">
-<article class="examples-page">
-
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">Examples</div>
-    <h1 class="doc-title">Examples</h1>
-    <p class="doc-lead">Explore real-world Melt components and patterns. Each example shows the full source code alongside the live result.</p>
-  </div>
-
-  <div class="example-grid">
-
-    <a class="example-card" href={base + "/examples/counter"}>
-      <div class="example-card-preview">
-        <div class="example-counter-demo">
-          <span class="example-num">0</span>
-          <div class="example-btns">
-            <span class="example-btn">−</span>
-            <span class="example-btn">+</span>
+  <article class="examples-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        Examples
+      </div>
+      <h1 class="doc-title">
+        Examples
+      </h1>
+      <p class="doc-lead">
+        Explore real-world Melt components and patterns. Each example shows the full source code alongside the live result.
+      </p>
+    </div>
+    <div class="example-grid">
+      <a class="example-card" href={base + "/examples/counter"}>
+        <div class="example-card-preview">
+          <div class="example-counter-demo">
+            <span class="example-num">
+              0
+            </span>
+            <div class="example-btns">
+              <span class="example-btn">
+                −
+              </span>
+              <span class="example-btn">
+                +
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>Counter</h3>
-        <p>Basic reactive state with <code>State[Int]</code>, derived values, and event handlers.</p>
-        <div class="example-tags">
-          <span class="example-tag">State</span>
-          <span class="example-tag">Events</span>
+        <div class="example-card-body">
+          <h3>
+            Counter
+          </h3>
+          <p>
+            Basic reactive state with <code>State[Int]</code>, derived values, and event handlers.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              State
+            </span>
+            <span class="example-tag">
+              Events
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-    <a class="example-card" href={base + "/examples/todo-app"}>
-      <div class="example-card-preview">
-        <div class="example-todo-demo">
-          <div class="example-todo-item">✓ Learn Melt</div>
-          <div class="example-todo-item example-todo-pending">Build something</div>
+      </a>
+      <a class="example-card" href={base + "/examples/todo-app"}>
+        <div class="example-card-preview">
+          <div class="example-todo-demo">
+            <div class="example-todo-item">
+              ✓ Learn Melt
+            </div>
+            <div class="example-todo-item example-todo-pending">
+              Build something
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>Todo App</h3>
-        <p>List rendering with <code>.map()</code>, two-way <code>bind:value</code>, and state updates.</p>
-        <div class="example-tags">
-          <span class="example-tag">Lists</span>
-          <span class="example-tag">bind:value</span>
-          <span class="example-tag">State</span>
+        <div class="example-card-body">
+          <h3>
+            Todo App
+          </h3>
+          <p>
+            List rendering with <code>.map()</code>, two-way <code>bind:value</code>, and state updates.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              Lists
+            </span>
+            <span class="example-tag">
+              bind:value
+            </span>
+            <span class="example-tag">
+              State
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-    <a class="example-card" href={base + "/examples/transitions"}>
-      <div class="example-card-preview">
-        <div class="example-transition-demo">
-          <div class="example-fade-box">Fade in/out</div>
+      </a>
+      <a class="example-card" href={base + "/examples/transitions"}>
+        <div class="example-card-preview">
+          <div class="example-transition-demo">
+            <div class="example-fade-box">
+              Fade in/out
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>Transitions</h3>
-        <p>Animate elements entering and leaving the DOM with built-in transition directives.</p>
-        <div class="example-tags">
-          <span class="example-tag">Transitions</span>
-          <span class="example-tag">Animate</span>
+        <div class="example-card-body">
+          <h3>
+            Transitions
+          </h3>
+          <p>
+            Animate elements entering and leaving the DOM with built-in transition directives.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              Transitions
+            </span>
+            <span class="example-tag">
+              Animate
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-    <a class="example-card" href={base + "/examples/trusted-html"}>
-      <div class="example-card-preview">
-        <div class="example-html-demo">
-          <span class="example-html-badge">HTML</span>
-          <span>Safe injection</span>
+      </a>
+      <a class="example-card" href={base + "/examples/trusted-html"}>
+        <div class="example-card-preview">
+          <div class="example-html-demo">
+            <span class="example-html-badge">
+              HTML
+            </span>
+            <span>
+              Safe injection
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>Trusted HTML</h3>
-        <p>Render server-controlled HTML safely with <code>TrustedHtml</code> and <code>bind:html</code>.</p>
-        <div class="example-tags">
-          <span class="example-tag">TrustedHtml</span>
-          <span class="example-tag">bind:html</span>
+        <div class="example-card-body">
+          <h3>
+            Trusted HTML
+          </h3>
+          <p>
+            Render server-controlled HTML safely with <code>TrustedHtml</code> and <code>bind:html</code>.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              TrustedHtml
+            </span>
+            <span class="example-tag">
+              bind:html
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-    <a class="example-card" href={base + "/examples/ssr"}>
-      <div class="example-card-preview">
-        <div class="example-ssr-demo">
-          <span class="example-ssr-label">Server</span>
-          <span class="example-ssr-arrow">→</span>
-          <span class="example-ssr-label">Client</span>
+      </a>
+      <a class="example-card" href={base + "/examples/ssr"}>
+        <div class="example-card-preview">
+          <div class="example-ssr-demo">
+            <span class="example-ssr-label">
+              Server
+            </span>
+            <span class="example-ssr-arrow">
+              →
+            </span>
+            <span class="example-ssr-label">
+              Client
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>SSR + Hydration</h3>
-        <p>Server-render with the JVM and hydrate on the client with full reactivity.</p>
-        <div class="example-tags">
-          <span class="example-tag">SSR</span>
-          <span class="example-tag">Hydration</span>
-          <span class="example-tag">http4s</span>
+        <div class="example-card-body">
+          <h3>
+            SSR + Hydration
+          </h3>
+          <p>
+            Server-render with the JVM and hydrate on the client with full reactivity.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              SSR
+            </span>
+            <span class="example-tag">
+              Hydration
+            </span>
+            <span class="example-tag">
+              http4s
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-    <a class="example-card" href={base + "/examples/routing"}>
-      <div class="example-card-preview">
-        <div class="example-routing-demo">
-          <code class="example-route">/en/guide/:slug</code>
+      </a>
+      <a class="example-card" href={base + "/examples/routing"}>
+        <div class="example-card-preview">
+          <div class="example-routing-demo">
+            <code class="example-route">
+              /en/guide/:slug
+            </code>
+          </div>
         </div>
-      </div>
-      <div class="example-card-body">
-        <h3>MeltKit Routing</h3>
-        <p>Type-safe URL routing with named path parameters using the <code>/</code> DSL.</p>
-        <div class="example-tags">
-          <span class="example-tag">MeltKit</span>
-          <span class="example-tag">Routing</span>
+        <div class="example-card-body">
+          <h3>
+            MeltKit Routing
+          </h3>
+          <p>
+            Type-safe URL routing with named path parameters using the <code>/</code> DSL.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              MeltKit
+            </span>
+            <span class="example-tag">
+              Routing
+            </span>
+          </div>
         </div>
-      </div>
-    </a>
-
-  </div>
-
-</article>
+      </a>
+    </div>
+  </article>
 </Layout>
 
 <style>

@@ -17,19 +17,29 @@
 </script>
 
 <main>
-  <h1>{appName}</h1>
-
+  <h1>
+    {appName}
+  </h1>
   <section>
-    <h2>Public env (build-time, browser-safe)</h2>
+    <h2>
+      Public env (build-time, browser-safe)
+    </h2>
     <ul>
-      <li>appName = <code>{appName}</code></li>
-      <li>apiBase = <code>{apiBase}</code></li>
+      <li>
+        appName = <code>{appName}</code>
+      </li>
+      <li>
+        apiBase = <code>{apiBase}</code>
+      </li>
     </ul>
   </section>
-
   <section>
-    <h2>From the server (derived from private env)</h2>
-    <p>{greeting.state.map(_.toOption.getOrElse("…")).value}</p>
+    <h2>
+      From the server (derived from private env)
+    </h2>
+    <p>
+      {greeting.state.map(_.toOption.getOrElse("…")).value}
+    </p>
   </section>
 </main>
 

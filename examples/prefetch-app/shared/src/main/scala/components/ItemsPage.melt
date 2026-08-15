@@ -9,10 +9,10 @@
 </script>
 
 <div class="items">
-  <h2>Items</h2>
-
+  <h2>
+    Items
+  </h2>
   {if items.state.value.isLoading then <p class="loading">Loading…</p> else <span></span>}
-
   <ul>
     {list.value.map(i =>
       <li>

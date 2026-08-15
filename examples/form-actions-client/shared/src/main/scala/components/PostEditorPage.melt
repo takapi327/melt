@@ -13,8 +13,9 @@
 </script>
 
 <main class="editor">
-  <h1>New post</h1>
-
+  <h1>
+    New post
+  </h1>
   <!-- One <form>, two submit buttons. Each button's `formaction="?/name"`
        targets a different named action on the server; the empty form action
        means both post to this same page. Works natively with JS disabled, and
@@ -26,32 +27,20 @@
        The submit buttons are left alone (nothing to bind). -->
   <form method="post" use:form use:enhance={form}>
     <label>
-      Title
-      <input name="title" type="text"/>
+      Title <input name="title" type="text" />
     </label>
-
     <label>
-      Body
-      <!-- textarea content is seeded from the field as escaped child text (C6):
-           the compiler injects it because no content is written here. -->
-      <textarea name="body"></textarea>
+      Body <!-- textarea content is seeded from the field as escaped child text (C6):
+           the compiler injects it because no content is written here. --><textarea name="body"></textarea>
     </label>
-
     <label>
-      Visibility
-      <!-- <select name> is bound; each <option> is marked `selected` when it
-           matches the current `visibility` field value. -->
-      <select name="visibility">
-        <option value="public">public</option>
-        <option value="private">private</option>
-      </select>
+      Visibility <!-- <select name> is bound; each <option> is marked `selected` when it
+           matches the current `visibility` field value. --><select name="visibility"><option value="public">public</option><option value="private">private</option></select>
     </label>
-
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
          reactive source (Bind.show), so a validation Failure (e.g. a too-short
          body on Publish) re-renders this without a page reload. -->
     {if form.data.value.errors.nonEmpty then <p class="error">{form.data.value.errors.head}</p> else <span></span>}
-
     <div class="actions">
       <button type="submit" formaction="?/save" disabled={form.submitting}>
         Save draft

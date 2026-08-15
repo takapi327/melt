@@ -17,13 +17,17 @@
 </script>
 
 <main class="posts">
-  <h1>Posts</h1>
-  <p><a href="/new">Write a post →</a></p>
-
+  <h1>
+    Posts
+  </h1>
+  <p>
+    <a href="/new">
+      Write a post →
+    </a>
+  </p>
   <!-- reactive conditional: `posts.state` is the source, so this re-renders as
        the query moves Loading → Done. -->
   {if posts.state.value.isLoading then <p class="loading">Loading…</p> else <span></span>}
-
   <!-- reactive list over the derived `items` signal -->
   <ul>
     {items.value.map(p =>
@@ -43,8 +47,9 @@
       </li>
     )}
   </ul>
-
-  <button class="reload" onclick={ _ => posts.refresh() }>Reload</button>
+  <button class="reload" onclick={_ => posts.refresh()}>
+    Reload
+  </button>
 </main>
 
 <style>
