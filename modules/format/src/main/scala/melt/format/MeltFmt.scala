@@ -13,11 +13,12 @@ import melt.parser.MeltRegionScanner.RegionKind
 
 /** Top-level `.melt` formatter.
   *
-  * Formats the Scala `<script>` / `<script module>` sections with scalafmt and
-  * the `<style>` CSS with [[CssFormatter]] (SCSS is passed through). The
-  * template is left untouched. Everything outside the formatted sections is
-  * preserved byte-for-byte. See `memo/design-melt-fmt.md` /
-  * `memo/design-melt-css-fmt.md`.
+  * Formats the Scala `<script>` / `<script module>` sections with scalafmt, the
+  * `<style>` CSS with [[CssFormatter]] (SCSS is passed through), and the HTML
+  * template with [[TemplateFmt]] (guarded by an AST-equality valve; templates
+  * with comments or unsupported nodes are left unchanged). Everything outside
+  * the recognized sections is preserved byte-for-byte. See `memo/design-melt-fmt.md`,
+  * `memo/design-melt-css-fmt.md`, `memo/design-melt-template-fmt.md`.
   */
 object MeltFmt:
 
@@ -37,7 +38,8 @@ object MeltFmt:
       source,
       { (region, inner) =>
         region.kind match
-          case RegionKind.Style => StyleFormatter.format(inner, region.styleLang, cssOptions)
-          case _                => scriptFormatter.format(inner)
+          case RegionKind.Style    => StyleFormatter.format(inner, region.styleLang, cssOptions)
+          case RegionKind.Template => TemplateFmt.format(inner)
+          case _                   => scriptFormatter.format(inner)
       }
     )
