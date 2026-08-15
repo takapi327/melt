@@ -23,12 +23,14 @@ import melt.preprocessor.StyleLang
 object MeltRegionScanner:
 
   enum RegionKind:
-    case InstanceScript, ModuleScript, Style
+    case InstanceScript, ModuleScript, Style, Template
 
   /** A recognized, reformattable section.
     *
-    * @param innerStart index just after the opening tag's `>`
-    * @param innerEnd   index of the closing tag's `<`
+    * @param innerStart index just after the opening tag's `>` (for [[RegionKind.Template]]:
+    *                   the first non-whitespace char of the template)
+    * @param innerEnd   index of the closing tag's `<` (for [[RegionKind.Template]]:
+    *                   just past the last non-whitespace char)
     * @param styleLang  the `<style>` language (only for [[RegionKind.Style]])
     *
     * The raw (untrimmed) inner text is `source.substring(innerStart, innerEnd)`.
@@ -47,6 +49,9 @@ object MeltRegionScanner:
   def scan(source: String): Either[String, List[Region]] =
     import SectionSplitter.*
     val regions = ListBuffer.empty[Region]
+    // Tag-INCLUSIVE spans of every recognized section (open-tag start .. close-tag end),
+    // used to carve out the template as the leftover between them.
+    val outerSpans = ListBuffer.empty[(Int, Int)]
 
     // ── 1. module script (at most one) ──────────────────────────────────────
     val moduleMatches = ModuleScriptOpenTag.findAllMatchIn(source).toList
@@ -57,6 +62,7 @@ object MeltRegionScanner:
         val close = findScriptClose(source, m.end)
         if close < 0 then return Left("""Unclosed <script lang="scala" module> tag""")
         regions += Region(RegionKind.ModuleScript, m.end, close)
+        outerSpans += ((m.start, closeTagEnd(source, close)))
 
     // ── 2. instance script (the regex excludes `module`, so no overlap) ──────
     InstanceScriptOpenTag.findFirstMatchIn(source) match
@@ -65,6 +71,7 @@ object MeltRegionScanner:
         val close = findScriptClose(source, m.end)
         if close < 0 then return Left("""Unclosed <script lang="scala"> tag""")
         regions += Region(RegionKind.InstanceScript, m.end, close)
+        outerSpans += ((m.start, closeTagEnd(source, close)))
 
     // A `<style` occurring inside a script body is text, not a section — mirror
     // SectionSplitter, which searches for `<style` only after removing scripts.
@@ -100,5 +107,39 @@ object MeltRegionScanner:
               case Some("scss") => StyleLang.Scss
               case _            => StyleLang.Css
             regions += Region(RegionKind.Style, tagEnd, cssEnd, Some(lang))
+            outerSpans += ((styleIdx, cssEnd + StyleClose.length))
+
+    // ── 4. template = the leftover between sections ──────────────────────────
+    // Per design, only the well-formed shape (one contiguous template block) is
+    // handled: if the non-blank leftover is split into more than one gap, no
+    // Template region is emitted and the template is left untouched (passthrough).
+    templateRegion(source, outerSpans.toList).foreach(regions += _)
 
     Right(regions.sortBy(_.innerStart).toList)
+
+  /** Index just past the `>` of a closing tag whose `<` is at `closeLt`. */
+  private def closeTagEnd(source: String, closeLt: Int): Int =
+    val gt = source.indexOf('>', closeLt)
+    if gt < 0 then source.length else gt + 1
+
+  /** Computes the single contiguous template region (trimmed to its non-whitespace
+    * content) from the gaps between the tag-inclusive section spans. Returns None
+    * when there is no non-blank leftover, or when it is split across more than one
+    * gap (a pathological shape we deliberately leave untouched). */
+  private def templateRegion(source: String, outerSpans: List[(Int, Int)]): Option[Region] =
+    val sorted = outerSpans.sortBy(_._1)
+    val gaps   = ListBuffer.empty[(Int, Int)]
+    var cursor = 0
+    for (s, e) <- sorted do
+      if s > cursor then gaps += ((cursor, s))
+      cursor = math.max(cursor, e)
+    if cursor < source.length then gaps += ((cursor, source.length))
+
+    val nonBlank = gaps.filter { case (s, e) => source.substring(s, e).strip.nonEmpty }
+    nonBlank.toList match
+      case (gs, ge) :: Nil =>
+        val sub      = source.substring(gs, ge)
+        val leading  = sub.indexWhere(!_.isWhitespace)
+        val trailing = sub.lastIndexWhere(!_.isWhitespace)
+        Some(Region(RegionKind.Template, gs + leading, gs + trailing + 1))
+      case _ => None

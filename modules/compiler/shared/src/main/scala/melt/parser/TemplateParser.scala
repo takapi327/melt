@@ -17,7 +17,8 @@ import melt.ast.*
   *   - Scala expressions `{...}` with nested-brace support (§B.1)
   *   - Static, dynamic, directive, event-handler, and boolean attributes
   *   - Self-closing tags `<br />` and void elements
-  *   - HTML comments `<!-- ... -->` (discarded)
+  *   - HTML comments `<!-- ... -->` (emitted as [[TemplateNode.Comment]]; the
+  *     compiler pipeline strips them before lowering)
   *   - HTML entity decoding in text and static attribute values
   *   - Whitespace collapsing between elements
   *   - Warnings for non-void self-closing tags
@@ -251,14 +252,17 @@ private[parser] final class TemplateParser(
               if hasHtml then
                 if parts.nonEmpty then
                   val n = TemplateNode.InlineTemplate(parts)
-                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+                  // Record the full `{…}` span (start = `{`, end = just past `}`) so the
+                  // template formatter can slice the original source verbatim — an
+                  // InlineTemplate has no single verbatim string in the AST.
+                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart, baseOffset + end))
                   nodes += n
               else
                 // Pure Scala expression — flatten to Expression node
                 val expr = parts.collect { case melt.ast.InlineTemplatePart.Code(c) => c }.mkString
                 if expr.nonEmpty then
                   val n = TemplateNode.Expression(expr)
-                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+                  posBuilder.add(n, SourceSpan(baseOffset + nodeStart, baseOffset + end))
                   nodes += n
 
           case '<' if isOpenTagAt(pos) =>
@@ -267,8 +271,12 @@ private[parser] final class TemplateParser(
             nodes += n
 
           case '<' if src.startsWith("<!--", pos) =>
-            val end = src.indexOf("-->", pos + 4)
+            val end     = src.indexOf("-->", pos + 4)
+            val content = if end < 0 then src.substring(pos + 4) else src.substring(pos + 4, end)
             pos = if end < 0 then src.length else end + 3
+            val n = TemplateNode.Comment(content)
+            posBuilder.add(n, SourceSpan(baseOffset + nodeStart))
+            nodes += n
 
           case _ =>
             val text = collectText()
