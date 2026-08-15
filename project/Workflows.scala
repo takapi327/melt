@@ -118,11 +118,11 @@ object Workflows:
       name  = "sbt scripted",
       steps = githubWorkflowJobSetup.value.toList ::: List(
         WorkflowStep.Run(
-          List("sbt publishLocal"),
+          List("sbt --server publishLocal"),
           name = Some("sbt publishLocal")
         ),
         WorkflowStep.Run(
-          List("sbt scripted"),
+          List("sbt --server scripted"),
           name = Some("sbt scripted")
         )
       ),
