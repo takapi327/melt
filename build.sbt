@@ -97,11 +97,11 @@ def jsdomTestSettings: Seq[Def.Setting[?]] = Seq(
     val log  = streams.value.log
     if (!(root / "node_modules" / "jsdom").exists()) {
       log.info("[melt] node_modules/jsdom missing — installing jsdom for JSDOMNodeJSEnv...")
-      val code = scala.sys.process.Process("npm install --no-save jsdom", root).!
+      val code = scala.sys.process.Process("npm install --no-save jsdom@16.7.0", root).!
       if (code != 0) sys.error(s"`npm install jsdom` failed with exit code $code (needed for Scala.js tests)")
     }
   },
-  Test / executeTests := Def.uncached((Test / executeTests).dependsOn(ensureJsdom).value)
+  Test / loadedTestFrameworks := Def.uncached((Test / loadedTestFrameworks).dependsOn(ensureJsdom).value)
 )
 
 // ── Generic preprocessor API (no external dependencies, cross-compiled) ──
@@ -241,6 +241,10 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .jvmSettings(
     libraryDependencies += "io.undertow" % "undertow-core" % "2.3.18.Final"
   )
+  .jsSettings(
+    jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
+  )
+  .jsSettings(jsdomTestSettings *)
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
 
