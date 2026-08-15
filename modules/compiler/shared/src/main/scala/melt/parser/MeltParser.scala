@@ -132,7 +132,7 @@ object MeltParser:
     val out     = List.newBuilder[TemplateNode]
     nodes.foreach {
       case _: TemplateNode.Comment => changed = true
-      case n =>
+      case n                       =>
         val sn = stripNode(n)
         if sn ne n then changed = true
         out += sn
@@ -173,7 +173,9 @@ object MeltParser:
     val out     = parts.map {
       case h @ InlineTemplatePart.Html(nodes) =>
         val sn = stripComments(nodes)
-        if sn eq nodes then h else { changed = true; InlineTemplatePart.Html(sn) }
+        if sn eq nodes then h
+        else
+          changed = true; InlineTemplatePart.Html(sn)
       case code => code
     }
     if changed then out else parts

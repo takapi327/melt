@@ -283,7 +283,7 @@ object SpaEmitter:
             ns        = ns,
             nodePos   = nodePos
           )
-          if cv.nonEmpty then setupBuf ++= s"$indent  $elVar.appendChild($cv)\n"
+          if cv.nonEmpty then setupBuf ++= s"$indent  val _ = $elVar.appendChild($cv)\n"
         }
         buf ++= s"""${ indent }val $anchor = dom.document.createComment("")\n"""
         parentVar.foreach(p => buf ++= s"${ indent }if !Hydrating.isActive then $p.appendChild($anchor)\n")
@@ -509,7 +509,7 @@ object SpaEmitter:
             val wVar = s"_bWrap$idx"
             buf ++= s"${ indent }val $wVar = dom.document.createElement(\"div\")\n"
             buf ++= s"""${ indent }$wVar.setAttribute("style", "display: contents")\n"""
-            buf ++= s"${ indent }$wVar.appendChild($fragVar)\n"
+            buf ++= s"${ indent }val _ = $wVar.appendChild($fragVar)\n"
             wVar
 
       // ── <melt:await> async boundary (client = reactive on the query state) ──
@@ -836,7 +836,7 @@ object SpaEmitter:
                 ns        = ns,
                 nodePos   = nodePos
               )
-              if v.nonEmpty then innerBuf ++= s"${ indent }  _frag.appendChild($v)\n"
+              if v.nonEmpty then innerBuf ++= s"${ indent }  val _ = _frag.appendChild($v)\n"
             }
             exprBuf ++= s"{\n${ innerBuf.result() }${ indent }  _frag\n${ indent }}"
     }
@@ -935,7 +935,7 @@ object SpaEmitter:
         buf ++= s"${ inner }val _frag = dom.document.createDocumentFragment()\n"
         multiple.foreach { child =>
           val cv = emitNode(child, buf, inner, innerCtr, isRoot = false, parentVar = Some("_frag"), nodePos = nodePos)
-          if cv.nonEmpty then buf ++= s"${ inner }_frag.appendChild($cv)\n"
+          if cv.nonEmpty then buf ++= s"${ inner }val _ = _frag.appendChild($cv)\n"
         }
         buf ++= s"${ inner }_frag\n"
 
@@ -959,7 +959,7 @@ object SpaEmitter:
         buf ++= s"${ inner }val _bFrag = dom.document.createElement(\"div\")\n"
         multiple.foreach { child =>
           val cv = emitNode(child, buf, inner, ctr, isRoot = false, parentVar = Some("_bFrag"), nodePos = nodePos)
-          if cv.nonEmpty then buf ++= s"${ inner }_bFrag.appendChild($cv)\n"
+          if cv.nonEmpty then buf ++= s"${ inner }val _ = _bFrag.appendChild($cv)\n"
         }
         buf ++= s"${ inner }_bFrag\n"
 
@@ -973,7 +973,7 @@ object SpaEmitter:
     buf ++= s"${ inner }val _kFrag = dom.document.createDocumentFragment()\n"
     children.foreach { child =>
       val cv = emitNode(child, buf, inner, ctr, isRoot = false, parentVar = Some("_kFrag"), nodePos = nodePos)
-      if cv.nonEmpty then buf ++= s"${ inner }_kFrag.appendChild($cv)\n"
+      if cv.nonEmpty then buf ++= s"${ inner }val _ = _kFrag.appendChild($cv)\n"
     }
     buf ++= s"${ inner }_kFrag\n"
 
@@ -1286,10 +1286,10 @@ object SpaEmitter:
           val tv      = ctr.nextTxt()
           val escaped = escapeStr(content)
           buf ++= s"""${ indent }val $tv = dom.document.createTextNode("$escaped")\n"""
-          buf ++= s"${ indent }$v.appendChild($tv)\n"
+          buf ++= s"${ indent }val _ = $v.appendChild($tv)\n"
         case childEl: IrNode.IrStaticElement =>
           val cv = emitStaticElementForHoist(childEl, buf, indent, ctr)
-          buf ++= s"${ indent }$v.appendChild($cv)\n"
+          buf ++= s"${ indent }val _ = $v.appendChild($cv)\n"
         case _ => () // blank IrStaticText or unexpected (won't happen in IrStaticElement)
     }
     v
