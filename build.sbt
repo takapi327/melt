@@ -193,7 +193,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     // available in unit tests.
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
-  .jsSettings(jsdomTestSettings*)
+  .jsSettings(jsdomTestSettings *)
   .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
 // ── Code generator (JVM + JS): depends on compiler (AST/parser) + runtime ──
@@ -224,7 +224,7 @@ lazy val testkit = project
     // Use jsdom so that DOM APIs are available in unit tests
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
-  .settings(jsdomTestSettings*)
+  .settings(jsdomTestSettings *)
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
