@@ -162,7 +162,16 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test,
     // sbt 2.0.0 is stricter about duplicate ZIP entries in sources JARs.
     // BoilerplatePlugin registers generated files twice; deduplicate by target path.
-    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) }
+    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) },
+    Compile / boilerplateGenerate := Def.uncached(
+      spray.boilerplate.BoilerplatePlugin.generateFromTemplates(
+        (Compile / streams).value,
+        boilerplateSignature.value,
+        (Compile / boilerplateSource).value,
+        (Compile / sourceManaged).value,
+        (Compile / boilerplateGeneratedExtension).value
+      )
+    )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-dom" % "2.8.1",

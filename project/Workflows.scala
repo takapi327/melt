@@ -78,13 +78,9 @@ object Workflows:
       id    = "sbtScripted",
       name  = "sbt scripted",
       steps = githubWorkflowJobSetup.value.toList ::: List(
-        // `compile` must run before `publishLocal`: with sbt-scalajs-crossproject
-        // 1.4.0, `publishLocal` alone triggers sbt-boilerplate's generator only once
-        // across the JVM/JS platforms, leaving one platform's src_managed/Effect.scala
-        // ungenerated. Running `compile` first generates it for both platforms.
         WorkflowStep.Run(
-          List("sbt compile publishLocal"),
-          name = Some("sbt compile publishLocal")
+          List("sbt publishLocal"),
+          name = Some("sbt publishLocal")
         ),
         WorkflowStep.Run(
           List("sbt scripted"),
