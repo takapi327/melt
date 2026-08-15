@@ -90,6 +90,20 @@ ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs              := Seq(Workflows.sbtScripted.value)
 
+lazy val ensureJsdom = taskKey[Unit]("Ensure the jsdom npm package is installed (JSDOMNodeJSEnv needs it).")
+def jsdomTestSettings: Seq[Def.Setting[?]] = Seq(
+  ensureJsdom := {
+    val root = (LocalRootProject / baseDirectory).value
+    val log  = streams.value.log
+    if (!(root / "node_modules" / "jsdom").exists()) {
+      log.info("[melt] node_modules/jsdom missing — installing jsdom for JSDOMNodeJSEnv...")
+      val code = scala.sys.process.Process("npm install --no-save jsdom", root).!
+      if (code != 0) sys.error(s"`npm install jsdom` failed with exit code $code (needed for Scala.js tests)")
+    }
+  },
+  Test / executeTests := Def.uncached((Test / executeTests).dependsOn(ensureJsdom).value)
+)
+
 // ── Generic preprocessor API (no external dependencies, cross-compiled) ──
 lazy val preprocessor = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
@@ -179,6 +193,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     // available in unit tests.
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
+  .jsSettings(jsdomTestSettings*)
   .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
 // ── Code generator (JVM + JS): depends on compiler (AST/parser) + runtime ──
@@ -209,6 +224,7 @@ lazy val testkit = project
     // Use jsdom so that DOM APIs are available in unit tests
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
+  .settings(jsdomTestSettings*)
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
