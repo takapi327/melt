@@ -89,6 +89,7 @@ ThisBuild / githubWorkflowTargetBranches         := Seq("**")
 ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs              := Seq(Workflows.sbtScripted.value)
+ThisBuild / githubWorkflowBuildPreamble := Workflows.nodeSetupSteps
 
 lazy val ensureJsdom = taskKey[Unit]("Ensure the jsdom npm package is installed (JSDOMNodeJSEnv needs it).")
 def jsdomTestSettings: Seq[Def.Setting[?]] = Seq(

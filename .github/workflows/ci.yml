@@ -97,6 +97,21 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
+      - name: Setup pnpm
+        if: contains('runtimeJS testkit meltkitJS', matrix.project)
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        if: contains('runtimeJS testkit meltkitJS', matrix.project)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Node dependencies (jsdom)
+        if: contains('runtimeJS testkit meltkitJS', matrix.project)
+        run: pnpm install --frozen-lockfile
+
       - name: Check that workflows are up to date
         run: sbt '++ ${{ matrix.scala }}; githubWorkflowCheck'
 
