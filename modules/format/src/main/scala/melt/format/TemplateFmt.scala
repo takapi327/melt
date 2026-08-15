@@ -7,7 +7,7 @@
 package melt.format
 
 import melt.parser.{ MeltParseException, TemplateParser }
-import melt.template.{ TemplateFormatter, TemplateFormatUnsupported }
+import melt.template.{ TemplateFormatUnsupported, TemplateFormatter }
 
 /** Formats a `.melt` template region (Phase 2).
   *
@@ -32,7 +32,7 @@ object TemplateFmt:
 
   def format(inner: String, opts: TemplateFormatter.Options = TemplateFormatter.Options()): Either[String, String] =
     parse(inner) match
-      case None => skip(inner, "it could not be parsed")
+      case None                      => skip(inner, "it could not be parsed")
       case Some((nodesA, positions)) =>
         renderSafely(nodesA, positions, inner, opts) match
           case Left(reason) => skip(inner, reason)

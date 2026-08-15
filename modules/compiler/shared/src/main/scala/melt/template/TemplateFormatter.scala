@@ -6,9 +6,9 @@
 
 package melt.template
 
-import melt.NodePositions
 import melt.ast.*
 import melt.codegen.HtmlVoidElements
+import melt.NodePositions
 
 /** Raised when a template contains a node the formatter cannot yet re-serialise
   * faithfully (e.g. `<melt:boundary>` / `<melt:await>`). The caller keeps the
@@ -31,7 +31,7 @@ final class TemplateFormatUnsupported(val what: String) extends RuntimeException
 object TemplateFormatter:
 
   final case class Options(
-    indent:        Int     = 2,
+    indent: Int = 2,
     // When true, an element's leaf/inline content goes on its own indented line
     // (`<p>\n  hi\n</p>`) instead of staying inline (`<p>hi</p>`).
     expandContent: Boolean = false
@@ -56,7 +56,7 @@ object TemplateFormatter:
   private def renderNode(node: TemplateNode, depth: Int, ctx: Ctx): List[String] =
     val pad = " " * (ctx.opts.indent * depth)
     node match
-      case TemplateNode.Element(tag, attrs, children)   => renderElementLike(tag, attrs, children, depth, ctx)
+      case TemplateNode.Element(tag, attrs, children)    => renderElementLike(tag, attrs, children, depth, ctx)
       case TemplateNode.Component(name, attrs, children) => renderElementLike(name, attrs, children, depth, ctx)
       case TemplateNode.Head(children)                   => renderElementLike("melt:head", Nil, children, depth, ctx)
       case TemplateNode.Window(attrs)                    => renderElementLike("melt:window", attrs, Nil, depth, ctx)
@@ -78,17 +78,17 @@ object TemplateFormatter:
   /** Single-line (inline-context) rendering of a node. */
   private def renderInline(node: TemplateNode, ctx: Ctx): String =
     node match
-      case TemplateNode.Text(t)          => escapeText(t)
-      case TemplateNode.Comment(content)  => s"<!--$content-->"
-      case TemplateNode.Expression(code) => s"{$code}"
-      case TemplateNode.InlineTemplate(_) => inlineTemplateSource(node, ctx)
-      case TemplateNode.RenderCall(expr)  => s"{@render $expr}"
-      case TemplateNode.Element(tag, attrs, children)    => inlineElement(tag, attrs, children, ctx)
-      case TemplateNode.Component(name, attrs, children) => inlineElement(name, attrs, children, ctx)
-      case TemplateNode.Head(children)                   => inlineElement("melt:head", Nil, children, ctx)
-      case TemplateNode.Window(attrs)                    => inlineElement("melt:window", attrs, Nil, ctx)
-      case TemplateNode.Body(attrs)                      => inlineElement("melt:body", attrs, Nil, ctx)
-      case TemplateNode.Document(attrs)                  => inlineElement("melt:document", attrs, Nil, ctx)
+      case TemplateNode.Text(t)                                  => escapeText(t)
+      case TemplateNode.Comment(content)                         => s"<!--$content-->"
+      case TemplateNode.Expression(code)                         => s"{$code}"
+      case TemplateNode.InlineTemplate(_)                        => inlineTemplateSource(node, ctx)
+      case TemplateNode.RenderCall(expr)                         => s"{@render $expr}"
+      case TemplateNode.Element(tag, attrs, children)            => inlineElement(tag, attrs, children, ctx)
+      case TemplateNode.Component(name, attrs, children)         => inlineElement(name, attrs, children, ctx)
+      case TemplateNode.Head(children)                           => inlineElement("melt:head", Nil, children, ctx)
+      case TemplateNode.Window(attrs)                            => inlineElement("melt:window", attrs, Nil, ctx)
+      case TemplateNode.Body(attrs)                              => inlineElement("melt:body", attrs, Nil, ctx)
+      case TemplateNode.Document(attrs)                          => inlineElement("melt:document", attrs, Nil, ctx)
       case TemplateNode.DynamicElement(tagExpr, attrs, children) =>
         inlineElement("melt:element", Attr.Dynamic("this", tagExpr) :: attrs, children, ctx)
       case TemplateNode.KeyBlock(keyExpr, children) =>
@@ -121,13 +121,11 @@ object TemplateFormatter:
       else
         // one line: <tag>...children...</tag> (may carry newlines only from a verbatim InlineTemplate)
         (s"$open>" + inner + s"</$tag>").split("\n", -1).toList
-    else
-      (s"$open>" :: renderBlock(children, depth + 1, ctx)) :+ s"$pad</$tag>"
+    else (s"$open>" :: renderBlock(children, depth + 1, ctx)) :+ s"$pad</$tag>"
 
   private def inlineElement(tag: String, attrs: List[Attr], children: List[TemplateNode], ctx: Ctx): String =
     val open = s"<$tag${ formatAttrs(attrs) }"
-    if children.isEmpty then
-      if HtmlVoidElements.isVoid(tag) then s"$open />" else s"$open></$tag>"
+    if children.isEmpty then if HtmlVoidElements.isVoid(tag) then s"$open />" else s"$open></$tag>"
     else s"$open>${ renderChildrenInline(children, ctx) }</$tag>"
 
   private def renderSnippet(
@@ -170,12 +168,12 @@ object TemplateFormatter:
     if attrs.isEmpty then "" else " " + attrs.map(renderAttr).mkString(" ")
 
   private def renderAttr(a: Attr): String = a match
-    case Attr.Static(name, value)     => s"""$name="${ escapeAttr(value) }""""
-    case Attr.Dynamic(name, expr)     => s"$name={$expr}"
-    case Attr.EventHandler(event, e)  => s"on$event={$e}"
-    case Attr.BooleanAttr(name)       => name
-    case Attr.Spread(expr)            => s"{...$expr}"
-    case Attr.Shorthand(varName)      => s"{$varName}"
+    case Attr.Static(name, value)               => s"""$name="${ escapeAttr(value) }""""
+    case Attr.Dynamic(name, expr)               => s"$name={$expr}"
+    case Attr.EventHandler(event, e)            => s"on$event={$e}"
+    case Attr.BooleanAttr(name)                 => name
+    case Attr.Spread(expr)                      => s"{...$expr}"
+    case Attr.Shorthand(varName)                => s"{$varName}"
     case Attr.Directive(kind, name, expr, mods) =>
       val m    = mods.toList.sorted.map("|" + _).mkString
       val base = s"$kind:$name$m"
@@ -218,10 +216,9 @@ object TemplateFormatter:
     }
 
   private def isElementLike(node: TemplateNode): Boolean = node match
-    case _: TemplateNode.Element | _: TemplateNode.Component | _: TemplateNode.Head |
-        _: TemplateNode.Window | _: TemplateNode.Body | _: TemplateNode.Document |
-        _: TemplateNode.DynamicElement | _: TemplateNode.KeyBlock | _: TemplateNode.SnippetDef |
-        _: TemplateNode.Boundary | _: TemplateNode.Await | _: TemplateNode.Comment =>
+    case _: TemplateNode.Element | _: TemplateNode.Component | _: TemplateNode.Head | _: TemplateNode.Window |
+      _: TemplateNode.Body | _: TemplateNode.Document | _: TemplateNode.DynamicElement | _: TemplateNode.KeyBlock |
+      _: TemplateNode.SnippetDef | _: TemplateNode.Boundary | _: TemplateNode.Await | _: TemplateNode.Comment =>
       true
     case _ => false
 

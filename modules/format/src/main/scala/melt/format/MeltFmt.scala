@@ -38,7 +38,7 @@ object MeltFmt:
   def format(
     source:          String,
     scriptFormatter: Option[ScriptFormatter],
-    cssOptions:      CssFormatter.Options                    = CssFormatter.Options(),
+    cssOptions:      CssFormatter.Options = CssFormatter.Options(),
     templateOptions: melt.template.TemplateFormatter.Options = melt.template.TemplateFormatter.Options()
   ): Either[String, String] =
     MeltFormatter.formatE(

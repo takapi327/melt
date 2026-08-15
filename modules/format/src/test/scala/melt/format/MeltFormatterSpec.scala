@@ -38,10 +38,10 @@ class MeltFormatterSpec extends munit.FunSuite:
       .format(
         sample,
         {
-          case (RegionKind.ModuleScript, _)     => "M"
-          case (RegionKind.InstanceScript, _)   => "I"
-          case (RegionKind.Style, _)            => "S"
-          case (RegionKind.Template, inner)     => inner // survives verbatim
+          case (RegionKind.ModuleScript, _)   => "M"
+          case (RegionKind.InstanceScript, _) => "I"
+          case (RegionKind.Style, _)          => "S"
+          case (RegionKind.Template, inner)   => inner // survives verbatim
         }
       )
       .fold(err => fail(err), identity)

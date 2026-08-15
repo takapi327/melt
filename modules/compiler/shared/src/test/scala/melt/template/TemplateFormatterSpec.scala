@@ -157,7 +157,7 @@ class TemplateFormatterSpec extends munit.FunSuite:
   // ── Deferred nodes raise (so the caller can skip, never corrupt) ─────────────
 
   test("boundary is reported unsupported (caller keeps original)") {
-    val src = "<melt:boundary onerror={h}><p>x</p></melt:boundary>"
+    val src                   = "<melt:boundary onerror={h}><p>x</p></melt:boundary>"
     val (nodes, positions, _) = TemplateParser.parseWithWarnings(src)
     intercept[TemplateFormatUnsupported](TemplateFormatter.format(nodes, positions, src))
   }

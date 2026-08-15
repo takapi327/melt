@@ -101,8 +101,8 @@ object MeltFmtMain:
   private def resolveScalafmtConfig(explicit: Option[Path], meltfmt: Option[Path]): Option[Path] =
     explicit match
       case Some(p) if Files.isRegularFile(p) => Some(p)
-      case Some(p)                           => throw new RuntimeException(s"[meltfmt] --config not found: ${ p.toAbsolutePath }")
-      case None                              =>
+      case Some(p) => throw new RuntimeException(s"[meltfmt] --config not found: ${ p.toAbsolutePath }")
+      case None    =>
         scalafmtFromMeltfmt(meltfmt).orElse {
           val fallback = Paths.get(".scalafmt.conf")
           Option.when(Files.isRegularFile(fallback))(fallback)
@@ -117,9 +117,11 @@ object MeltFmtMain:
       val cfg = ConfigFactory.parseFile(mp.toFile).resolve()
       Option.when(cfg.hasPath("version")) {
         val scalafmt = cfg.withoutPath("melt")
-        val rendered = scalafmt.root().render(
-          ConfigRenderOptions.defaults().setOriginComments(false).setComments(false).setJson(false)
-        )
+        val rendered = scalafmt
+          .root()
+          .render(
+            ConfigRenderOptions.defaults().setOriginComments(false).setComments(false).setJson(false)
+          )
         val tmp = Files.createTempFile("melt-scalafmt", ".conf")
         tmp.toFile.deleteOnExit()
         Files.writeString(tmp, rendered)

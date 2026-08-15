@@ -45,7 +45,8 @@ class StyleFormatterSpec extends munit.FunSuite:
 
   test("indent option feeds both nesting and left margin") {
     assertNoDiff(
-      StyleFormatter.format("\n.c{color:red}\n", Some(StyleLang.Css), CssFormatter.Options(indent = 4))
+      StyleFormatter
+        .format("\n.c{color:red}\n", Some(StyleLang.Css), CssFormatter.Options(indent = 4))
         .fold(fail(_), identity),
       "\n    .c {\n        color: red;\n    }\n"
     )

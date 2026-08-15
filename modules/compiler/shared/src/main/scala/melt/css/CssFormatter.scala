@@ -47,8 +47,8 @@ object CssFormatter:
     val blocks = nodes.map(renderNode(_, depth, opts))
     if topLevel then
       blocks match
-        case Nil     => Nil
-        case h :: t  => h ++ t.flatMap("" :: _)
+        case Nil    => Nil
+        case h :: t => h ++ t.flatMap("" :: _)
     else blocks.flatten
 
   private def renderNode(node: CssNode, depth: Int, opts: Options): List[String] =
@@ -56,7 +56,7 @@ object CssFormatter:
     node match
       case CssNode.StyleRule(selector, body) =>
         val selLines = normalizeSelector(selector, opts).split("\n", -1).toList
-        val head = selLines.zipWithIndex.map { (s, i) =>
+        val head     = selLines.zipWithIndex.map { (s, i) =>
           if i == selLines.size - 1 then s"$pad$s {" else s"$pad$s"
         }
         head ++ renderNodes(body, depth + 1, opts, topLevel = false) ++ List(s"$pad}")
@@ -66,7 +66,7 @@ object CssFormatter:
         List(s"$pad@$name$tail;")
 
       case CssNode.AtRule(name, prelude, Some(body)) =>
-        val open = if prelude.nonEmpty then s"$pad@$name $prelude {" else s"$pad@$name {"
+        val open  = if prelude.nonEmpty then s"$pad@$name $prelude {" else s"$pad@$name {"
         val inner =
           if CssNode.PassthroughAtRules.contains(name) then
             // keyframes / font-face etc.: body is one RawText — re-indent only.
@@ -109,11 +109,11 @@ object CssFormatter:
     var depth = 0
     while i < s.length do
       s(i) match
-        case '"' | '\'' => i = skipString(s, i)
-        case '(' | '['  => depth += 1; i += 1
-        case ')' | ']'  => depth -= 1; i += 1
+        case '"' | '\''        => i = skipString(s, i)
+        case '(' | '['         => depth += 1; i += 1
+        case ')' | ']'         => depth -= 1; i += 1
         case ':' if depth == 0 => return i
-        case _          => i += 1
+        case _                 => i += 1
     -1
 
   /** Collapses runs of whitespace to a single space, outside quoted strings. */
@@ -146,9 +146,9 @@ object CssFormatter:
     *   - combinators `>` `+` `~` get exactly one space on each side.
     */
   private def normalizeSelector(selector: String, opts: Options): String =
-    val s   = selector.strip
-    val out = new StringBuilder
-    var i   = 0
+    val s     = selector.strip
+    val out   = new StringBuilder
+    var i     = 0
     var depth = 0
 
     def trimTrailingSpaces(): Unit =
@@ -193,8 +193,8 @@ object CssFormatter:
     val body = raw.dropWhile(_.trim.isEmpty).reverse.dropWhile(_.trim.isEmpty).reverse
     if body.forall(_.trim.isEmpty) then Nil
     else
-      val base     = body.filter(_.trim.nonEmpty).map(l => l.takeWhile(_ == ' ').length).min
-      val pad      = " " * (opts.indent * depth)
+      val base = body.filter(_.trim.nonEmpty).map(l => l.takeWhile(_ == ' ').length).min
+      val pad  = " " * (opts.indent * depth)
       body.map(l => if l.trim.isEmpty then "" else pad + l.substring(base))
 
   // ── Shared scanning ─────────────────────────────────────────────────────────

@@ -126,15 +126,15 @@ object MeltParser:
     nodes.iterator.filterNot(_.isInstanceOf[TemplateNode.Comment]).map(stripNode).toList
 
   private def stripNode(node: TemplateNode): TemplateNode = node match
-    case TemplateNode.Element(tag, attrs, children)   => TemplateNode.Element(tag, attrs, stripComments(children))
+    case TemplateNode.Element(tag, attrs, children)    => TemplateNode.Element(tag, attrs, stripComments(children))
     case TemplateNode.Component(name, attrs, children) => TemplateNode.Component(name, attrs, stripComments(children))
     case TemplateNode.Head(children)                   => TemplateNode.Head(stripComments(children))
     case TemplateNode.DynamicElement(tag, attrs, children) =>
       TemplateNode.DynamicElement(tag, attrs, stripComments(children))
-    case TemplateNode.KeyBlock(keyExpr, children)      => TemplateNode.KeyBlock(keyExpr, stripComments(children))
+    case TemplateNode.KeyBlock(keyExpr, children)        => TemplateNode.KeyBlock(keyExpr, stripComments(children))
     case TemplateNode.SnippetDef(name, params, children) =>
       TemplateNode.SnippetDef(name, params, stripComments(children))
-    case TemplateNode.InlineTemplate(parts)            => TemplateNode.InlineTemplate(parts.map(stripPart))
+    case TemplateNode.InlineTemplate(parts)                      => TemplateNode.InlineTemplate(parts.map(stripPart))
     case TemplateNode.Boundary(attrs, children, pending, failed) =>
       TemplateNode.Boundary(attrs, stripComments(children), pending.map(stripPending), failed.map(stripFailed))
     case TemplateNode.Await(valueExpr, handler, pending, failed) =>
@@ -146,4 +146,4 @@ object MeltParser:
     case code                           => code
 
   private def stripPending(p: PendingBlock): PendingBlock = PendingBlock(stripComments(p.children))
-  private def stripFailed(f: FailedBlock): FailedBlock     = FailedBlock(f.errorVar, f.resetVar, stripComments(f.children))
+  private def stripFailed(f: FailedBlock): FailedBlock = FailedBlock(f.errorVar, f.resetVar, stripComments(f.children))
