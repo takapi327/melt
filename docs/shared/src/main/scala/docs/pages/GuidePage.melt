@@ -10,6 +10,7 @@
     Effects,
     Events,
     FormActions,
+    Formatting,
     Installation,
     Introduction,
     LifecyclePage,
@@ -59,6 +60,7 @@
   else if props.slug == "transitions" then <Transitions lang={props.lang} basePath={props.basePath} />
   else if props.slug == "trusted-html" then <HtmlPage lang={props.lang} basePath={props.basePath} />
   else if props.slug == "css" then <Css lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "formatting" then <Formatting lang={props.lang} basePath={props.basePath} />
   else if props.slug == "testing" then <Testing lang={props.lang} basePath={props.basePath} />
   else if props.slug == "routing" then <Routing lang={props.lang} basePath={props.basePath} />
   else if props.slug == "ssr" then <Ssr lang={props.lang} basePath={props.basePath} />

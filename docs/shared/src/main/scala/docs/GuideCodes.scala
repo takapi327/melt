@@ -571,6 +571,48 @@ object GuideCodes:
        |  }
        |</style>""".stripMargin
 
+  // ── Formatting ──────────────────────────────────────────────────────────────
+
+  val fmtRunCommands: String =
+    """|sbt meltFmt        # rewrite .melt files in place
+       |sbt meltFmtCheck   # verify only — non-zero exit on drift (CI)""".stripMargin
+
+  val fmtConfExample: String =
+    """|# .meltfmt.conf — the single config for .melt files.
+       |# `include` reuses your scalafmt settings for the <script> Scala.
+       |include ".scalafmt.conf"
+       |
+       |melt {
+       |  template {
+       |    # "inline"   → <p>hello</p>
+       |    # "expanded" → <p>\n  hello\n</p>
+       |    content = expanded
+       |  }
+       |}""".stripMargin
+
+  val fmtInlineExample: String =
+    """|<p>Hello, {name}</p>""".stripMargin
+
+  val fmtExpandedExample: String =
+    """|<p>
+       |  Hello, {name}
+       |</p>""".stripMargin
+
+  val fmtOptionsExample: String =
+    """|melt {
+       |  script {
+       |    indent = 2                # left margin of the <script> body
+       |  }
+       |  css {
+       |    indent       = 2
+       |    selectorList = newline    # newline | single-line
+       |  }
+       |  template {
+       |    indent  = 2
+       |    content = inline          # inline | expanded
+       |  }
+       |}""".stripMargin
+
   // ── Testing ───────────────────────────────────────────────────────────────
 
   val testingDepExample: String =

@@ -340,6 +340,28 @@ case class GuideCss(
   nestingIntro:  Option[String]
 )
 
+// ── Formatting ────────────────────────────────────────────────────────────────
+
+case class GuideFormatting(
+  lead:          String,
+  runH2:         String,
+  runIntro:      String,
+  checkText:     String,
+  configH2:      String,
+  configIntro:   String,
+  includeTitle:  String,
+  includeText:   String,
+  sectionsH2:    String,
+  sectionsIntro: String,
+  scriptItem:    String,
+  styleItem:     String,
+  templateItem:  String,
+  contentH2:     String,
+  contentIntro:  String,
+  optionsH2:     String,
+  optionsIntro:  String
+)
+
 // ── Testing ───────────────────────────────────────────────────────────────────
 
 case class GuideTesting(
@@ -617,6 +639,7 @@ case class GuideI18n(
   transitions:     GuideTransitions,
   trustedHtml:     GuideTrustedHtml,
   css:             GuideCss,
+  formatting:      GuideFormatting,
   testing:         GuideTesting,
   routing:         GuideRouting,
   ssr:             GuideSsr,
@@ -980,6 +1003,35 @@ object GuideI18n:
       nestingIntro = Option.empty[String]
     ),
 
+    formatting = GuideFormatting(
+      lead =
+        "Melt ships a formatter for .melt files. One command rewrites the Scala, CSS and HTML in every component to a consistent style, and a single config file — .meltfmt.conf — controls all three sections.",
+      runH2    = "Running the formatter",
+      runIntro =
+        "sbt meltFmt rewrites your .melt files in place. Run it before committing, or wire it into format-on-save. It reformats only the .melt sources under the configured paths (examples and docs in this repo).",
+      checkText =
+        "sbt meltFmtCheck verifies formatting without writing anything: it exits non-zero when a file is not formatted, which is exactly what you want in CI.",
+      configH2    = "One config file",
+      configIntro =
+        ".meltfmt.conf is a HOCON file at the project root, and the single source of truth for how .melt files are formatted — script, style and template alike. Every key lives under the melt namespace and falls back to a sensible default when omitted, so the file can be as small as you like.",
+      includeTitle = "Reusing your scalafmt settings",
+      includeText  =
+        "The <script> section is Scala, so the formatter delegates it to scalafmt. include \".scalafmt.conf\" pulls in your existing scalafmt rules — you manage .scala files from .scalafmt.conf and .melt files from .meltfmt.conf, with no duplicated settings. If .scalafmt.conf is absent, the script is left untouched rather than erroring.",
+      sectionsH2    = "How each section is formatted",
+      sectionsIntro = "A .melt file has three parts, each handled by its own engine:",
+      scriptItem    = "<script> — Scala, formatted by scalafmt through the included .scalafmt.conf.",
+      styleItem     =
+        "<style> — CSS (or SCSS), formatted by Melt's own CSS formatter: consistent indentation, one selector per line by default.",
+      templateItem =
+        "The HTML template — pretty-printed from Melt's parsed AST, so tags, attributes and { } interpolations land on a predictable, re-indented layout.",
+      contentH2    = "Template content layout",
+      contentIntro =
+        "melt.template.content chooses how an element's text/leaf content is laid out. inline (the default) keeps short content on the tag's own line; expanded always puts content on its own indented line. Both produce identical DOM — this is purely a source-style preference.",
+      optionsH2    = "All options",
+      optionsIntro =
+        "The full set of keys, each shown with its default. selectorList is newline or single-line; content is inline or expanded; the indent keys set each section's left margin in spaces."
+    ),
+
     testing = GuideTesting(
       lead =
         "Melt ships a melt-testkit module that lets you mount components in a simulated DOM environment and assert on the rendered output.",
@@ -1302,19 +1354,19 @@ object GuideI18n:
     typeSafety = GuideTypeSafety(
       lead =
         "Melt and MeltKit lean on Scala 3's type system so that whole classes of mistakes — a mistyped path parameter, an unhandled decode failure, an invalid status code, an XSS hole, server/client drift — surface as compile errors instead of runtime surprises. This page is a cookbook: for each situation, the type-safe way to write it and what the compiler guarantees.",
-      routingH2 = "Routing",
+      routingH2    = "Routing",
       routingIntro =
         "Declare path parameters with param[T] and compose them with /. The handler's ctx.params is a NamedTuple, so ctx.params.id is statically an Int and referencing a field that isn't in the path is a compile error. Read query parameters with ctx.queryAs[T], where the type expresses requiredness: a scalar fails when absent, Option[T] maps absence to Right(None), and any decode failure surfaces as a Left you must handle.",
-      reqRespH2 = "Requests & responses",
+      reqRespH2    = "Requests & responses",
       reqRespIntro =
         "Decode a request body into a typed value with ctx.body.form[T] or json[T]; the result is Either[BodyError, T], so the failure branch cannot be forgotten. Response status codes are a union type — withStatus(429) compiles, withStatus(999) does not, and a runtime Int must pass through StatusCode.fromInt. Request-scoped values live in typed Locals: a LocalKey[A] carries its value type, so get returns Option[A].",
-      renderH2 = "Components & rendering",
+      renderH2    = "Components & rendering",
       renderIntro =
         "Component props are a case class that derives PropsCodec: SSR encodes them to JSON and hydration decodes the same type on the client, so the two sides can never drift. Raw HTML is gated by type — bind:innerHTML accepts only TrustedHtml, so a plain String (or user input) won't compile. You opt in explicitly with TrustedHtml.unsafe for developer-controlled markup, or TrustedHtml.sanitize for user input.",
-      validationH2 = "Validation",
+      validationH2    = "Validation",
       validationIntro =
         "A form model derives FormDataDecoder, so decoding validates field types automatically and accumulates errors per field. In an action, return fail(status, data): the status is checked against the StatusCode union, and because the failed value keeps the same type as the form, the page re-renders with the user's input and inline errors.",
-      fullstackH2 = "Full-stack",
+      fullstackH2    = "Full-stack",
       fullstackIntro =
         "Declare a server function once as a typed contract with ServerFn.query / command; the server implements it and the client calls it against the same In / Out — no URLs or JSON assembled by hand. Put contracts, props and models in a crossProject shared source set so they compile on both the JVM server and the JS client: change a shared type and both sides must agree, or the build fails."
     )
@@ -1640,6 +1692,32 @@ object GuideI18n:
       nestingIntro = Some("Melt の CSS パーサーは CSS Nesting 仕様をサポートしています。SCSS なしでも入れ子のルールが書けます。")
     ),
 
+    formatting = GuideFormatting(
+      lead =
+        "Melt には .melt ファイル向けのフォーマッタが同梱されています。1 つのコマンドで各コンポーネントの Scala・CSS・HTML を一貫したスタイルに整形し、その挙動は単一の設定ファイル .meltfmt.conf で 3 セクションすべてを制御します。",
+      runH2    = "フォーマッタの実行",
+      runIntro =
+        "sbt meltFmt は .melt ファイルをその場で書き換えます。コミット前に実行するか、保存時フォーマットに組み込んでください。設定されたパス（本リポジトリでは examples と docs）配下の .melt ソースだけを整形します。",
+      checkText   = "sbt meltFmtCheck は何も書き込まずに整形状態を検証します。未整形のファイルがあると非ゼロ終了するため、CI に最適です。",
+      configH2    = "設定は 1 ファイル",
+      configIntro =
+        ".meltfmt.conf はプロジェクトルートの HOCON ファイルで、.melt ファイルの整形（script・style・template すべて）に関する唯一の真実です。すべてのキーは melt 名前空間の下にあり、省略時は妥当なデフォルトにフォールバックするため、ファイルは必要なだけ小さく保てます。",
+      includeTitle = "scalafmt 設定の再利用",
+      includeText  =
+        "<script> セクションは Scala なので、フォーマッタは scalafmt に委譲します。include \".scalafmt.conf\" で既存の scalafmt ルールを取り込めます。.scala は .scalafmt.conf、.melt は .meltfmt.conf で管理でき、設定の二重管理が不要です。.scalafmt.conf が無い場合は、エラーにせず script をそのまま残します。",
+      sectionsH2    = "各セクションの整形のされ方",
+      sectionsIntro = ".melt ファイルは 3 つの部分から成り、それぞれ専用のエンジンで整形されます:",
+      scriptItem    = "<script> — Scala。取り込んだ .scalafmt.conf を通じて scalafmt が整形します。",
+      styleItem     = "<style> — CSS（または SCSS）。Melt 独自の CSS フォーマッタが整形します。インデントを揃え、デフォルトではセレクタを 1 行 1 つにします。",
+      templateItem  = "HTML テンプレート — Melt がパースした AST から pretty-print します。タグ・属性・{ } 補間が予測可能な再インデント済みレイアウトに整います。",
+      contentH2     = "テンプレートの内容レイアウト",
+      contentIntro  =
+        "melt.template.content は要素のテキスト/リーフ内容のレイアウトを選びます。inline（デフォルト）は短い内容をタグと同じ行に保ち、expanded は常に内容を独立したインデント行に置きます。生成される DOM は同一で、これは純粋にソーススタイルの好みです。",
+      optionsH2    = "全オプション",
+      optionsIntro =
+        "各キーとそのデフォルトの一覧です。selectorList は newline か single-line、content は inline か expanded、indent 系は各セクションの左マージン（スペース数）を指定します。"
+    ),
+
     testing = GuideTesting(
       lead          = "Melt は melt-testkit モジュールを提供しており、シミュレートされた DOM 環境でコンポーネントをマウントしてレンダリング結果をアサートできます。",
       setupH2       = "セットアップ",
@@ -1942,19 +2020,19 @@ object GuideI18n:
     typeSafety = GuideTypeSafety(
       lead =
         "Melt と MeltKit は Scala 3 の型システムを活用し、パスパラメータの打ち間違い・デコード失敗の握り漏れ・不正なステータスコード・XSS・サーバー/クライアントの型ずれといった誤りのクラス全体を、実行時の事故ではなくコンパイルエラーとして表面化させます。本ページは cookbook です。状況ごとに「型安全な書き方」と「コンパイラが何を保証するか」をまとめます。",
-      routingH2 = "ルーティング",
+      routingH2    = "ルーティング",
       routingIntro =
         "パスパラメータは param[T] で宣言し / で合成します。ハンドラの ctx.params は NamedTuple なので、ctx.params.id は静的に Int となり、パスに無いフィールドを参照するとコンパイルエラーになります。クエリは ctx.queryAs[T] で読み、必須/任意を型で表現します。スカラは不在で失敗、Option[T] は不在を Right(None) にマップし、デコード失敗は必ず処理すべき Left として現れます。",
-      reqRespH2 = "リクエストとレスポンス",
+      reqRespH2    = "リクエストとレスポンス",
       reqRespIntro =
         "リクエスト本文は ctx.body.form[T] / json[T] で型付きにデコードします。結果は Either[BodyError, T] なので、失敗ケースを握り漏らせません。レスポンスのステータスコードは union 型で、withStatus(429) は通り withStatus(999) はコンパイルエラー、実行時 Int は StatusCode.fromInt を通す必要があります。リクエストスコープの値は型付き Locals に置き、LocalKey[A] が値型を保持するので get は Option[A] を返します。",
-      renderH2 = "コンポーネントと描画",
+      renderH2    = "コンポーネントと描画",
       renderIntro =
         "コンポーネントの Props は PropsCodec を derives した case class です。SSR が JSON にエンコードし、hydration がクライアントで同じ型にデコードするため、両者がずれることはありません。生 HTML は型でガードされます。bind:innerHTML は TrustedHtml のみを受け付けるため、素の String（やユーザー入力）はコンパイルできません。開発者管理のマークアップには TrustedHtml.unsafe、ユーザー入力には TrustedHtml.sanitize で明示的にオプトインします。",
-      validationH2 = "バリデーション",
+      validationH2    = "バリデーション",
       validationIntro =
         "フォームモデルは FormDataDecoder を derives するため、デコード時にフィールド型が自動検証され、エラーはフィールド単位で蓄積されます。アクションでは fail(status, data) を返します。status は StatusCode union で検査され、失敗値はフォームと同じ型を保つため、ユーザーの入力とインラインエラー付きでページを再描画できます。",
-      fullstackH2 = "フルスタック",
+      fullstackH2    = "フルスタック",
       fullstackIntro =
         "サーバー関数は ServerFn.query / command で型付き契約として一度だけ宣言します。サーバーが実装し、クライアントは同じ In / Out に対して呼び出すので、URL や JSON を手で組み立てる必要はありません。契約・Props・モデルは crossProject の shared ソースセットに置き、JVM サーバーと JS クライアントの両方でコンパイルします。共有型を変えると両側が一致しなければビルドが失敗します。"
     )
