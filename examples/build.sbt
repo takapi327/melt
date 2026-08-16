@@ -480,29 +480,6 @@ lazy val `server-env-server` = project
   .enablePlugins(MeltkitPlugin)
   .dependsOn(`server-env`.jvm)
 
-// ── Example: ldbc × Melt × MeltKit (http4s) — end-to-end type chain ──────────
-//
-// A single JVM project on purpose: no crossProject, no hydration, no Vite. The
-// point of this example is the type chain (DB schema → query → endpoint →
-// routing → template expression), so every moving part that is not part of that
-// chain is left out.
-//
-//   docker compose -f ldbc-fullstack/docker-compose.yml up -d
-//   sbt "ldbc-fullstack/run"     # http://localhost:9095
-
-lazy val `ldbc-fullstack` = project
-  .in(file("ldbc-fullstack"))
-  .settings(
-    run / fork := true,
-    meltMode   := Some(Http4s),
-    libraryDependencies ++= Seq(
-      "org.http4s"          %% "http4s-ember-server" % "0.23.33",
-      "io.github.takapi327" %% "ldbc-schema"         % "0.7.1",
-      "io.github.takapi327" %% "ldbc-connector"      % "0.7.1"
-    )
-  )
-  .enablePlugins(MeltkitPlugin)
-
 // ── Root ──────────────────────────────────────────────────────────────────────
 lazy val root = project
   .in(file("."))
@@ -541,8 +518,7 @@ lazy val root = project
     `prefetch-app-server`,
     `server-env`.jvm,
     `server-env`.js,
-    `server-env-server`,
-    `ldbc-fullstack`
+    `server-env-server`
   )
   .settings(
     crossScalaVersions := Seq.empty
