@@ -89,6 +89,22 @@ ThisBuild / githubWorkflowTargetBranches         := Seq("**")
 ThisBuild / githubWorkflowTargetTags             := Seq("v*")
 ThisBuild / githubWorkflowPublishTargetBranches  := Seq(RefPredicate.StartsWith(Ref.Tag("v")))
 ThisBuild / githubWorkflowAddedJobs              := Seq(Workflows.sbtScripted.value)
+ThisBuild / githubWorkflowBuildPreamble          := Workflows.nodeSetupSteps
+ThisBuild / githubWorkflowSbtCommand             := "sbt --server"
+
+lazy val ensureJsdom = taskKey[Unit]("Ensure the jsdom npm package is installed (JSDOMNodeJSEnv needs it).")
+def jsdomTestSettings: Seq[Def.Setting[?]] = Seq(
+  ensureJsdom := {
+    val root = (LocalRootProject / baseDirectory).value
+    val log  = streams.value.log
+    if (!(root / "node_modules" / "jsdom").exists()) {
+      log.info("[melt] node_modules/jsdom missing — installing jsdom for JSDOMNodeJSEnv...")
+      val code = scala.sys.process.Process("npm install --no-save jsdom@16.7.0", root).!
+      if (code != 0) sys.error(s"`npm install jsdom` failed with exit code $code (needed for Scala.js tests)")
+    }
+  },
+  Test / loadedTestFrameworks := Def.uncached((Test / loadedTestFrameworks).dependsOn(ensureJsdom).value)
+)
 
 // ── Generic preprocessor API (no external dependencies, cross-compiled) ──
 lazy val preprocessor = crossProject(JVMPlatform, JSPlatform)
@@ -123,6 +139,31 @@ lazy val compiler = crossProject(JVMPlatform, JSPlatform)
   )
   .dependsOn(preprocessor)
 
+// ── .melt formatter (JVM only) ──
+// Phase 0 skeleton: scan (via melt-compiler's MeltRegionScanner) + splice.
+// JVM-only because Phase 1 depends on scalafmt-dynamic (JVM). Mirrors the
+// sass-preprocessor JVM-only `project` pattern.
+lazy val meltFormat = project
+  .in(file("modules/format"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name := "melt-format",
+    libraryDependencies ++= Seq(
+      "org.scalameta" %% "scalafmt-dynamic" % "3.11.5",
+      // scalafmt-dynamic's Coursier downloader needs scala-collection-compat at
+      // runtime; it is not pulled transitively onto a Scala 3 classpath.
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.13.0",
+      "com.typesafe"            % "config"                  % "1.4.3",
+      "org.scalameta"          %% "munit"                   % "1.3.0" % Test
+    ),
+    // `run` is forked (commonSettings); point the forked working directory at
+    // the build root so MeltFmtMain's relative paths (.scalafmt.conf, examples,
+    // docs) resolve there.
+    run / baseDirectory := (LocalRootProject / baseDirectory).value
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(compiler.jvm)
+
 // ── Runtime (crossProject: JVM + JS) ──
 // JS side: Scala.js reactive runtime (existing SPA implementation).
 // JVM side: no-op stubs + server-render helpers under melt.runtime.render.
@@ -137,7 +178,16 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies += "org.scalameta" %% "munit" % "1.3.0" % Test,
     // sbt 2.0.0 is stricter about duplicate ZIP entries in sources JARs.
     // BoilerplatePlugin registers generated files twice; deduplicate by target path.
-    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) }
+    Compile / packageSrc / mappings ~= { _.distinctBy(_._2) },
+    Compile / boilerplateGenerate := Def.uncached(
+      spray.boilerplate.BoilerplatePlugin.generateFromTemplates(
+        (Compile / streams).value,
+        boilerplateSignature.value,
+        (Compile / boilerplateSource).value,
+        (Compile / sourceManaged).value,
+        (Compile / boilerplateGeneratedExtension).value
+      )
+    )
   )
   .jsSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-dom" % "2.8.1",
@@ -145,6 +195,7 @@ lazy val runtime = crossProject(JVMPlatform, JSPlatform)
     // available in unit tests.
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
+  .jsSettings(jsdomTestSettings *)
   .enablePlugins(AutomateHeaderPlugin, spray.boilerplate.BoilerplatePlugin)
 
 // ── Code generator (JVM + JS): depends on compiler (AST/parser) + runtime ──
@@ -175,6 +226,7 @@ lazy val testkit = project
     // Use jsdom so that DOM APIs are available in unit tests
     jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
   )
+  .settings(jsdomTestSettings *)
   .enablePlugins(ScalaJSPlugin, AutomateHeaderPlugin)
   .dependsOn(runtime.js)
 
@@ -281,6 +333,7 @@ lazy val `language-server` = project
       "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "1.0.0",
       "org.scalameta"    %% "munit"             % "1.2.4" % Test
     ),
+    scalacOptions += "-Xmixin-force-forwarders:false",
     // Fat JAR: java -jar melt-language-server.jar
     assembly / assemblyJarName       := "melt-language-server.jar",
     assembly / mainClass             := Some("melt.lsp.MeltLanguageServerLauncher"),
@@ -305,6 +358,7 @@ lazy val root = project
     `sass-preprocessor`,
     compiler.jvm,
     compiler.js,
+    meltFormat,
     runtime.jvm,
     runtime.js,
     codegen.jvm,
@@ -323,5 +377,11 @@ lazy val root = project
   .settings(BuildSettings.commonSettings)
   .settings(
     publish / skip     := true,
-    crossScalaVersions := Seq.empty // root project does not cross-compile
+    crossScalaVersions := Seq.empty, // root project does not cross-compile
+    // `.melt` formatter (Phase 1: <script> sections). Runs in-process so cwd is
+    // the build root; scans examples/ and docs/ for .melt files.
+    commands ++= Seq(
+      Command.command("meltFmt")(s => "meltFormat/runMain melt.format.MeltFmtMain examples docs" :: s),
+      Command.command("meltFmtCheck")(s => "meltFormat/runMain melt.format.MeltFmtMain --check examples docs" :: s)
+    )
   )

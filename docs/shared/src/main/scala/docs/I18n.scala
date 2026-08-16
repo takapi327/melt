@@ -78,6 +78,7 @@ object I18n:
         "transitions"      -> "Transitions",
         "trusted-html"     -> "Trusted HTML",
         "css"              -> "CSS",
+        "formatting"       -> "Formatting",
         "testing"          -> "Testing",
         "routing"          -> "Routing",
         "ssr"              -> "SSR",
@@ -86,7 +87,8 @@ object I18n:
         "form-actions"     -> "Form Actions",
         "server-functions" -> "Server Functions",
         "async-ssr"        -> "Async SSR",
-        "server-env"       -> "Environment & secrets"
+        "server-env"       -> "Environment & secrets",
+        "type-safety"      -> "Type Safety"
       )
     ),
     apiLinks = SidebarLinks(
@@ -179,6 +181,7 @@ object I18n:
         "transitions"      -> "トランジション",
         "trusted-html"     -> "Trusted HTML",
         "css"              -> "CSS",
+        "formatting"       -> "フォーマット",
         "testing"          -> "テスト",
         "routing"          -> "ルーティング",
         "ssr"              -> "SSR",
@@ -187,7 +190,8 @@ object I18n:
         "form-actions"     -> "フォームアクション",
         "server-functions" -> "サーバー関数",
         "async-ssr"        -> "非同期 SSR",
-        "server-env"       -> "環境変数・シークレット"
+        "server-env"       -> "環境変数・シークレット",
+        "type-safety"      -> "型安全"
       )
     ),
     apiLinks = SidebarLinks(

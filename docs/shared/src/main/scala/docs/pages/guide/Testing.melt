@@ -1,127 +1,222 @@
 <script lang="scala">
-import docs.i18n.GuideI18n
-import docs.GuideCodes
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
 
-case class Props(lang: String = "en", basePath: String = "")
+  case class Props(lang: String = "en", basePath: String = "")
 
-val t    = GuideI18n(props.lang).testing
-val nav  = GuideI18n(props.lang).nav
-val base = props.basePath + "/" + props.lang
+  val t    = GuideI18n(props.lang).testing
+  val nav  = GuideI18n(props.lang).nav
+  val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.setupH2}</h2>
-<p>{t.setupIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.setupH2}
+</h2>
+<p>
+  {t.setupIntro}
+</p>
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>build.sbt
   </div>
-  <pre><code>{GuideCodes.testingDepExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.testingDepExample}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.writingH2}</h2>
-
+<h2>
+  {t.writingH2}
+</h2>
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>CounterSpec.scala
   </div>
-  <pre><code>{GuideCodes.testingCounterSpec}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.testingCounterSpec}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.apiH2}</h2>
-
+<h2>
+  {t.apiH2}
+</h2>
 <table>
   <thead>
     <tr>
-      <th>{t.methodH}</th>
-      <th>{t.descH}</th>
+      <th>
+        {t.methodH}
+      </th>
+      <th>
+        {t.descH}
+      </th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><code>mount(...)</code></td>
-      <td>{t.mountDesc}</td>
+      <td>
+        <code>
+          mount(...)
+        </code>
+      </td>
+      <td>
+        {t.mountDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.text(selector)</code></td>
-      <td>{t.textDesc}</td>
+      <td>
+        <code>
+          .text(selector)
+        </code>
+      </td>
+      <td>
+        {t.textDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.click(selector)</code></td>
-      <td>{t.clickDesc}</td>
+      <td>
+        <code>
+          .click(selector)
+        </code>
+      </td>
+      <td>
+        {t.clickDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.input(selector, value)</code></td>
-      <td>{t.inputDesc}</td>
+      <td>
+        <code>
+          .input(selector, value)
+        </code>
+      </td>
+      <td>
+        {t.inputDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.exists(selector)</code></td>
-      <td>{t.existsDesc}</td>
+      <td>
+        <code>
+          .exists(selector)
+        </code>
+      </td>
+      <td>
+        {t.existsDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.findAll(selector)</code></td>
-      <td>{t.findAllDesc}</td>
+      <td>
+        <code>
+          .findAll(selector)
+        </code>
+      </td>
+      <td>
+        {t.findAllDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.getByText(text)</code></td>
-      <td>{t.getByTextDesc}</td>
+      <td>
+        <code>
+          .getByText(text)
+        </code>
+      </td>
+      <td>
+        {t.getByTextDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.getByRole(role)</code></td>
-      <td>{t.getByRoleDesc}</td>
+      <td>
+        <code>
+          .getByRole(role)
+        </code>
+      </td>
+      <td>
+        {t.getByRoleDesc}
+      </td>
     </tr>
     <tr>
-      <td><code>.waitFor(...)</code></td>
-      <td>{t.waitForDesc}</td>
+      <td>
+        <code>
+          .waitFor(...)
+        </code>
+      </td>
+      <td>
+        {t.waitForDesc}
+      </td>
     </tr>
   </tbody>
 </table>
-
 {t.reactiveH2.map((h: String) => <h2>{h}</h2>)}
 {t.reactiveIntro.map((p: String) => <p>{p}</p>)}
-
 {t.eventH2.map((h: String) => <h2>{h}</h2>)}
-
 {t.jvmTitle.map((title: String) =>
   <div class="callout callout-info">
     <div class="callout-title">{title}</div>
     <p>{t.jvmText.getOrElse("")}</p>
   </div>
 )}
-
-<h2>{t.formH2}</h2>
-<p>{t.formIntro}</p>
-
-<h3>{t.formServerH3}</h3>
-<p>{t.formServerDesc}</p>
-
+<h2>
+  {t.formH2}
+</h2>
+<p>
+  {t.formIntro}
+</p>
+<h3>
+  {t.formServerH3}
+</h3>
+<p>
+  {t.formServerDesc}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.testingFormProbe}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.testingFormProbe}
+    </code>
+  </pre>
 </div>
-
-<h3>{t.formClientH3}</h3>
-<p>{t.formClientDesc}</p>
-
+<h3>
+  {t.formClientH3}
+</h3>
+<p>
+  {t.formClientDesc}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.testingFormEnhance}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.testingFormEnhance}
+    </code>
+  </pre>
 </div>
-
-<h3>{t.formCodecH3}</h3>
-<p>{t.formCodecDesc}</p>
-
+<h3>
+  {t.formCodecH3}
+</h3>
+<p>
+  {t.formCodecDesc}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.testingFormCodec}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.testingFormCodec}
+    </code>
+  </pre>
 </div>
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/css"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "CSS" else "CSS"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "CSS" else "CSS"}
+    </span>
   </a>
   <a class="doc-nav-next" href={base + "/guide/routing"}>
-    <span class="doc-nav-dir">{nav.next}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "ルーティング" else "Routing"}</span>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "ルーティング" else "Routing"}
+    </span>
   </a>
 </div>

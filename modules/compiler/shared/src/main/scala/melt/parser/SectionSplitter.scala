@@ -37,11 +37,11 @@ private[parser] object SectionSplitter:
     * The `module` attribute must be preceded by whitespace and followed by whitespace, `>`, or `/`
     * to avoid matching `data-module="true"` or similar attribute values.
     */
-  private val ModuleScriptOpenTag: Regex =
+  private[parser] val ModuleScriptOpenTag: Regex =
     """(?s)<script(?=\s)(?=[^>]*\blang\s*=\s*["']scala["'])(?=[^>]*\smodule(?=\s|>|/))[^>]*>""".r
 
   /** Matches instance `<script lang="scala">` — must NOT have the `module` attribute. */
-  private val InstanceScriptOpenTag: Regex =
+  private[parser] val InstanceScriptOpenTag: Regex =
     """(?s)<script(?=\s)(?=[^>]*\blang\s*=\s*["']scala["'])(?![^>]*\smodule(?=\s|>|/))[^>]*>""".r
 
   /** Matches `import "..."` — string literal import (always a file import, never valid Scala). */
@@ -56,18 +56,18 @@ private[parser] object SectionSplitter:
   private val StringImportWithCommentPattern: Regex =
     """^\s*import\s+"([^"]+)"\s*//.*$""".r
 
-  private val CloseScript = "</script>"
+  private[parser] val CloseScript = "</script>"
 
   /** Matches `<style>` or `<style lang="...">`.
     * Group 1 captures the attribute string inside the tag (null when no attributes).
     */
-  private val StyleOpenTag: Regex =
+  private[parser] val StyleOpenTag: Regex =
     """(?s)<style(\s[^>]*)?>""".r
 
-  private val StyleLangAttr: Regex =
+  private[parser] val StyleLangAttr: Regex =
     """lang\s*=\s*["']([^"']+)["']""".r
 
-  private val StyleClose = "</style>"
+  private[parser] val StyleClose = "</style>"
 
   /** Detects and removes string literal imports from script code.
     *
@@ -76,6 +76,80 @@ private[parser] object SectionSplitter:
     *         The caller uses `path` to locate the import statement in the
     *         original source for accurate line-number reporting.
     */
+  /** Strips the common leading indentation of a `<script>` body (and drops
+    * leading/trailing blank lines) so a source file may indent its script — e.g.
+    * by 2 spaces — without the codegen receiving *inconsistent* indentation.
+    *
+    * `trim` alone only dedents the first line, turning a uniformly indented
+    * script into "line 1 at column 0, the rest indented", which breaks Scala 3
+    * significant-indentation parsing of the generated code. For a column-0 body
+    * this is equivalent to `trim`.
+    */
+  private[parser] def dedentBlock(s: String): String =
+    val lines = s.split("\n", -1).toList
+    val body  = lines.dropWhile(_.trim.isEmpty).reverse.dropWhile(_.trim.isEmpty).reverse
+    val real  = body.filter(_.trim.nonEmpty)
+    if real.isEmpty then ""
+    else
+      val minIndent = real.map(_.takeWhile(_ == ' ').length).min
+      body.map(l => if l.trim.isEmpty then "" else l.substring(minIndent)).mkString("\n")
+
+  /** Finds the `</script>` that closes a script section, starting at `from`.
+    *
+    * Unlike a plain `indexOf`, it skips `</script>` occurrences inside Scala
+    * string literals or comments in the script body, so a script may legitimately
+    * contain e.g. `"...</script>..."` in a regex. Returns -1 if none is found.
+    *
+    * Pragmatic lexer covering the cases that occur in `.melt` scripts: `"..."`
+    * (with `\` escapes), `"""..."""`, `//` line comments, and nestable `/* */`
+    * block comments. String interpolation with a *nested* string literal that
+    * itself contains a literal `</script>` is not tracked (a vanishingly rare
+    * combination); such a file should escape the tag.
+    */
+  private[parser] def findScriptClose(source: String, from: Int): Int =
+    val n        = source.length
+    var i        = from
+    var inLine   = false // // ... to end of line
+    var block    = 0     // /* */ nesting depth
+    var inStr    = false // "..."
+    var inTriple = false // """..."""
+    def triAt(j: Int): Boolean =
+      j + 2 < n && source.charAt(j) == '"' && source.charAt(j + 1) == '"' && source.charAt(j + 2) == '"'
+    while i < n do
+      val c = source.charAt(i)
+      if inLine then
+        if c == '\n' then inLine = false
+        i += 1
+      else if block > 0 then
+        if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then
+          block += 1; i += 2
+        else if c == '*' && i + 1 < n && source.charAt(i + 1) == '/' then
+          block -= 1; i += 2
+        else i += 1
+      else if inTriple then
+        // In a run of >3 quotes (e.g. `s""""x""""`), the *last* 3 close the
+        // string; earlier quotes are content. So `"""` only closes when it is
+        // not followed by another `"`.
+        if triAt(i) && !(i + 3 < n && source.charAt(i + 3) == '"') then
+          inTriple = false; i += 3
+        else i += 1
+      else if inStr then
+        if c == '\\' then i += 2 // skip escaped char
+        else if c == '"' then
+          inStr = false; i += 1
+        else i += 1
+      else if triAt(i) then
+        inTriple = true; i += 3
+      else if c == '"' then
+        inStr = true; i += 1
+      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '/' then
+        inLine = true; i += 2
+      else if c == '/' && i + 1 < n && source.charAt(i + 1) == '*' then
+        block = 1; i += 2
+      else if source.startsWith(CloseScript, i) then return i
+      else i += 1
+    -1
+
   private[parser] def extractImports(
     code: String
   ): (String, List[String], List[(String, String)]) =
@@ -119,9 +193,9 @@ private[parser] object SectionSplitter:
     val (moduleRaw, afterModule) = moduleMatches.headOption match
       case None    => (None, source)
       case Some(m) =>
-        val bodyEnd = source.indexOf(CloseScript, m.end)
+        val bodyEnd = findScriptClose(source, m.end)
         if bodyEnd < 0 then return Left("""Unclosed <script lang="scala" module> tag""")
-        val rawCode   = source.substring(m.end, bodyEnd).trim
+        val rawCode   = dedentBlock(source.substring(m.end, bodyEnd))
         val remaining = source.substring(0, m.start) + source.substring(bodyEnd + CloseScript.length)
         val (filteredCode, imports, warnings) = extractImports(rawCode)
         (Some(RawScript(filteredCode, imports, warnings)), remaining)
@@ -130,9 +204,9 @@ private[parser] object SectionSplitter:
     val (rawScript, afterScript) = InstanceScriptOpenTag.findFirstMatchIn(afterModule) match
       case None    => (None, afterModule)
       case Some(m) =>
-        val bodyEnd = afterModule.indexOf(CloseScript, m.end)
+        val bodyEnd = findScriptClose(afterModule, m.end)
         if bodyEnd < 0 then return Left("""Unclosed <script lang="scala"> tag""")
-        val rawCode   = afterModule.substring(m.end, bodyEnd).trim
+        val rawCode   = dedentBlock(afterModule.substring(m.end, bodyEnd))
         val remaining = afterModule.substring(0, m.start) + afterModule.substring(bodyEnd + CloseScript.length)
         val (filteredCode, imports, warnings) = extractImports(rawCode)
         (Some(RawScript(filteredCode, imports, warnings)), remaining)

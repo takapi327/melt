@@ -1,88 +1,157 @@
 <script lang="scala">
-val count = State(0)
-val name = State("")
-val doubled = count.map(_ * 2)
+  val count   = State(0)
+  val name    = State("")
+  val doubled = count.map(_ * 2)
 
-// Phase 7: memo — only propagates when parity changes
-val isEven = count.memo(_ % 2 == 0)
+  // Phase 7: memo — only propagates when parity changes
+  val isEven = count.memo(_ % 2 == 0)
 
-// Phase 7: effect — logs count changes
-effect(count) { n =>
-  dom.console.log(s"Count changed to: $n")
-}
+  // Phase 7: effect — logs count changes
+  effect(count) { n =>
+    dom.console.log(s"Count changed to: $n")
+  }
 
-// Phase 7: Context
-val ThemeCtx = Context.create("light")
+  // Phase 7: Context
+  val ThemeCtx = Context.create("light")
 
-// Phase 7: batch — multiple updates at once
-def resetAll(): Unit = batch {
-  count.set(0)
-  name.set("")
-}
+  // Phase 7: batch — multiple updates at once
+  def resetAll(): Unit = batch {
+    count.set(0)
+    name.set("")
+  }
 
-// Phase 8: Window API — track window width reactively
-val windowWidth = Window.innerWidth
+  // Phase 8: Window API — track window width reactively
+  val windowWidth = Window.innerWidth
 
-// Phase 8: Document title — reactive document title
-Document.title(name.map(n => if n.isEmpty then "Melt Counter" else s"Hello, $n!"))
+  // Phase 8: Document title — reactive document title
+  Document.title(name.map(n => if n.isEmpty then "Melt Counter" else s"Hello, $n!"))
 
-// Phase 12: onMount — measure container width after DOM insertion
-// bind:this stores the root div reference; width is read after appendChild
-val containerRef   = Ref.empty[dom.Element]
-val containerWidth = State(0)
-onMount {
-  containerRef.foreach(el => containerWidth.set(el.getBoundingClientRect().width.toInt))
-}
+  // Phase 12: onMount — measure container width after DOM insertion
+  // bind:this stores the root div reference; width is read after appendChild
+  val containerRef   = Ref.empty[dom.Element]
+  val containerWidth = State(0)
+  onMount {
+    containerRef.foreach(el => containerWidth.set(el.getBoundingClientRect().width.toInt))
+  }
 
-// Phase 12: onMount — elapsed seconds since component was mounted
-// The setInterval is registered AFTER mount and cancelled when the component
-// is destroyed via Lifecycle.destroyTree (called by MeltSuite.afterEach or
-// MountedComponent.unmount).
-val elapsed = State(0)
-onMount { ctx =>
-  import scala.scalajs.js.timers.*
-  val id = setInterval(1000.0) { elapsed += 1 }
-  ctx.onCleanup(() => clearInterval(id))
-}
+  // Phase 12: onMount — elapsed seconds since component was mounted
+  // The setInterval is registered AFTER mount and cancelled when the component
+  // is destroyed via Lifecycle.destroyTree (called by MeltSuite.afterEach or
+  // MountedComponent.unmount).
+  val elapsed = State(0)
+  onMount { ctx =>
+    import scala.scalajs.js.timers.*
+    val id = setInterval(1000.0) { elapsed += 1 }
+    ctx.onCleanup(() => clearInterval(id))
+  }
 </script>
 
 <div class="counter" bind:this={containerRef}>
-  <h1>Melt Counter</h1>
-  <p>Count: {count}</p>
-  <p>Doubled: {doubled}</p>
-  <p>Even: {isEven}</p>
-  <p class="meta">Window width: {windowWidth}</p>
-  <p class="meta">Container width: {containerWidth}px</p>
-  <p class="meta">Elapsed: {elapsed}s</p>
-  <button onclick={_ => count += 1}>+1</button>
-  <button onclick={_ => count -= 1}>-1</button>
-  <button onclick={_ => resetAll()}>Reset All</button>
+  <h1>
+    Melt Counter
+  </h1>
+  <p>
+    Count: {count}
+  </p>
+  <p>
+    Doubled: {doubled}
+  </p>
+  <p>
+    Even: {isEven}
+  </p>
+  <p class="meta">
+    Window width: {windowWidth}
+  </p>
+  <p class="meta">
+    Container width: {containerWidth}px
+  </p>
+  <p class="meta">
+    Elapsed: {elapsed}s
+  </p>
+  <button onclick={_ => count += 1}>
+    +1
+  </button>
+  <button onclick={_ => count -= 1}>
+    -1
+  </button>
+  <button onclick={_ => resetAll()}>
+    Reset All
+  </button>
   <hr />
   <input use:autoFocus bind:value={name} placeholder="Your name" />
-  <p>Hello, {name}!</p>
-
+  <p>
+    Hello, {name}!
+  </p>
   <hr />
   <!-- ── State as props: bidirectional binding ─────────────────────────── -->
   <!-- Both StepControl components receive the same State[Int].              -->
   <!-- Clicking either child's button calls .update() on the shared State,  -->
   <!-- and all three displays (parent + both children) update in sync.     -->
-  <p class="section-label">State as props — bidirectional binding</p>
-  <p class="meta">Two independent child components sharing the same <code>State[Int]</code>:</p>
+  <p class="section-label">
+    State as props — bidirectional binding
+  </p>
+  <p class="meta">
+    Two independent child components sharing the same <code>State[Int]</code>:
+  </p>
   <div class="step-row">
-    <StepControl count={count} step={1} />
-    <StepControl count={count} step={5} />
+    <StepControl count={count} step={1}></StepControl>
+    <StepControl count={count} step={5}></StepControl>
   </div>
-  <p class="meta">Parent sees: <strong>{count}</strong></p>
+  <p class="meta">
+    Parent sees: <strong>{count}</strong>
+  </p>
 </div>
 
 <style>
-.counter { font-family: sans-serif; max-width: 400px; margin: 2em auto; padding: 1em; }
-h1 { color: #ff3e00; }
-p { color: #333; }
-.meta { color: #888; font-size: 0.85em; }
-button { margin: 0 0.25em; padding: 0.5em 1em; cursor: pointer; }
-input { padding: 0.5em; width: 100%; box-sizing: border-box; margin-top: 1em; }
-hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
-.section-label { font-weight: 600; margin-top: 0.5em; color: #ff3e00; }
-.step-row { display: flex; gap: 1em; flex-wrap: wrap; margin: 0.5em 0; }
+  .counter {
+    font-family: sans-serif;
+    max-width: 400px;
+    margin: 2em auto;
+    padding: 1em;
+  }
+
+  h1 {
+    color: #ff3e00;
+  }
+
+  p {
+    color: #333;
+  }
+
+  .meta {
+    color: #888;
+    font-size: 0.85em;
+  }
+
+  button {
+    margin: 0 0.25em;
+    padding: 0.5em 1em;
+    cursor: pointer;
+  }
+
+  input {
+    padding: 0.5em;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 1em;
+  }
+
+  hr {
+    margin: 1em 0;
+    border: none;
+    border-top: 1px solid #ddd;
+  }
+
+  .section-label {
+    font-weight: 600;
+    margin-top: 0.5em;
+    color: #ff3e00;
+  }
+
+  .step-row {
+    display: flex;
+    gap: 1em;
+    flex-wrap: wrap;
+    margin: 0.5em 0;
+  }
 </style>

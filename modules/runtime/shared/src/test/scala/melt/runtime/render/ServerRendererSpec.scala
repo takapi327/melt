@@ -8,7 +8,7 @@ package melt.runtime.render
 
 import munit.FunSuite
 
-import melt.runtime.{ Escape, MeltWarnings, TrustedHtml }
+import melt.runtime.{ Escape, MeltWarning, MeltWarningKind, TrustedHtml }
 
 /** Phase A tests for [[ServerRenderer]].
   *
@@ -158,22 +158,19 @@ class ServerRendererSpec extends FunSuite:
   // ── §12.1.2 spread attribute filtering ─────────────────────────────────
 
   test("spreadAttrs drops invalid keys and on* handlers") {
-    MeltWarnings.mute()
-    try
-      val r = ServerRenderer()
-      r.spreadAttrs(
-        "button",
-        Map(
-          "type"                      -> "button",
-          "onclick"                   -> "alert(1)",
-          """class" onmouseover="x""" -> "bad"
-        )
+    val r = ServerRenderer()
+    r.spreadAttrs(
+      "button",
+      Map(
+        "type"                      -> "button",
+        "onclick"                   -> "alert(1)",
+        """class" onmouseover="x""" -> "bad"
       )
-      val body = r.result().body
-      assert(body.contains("""type="button""""), body)
-      assert(!body.contains("onclick"), body)
-      assert(!body.contains("onmouseover"), body)
-    finally MeltWarnings.resetHandler()
+    )
+    val body = r.result().body
+    assert(body.contains("""type="button""""), body)
+    assert(!body.contains("onclick"), body)
+    assert(!body.contains("onmouseover"), body)
   }
 
   test("spreadAttrs null / None values are dropped silently") {
@@ -186,14 +183,11 @@ class ServerRendererSpec extends FunSuite:
   }
 
   test("spreadAttrs uses Escape.url for URL attributes") {
-    MeltWarnings.mute()
-    try
-      val r = ServerRenderer()
-      r.spreadAttrs("a", Map("href" -> "javascript:alert(1)"))
-      val body = r.result().body
-      // Dangerous URL is blocked by Escape.url → attribute value is empty
-      assert(!body.contains("javascript:"), body)
-    finally MeltWarnings.resetHandler()
+    val r = ServerRenderer()
+    r.spreadAttrs("a", Map("href" -> "javascript:alert(1)"))
+    val body = r.result().body
+    // Dangerous URL is blocked by Escape.url → attribute value is empty
+    assert(!body.contains("javascript:"), body)
   }
 
   // ── §12.1.4 spread attribute polish ──────────────────────────────────
@@ -205,90 +199,86 @@ class ServerRendererSpec extends FunSuite:
   }
 
   test("spreadAttrs drops function-valued entries with a warning") {
-    MeltWarnings.mute()
-    try
-      val r = ServerRenderer()
-      val fn: () => Unit = () => ()
-      r.spreadAttrs("button", Map("onclick" -> "alert()", "cb" -> fn, "id" -> "ok"))
-      val body = r.result().body
-      assert(body.contains("""id="ok""""), body)
-      assert(!body.contains("cb"), body)
-      assert(!body.contains("onclick"), body)
-    finally MeltWarnings.resetHandler()
+    val r = ServerRenderer()
+    val fn: () => Unit = () => ()
+    r.spreadAttrs("button", Map("onclick" -> "alert()", "cb" -> fn, "id" -> "ok"))
+    val body = r.result().body
+    assert(body.contains("""id="ok""""), body)
+    assert(!body.contains("cb"), body)
+    assert(!body.contains("onclick"), body)
   }
 
   // ── S-1: isFunction covers Function6-Function22 and FunctionXXL ──────
 
   test("spreadAttrs drops Function6-valued entry (S-1)") {
-    MeltWarnings.mute()
-    try
-      val r  = ServerRenderer()
-      val fn = (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) => a + b + c + d + e + f
-      r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
-      val body = r.result().body
-      assert(body.contains("""id="ok""""), body)
-      assert(!body.contains("cb"), body)
-    finally MeltWarnings.resetHandler()
+    val r  = ServerRenderer()
+    val fn = (a: Int, b: Int, c: Int, d: Int, e: Int, f: Int) => a + b + c + d + e + f
+    r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
+    val body = r.result().body
+    assert(body.contains("""id="ok""""), body)
+    assert(!body.contains("cb"), body)
   }
 
   test("spreadAttrs drops Function22-valued entry (S-1)") {
-    MeltWarnings.mute()
-    try
-      val r = ServerRenderer()
-      val fn: (
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int,
-        Int
-      ) => Int =
-        (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r2, s, t, u, v) => a + b
-      r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
-      val body = r.result().body
-      assert(body.contains("""id="ok""""), body)
-      assert(!body.contains("cb"), body)
-    finally MeltWarnings.resetHandler()
+    val r = ServerRenderer()
+    val fn: (
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int,
+      Int
+    ) => Int =
+      (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r2, s, t, u, v) => a + b
+    r.spreadAttrs("div", Map("cb" -> fn, "id" -> "ok"))
+    val body = r.result().body
+    assert(body.contains("""id="ok""""), body)
+    assert(!body.contains("cb"), body)
   }
 
   // ── S-1: isTuple covers Tuple and Named Tuple values ─────────────────
 
   test("spreadAttrs drops Tuple-valued entry with a warning (S-1)") {
-    MeltWarnings.mute()
-    try
-      val r = ServerRenderer()
-      r.spreadAttrs("div", Map("pair" -> ("Alice", 30), "id" -> "ok"))
-      val body = r.result().body
-      assert(body.contains("""id="ok""""), body)
-      assert(!body.contains("pair"), body)
-      assert(!body.contains("Alice"), body)
-    finally MeltWarnings.resetHandler()
+    val r = ServerRenderer()
+    r.spreadAttrs("div", Map("pair" -> ("Alice", 30), "id" -> "ok"))
+    val body = r.result().body
+    assert(body.contains("""id="ok""""), body)
+    assert(!body.contains("pair"), body)
+    assert(!body.contains("Alice"), body)
   }
 
-  test("spreadAttrs Tuple drop warning contains attribute name (S-1)") {
-    var warned = ""
-    MeltWarnings.setHandler(msg => if msg.contains("Tuple") then warned = msg)
-    try
-      val r = ServerRenderer()
-      r.spreadAttrs("div", Map("meta" -> ("Alice", 30)))
-      assert(warned.contains("meta"), s"got: $warned")
-    finally MeltWarnings.resetHandler()
+  test("spreadAttrs Tuple drop warning names the attribute (S-1)") {
+    val warned = List.newBuilder[MeltWarning]
+    val r      = ServerRenderer(ServerRenderer.Config.default.copy(warningSink = warned += _))
+    r.spreadAttrs("div", Map("meta" -> ("Alice", 30)))
+    val ws = warned.result().filter(_.kind == MeltWarningKind.DroppedTupleAttr)
+    assertEquals(ws.map(_.attr), List(Some("meta")))
+  }
+
+  test("a renderer's warnings go only to its own sink") {
+    val mine   = List.newBuilder[MeltWarning]
+    val theirs = List.newBuilder[MeltWarning]
+    val r      = ServerRenderer(ServerRenderer.Config.default.copy(warningSink = mine += _))
+    ServerRenderer(ServerRenderer.Config.default.copy(warningSink = theirs += _))
+    r.spreadAttrs("div", Map("meta" -> ("Alice", 30)))
+    assertEquals(mine.result().map(_.kind), List(MeltWarningKind.DroppedTupleAttr))
+    assertEquals(theirs.result(), Nil)
   }
 
   test("spreadAttrs drops keys starting with $$ ($$slots reserved)") {

@@ -31,6 +31,48 @@ class SectionSplitterSpec extends munit.FunSuite:
     assertEquals(sections.style, Some(("div { color: red; }", StyleLang.Css)))
   }
 
+  test("dedents a uniformly indented multi-line script to column 0") {
+    // A 2-space indented script must dedent every line (not just the first, as
+    // `trim` did), else the generated code has inconsistent indentation and
+    // Scala 3 significant-indentation parsing misplaces later definitions.
+    val src =
+      """<script lang="scala">
+        |  case class Props(x: Int)
+        |  val y = Props(1)
+        |  f(y)
+        |</script>
+        |<p/>""".stripMargin
+    val code = split(src).toOption.flatMap(_.rawScript).map(_.code).getOrElse(fail("no script"))
+    assert(code.linesIterator.filter(_.trim.nonEmpty).forall(l => !l.startsWith(" ")), s"not fully dedented:\n$code")
+    assertEquals(code, "case class Props(x: Int)\nval y = Props(1)\nf(y)")
+  }
+
+  test("finds the real </script> past a </script> inside a Scala string") {
+    val src =
+      "<script lang=\"scala\">\n" +
+        "val re = \"(?i)<script[^>]*>.*?</script>\"\n" +
+        "val y = 1\n" +
+        "</script>\n<p>x</p>"
+    val sections = split(src).getOrElse(fail("unexpected error"))
+    assertEquals(sections.rawScript.map(_.code), Some("val re = \"(?i)<script[^>]*>.*?</script>\"\nval y = 1"))
+    assert(sections.templateSource.contains("<p>x</p>"), sections.templateSource)
+  }
+
+  test("findScriptClose skips </script> in triple strings, line and block comments") {
+    // `\"\"\"` == a `"""` triple-quote in the body under test.
+    val tripleBody = "val s = \"\"\"x</script>y\"\"\"\n</script>"
+    assertEquals(SectionSplitter.findScriptClose(tripleBody, 0), "val s = \"\"\"x</script>y\"\"\"\n".length)
+    assertEquals(
+      SectionSplitter.findScriptClose("// a </script> in a comment\n</script>", 0),
+      "// a </script> in a comment\n".length
+    )
+    assertEquals(SectionSplitter.findScriptClose("/* </script> */\n</script>", 0), "/* </script> */\n".length)
+    assertEquals(SectionSplitter.findScriptClose("val a = 1", 0), -1) // no closing tag
+    // Quote runs > 3: `s""""$t""""` — the last 3 quotes close the triple string.
+    val quoteRun = "val q = s\"\"\"\"$t\"\"\"\"\n</script>"
+    assertEquals(SectionSplitter.findScriptClose(quoteRun, 0), "val q = s\"\"\"\"$t\"\"\"\"\n".length)
+  }
+
   test("template-only file (no script, no style)") {
     val src      = "<div>Hello</div>"
     val sections = split(src).getOrElse(fail("unexpected error"))

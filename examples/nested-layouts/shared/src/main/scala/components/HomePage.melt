@@ -1,3 +1,11 @@
-<h1>Home</h1>
-<p>Welcome. This page is rendered inside the root <code>AppShell</code> layout only.</p>
-<p><a href="/dashboard/stats">Go to the dashboard →</a></p>
+<h1>
+  Home
+</h1>
+<p>
+  Welcome. This page is rendered inside the root <code>AppShell</code> layout only.
+</p>
+<p>
+  <a href="/dashboard/stats">
+    Go to the dashboard →
+  </a>
+</p>
