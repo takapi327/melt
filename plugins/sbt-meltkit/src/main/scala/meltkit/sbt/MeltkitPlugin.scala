@@ -265,6 +265,8 @@ object MeltkitPlugin extends AutoPlugin:
     // Browser mode always needs hydration exports; other modes do not
     meltHydration := meltMode.value.contains(MeltMode.Browser),
 
+    scalacOptions += "-Wnonunit-statement",
+
     // Auto-configure Scala.js linker settings based on meltMode (JS projects only).
     // Uses a fresh StandardConfig() to avoid referencing scalaJSLinkerConfig.value,
     // which would be undefined for JVM projects in a crossProject setup.

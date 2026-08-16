@@ -1,45 +1,53 @@
 <script lang="scala">
-import docs.I18n
-import docs.components.Layout
+  import docs.components.Layout
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val pageTitle  = I18n(props.lang).apiLinks(props.slug)
-val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
+  val pageTitle  = I18n(props.lang).apiLinks(props.slug)
+  val breadcrumb = if props.lang == "ja" then "API リファレンス" else "API Reference"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="api" slug={props.slug}>
-<article class="doc-page">
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">{breadcrumb}</div>
-    <h1 class="doc-title">{pageTitle}</h1>
-  </div>
-  {children}
-</article>
+  <article class="doc-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        {breadcrumb}
+      </div>
+      <h1 class="doc-title">
+        {pageTitle}
+      </h1>
+    </div>
+    {children}
+  </article>
 </Layout>
 
 <style>
-.doc-page { padding: 0; }
+  .doc-page {
+    padding: 0;
+  }
 
-.doc-page-header {
-  padding-bottom: 28px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--line);
-}
-.doc-breadcrumb {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--fg-4);
-  margin-bottom: 12px;
-}
-.doc-title {
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  color: var(--fg);
-}
+  .doc-page-header {
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-4);
+    margin-bottom: 12px;
+  }
+
+  .doc-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--fg);
+  }
 </style>

@@ -26,10 +26,13 @@ class TemplateParserSpec extends munit.FunSuite:
     assertEquals(parse("   \n  "), Nil)
   }
 
-  test("HTML comment is discarded") {
+  test("HTML comment is emitted as a Comment node") {
     assertEquals(
       parse("<!-- this is a comment --><p>hi</p>"),
-      List(TemplateNode.Element("p", Nil, List(TemplateNode.Text("hi"))))
+      List(
+        TemplateNode.Comment(" this is a comment "),
+        TemplateNode.Element("p", Nil, List(TemplateNode.Text("hi")))
+      )
     )
   }
 
@@ -999,22 +1002,25 @@ class TemplateParserSpec extends munit.FunSuite:
 
   // ── Multiple HTML comments ────────────────────────────────────────────────
 
-  test("multiple comments are all discarded") {
+  test("multiple comments are all emitted as Comment nodes") {
     val result = parse("<!--first--><p>text</p><!--second-->")
     assertEquals(
       result,
       List(
-        TemplateNode.Element("p", Nil, List(TemplateNode.Text("text")))
+        TemplateNode.Comment("first"),
+        TemplateNode.Element("p", Nil, List(TemplateNode.Text("text"))),
+        TemplateNode.Comment("second")
       )
     )
   }
 
-  test("comment between sibling elements is discarded") {
+  test("comment between sibling elements is emitted as a Comment node") {
     val result = parse("<h1>Title</h1><!-- separator --><p>Body</p>")
     assertEquals(
       result,
       List(
         TemplateNode.Element("h1", Nil, List(TemplateNode.Text("Title"))),
+        TemplateNode.Comment(" separator "),
         TemplateNode.Element("p", Nil, List(TemplateNode.Text("Body")))
       )
     )

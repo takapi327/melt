@@ -1,17 +1,17 @@
 <script lang="scala">
-import scala.concurrent.{ Future, Promise }
-import scala.scalajs.js.timers.*
-import scala.util.{ Failure, Success }
+  import scala.concurrent.{ Future, Promise }
+  import scala.scalajs.js.timers.*
+  import scala.util.{ Failure, Success }
 
-def fetchSuccess(delayMs: Double, value: String): Future[String] =
-  val p = Promise[String]()
-  setTimeout(delayMs) { p.success(value) }
-  p.future
+  def fetchSuccess(delayMs: Double, value: String): Future[String] =
+    val p = Promise[String]()
+    setTimeout(delayMs) { p.success(value) }
+    p.future
 
-def fetchFailure(delayMs: Double): Future[String] =
-  val p = Promise[String]()
-  setTimeout(delayMs) { p.failure(new RuntimeException("Network error: request timed out")) }
-  p.future
+  def fetchFailure(delayMs: Double): Future[String] =
+    val p = Promise[String]()
+    setTimeout(delayMs) { p.failure(new RuntimeException("Network error: request timed out")) }
+    p.future
 </script>
 
 <div>

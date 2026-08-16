@@ -1,0 +1,109 @@
+<script lang="scala">
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
+
+  case class Props(lang: String = "en", basePath: String = "")
+
+  val t = GuideI18n(props.lang).formatting
+</script>
+
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.runH2}
+</h2>
+<p>
+  {t.runIntro}
+</p>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.fmtRunCommands}
+    </code>
+  </pre>
+</div>
+<p>
+  {t.checkText}
+</p>
+<h2>
+  {t.configH2}
+</h2>
+<p>
+  {t.configIntro}
+</p>
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>.meltfmt.conf
+  </div>
+  <pre>
+    <code>
+      {GuideCodes.fmtConfExample}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.includeTitle}
+</h2>
+<p>
+  {t.includeText}
+</p>
+<h2>
+  {t.sectionsH2}
+</h2>
+<p>
+  {t.sectionsIntro}
+</p>
+<ul>
+  <li>
+    {t.scriptItem}
+  </li>
+  <li>
+    {t.styleItem}
+  </li>
+  <li>
+    {t.templateItem}
+  </li>
+</ul>
+<h2>
+  {t.contentH2}
+</h2>
+<p>
+  {t.contentIntro}
+</p>
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>content = inline
+  </div>
+  <pre>
+    <code>
+      {GuideCodes.fmtInlineExample}
+    </code>
+  </pre>
+</div>
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>content = expanded
+  </div>
+  <pre>
+    <code>
+      {GuideCodes.fmtExpandedExample}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.optionsH2}
+</h2>
+<p>
+  {t.optionsIntro}
+</p>
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>.meltfmt.conf
+  </div>
+  <pre>
+    <code>
+      {GuideCodes.fmtOptionsExample}
+    </code>
+  </pre>
+</div>
