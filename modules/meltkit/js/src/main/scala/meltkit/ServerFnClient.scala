@@ -159,7 +159,10 @@ private object ServerFnClient:
     // The seed <script> only exists in a browser DOM. During SSR and in non-DOM
     // test envs (NodeJSEnv) `document` is absent, so skip reading rather than
     // dereferencing an undefined global (which would throw ReferenceError).
-    if !js.isUndefined(js.Dynamic.global.selectDynamic("document")) then
+    // `js.typeOf` and not `js.isUndefined`: since Scala.js 1.x, reading a member
+    // of the global scope that is not declared throws instead of yielding
+    // undefined, so the check has to be the `typeof` form.
+    if js.typeOf(js.Dynamic.global.selectDynamic("document")) != "undefined" then
       val el = dom.document.querySelector("script[data-melt-queries]")
       if el != null then
         try
