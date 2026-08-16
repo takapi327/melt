@@ -89,6 +89,10 @@ object SourceMapComposer:
   /** Composes a single linker `.js.map` file in place, resolving its `sources`
     * entries to generated `.scala` files on disk (relative entries are resolved
     * against the map's own directory). Returns `true` when the file changed.
+    *
+    * An empty or unparseable map is left alone rather than raised: source maps are a
+    * debugging aid, so a stale artifact or a file still being written by a concurrent
+    * linker run must not abort the task.
     */
   def composeFile(jsMapFile: File): Boolean =
     if !jsMapFile.exists() then false
@@ -103,11 +107,15 @@ object SourceMapComposer:
         val f = new File(meltPath)
         if f.exists() then Some(readFile(f)) else None
 
-      val composed = compose(original, metaFor, contentFor)
-      if composed == original then false
+      if original.trim.isEmpty then false
       else
-        writeFile(jsMapFile, composed)
-        true
+        val composed =
+          try compose(original, metaFor, contentFor)
+          catch case _: Exception => original
+        if composed == original then false
+        else
+          writeFile(jsMapFile, composed)
+          true
 
   /** Composes every `*.js.map` under `distDir` (non-recursive). Returns the files
     * that were rewritten. */

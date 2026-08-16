@@ -1,15 +1,29 @@
 <script lang="scala">
-case class Props(onAdd: String => Unit)
-val text = State("")
+  case class Props(onAdd: String => Unit)
+  val text = State("")
 </script>
 
 <div class="todo-input">
   <input bind:value={text} placeholder="What needs to be done?" />
-  <button onclick={_ => { if text.value.nonEmpty then { props.onAdd(text); text.set("") } }}>Add</button>
+  <button onclick={_ => { if text.value.nonEmpty then { props.onAdd(text); text.set("") } }}>
+    Add
+  </button>
 </div>
 
 <style>
-.todo-input { display: flex; gap: 0.5em; margin-bottom: 1em; }
-input { flex: 1; padding: 0.5em; }
-button { padding: 0.5em 1em; cursor: pointer; }
+  .todo-input {
+    display: flex;
+    gap: 0.5em;
+    margin-bottom: 1em;
+  }
+
+  input {
+    flex: 1;
+    padding: 0.5em;
+  }
+
+  button {
+    padding: 0.5em 1em;
+    cursor: pointer;
+  }
 </style>

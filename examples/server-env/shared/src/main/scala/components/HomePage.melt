@@ -1,43 +1,80 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// PublicEnv is generated at build time from `meltPublicEnv` (see build.sbt) and is
-// safe to read on the client — these values are meant for the browser.
-val appName = generated.PublicEnv.appName
-val apiBase = generated.PublicEnv.apiBase
+  // PublicEnv is generated at build time from `meltPublicEnv` (see build.sbt) and is
+  // safe to read on the client — these values are meant for the browser.
+  val appName = generated.PublicEnv.appName
+  val apiBase = generated.PublicEnv.apiBase
 
-// The greeting comes from the server, which built it from a PRIVATE env value
-// (see Server.scala). Only the non-secret result reaches the client.
-val greeting = Api.greeting()
+  // The greeting comes from the server, which built it from a PRIVATE env value
+  // (see Server.scala). Only the non-secret result reaches the client.
+  val greeting = Api.greeting()
 
-// Uncommenting the next line would NOT compile: meltkit.env.PrivateEnv is JVM-only,
-// so a browser-reachable component cannot reference it — the secret boundary is a
-// real compile error, not a lint.
-// val leaked = meltkit.env.PrivateEnv.get("SECRET_TOKEN")
+  // Uncommenting the next line would NOT compile: meltkit.env.PrivateEnv is JVM-only,
+  // so a browser-reachable component cannot reference it — the secret boundary is a
+  // real compile error, not a lint.
+  // val leaked = meltkit.env.PrivateEnv.get("SECRET_TOKEN")
 </script>
 
 <main>
-  <h1>{appName}</h1>
-
+  <h1>
+    {appName}
+  </h1>
   <section>
-    <h2>Public env (build-time, browser-safe)</h2>
+    <h2>
+      Public env (build-time, browser-safe)
+    </h2>
     <ul>
-      <li>appName = <code>{appName}</code></li>
-      <li>apiBase = <code>{apiBase}</code></li>
+      <li>
+        appName = <code>{appName}</code>
+      </li>
+      <li>
+        apiBase = <code>{apiBase}</code>
+      </li>
     </ul>
   </section>
-
   <section>
-    <h2>From the server (derived from private env)</h2>
-    <p>{greeting.state.map(_.toOption.getOrElse("…")).value}</p>
+    <h2>
+      From the server (derived from private env)
+    </h2>
+    <p>
+      {greeting.state.map(_.toOption.getOrElse("…")).value}
+    </p>
   </section>
 </main>
 
 <style>
-main { max-width: 34rem; margin: 3rem auto; font-family: system-ui, sans-serif; color: #222; }
-h1 { color: #ff3e00; }
-h2 { font-size: 0.95rem; color: #555; margin-bottom: 0.25rem; }
-section { border: 1px solid #eee; border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; }
-code { background: #f4f4f8; padding: 0.1em 0.35em; border-radius: 4px; }
-ul { margin: 0; }
+  main {
+    max-width: 34rem;
+    margin: 3rem auto;
+    font-family: system-ui, sans-serif;
+    color: #222;
+  }
+
+  h1 {
+    color: #ff3e00;
+  }
+
+  h2 {
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+  }
+
+  section {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+  }
+
+  code {
+    background: #f4f4f8;
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+
+  ul {
+    margin: 0;
+  }
 </style>

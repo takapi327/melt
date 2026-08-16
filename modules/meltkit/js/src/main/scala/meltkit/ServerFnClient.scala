@@ -155,15 +155,22 @@ private object ServerFnClient:
     * several components sharing a key all adopt the seed), then dropped one tick
     * later so post-hydration navigations fetch fresh. */
   private lazy val hydrationSeed: scala.collection.mutable.Map[String, SimpleJson.JsonValue] =
-    val m  = scala.collection.mutable.Map.empty[String, SimpleJson.JsonValue]
-    val el = dom.document.querySelector("script[data-melt-queries]")
-    if el != null then
-      try
-        SimpleJson.parse(el.textContent) match
-          case obj: SimpleJson.JsonValue.Obj => obj.fields.foreach { case (k, v) => m(k) = v }
-          case _                             => ()
-      catch case _: Throwable => ()
-      js.timers.setTimeout(0)(m.clear())
+    val m = scala.collection.mutable.Map.empty[String, SimpleJson.JsonValue]
+    // The seed <script> only exists in a browser DOM. During SSR and in non-DOM
+    // test envs (NodeJSEnv) `document` is absent, so skip reading rather than
+    // dereferencing an undefined global (which would throw ReferenceError).
+    // `js.typeOf` and not `js.isUndefined`: since Scala.js 1.x, reading a member
+    // of the global scope that is not declared throws instead of yielding
+    // undefined, so the check has to be the `typeof` form.
+    if js.typeOf(js.Dynamic.global.selectDynamic("document")) != "undefined" then
+      val el = dom.document.querySelector("script[data-melt-queries]")
+      if el != null then
+        try
+          SimpleJson.parse(el.textContent) match
+            case obj: SimpleJson.JsonValue.Obj => obj.fields.foreach { case (k, v) => m(k) = v }
+            case _                             => ()
+        catch case _: Throwable => ()
+        js.timers.setTimeout(0)(m.clear())
     m
 
   private def seedFor(key: String): Option[SimpleJson.JsonValue] = hydrationSeed.get(key)

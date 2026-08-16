@@ -1,13 +1,13 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// Streaming SSR: rendered with `ctx.renderStream` on the server. The shell (with
-// each boundary's <melt:pending> fallback) is flushed immediately, then each
-// resolved branch streams in as a chunk the client swaps over its fallback. The
-// two boundaries below are independent and resolve concurrently, so the faster
-// `stats` chunk arrives before the slower `posts` one (out-of-order).
-val posts = Api.streamPosts()
-val stats = Api.streamStats()
+  // Streaming SSR: rendered with `ctx.renderStream` on the server. The shell (with
+  // each boundary's <melt:pending> fallback) is flushed immediately, then each
+  // resolved branch streams in as a chunk the client swaps over its fallback. The
+  // two boundaries below are independent and resolve concurrently, so the faster
+  // `stats` chunk arrives before the slower `posts` one (out-of-order).
+  val posts = Api.streamPosts()
+  val stats = Api.streamStats()
 </script>
 
 <main class="stream">
@@ -43,12 +43,50 @@ val stats = Api.streamStats()
 </main>
 
 <style>
-.stream { max-width: 32rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
-.card { border: 1px solid #eee; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
-.card h2 { margin: 0 0 0.5rem; font-size: 1rem; color: #555; }
-.stream ul { list-style: none; padding: 0; margin: 0; }
-.stream li { display: flex; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
-.title { flex: 1; }
-.likes { color: #c0392b; min-width: 3rem; }
-.error, .loading { color: #666; }
+  .stream {
+    max-width: 32rem;
+    margin: 3rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .card {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+  }
+
+  .card h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    color: #555;
+  }
+
+  .stream ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .stream li {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .title {
+    flex: 1;
+  }
+
+  .likes {
+    color: #c0392b;
+    min-width: 3rem;
+  }
+
+  .error,
+  .loading {
+    color: #666;
+  }
 </style>

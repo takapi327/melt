@@ -1,51 +1,73 @@
 <script lang="scala">
-import melt.runtime.forms.*
-import meltkit.enhance
+  import melt.runtime.forms.*
 
-case class Props(form: Option[NewPost] = None)
+  import meltkit.enhance
 
-// A progressively-enhanced form. On a validation failure the server returns the
-// submitted data with a per-field `errors` map, which re-seeds `form.data`; the
-// `if form.data.value.errors.contains(...)` conditionals below then show each
-// message next to its input.
-val form = Form(props.form.getOrElse(NewPost("", "", errors = Map.empty)))
+  case class Props(form: Option[NewPost] = None)
 
-// First issue message for a field, or "" when the field is valid.
-def issue(field: String): String =
-  form.data.value.errors.getOrElse(field, Nil).headOption.getOrElse("")
+  // A progressively-enhanced form. On a validation failure the server returns the
+  // submitted data with a per-field `errors` map, which re-seeds `form.data`; the
+  // `if form.data.value.errors.contains(...)` conditionals below then show each
+  // message next to its input.
+  val form = Form(props.form.getOrElse(NewPost("", "", errors = Map.empty)))
+
+  // First issue message for a field, or "" when the field is valid.
+  def issue(field: String): String =
+    form.data.value.errors.getOrElse(field, Nil).headOption.getOrElse("")
 </script>
 
 <main class="new-post">
-  <h1>Write a post</h1>
-
+  <h1>
+    Write a post
+  </h1>
   <!-- `use:form={form}` auto-binds each plain `name` control below to the matching
        NewPost field, type-checking the name and seeding its value on the server;
        `use:enhance` keeps the progressive-enhancement submit. -->
   <form method="post" use:form use:enhance={form}>
     <label>
-      Title
-      <input name="title" type="text"/>
+      Title <input name="title" type="text" />
     </label>
     {if form.data.value.errors.contains("title") then <p class="error">{issue("title")}</p> else <span></span>}
-
     <label>
-      Body
-      <textarea name="body"></textarea>
+      Body <textarea name="body"></textarea>
     </label>
     {if form.data.value.errors.contains("body") then <p class="error">{issue("body")}</p> else <span></span>}
-
     <button type="submit" disabled={form.submitting}>
       {form.submitting.map(busy => if busy then "Saving…" else "Publish")}
     </button>
   </form>
-
-  <p><a href="/">← Back to posts</a></p>
+  <p>
+    <a href="/">
+      ← Back to posts
+    </a>
+  </p>
 </main>
 
 <style>
-.new-post { max-width: 28rem; margin: 3rem auto; font-family: system-ui, sans-serif; }
-.new-post label { display: block; margin: 0.75rem 0; }
-.new-post input, .new-post textarea { display: block; width: 100%; padding: 0.5rem; }
-.error { color: #c0392b; margin: 0.25rem 0; }
-button[disabled] { opacity: 0.6; }
+  .new-post {
+    max-width: 28rem;
+    margin: 3rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .new-post label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+
+  .new-post input,
+  .new-post textarea {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .error {
+    color: #c0392b;
+    margin: 0.25rem 0;
+  }
+
+  button[disabled] {
+    opacity: 0.6;
+  }
 </style>

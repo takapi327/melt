@@ -12,6 +12,45 @@ object Workflows:
   private val publishCond: String =
     "github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))"
 
+  /** Matrix projects whose tests run in `JSDOMNodeJSEnv`.
+    *
+    * That environment cannot start unless the `jsdom` npm package resolves from
+    * the working directory — "You will need to `npm install jsdom` for the above
+    * environment to work" (https://www.scala-js.org/doc/project/js-environments.html).
+    * Keep this list in sync with the `jsEnv := ... JSDOMNodeJSEnv()` settings in
+    * build.sbt; a project added there but not here fails at `loadedTestFrameworks`.
+    */
+  private val jsdomProjects: List[String] = List("runtimeJS", "testkit", "meltkitJS")
+
+  private val jsdomCond: Option[String] =
+    Some(s"contains('${ jsdomProjects.mkString(" ") }', matrix.project)")
+
+  /** Installs the workspace's Node dependencies before sbt runs.
+    *
+    * pnpm is set up before `setup-node` on purpose: the latter's `cache: pnpm`
+    * needs the pnpm binary to already be on PATH. No pnpm version is pinned here —
+    * `pnpm/action-setup` reads it from the `packageManager` field of package.json,
+    * so the version lives in exactly one place.
+    */
+  val nodeSetupSteps: Seq[WorkflowStep] = Seq(
+    WorkflowStep.Use(
+      UseRef.Public("pnpm", "action-setup", "v6"),
+      name = Some("Setup pnpm"),
+      cond = jsdomCond
+    ),
+    WorkflowStep.Use(
+      UseRef.Public("actions", "setup-node", "v4"),
+      name   = Some("Setup Node.js"),
+      params = Map("node-version" -> "22", "cache" -> "pnpm"),
+      cond   = jsdomCond
+    ),
+    WorkflowStep.Run(
+      List("pnpm install --frozen-lockfile"),
+      name = Some("Install Node dependencies (jsdom)"),
+      cond = jsdomCond
+    )
+  )
+
   /** All target directories that must be archived for the publish job. */
   private val allTargetDirs: List[String] = List(
     "modules/compiler/jvm/target",
@@ -79,11 +118,11 @@ object Workflows:
       name  = "sbt scripted",
       steps = githubWorkflowJobSetup.value.toList ::: List(
         WorkflowStep.Run(
-          List("sbt publishLocal"),
+          List("sbt --server publishLocal"),
           name = Some("sbt publishLocal")
         ),
         WorkflowStep.Run(
-          List("sbt scripted"),
+          List("sbt --server scripted"),
           name = Some("sbt scripted")
         )
       ),

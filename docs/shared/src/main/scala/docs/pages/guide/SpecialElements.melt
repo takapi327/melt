@@ -1,52 +1,83 @@
 <script lang="scala">
-import docs.i18n.GuideI18n
-import docs.GuideCodes
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
 
-case class Props(lang: String = "en", basePath: String = "")
+  case class Props(lang: String = "en", basePath: String = "")
 
-val t    = GuideI18n(props.lang).specialElements
-val nav  = GuideI18n(props.lang).nav
-val base = props.basePath + "/" + props.lang
+  val t    = GuideI18n(props.lang).specialElements
+  val nav  = GuideI18n(props.lang).nav
+  val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.headH2}</h2>
-<p>{t.headIntro}</p>
-
-<pre><code>{GuideCodes.specialHeadExample}</code></pre>
-
-<h2>{t.windowH2}</h2>
-<p>{t.windowIntro}</p>
-
-<pre><code>{GuideCodes.specialWindowBodyExample}</code></pre>
-
-<p>{t.windowOutro}</p>
-
-<h2>{t.boundaryH2}</h2>
-<p>{t.boundaryIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.headH2}
+</h2>
+<p>
+  {t.headIntro}
+</p>
+<pre>
+  <code>
+    {GuideCodes.specialHeadExample}
+  </code>
+</pre>
+<h2>
+  {t.windowH2}
+</h2>
+<p>
+  {t.windowIntro}
+</p>
+<pre>
+  <code>
+    {GuideCodes.specialWindowBodyExample}
+  </code>
+</pre>
+<p>
+  {t.windowOutro}
+</p>
+<h2>
+  {t.boundaryH2}
+</h2>
+<p>
+  {t.boundaryIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.specialBoundaryExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.specialBoundaryExample}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.elementH2}</h2>
-<p>{t.elementIntro}</p>
-
+<h2>
+  {t.elementH2}
+</h2>
+<p>
+  {t.elementIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.specialElementExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.specialElementExample}
+    </code>
+  </pre>
 </div>
-
 {t.documentH2.map((h: String) => <h2>{h}</h2>)}
 {t.documentIntro.map((p: String) => <p>{p}</p>)}
-
-<h2>{t.snippetsH2}</h2>
-<p>{t.snippetsIntro}</p>
-
+<h2>
+  {t.snippetsH2}
+</h2>
+<p>
+  {t.snippetsIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.specialSnippetExample}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.specialSnippetExample}
+    </code>
+  </pre>
 </div>
-
 {t.tableElemH.map((elemH: String) =>
   <table>
     <thead>
@@ -85,14 +116,21 @@ val base = props.basePath + "/" + props.lang
     </tbody>
   </table>
 )}
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/control-flow"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "制御フロー" else "Control Flow"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "制御フロー" else "Control Flow"}
+    </span>
   </a>
   <a class="doc-nav-next" href={base + "/guide/transitions"}>
-    <span class="doc-nav-dir">{nav.next}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "トランジション" else "Transitions"}</span>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "トランジション" else "Transitions"}
+    </span>
   </a>
 </div>
