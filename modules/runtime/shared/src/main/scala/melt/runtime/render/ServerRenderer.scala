@@ -8,7 +8,15 @@ package melt.runtime.render
 
 import scala.collection.mutable
 
-import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, TrustedHtml, UrlAttributes }
+import melt.runtime.{
+  AttrNameValidator,
+  Escape,
+  MeltWarning,
+  MeltWarningKind,
+  MeltWarnings,
+  TrustedHtml,
+  UrlAttributes
+}
 
 /** SSR rendering engine used by `melt`-generated code.
   *
@@ -29,7 +37,28 @@ import melt.runtime.{ AttrNameValidator, Escape, MeltWarnings, TrustedHtml, UrlA
   * @note Not thread-safe. `melt`-generated code creates a fresh instance
   *       per `render()` call; never share an instance across requests.
   */
-final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Config.default):
+final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.seededConfig()):
+
+  /** Where this render's warnings go. Every escape helper on this instance routes
+    * here, so a caller that supplied a sink sees only its own render's warnings.
+    */
+  def warningSink: MeltWarning => Unit = config.warningSink
+
+  /** [[Escape.html]] bound to this render's [[warningSink]]. */
+  def escapeHtml(value: Any): String = Escape.html(value, warningSink)
+
+  /** [[Escape.attr]] bound to this render's [[warningSink]]. */
+  def escapeAttr(value: Any): String = Escape.attr(value, warningSink)
+
+  /** [[Escape.cssValue]] bound to this render's [[warningSink]]. */
+  def escapeCssValue(value: Any): String = Escape.cssValue(value, warningSink)
+
+  /** [[Escape.url]] bound to this render's [[warningSink]]. */
+  def escapeUrl(value: Any): String = Escape.url(value, warningSink)
+
+  /** [[ServerRenderer.spreadAttrsToString]] bound to this render's [[warningSink]]. */
+  def spreadAttrsToString(tag: String, attrs: Map[String, Any]): String =
+    ServerRenderer.spreadAttrsToString(tag, attrs, warningSink)
 
   // Marks an SSR render pass as active for its whole lifetime (construction →
   // result()). A component's script — including any reactive query call — runs in
@@ -79,7 +108,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       * `<title>{expr}</title>` element.
       */
     def title(content: Any): Unit =
-      titleContent = Some(Escape.html(content))
+      titleContent = Some(escapeHtml(content))
 
     /** Sets a `<meta name="...">` entry. Subsequent calls with the same
       * `name` overwrite the previous `content`.
@@ -89,8 +118,8 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
       * being stored.
       */
     def meta(name: String, content: Any): Unit =
-      val escapedName    = Escape.attr(name)
-      val escapedContent = Escape.attr(content)
+      val escapedName    = escapeAttr(name)
+      val escapedContent = escapeAttr(content)
       metaTagMap.update(escapedName, escapedContent)
 
   /** CSS registration. Deduplicates by `CssEntry` equality (scopeId + code).
@@ -288,7 +317,7 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
     * developer sees dropped keys without the server crashing.
     */
   def spreadAttrs(tag: String, attrs: Map[String, Any]): Unit =
-    push(ServerRenderer.spreadAttrsToString(tag, attrs))
+    push(spreadAttrsToString(tag, attrs))
 
   /** Unwraps at most a single layer of `Some(x)` so that users can pass
     * `Option[T]`-valued props through spread without surprises. Nested
@@ -362,34 +391,95 @@ final class ServerRenderer(val config: ServerRenderer.Config = ServerRenderer.Co
 
 object ServerRenderer:
 
-  def spreadAttrsToString(tag: String, attrs: Map[String, Any]): String =
+  private val _ambientSink: ThreadLocal[(MeltWarning => Unit) | Null] =
+    new ThreadLocal[(MeltWarning => Unit) | Null]
+
+  /** The [[Config]] a bare `ServerRenderer()` gets.
+    *
+    * Evaluated on every construction — that is why it lives here and not in
+    * `Config`'s field defaults: `Config.default` is a single `val` evaluated once
+    * at class-load time, so seeding from there would freeze whatever ambient
+    * existed then (usually none) for the lifetime of the process.
+    */
+  def seededConfig(): Config =
+    Option(_ambientSink.get) match
+      case Some(sink) => Config.default.copy(warningSink = sink)
+      case None       => Config.default
+
+  /** Makes `sink` the default warning destination for every [[ServerRenderer]]
+    * constructed while `body` runs.
+    *
+    * Generated components construct their own renderer (`val renderer =
+    * ServerRenderer()`) and take no config parameter, so this is the only way to
+    * reach them — including nested child components, which construct theirs during
+    * the parent's synchronous render and therefore observe the same ambient.
+    *
+    * '''Placement''': wrap the component evaluation itself, alongside
+    * `Router.withPath` inside `MeltContext.render`. Wrapping an adapter's
+    * `F[Response]` does not work — that only spans the effect's *construction*,
+    * and the `ThreadLocal` is restored long before the effect runs.
+    */
+  def withSink[A](sink: MeltWarning => Unit)(body: => A): A =
+    val prev = _ambientSink.get
+    _ambientSink.set(sink)
+    try body
+    finally _ambientSink.set(prev)
+
+  def spreadAttrsToString(
+    tag:   String,
+    attrs: Map[String, Any],
+    sink:  MeltWarning => Unit = MeltWarnings.emit
+  ): String =
     val sb = new StringBuilder
     attrs.foreach {
       case (name, rawValue) =>
         if !AttrNameValidator.isValid(name) then
-          MeltWarnings.warn(s"Dropped attribute with invalid name: ${ truncate(name, 40) }")
-        else if isEventHandler(name) then MeltWarnings.warn(s"Dropped event handler attribute from spread: $name")
+          sink(
+            MeltWarning(
+              MeltWarningKind.DroppedAttribute,
+              s"Dropped attribute with invalid name: ${ truncate(name, 40) }",
+              attr = Some(name)
+            )
+          )
+        else if isEventHandler(name) then
+          sink(
+            MeltWarning(
+              MeltWarningKind.DroppedEventHandler,
+              s"Dropped event handler attribute from spread: $name",
+              attr = Some(name)
+            )
+          )
         else if name.startsWith("$$") then ()
         else
           unwrapOption(rawValue) match
             case null =>
               ()
             case f if isFunction(f) =>
-              MeltWarnings.warn(s"Dropped function-valued spread attribute: $name")
+              sink(
+                MeltWarning(
+                  MeltWarningKind.DroppedFunctionAttr,
+                  s"Dropped function-valued spread attribute: $name",
+                  attr = Some(name)
+                )
+              )
             case t if isTuple(t) =>
-              MeltWarnings.warn(
-                s"Dropped Tuple/Named Tuple spread attribute '$name': " +
-                  "field names are erased at runtime and cannot be expanded into individual attributes. " +
-                  "Use individual prop bindings instead."
+              sink(
+                MeltWarning(
+                  MeltWarningKind.DroppedTupleAttr,
+                  s"Dropped Tuple/Named Tuple spread attribute '$name': " +
+                    "field names are erased at runtime and cannot be expanded into individual attributes. " +
+                    "Use individual prop bindings instead.",
+                  attr = Some(name)
+                )
               )
             case false =>
               ()
             case true =>
               sb ++= s" $name"
             case v if UrlAttributes.isUrlAttribute(tag, name) =>
-              sb ++= s""" $name="${ Escape.url(v) }""""
+              sb ++= s""" $name="${ Escape.url(v, sink) }""""
             case v =>
-              sb ++= s""" $name="${ Escape.attr(v) }""""
+              sb ++= s""" $name="${ Escape.attr(v, sink) }""""
     }
     sb.toString
 
@@ -459,9 +549,16 @@ object ServerRenderer:
   private[render] def exit():  Unit = if _renderDepth > 0 then _renderDepth -= 1
 
   /** Per-renderer configuration. */
+  /** @param warningSink where this render's warnings go. Defaults to the
+    *                    process-wide [[MeltWarnings]] handler; supply your own to
+    *                    scope warnings to a single render (a request, a test).
+    *                    Note that this makes `Config` compare by function
+    *                    reference — do not use it as a cache key.
+    */
   final case class Config(
-    maxComponentDepth: Int  = Config.defaultMaxComponentDepth,
-    maxOutputBytes:    Long = Config.defaultMaxOutputBytes
+    maxComponentDepth: Int                 = Config.defaultMaxComponentDepth,
+    maxOutputBytes:    Long                = Config.defaultMaxOutputBytes,
+    warningSink:       MeltWarning => Unit = MeltWarnings.emit
   )
 
   object Config:

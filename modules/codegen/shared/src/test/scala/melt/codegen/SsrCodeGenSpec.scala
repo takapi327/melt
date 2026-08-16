@@ -69,9 +69,9 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("&gt;") || code.contains("&gt"), code)
   }
 
-  test("expression interpolation runs through Escape.html") {
+  test("expression interpolation runs through renderer.escapeHtml") {
     val code = compile("<p>{name}</p>")
-    assert(code.contains("Escape.html(name)"), code)
+    assert(code.contains("renderer.escapeHtml(name)"), code)
   }
 
   test("void elements do not emit a closing tag") {
@@ -87,21 +87,21 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("data-id=\\\"42\\\""), code)
   }
 
-  test("dynamic URL attribute on <a href> uses Escape.url") {
+  test("dynamic URL attribute on <a href> uses renderer.escapeUrl") {
     val code = compile("""<a href={props.url}>x</a>""")
-    assert(code.contains("Escape.url(props.url)"), code)
+    assert(code.contains("renderer.escapeUrl(props.url)"), code)
   }
 
-  test("dynamic non-URL attribute uses Escape.attr") {
+  test("dynamic non-URL attribute uses renderer.escapeAttr") {
     val code = compile("""<div title={props.t}>x</div>""")
-    assert(code.contains("Escape.attr(props.t)"), code)
+    assert(code.contains("renderer.escapeAttr(props.t)"), code)
   }
 
-  test("dynamic class binding is escaped with Escape.attr (vuln-06)") {
+  test("dynamic class binding is escaped with renderer.escapeAttr (vuln-06)") {
     // Regression: class={expr} was concatenated raw into the quoted class
     // attribute, allowing attribute breakout XSS. It must go through Escape.attr.
     val code = compile("""<div class={props.cls}>x</div>""")
-    assert(code.contains("Escape.attr(props.cls)"), code)
+    assert(code.contains("renderer.escapeAttr(props.cls)"), code)
   }
 
   test("event handlers are stripped in SSR") {
@@ -285,7 +285,7 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains(".foreach(renderer.push)"), code)
     // The <li> fragment should be serialised via StringBuilder blocks.
     assert(code.contains("_sb"), code)
-    assert(code.contains("Escape.html(item)"), code)
+    assert(code.contains("renderer.escapeHtml(item)"), code)
     assert(!code.contains("createElement"), code)
   }
 
@@ -347,11 +347,11 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("\"other\""), code)
   }
 
-  test("conditional with dynamic expression inside runs Escape.html") {
+  test("conditional with dynamic expression inside runs renderer.escapeHtml") {
     val src =
       """<div>{if active then <p>hi {name}</p> else <p>bye</p>}</div>""".stripMargin
     val code = compile(src)
-    assert(code.contains("Escape.html(name)"), code)
+    assert(code.contains("renderer.escapeHtml(name)"), code)
   }
 
   // ── Phase B §12.3.6: special element bindings ─────────────────────────
@@ -360,9 +360,9 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val code = compile("""<textarea bind:value={userText}/>""")
     assert(code.contains("""renderer.push("<textarea")"""), code)
     assert(code.contains("""renderer.push("</textarea>")"""), code)
-    assert(code.contains("renderer.push(Escape.html(userText))"), code)
+    assert(code.contains("renderer.push(renderer.escapeHtml(userText))"), code)
     // No `value="..."` attribute should be emitted.
-    assert(!code.contains("""Escape.attr(userText)"""), code)
+    assert(!code.contains("""renderer.escapeAttr(userText)"""), code)
   }
 
   test("textarea {expr} content is emitted as body content, HTML-escaped") {
@@ -371,8 +371,8 @@ class SsrCodeGenSpec extends munit.FunSuite:
     val code = compile("""<textarea>{userText}</textarea>""")
     assert(code.contains("""renderer.push("<textarea")"""), code)
     assert(code.contains("""renderer.push("</textarea>")"""), code)
-    assert(code.contains("renderer.push(Escape.html(userText))"), code)
-    assert(!code.contains("""Escape.attr(userText)"""), code)
+    assert(code.contains("renderer.push(renderer.escapeHtml(userText))"), code)
+    assert(!code.contains("""renderer.escapeAttr(userText)"""), code)
   }
 
   test("select bind:value marks the matching option as selected (static value)") {
@@ -409,14 +409,14 @@ class SsrCodeGenSpec extends munit.FunSuite:
 
   test("bind:textContent HTML-escapes the expression") {
     val code = compile("""<p bind:textContent={raw}/>""")
-    assert(code.contains("renderer.push(Escape.html(raw))"), code)
+    assert(code.contains("renderer.push(renderer.escapeHtml(raw))"), code)
     assert(code.contains("""renderer.push("</p>")"""), code)
   }
 
   test("innerHTML wins over textContent if both present") {
     val code = compile("""<div bind:innerHTML={html} bind:textContent={txt}/>""")
     assert(code.contains("renderer.push(html.value)"), code)
-    assert(!code.contains("Escape.html(txt)"), code)
+    assert(!code.contains("renderer.escapeHtml(txt)"), code)
   }
 
   // ── Phase C §C3: hydration markers ─────────────────────────────────────
@@ -702,4 +702,34 @@ class SsrCodeGenSpec extends munit.FunSuite:
       """<form use:form={form}>{if show then <input name="email" type="text"/> else <span>off</span>}</form>"""
     )
     assert(code.contains("""form.fieldValue("email")"""), code)
+  }
+
+  /** `Escape.*` and `ServerRenderer.spreadAttrsToString` both take a `sink`
+    * parameter that defaults to the process-wide handler, so a missed
+    * `renderer.escape*` rewrite still compiles — the warning just leaks to the
+    * global sink instead of the render's own. Nothing else would catch that, so
+    * assert on the generated text across every construct that escapes.
+    */
+  test("SSR codegen never emits a bare Escape.* / ServerRenderer.spreadAttrsToString call") {
+    val sources = List(
+      "<p>{name}</p>",
+      """<a href={u}>x</a>""",
+      """<div title={t}></div>""",
+      """<div class={cls}></div>""",
+      """<div style:color={c}></div>""",
+      """<input value={v}/>""",
+      """<textarea>{v}</textarea>""",
+      """<div {...attrs}></div>""",
+      """<ul>{items.map(i => <li>{i}</li>)}</ul>""",
+      """<melt:head><title>{t}</title></melt:head>"""
+    )
+    sources.foreach { src =>
+      val code = compile(src)
+      val bare = code.linesIterator.zipWithIndex.filter {
+        case (line, _) =>
+          val stripped = line.replace("renderer.escape", "")
+          stripped.contains("Escape.") || stripped.contains("ServerRenderer.spreadAttrsToString")
+      }.toList
+      assert(bare.isEmpty, s"bare escape call in codegen for `$src`:\n${ bare.mkString("\n") }")
+    }
   }

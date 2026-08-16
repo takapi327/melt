@@ -243,10 +243,6 @@ lazy val meltkit = crossProject(JVMPlatform, JSPlatform)
   .jvmSettings(
     libraryDependencies += "io.undertow" % "undertow-core" % "2.3.18.Final"
   )
-  .jsSettings(
-    jsEnv := Def.uncached(new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv())
-  )
-  .jsSettings(jsdomTestSettings *)
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(runtime)
 

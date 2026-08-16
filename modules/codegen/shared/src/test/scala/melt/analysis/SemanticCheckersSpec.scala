@@ -41,7 +41,7 @@ class SemanticCheckersSpec extends munit.FunSuite:
     // so `</textarea>` injection cannot break out.
     val result = compileSsr("""<textarea>{ text }</textarea>""")
     assert(result.errors.isEmpty, s"unexpected errors: ${ result.errors }")
-    assert(result.scalaCode.exists(_.contains("Escape.html(text)")), result.scalaCode)
+    assert(result.scalaCode.exists(_.contains("renderer.escapeHtml(text)")), result.scalaCode)
   }
 
   test("expression inside <title> outside melt:head is a compile error") {

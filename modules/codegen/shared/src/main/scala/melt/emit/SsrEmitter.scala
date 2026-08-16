@@ -141,7 +141,7 @@ object SsrEmitter:
         buf ++= s"""${ pad }renderer.push("${ escapeStr(escaped) }")\n"""
 
       case IrNode.IrDynamicText(expr, _, _) =>
-        buf ++= s"""${ pad }renderer.push(Escape.html(${ expr.code }))\n"""
+        buf ++= s"""${ pad }renderer.push(renderer.escapeHtml(${ expr.code }))\n"""
 
       case IrNode.IrStaticElement(tag, _, attrs, children, _) =>
         emitElementSSR(tag, attrs, children, buf, indent, scopeId, nodePos, hoistedMap, selectBindExpr)
@@ -299,7 +299,7 @@ object SsrEmitter:
     val baseClass    = staticClass.map(cls => s"$cls $scopeId").getOrElse(scopeId)
 
     val condParts = classToggles.map { case (name, expr) => s"""(if ($expr) " $name" else "")""" }
-    val dynPart   = dynamicClass.map(d => s""" " " + Escape.attr($d)""")
+    val dynPart   = dynamicClass.map(d => s""" " " + renderer.escapeAttr($d)""")
 
     if condParts.isEmpty && dynPart.isEmpty then
       val combined = escapeStr(s""" class="$baseClass"""")
@@ -330,18 +330,18 @@ object SsrEmitter:
         buf ++= s"""${ pad }renderer.push("$lit")\n"""
 
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" $name=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.DynamicAttr(name, expr) =>
         if isUrlAttr(tag, name) then
-          buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.url(${ expr.code }) + "\\"")\n"""
-        else buf ++= s"""${ pad }renderer.push(s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
+          buf ++= s"""${ pad }renderer.push(s" $name=\\"" + renderer.escapeUrl(${ expr.code }) + "\\"")\n"""
+        else buf ++= s"""${ pad }renderer.push(s" $name=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.Spread(expr) =>
         buf ++= s"""${ pad }renderer.spreadAttrs("$tag", ${ expr.code })\n"""
 
       case IrAttr.BindInputValue(expr) =>
-        buf ++= s"""${ pad }renderer.push(s" value=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" value=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.BindInputValueInt(expr) =>
         buf ++= s"""${ pad }renderer.push(s" value=\\"" + ${ expr.code }.toString + "\\"")\n"""
@@ -350,10 +350,10 @@ object SsrEmitter:
         buf ++= s"""${ pad }renderer.push(s" value=\\"" + ${ expr.code }.toString + "\\"")\n"""
 
       case IrAttr.BindChecked(expr) =>
-        buf ++= s"""${ pad }renderer.push(s" checked=\\"" + Escape.attr(${ expr.code }) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" checked=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"")\n"""
 
       case IrAttr.StyleProp(prop, expr) =>
-        buf ++= s"""${ pad }renderer.push(s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\"")\n"""
+        buf ++= s"""${ pad }renderer.push(s" style=\\"$prop:" + renderer.escapeCssValue(${ expr.code }) + ";\\"")\n"""
 
       // Handled at element level — not emitted as individual attributes
       case IrAttr.BindTextareaValue(_)  => ()
@@ -393,7 +393,7 @@ object SsrEmitter:
     emitElementStart("textarea", restAttrs, buf, indent, scopeId)
     buf ++= s"""${ pad }renderer.push(">")\n"""
     children.foreach(c => emitNode(c, buf, indent, scopeId, nodePos, hoistedMap))
-    buf ++= s"${ pad }renderer.push(Escape.html($bindExpr))\n"
+    buf ++= s"${ pad }renderer.push(renderer.escapeHtml($bindExpr))\n"
     buf ++= s"""${ pad }renderer.push("</textarea>")\n"""
 
   /** `<select bind:value={v}>` — passes bind expression to option children as `selectBindExpr`. */
@@ -472,7 +472,7 @@ object SsrEmitter:
       buf ++= s"""${ pad }renderer.push(">")\n"""
       innerHtmlExpr match
         case Some(e) => buf ++= s"${ pad }renderer.push($e.value)\n"
-        case None    => textContentExpr.foreach { e => buf ++= s"${ pad }renderer.push(Escape.html($e))\n" }
+        case None    => textContentExpr.foreach { e => buf ++= s"${ pad }renderer.push(renderer.escapeHtml($e))\n" }
       buf ++= s"""${ pad }renderer.push("</$tag>")\n"""
 
   // ── Component emission ─────────────────────────────────────────────────────
@@ -663,7 +663,7 @@ object SsrEmitter:
         buf ++= s"""${ pad }renderer.head.push("${ escapeStr(htmlEscapeLiteral(content)) }")\n"""
 
       case IrNode.IrDynamicText(expr, _, _) =>
-        buf ++= s"${ pad }renderer.head.push(Escape.html(${ expr.code }))\n"
+        buf ++= s"${ pad }renderer.head.push(renderer.escapeHtml(${ expr.code }))\n"
 
       case _ => ()
 
@@ -700,7 +700,7 @@ object SsrEmitter:
         val lit = escapeStr(s""" $n="${ htmlAttrEscapeLiteral(v) }"""")
         buf ++= s"""${ pad }renderer.head.push("$lit")\n"""
       case IrAttr.DynamicAttr(n, e) =>
-        buf ++= s"""${ pad }renderer.head.push(s" $n=\\"" + Escape.attr(${ e.code }) + "\\"")\n"""
+        buf ++= s"""${ pad }renderer.head.push(s" $n=\\"" + renderer.escapeAttr(${ e.code }) + "\\"")\n"""
       case _ => ()
     }
     if HtmlVoidElements.isVoid(tag) then buf ++= s"""${ pad }renderer.head.push(">")\n"""
@@ -743,7 +743,7 @@ object SsrEmitter:
         if escaped.nonEmpty then buf ++= s"""${ pad }_sb ++= "$escaped"\n"""
 
       case IrNode.IrDynamicText(expr, _, _) =>
-        buf ++= s"${ pad }_sb ++= Escape.html(${ expr.code })\n"
+        buf ++= s"${ pad }_sb ++= renderer.escapeHtml(${ expr.code })\n"
 
       case IrNode.IrChildren =>
         buf ++= s"${ pad }{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }\n"
@@ -782,7 +782,7 @@ object SsrEmitter:
       sb ++= s"""_sb ++= "$escaped"; """
 
     case IrNode.IrDynamicText(expr, _, _) =>
-      sb ++= s"""_sb ++= Escape.html(${ expr.code }); """
+      sb ++= s"""_sb ++= renderer.escapeHtml(${ expr.code }); """
 
     case IrNode.IrChildren =>
       sb ++= """{ val _r = children(); renderer.mergeMeta(_r); _sb ++= _r.body }; """
@@ -864,7 +864,7 @@ object SsrEmitter:
     stmts += s"""_sb ++= "<$tag""""
 
     val condParts = classToggles.map { case (name, expr) => s"""(if ($expr) " $name" else "")""" }
-    val dynPart   = dynamicClass.map(d => s""" " " + Escape.attr($d)""")
+    val dynPart   = dynamicClass.map(d => s""" " " + renderer.escapeAttr($d)""")
     if condParts.isEmpty && dynPart.isEmpty then stmts += s"""_sb ++= " class=\\"${ escapeStr(baseClass) }\\"""""
     else
       val allParts = (dynPart.toList ++ condParts).mkString(" + ")
@@ -881,22 +881,22 @@ object SsrEmitter:
         val lit = escapeStr(s" $name")
         stmts += s"""_sb ++= "$lit""""
       case IrAttr.DynamicBooleanAttr(name, expr) =>
-        stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"""""
+        stmts += s"""_sb ++= s" $name=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"""""
       case IrAttr.DynamicAttr(name, expr) =>
-        if isUrlAttr(tag, name) then stmts += s"""_sb ++= s" $name=\\"" + Escape.url(${ expr.code }) + "\\"""""
-        else stmts += s"""_sb ++= s" $name=\\"" + Escape.attr(${ expr.code }) + "\\"""""
+        if isUrlAttr(tag, name) then stmts += s"""_sb ++= s" $name=\\"" + renderer.escapeUrl(${ expr.code }) + "\\"""""
+        else stmts += s"""_sb ++= s" $name=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"""""
       case IrAttr.BindInputValue(expr) =>
-        stmts += s"""_sb ++= s" value=\\"" + Escape.attr(${ expr.code }) + "\\"""""
+        stmts += s"""_sb ++= s" value=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"""""
       case IrAttr.BindInputValueInt(expr) =>
         stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\"""""
       case IrAttr.BindInputValueDouble(expr) =>
         stmts += s"""_sb ++= s" value=\\"" + ${ expr.code }.toString + "\\"""""
       case IrAttr.BindChecked(expr) =>
-        stmts += s"""_sb ++= s" checked=\\"" + Escape.attr(${ expr.code }) + "\\"""""
+        stmts += s"""_sb ++= s" checked=\\"" + renderer.escapeAttr(${ expr.code }) + "\\"""""
       case IrAttr.StyleProp(prop, expr) =>
-        stmts += s"""_sb ++= s" style=\\"$prop:" + Escape.cssValue(${ expr.code }) + ";\\"""""
+        stmts += s"""_sb ++= s" style=\\"$prop:" + renderer.escapeCssValue(${ expr.code }) + ";\\"""""
       case IrAttr.Spread(expr) =>
-        stmts += s"""_sb ++= _root_.melt.runtime.render.ServerRenderer.spreadAttrsToString("$tag", ${ expr.code })"""
+        stmts += s"""_sb ++= renderer.spreadAttrsToString("$tag", ${ expr.code })"""
       case _ => ()
     }
 
