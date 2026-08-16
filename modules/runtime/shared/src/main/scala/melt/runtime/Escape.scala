@@ -31,14 +31,22 @@ package melt.runtime
   */
 object Escape:
 
-  /** Escapes `value` for HTML text content. */
-  def html(value: Any): String =
+  /** Escapes `value` for HTML text content.
+    *
+    * Takes a `sink` for signature symmetry with the blocking helpers; this one
+    * never warns.
+    */
+  def html(value: Any, sink: MeltWarning => Unit = MeltWarnings.emit): String =
     normalize(value) match
       case None      => ""
       case Some(str) => escapeHtmlInner(str)
 
-  /** Escapes `value` for HTML attribute content (includes `"` escaping). */
-  def attr(value: Any): String =
+  /** Escapes `value` for HTML attribute content (includes `"` escaping).
+    *
+    * Takes a `sink` for signature symmetry with the blocking helpers; this one
+    * never warns.
+    */
+  def attr(value: Any, sink: MeltWarning => Unit = MeltWarnings.emit): String =
     normalize(value) match
       case None      => ""
       case Some(str) => escapeAttrInner(str)
@@ -78,12 +86,19 @@ object Escape:
     *
     * `null` / `None` collapse to empty string as elsewhere in this object.
     */
-  def cssValue(value: Any): String =
+  def cssValue(value: Any, sink: MeltWarning => Unit = MeltWarnings.emit): String =
     normalize(value) match
       case None      => ""
       case Some(str) =>
         if isDangerousCss(str) then
-          MeltWarnings.warn(s"Blocked dangerous CSS value: ${ truncate(str, 80) }")
+          val truncated = truncate(str, 80)
+          sink(
+            MeltWarning(
+              MeltWarningKind.BlockedCssValue,
+              s"Blocked dangerous CSS value: $truncated",
+              value = Some(truncated)
+            )
+          )
           ""
         else escapeAttrInner(str)
 
@@ -95,11 +110,11 @@ object Escape:
     * [[MeltWarnings]]. `TrustedUrl` values bypass this check (the developer
     * has taken responsibility for validating the URL).
     */
-  def url(value: Any): String =
+  def url(value: Any, sink: MeltWarning => Unit = MeltWarnings.emit): String =
     value match
       case null           => ""
       case None           => ""
-      case Some(inner)    => url(inner) // recurse for nested Option
+      case Some(inner)    => url(inner, sink) // recurse for nested Option
       case tu: TrustedUrl =>
         // AnyVal value class — the runtime type check is preserved despite
         // AnyVal's unboxing optimisation (unlike opaque types).
@@ -108,7 +123,7 @@ object Escape:
         val s = other.toString
         if s == null then ""
         else if isDangerousUrl(s) then
-          MeltWarnings.warn(s"Blocked dangerous URL: ${ truncate(s, 80) }")
+          sink(blockedUrl(s))
           ""
         else escapeAttrInner(s)
 
@@ -123,21 +138,29 @@ object Escape:
     * (`Bind.attr`) consistent so client-side rebinding cannot re-introduce a
     * dangerous URL that the server stripped. `TrustedUrl` bypasses the check.
     */
-  def urlForDom(value: Any): String =
+  def urlForDom(value: Any, sink: MeltWarning => Unit = MeltWarnings.emit): String =
     value match
       case null           => ""
       case None           => ""
-      case Some(inner)    => urlForDom(inner)
+      case Some(inner)    => urlForDom(inner, sink)
       case tu: TrustedUrl => tu.value
       case other          =>
         val s = other.toString
         if s == null then ""
         else if isDangerousUrl(s) then
-          MeltWarnings.warn(s"Blocked dangerous URL: ${ truncate(s, 80) }")
+          sink(blockedUrl(s))
           ""
         else s
 
   // ── Internal helpers ───────────────────────────────────────────────────
+
+  private def blockedUrl(raw: String): MeltWarning =
+    val truncated = truncate(raw, 80)
+    MeltWarning(
+      MeltWarningKind.BlockedUrl,
+      s"Blocked dangerous URL: $truncated",
+      value = Some(truncated)
+    )
 
   /** Normalises `value` to `Option[String]` while honouring the `Trusted*`
     * value classes.

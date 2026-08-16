@@ -228,3 +228,30 @@ class SourceMapComposerSpec extends munit.FunSuite:
     assertEquals(content.length, 3)
     assertEquals(content(2).asString, "<h1/>")
   }
+
+  test("composeFile skips an empty .js.map instead of throwing") {
+    val dir       = java.nio.file.Files.createTempDirectory("melt-cmp-empty").toFile
+    val jsMapFile = new File(dir, "empty.js.map")
+    try
+      writeFile(jsMapFile, "")
+      assertEquals(SourceMapComposer.composeFile(jsMapFile), false)
+      assertEquals(readFileForTest(jsMapFile), "")
+    finally
+      jsMapFile.delete()
+      dir.delete()
+  }
+
+  test("composeFile leaves a malformed .js.map untouched instead of throwing") {
+    val dir       = java.nio.file.Files.createTempDirectory("melt-cmp-bad").toFile
+    val jsMapFile = new File(dir, "bad.js.map")
+    try
+      writeFile(jsMapFile, """{"version":3,"sources":""")
+      assertEquals(SourceMapComposer.composeFile(jsMapFile), false)
+      assertEquals(readFileForTest(jsMapFile), """{"version":3,"sources":""")
+    finally
+      jsMapFile.delete()
+      dir.delete()
+  }
+
+  private def readFileForTest(f: File): String =
+    new String(java.nio.file.Files.readAllBytes(f.toPath), "UTF-8")

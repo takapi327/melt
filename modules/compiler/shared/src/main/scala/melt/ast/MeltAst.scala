@@ -40,6 +40,12 @@ enum TemplateNode:
   /** A plain text node. */
   case Text(content: String)
 
+  /** An HTML comment `<!-- content -->`. `content` is the raw text between the
+    * delimiters. Emitted by [[melt.parser.TemplateParser]] so the formatter can
+    * preserve comments; the compiler pipeline strips these before lowering (they
+    * never render), so codegen never sees them. */
+  case Comment(content: String)
+
   /** A Scala expression enclosed in braces: `{count}`. */
   case Expression(code: String)
 

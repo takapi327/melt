@@ -1,50 +1,79 @@
 <script lang="scala">
-import docs.i18n.GuideI18n
-import docs.GuideCodes
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
 
-case class Props(lang: String = "en", basePath: String = "")
+  case class Props(lang: String = "en", basePath: String = "")
 
-val t    = GuideI18n(props.lang).serverEnv
-val nav  = GuideI18n(props.lang).nav
-val base = props.basePath + "/" + props.lang
+  val t    = GuideI18n(props.lang).serverEnv
+  val nav  = GuideI18n(props.lang).nav
+  val base = props.basePath + "/" + props.lang
 </script>
 
-<p>{t.lead}</p>
-
-<h2>{t.privateH2}</h2>
-<p>{t.privateIntro}</p>
-
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.privateH2}
+</h2>
+<p>
+  {t.privateIntro}
+</p>
 <div class="code-block">
-  <pre><code>{GuideCodes.serverEnvPrivate}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverEnvPrivate}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.publicH2}</h2>
-<p>{t.publicIntro}</p>
-
+<h2>
+  {t.publicH2}
+</h2>
+<p>
+  {t.publicIntro}
+</p>
 <div class="code-block">
   <div class="code-block-header">
     <span class="code-block-dot"></span>build.sbt
   </div>
-  <pre><code>{GuideCodes.serverEnvPublic}</code></pre>
+  <pre>
+    <code>
+      {GuideCodes.serverEnvPublic}
+    </code>
+  </pre>
 </div>
-
-<h2>{t.boundaryH2}</h2>
-<p>{t.boundaryIntro}</p>
+<h2>
+  {t.boundaryH2}
+</h2>
+<p>
+  {t.boundaryIntro}
+</p>
 <ul>
-  <li>{t.layer1}</li>
-  <li>{t.layer2}</li>
-  <li>{t.layer3}</li>
+  <li>
+    {t.layer1}
+  </li>
+  <li>
+    {t.layer2}
+  </li>
+  <li>
+    {t.layer3}
+  </li>
 </ul>
-
 <div class="callout callout-warning">
-  <div class="callout-title">{t.propsTitle}</div>
-  <p>{t.propsText}</p>
+  <div class="callout-title">
+    {t.propsTitle}
+  </div>
+  <p>
+    {t.propsText}
+  </p>
 </div>
-
 <div class="doc-nav">
   <a class="doc-nav-prev" href={base + "/guide/async-ssr"}>
-    <span class="doc-nav-dir">{nav.prev}</span>
-    <span class="doc-nav-title">{if props.lang == "ja" then "非同期 SSR" else "Async SSR"}</span>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {if props.lang == "ja" then "非同期 SSR" else "Async SSR"}
+    </span>
   </a>
   <span></span>
 </div>

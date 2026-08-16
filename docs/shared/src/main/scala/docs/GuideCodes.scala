@@ -571,6 +571,48 @@ object GuideCodes:
        |  }
        |</style>""".stripMargin
 
+  // ── Formatting ──────────────────────────────────────────────────────────────
+
+  val fmtRunCommands: String =
+    """|sbt meltFmt        # rewrite .melt files in place
+       |sbt meltFmtCheck   # verify only — non-zero exit on drift (CI)""".stripMargin
+
+  val fmtConfExample: String =
+    """|# .meltfmt.conf — the single config for .melt files.
+       |# `include` reuses your scalafmt settings for the <script> Scala.
+       |include ".scalafmt.conf"
+       |
+       |melt {
+       |  template {
+       |    # "inline"   → <p>hello</p>
+       |    # "expanded" → <p>\n  hello\n</p>
+       |    content = expanded
+       |  }
+       |}""".stripMargin
+
+  val fmtInlineExample: String =
+    """|<p>Hello, {name}</p>""".stripMargin
+
+  val fmtExpandedExample: String =
+    """|<p>
+       |  Hello, {name}
+       |</p>""".stripMargin
+
+  val fmtOptionsExample: String =
+    """|melt {
+       |  script {
+       |    indent = 2                # left margin of the <script> body
+       |  }
+       |  css {
+       |    indent       = 2
+       |    selectorList = newline    # newline | single-line
+       |  }
+       |  template {
+       |    indent  = 2
+       |    content = inline          # inline | expanded
+       |  }
+       |}""".stripMargin
+
   // ── Testing ───────────────────────────────────────────────────────────────
 
   val testingDepExample: String =
@@ -669,7 +711,7 @@ object GuideCodes:
        |
        |app.get("users" / id) { ctx =>
        |  val userId = ctx.params.id
-       |  Future.successful(ctx.render(UserPage(UserPage.Props(id = userId))))
+       |  Future.successful(ctx.render(UserPage(id = userId)))
        |}""".stripMargin
 
   val routingPathParamsExample: String =
@@ -679,7 +721,7 @@ object GuideCodes:
        |app.get(lang / "guide" / section) { ctx =>
        |  val l = ctx.params.lang
        |  val s = ctx.params.section
-       |  Future.successful(ctx.render(GuidePage(GuidePage.Props(lang = l, slug = s))))
+       |  Future.successful(ctx.render(GuidePage(lang = l, slug = s)))
        |}""".stripMargin
 
   val routingPageOptionsExample: String =
@@ -707,7 +749,7 @@ object GuideCodes:
        |// SSR renders: AppShell( DashboardLayout( StatsPage ) )
        |
        |// A props-carrying layout takes the child as its `children` argument:
-       |app.layout("admin")(c => AdminLayout(AdminLayout.Props(role), children = c))""".stripMargin
+       |app.layout("admin")(c => AdminLayout(role, children = c))""".stripMargin
 
   val routingLayoutHydration: String =
     """|// Client hydration of nested layouts is router-driven: one entry hydrates
@@ -760,7 +802,7 @@ object GuideCodes:
   val ssrRouteExample: String =
     """|app.get("blog" / slug, PageOptions(ssr = true, csr = true)) { ctx =>
        |  fetchPost(ctx.params.slug).map { post =>
-       |    ctx.render(BlogPost(BlogPost.Props(post = post)))
+       |    ctx.render(BlogPost(post = post))
        |  }
        |}""".stripMargin
 
@@ -882,7 +924,7 @@ object GuideCodes:
        |// One form → one default `action`. GET renders with `form = None`;
        |// POST runs `action`, which returns an ActionResult.
        |app.page("login")(
-       |  render = (_, form) => LoginPage(LoginPage.Props(form = form)),
+       |  render = (_, form) => LoginPage(form = form),
        |  action = ctx =>
        |    ctx.body.form[LoginForm].map {
        |      case Right(f) if !f.email.contains("@") =>
@@ -898,7 +940,7 @@ object GuideCodes:
        |// `actions` is a partial function over (actionName, ctx); both cases
        |// share the same PostForm.
        |app.page("posts")(
-       |  render  = (_, form) => PostEditorPage(PostEditorPage.Props(form = form)),
+       |  render  = (_, form) => PostEditorPage(form = form),
        |  actions = {
        |    case ("save", ctx) =>
        |      ctx.body.form[PostForm].map {
@@ -1032,7 +1074,7 @@ object GuideCodes:
        |
        |// loader: seed the query as a page prop
        |app.get("") { ctx =>
-       |  postRepo.all.map(posts => ctx.render(PostsPage(PostsPage.Props(posts = posts))))
+       |  postRepo.all.map(posts => ctx.render(PostsPage(posts = posts)))
        |}""".stripMargin
 
   val serverFunctionsClient: String =
@@ -1070,7 +1112,7 @@ object GuideCodes:
        |
        |// server action: return per-field messages on failure
        |app.page("new")(
-       |  render = (_, form: Option[NewPost]) => NewPostPage(NewPostPage.Props(form = form)),
+       |  render = (_, form: Option[NewPost]) => NewPostPage(form = form),
        |  action = ctx => ctx.body.form[NewPost].flatMap {
        |    case Right(f) if f.title.trim.isEmpty =>
        |      IO.pure(fail(422, f.copy(errors = Map("title" -> List("Title is required")))))
@@ -1159,9 +1201,124 @@ object GuideCodes:
     """|// Two ways to render a query on the server with no loading flash:
        |
        |// 1. seeded prop — the loader reads the data and passes it as a prop.
-       |app.get("") { ctx => postRepo.all.map(p => ctx.render(PostsPage(PostsPage.Props(p)))) }
+       |app.get("") { ctx => postRepo.all.map(p => ctx.render(PostsPage(p))) }
        |val posts = Api.list.seeded(props.posts)      // in the component
        |
        |// 2. <melt:await> — the component calls the query; renderAsync resolves it.
        |app.get("posts") { ctx => ctx.renderAsync(AwaitPostsPage()) }
        |val posts = Api.list()                        // in the component""".stripMargin
+
+  // ── Type Safety ────────────────────────────────────────────────────────────
+
+  val tsPathParams: String =
+    """|val lang = param[String]("lang")
+       |val id   = param[Int]("id")
+       |
+       |app.get(lang / "posts" / id) { ctx =>
+       |  val language: String = ctx.params.lang   // typed as String
+       |  val postId:   Int    = ctx.params.id     // typed as Int
+       |  IO.pure(ctx.json(fetchPost(postId)))
+       |}
+       |// ctx.params.slug            → no such field, compile error
+       |// val n: String = ctx.params.id → type mismatch, compile error""".stripMargin
+
+  val tsQuery: String =
+    """|// Required scalar: absent or unparsable → Left(message)
+       |val maxAge:  Either[String, Long]         = ctx.queryAs[Long]("max_age")
+       |// Optional: absent → Right(None)
+       |val display: Either[String, Option[Int]]  = ctx.queryAs[Option[Int]]("display")
+       |// Repeated params collected into a typed Set
+       |val ids:     Either[String, Set[Int]]     = ctx.queryAs[Set[Int]]("id")
+       |
+       |maxAge match
+       |  case Right(age) => // ...
+       |  case Left(msg)  => // decode failure surfaced in the type""".stripMargin
+
+  val tsBody: String =
+    """|// The body type is fixed by the handler; decode returns Either[BodyError, A].
+       |ctx.body.form[NewPost].flatMap {
+       |  case Right(post) => save(post).as(ActionResult.Redirect("/"))
+       |  case Left(err)   => IO.pure(fail(400, NewPost("", "", Map("_form" -> err.messages))))
+       |}
+       |// You cannot forget the failure branch: the Either forces you to handle it.""".stripMargin
+
+  val tsStatus: String =
+    """|// A literal is checked against the StatusCode union at compile time:
+       |ctx.text("Too many requests").withStatus(429)   // ok
+       |ctx.text("bad").withStatus(999)                  // compile error: not a StatusCode
+       |
+       |// A runtime Int (e.g. relayed from a downstream call) must pass through
+       |// fromInt — the only safe entry into the union:
+       |val status = StatusCode.fromInt(downstreamStatus()).getOrElse(502)
+       |ctx.text("proxied").withStatus(status)""".stripMargin
+
+  val tsLocals: String =
+    """|val UserKey = LocalKey.make[User]      // the key carries the value type
+       |
+       |// in middleware — the value must be a User:
+       |ctx.locals.set(UserKey, currentUser)
+       |
+       |// in a route handler — get is typed by the key:
+       |val user: Option[User] = ctx.locals.get(UserKey)""".stripMargin
+
+  val tsProps: String =
+    """|// One shared component contract — derive the codec once:
+       |case class Props(title: String, count: Int) derives PropsCodec
+       |
+       |// SSR encodes Props to JSON; hydration decodes the SAME type on the client.
+       |// Add or rename a field on one side only → the other side stops compiling,
+       |// so server and client props can never drift apart.""".stripMargin
+
+  val tsTrusted: String =
+    """|// bind:innerHTML accepts only TrustedHtml — a raw String won't compile:
+       |val badge = TrustedHtml.unsafe("<strong>New</strong>")  // developer-controlled
+       |<div bind:innerHTML={badge}/>
+       |
+       |// <div bind:innerHTML={userInput}/>   // compile error: String is not TrustedHtml
+       |
+       |// User input must pass through an explicit sanitizer to become TrustedHtml:
+       |val safe = TrustedHtml.sanitize(userMarkdown, DOMPurify.sanitize(_))""".stripMargin
+
+  val tsValidation: String =
+    """|case class NewPost(
+       |  title:  String,
+       |  body:   String,
+       |  errors: Map[String, List[String]] = Map.empty
+       |) derives FormDataDecoder, PropsCodec
+       |
+       |action = ctx =>
+       |  ctx.body.form[NewPost].flatMap {
+       |    case Right(f) =>
+       |      val errs = validate(f)                    // Map[field, messages]
+       |      if errs.nonEmpty then IO.pure(fail(422, f.copy(errors = errs)))
+       |      else save(f).as(ActionResult.Redirect("/"))
+       |    case Left(e) => IO.pure(fail(400, NewPost("", "", Map("_form" -> e.messages))))
+       |  }
+       |// fail(422, ...) — 422 is checked against StatusCode; the failed value keeps
+       |// the same type as the form, so the page re-renders with the user's input.""".stripMargin
+
+  val tsServerFn: String =
+    """|// shared: one typed contract, compiled for BOTH server and client
+       |object Api:
+       |  val list = ServerFn.query[Unit, List[Post]]("posts.list")
+       |  val like = ServerFn.command[Int, Post]("posts.like")
+       |
+       |// server: implement it — In / Out are fixed by the contract
+       |app.serve(Api.like) { (id, _) => store.like(id) }
+       |
+       |// client: call it — same In / Out, no URLs or JSON assembled by hand
+       |val liked: Future[Post] = Api.like(postId)""".stripMargin
+
+  val tsShared: String =
+    """|// build.sbt — one crossProject shared by server and client
+       |lazy val app = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Full)
+       |  .settings(libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion)
+       |  .enablePlugins(MeltPlugin)
+       |
+       |lazy val server = project
+       |  .enablePlugins(MeltkitPlugin)
+       |  .dependsOn(app.jvm)   // shared Props / models / contracts compile on both sides
+       |
+       |// Put Props, models and ServerFn contracts in app's shared/ source set.
+       |// Change a shared type and BOTH the server and the client must agree — or
+       |// the build fails. Type drift across the wire becomes structurally impossible.""".stripMargin

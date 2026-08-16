@@ -1,0 +1,161 @@
+<script lang="scala">
+  import docs.i18n.GuideI18n
+  import docs.GuideCodes
+
+  case class Props(lang: String = "en", basePath: String = "")
+
+  val t    = GuideI18n(props.lang).typeSafety
+  val nav  = GuideI18n(props.lang).nav
+  val base = props.basePath + "/" + props.lang
+
+  def label(en: String, ja: String): String = if props.lang == "ja" then ja else en
+</script>
+
+<p>
+  {t.lead}
+</p>
+<h2>
+  {t.routingH2}
+</h2>
+<p>
+  {t.routingIntro}
+</p>
+<h3>
+  {label("Typed path parameters", "型付きパスパラメータ")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsPathParams}
+    </code>
+  </pre>
+</div>
+<h3>
+  {label("Typed query parameters", "型付きクエリパラメータ")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsQuery}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.reqRespH2}
+</h2>
+<p>
+  {t.reqRespIntro}
+</p>
+<h3>
+  {label("Request-body decoding", "本文のデコード")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsBody}
+    </code>
+  </pre>
+</div>
+<h3>
+  {label("Status codes", "ステータスコード")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsStatus}
+    </code>
+  </pre>
+</div>
+<h3>
+  {label("Request-scoped locals", "リクエストスコープの Locals")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsLocals}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.renderH2}
+</h2>
+<p>
+  {t.renderIntro}
+</p>
+<h3>
+  {label("Typed props", "型付き Props")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsProps}
+    </code>
+  </pre>
+</div>
+<h3>
+  {label("Trusted HTML / URL", "信頼済み HTML / URL")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsTrusted}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.validationH2}
+</h2>
+<p>
+  {t.validationIntro}
+</p>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsValidation}
+    </code>
+  </pre>
+</div>
+<h2>
+  {t.fullstackH2}
+</h2>
+<p>
+  {t.fullstackIntro}
+</p>
+<h3>
+  {label("Typed server functions", "型付きサーバー関数")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsServerFn}
+    </code>
+  </pre>
+</div>
+<h3>
+  {label("Sharing types across front & back", "フロント/バックでの型共有")}
+</h3>
+<div class="code-block">
+  <pre>
+    <code>
+      {GuideCodes.tsShared}
+    </code>
+  </pre>
+</div>
+<div class="doc-nav">
+  <a class="doc-nav-prev" href={base + "/guide/server-env"}>
+    <span class="doc-nav-dir">
+      {nav.prev}
+    </span>
+    <span class="doc-nav-title">
+      {label("Environment & secrets", "環境変数・シークレット")}
+    </span>
+  </a>
+  <a class="doc-nav-next" href={base + "/api/meltkit"}>
+    <span class="doc-nav-dir">
+      {nav.next}
+    </span>
+    <span class="doc-nav-title">
+      Meltkit API
+    </span>
+  </a>
+</div>

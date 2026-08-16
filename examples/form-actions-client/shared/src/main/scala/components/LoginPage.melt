@@ -1,19 +1,21 @@
 <script lang="scala">
-import melt.runtime.forms.*
-import meltkit.enhance
+  import melt.runtime.forms.*
 
-case class Props(form: Option[LoginForm] = None)
+  import meltkit.enhance
 
-// Seed a reactive Form from the SSR/hydration `form` prop. Reactivity comes from
-// passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
-// `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
-// `if form.data.value.… then …` conditional whose source is `form.data`.
-val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
+  case class Props(form: Option[LoginForm] = None)
+
+  // Seed a reactive Form from the SSR/hydration `form` prop. Reactivity comes from
+  // passing a State/Signal (subscribes), not a `.value` (reads once): e.g.
+  // `disabled={form.submitting}`, `{form.submitting.map(...)}`, and the
+  // `if form.data.value.… then …` conditional whose source is `form.data`.
+  val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
 </script>
 
 <main class="login">
-  <h1>Sign in</h1>
-
+  <h1>
+    Sign in
+  </h1>
   <!-- `use:form` auto-binds each plain `name` input below to the matching field of
        `form`: the compiler type-checks the name (a typo like `name="emial"` is a
        compile error) and seeds the value/checked state on the server, so a
@@ -23,41 +25,57 @@ val form = Form(props.form.getOrElse(LoginForm("", "", errors = Nil)))
        native POST to an in-place fetch (see PostEditorPage for the selector style). -->
   <form method="post" use:form use:enhance={form}>
     <label>
-      Email
-      <!-- auto-bound: name="email" → form.email (value seeded for SSR) -->
-      <input name="email" type="email"/>
+      Email <!-- auto-bound: name="email" → form.email (value seeded for SSR) --><input name="email" type="email" />
     </label>
     <!-- reactive: the `if form.data.value.…` conditional makes `form.data` the
          reactive source (Bind.show), so the error re-renders when the enhance
          result updates form.data — without a page reload. -->
     {if form.data.value.errors.nonEmpty then <p class="error">{form.data.value.errors.head}</p> else <span></span>}
-
     <label>
-      Password
-      <input name="password" type="password"/>
+      Password <input name="password" type="password" />
     </label>
-
     <label class="checkbox">
-      <!-- auto-bound checkbox: name="remember" → the Boolean field remember -->
-      <input name="remember" type="checkbox"/>
-      Remember me
+      <!-- auto-bound checkbox: name="remember" → the Boolean field remember --><input name="remember" type="checkbox" /> Remember me
     </label>
-
     <button type="submit" disabled={form.submitting}>
       {form.submitting.map(busy => if busy then "Signing in…" else "Sign in")}
     </button>
   </form>
-
   <p class="hint">
     Or try the <a href="/posts">post editor</a> (named-actions demo) →
   </p>
 </main>
 
 <style>
-.login { max-width: 22rem; margin: 4rem auto; font-family: system-ui, sans-serif; }
-.login label { display: block; margin: 0.75rem 0; }
-.login input { display: block; width: 100%; padding: 0.5rem; }
-.error { color: #c0392b; margin: 0.25rem 0; }
-.hint { margin-top: 1.5rem; font-size: 0.9rem; color: #555; }
-button[disabled] { opacity: 0.6; }
+  .login {
+    max-width: 22rem;
+    margin: 4rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  .login label {
+    display: block;
+    margin: 0.75rem 0;
+  }
+
+  .login input {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .error {
+    color: #c0392b;
+    margin: 0.25rem 0;
+  }
+
+  .hint {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  button[disabled] {
+    opacity: 0.6;
+  }
 </style>

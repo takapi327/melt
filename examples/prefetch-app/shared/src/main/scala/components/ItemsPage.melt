@@ -1,18 +1,18 @@
 <script lang="scala">
-import meltkit.*
+  import meltkit.*
 
-// Api.items() adopts a fresh prefetch (from hovering the nav link) as Async.Done,
-// so this renders with no loading flash. Without a prefetch it starts Loading and
-// fetches now.
-val items = Api.items()
-val list  = items.state.map(_.toOption.getOrElse(Nil))
+  // Api.items() adopts a fresh prefetch (from hovering the nav link) as Async.Done,
+  // so this renders with no loading flash. Without a prefetch it starts Loading and
+  // fetches now.
+  val items = Api.items()
+  val list  = items.state.map(_.toOption.getOrElse(Nil))
 </script>
 
 <div class="items">
-  <h2>Items</h2>
-
+  <h2>
+    Items
+  </h2>
   {if items.state.value.isLoading then <p class="loading">Loading…</p> else <span></span>}
-
   <ul>
     {list.value.map(i =>
       <li>
@@ -24,10 +24,31 @@ val list  = items.state.map(_.toOption.getOrElse(Nil))
 </div>
 
 <style>
-.items h2 { margin-top: 0; }
-.items ul { list-style: none; padding: 0; }
-.items li { padding: 0.6rem 0; border-bottom: 1px solid #eee; }
-.name { font-weight: 600; margin-right: 0.5rem; }
-.blurb { color: #777; }
-.loading { color: #888; font-style: italic; }
+  .items h2 {
+    margin-top: 0;
+  }
+
+  .items ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .items li {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .name {
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+
+  .blurb {
+    color: #777;
+  }
+
+  .loading {
+    color: #888;
+    font-style: italic;
+  }
 </style>

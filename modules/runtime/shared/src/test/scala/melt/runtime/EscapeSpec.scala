@@ -8,6 +8,12 @@ package melt.runtime
 
 import munit.FunSuite
 
+/** Discards warnings for the call under test. Scoped to the call, so suites
+  * running in parallel cannot clobber each other the way a global handler swap
+  * would.
+  */
+private val silent: MeltWarning => Unit = _ => ()
+
 /** Phase A tests for [[Escape]] covering:
   *   - §12.3.1 null / None / Option handling
   *   - §12.1.1 URL protocol blocking and `TrustedUrl` bypass
@@ -54,7 +60,7 @@ class EscapeSpec extends FunSuite:
   }
 
   test("Escape.url(null) is empty string") {
-    assertEquals(Escape.url(null), "")
+    assertEquals(Escape.url(null, silent), "")
   }
 
   test("Escape.html(None) is empty string") {
@@ -92,228 +98,177 @@ class EscapeSpec extends FunSuite:
   // ── URL protocol blocking (§12.1.1) ────────────────────────────────────
 
   test("Escape.url blocks javascript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("javascript:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("javascript:alert(1)", silent), "")
   }
 
   test("Escape.url blocks JAVASCRIPT: (case-insensitive)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("JAVASCRIPT:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("JAVASCRIPT:alert(1)", silent), "")
   }
 
   test("Escape.url blocks whitespace-bypass javascript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("   javascript:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("   javascript:alert(1)", silent), "")
   }
 
   test("Escape.url blocks tab-bypass javascript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("java\tscript:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("java\tscript:alert(1)", silent), "")
   }
 
   test("Escape.url blocks vbscript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("vbscript:msgbox(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("vbscript:msgbox(1)", silent), "")
   }
 
   test("Escape.url blocks file:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("file:///etc/passwd"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("file:///etc/passwd", silent), "")
   }
 
   test("Escape.url blocks blob:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.url("blob:https://example.com/uuid"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.url("blob:https://example.com/uuid", silent), "")
   }
 
   test("Escape.url blocks data:text/html") {
-    MeltWarnings.mute()
-    try
-      assertEquals(
-        Escape.url("data:text/html,<script>alert(1)</script>"),
-        ""
-      )
-    finally MeltWarnings.resetHandler()
+    assertEquals(
+      Escape.url("data:text/html,<script>alert(1)</script>", silent),
+      ""
+    )
   }
 
   test("Escape.url blocks data:image/svg+xml") {
-    MeltWarnings.mute()
-    try
-      assertEquals(
-        Escape.url("data:image/svg+xml,<svg><script>alert(1)</script></svg>"),
-        ""
-      )
-    finally MeltWarnings.resetHandler()
+    assertEquals(
+      Escape.url("data:image/svg+xml,<svg><script>alert(1)</script></svg>", silent),
+      ""
+    )
   }
 
   test("Escape.url allows data:image/png") {
     val url = "data:image/png;base64,iVBORw0KGgo="
-    assertEquals(Escape.url(url), Escape.attr(url))
+    assertEquals(Escape.url(url, silent), Escape.attr(url))
   }
 
   test("Escape.url allows https://") {
     val url = "https://example.com/path?q=1"
-    assertEquals(Escape.url(url), Escape.attr(url))
+    assertEquals(Escape.url(url, silent), Escape.attr(url))
   }
 
   test("Escape.url allows relative URLs") {
-    assertEquals(Escape.url("/page"), "/page")
-    assertEquals(Escape.url("./page"), "./page")
-    assertEquals(Escape.url("#anchor"), "#anchor")
-    assertEquals(Escape.url("?query=1"), "?query=1")
+    assertEquals(Escape.url("/page", silent), "/page")
+    assertEquals(Escape.url("./page", silent), "./page")
+    assertEquals(Escape.url("#anchor", silent), "#anchor")
+    assertEquals(Escape.url("?query=1", silent), "?query=1")
   }
 
   test("Escape.url allows mailto:") {
     val url = "mailto:test@example.com"
-    assertEquals(Escape.url(url), Escape.attr(url))
+    assertEquals(Escape.url(url, silent), Escape.attr(url))
   }
 
   test("Escape.url forwards TrustedUrl without validation") {
     val tu     = TrustedUrl.unsafe("javascript:safeCode()")
-    val result = Escape.url(tu)
+    val result = Escape.url(tu, silent)
     assert(result.contains("javascript:safeCode()"), s"got: $result")
   }
 
-  test("MeltWarnings handler receives a block notification") {
-    var warned = ""
-    MeltWarnings.setHandler(msg => warned = msg)
-    try
-      Escape.url("javascript:alert(1)")
-      assert(warned.contains("Blocked dangerous URL"), s"got: $warned")
-    finally MeltWarnings.resetHandler()
+  test("the sink receives a block notification") {
+    val warned = List.newBuilder[MeltWarning]
+    Escape.url("javascript:alert(1)", warned += _)
+    val ws = warned.result()
+    assertEquals(ws.map(_.kind), List(MeltWarningKind.BlockedUrl))
+    assert(ws.head.value.exists(_.contains("javascript:")), s"got: $ws")
   }
 
   // ── CSS value escaping (§12.1.5) ───────────────────────────────────────
 
   test("Escape.cssValue passes safe values through") {
-    assertEquals(Escape.cssValue("red"), "red")
-    assertEquals(Escape.cssValue("10px"), "10px")
-    assertEquals(Escape.cssValue("#ff3e00"), "#ff3e00")
-    assertEquals(Escape.cssValue("rgba(0,0,0,.5)"), "rgba(0,0,0,.5)")
+    assertEquals(Escape.cssValue("red", silent), "red")
+    assertEquals(Escape.cssValue("10px", silent), "10px")
+    assertEquals(Escape.cssValue("#ff3e00", silent), "#ff3e00")
+    assertEquals(Escape.cssValue("rgba(0,0,0,.5)", silent), "rgba(0,0,0,.5)")
   }
 
   test("Escape.cssValue blocks url(javascript:...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(javascript:alert(1))"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(javascript:alert(1))", silent), "")
   }
 
   test("Escape.cssValue blocks expression(...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("expression(alert(1))"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("expression(alert(1))", silent), "")
   }
 
   test("Escape.cssValue blocks @import") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("@import 'http://evil/'"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("@import 'http://evil/'", silent), "")
   }
 
   test("Escape.cssValue blocks whitespace-obfuscated javascript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url( java\tscript:alert(1) )"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url( java\tscript:alert(1) )", silent), "")
   }
 
   test("Escape.cssValue blocks vbscript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(vbscript:msgbox(1))"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(vbscript:msgbox(1))", silent), "")
   }
 
   test("Escape.cssValue blocks url(file:...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(file:///etc/passwd)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(file:///etc/passwd)", silent), "")
   }
 
   test("Escape.cssValue does NOT block values containing 'file:' outside url()") {
-    assertEquals(Escape.cssValue("profile file: path"), "profile file: path")
+    assertEquals(Escape.cssValue("profile file: path", silent), "profile file: path")
   }
 
   test("Escape.cssValue blocks url(blob:...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(blob:https://example.com/uuid)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(blob:https://example.com/uuid)", silent), "")
   }
 
   test("Escape.cssValue blocks url('blob:...') single-quoted") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url('blob:https://example.com/uuid')"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url('blob:https://example.com/uuid')", silent), "")
   }
 
   test("Escape.cssValue blocks url(\"blob:...\") double-quoted") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("""url("blob:https://example.com/uuid")"""), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("""url("blob:https://example.com/uuid")""", silent), "")
   }
 
   test("Escape.cssValue blocks url(data:text/html,...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(data:text/html,<h1>hi</h1>)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(data:text/html,<h1>hi</h1>)", silent), "")
   }
 
   test("Escape.cssValue blocks url('data:text/html,...') single-quoted") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url('data:text/html,<h1>hi</h1>')"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url('data:text/html,<h1>hi</h1>')", silent), "")
   }
 
   test("Escape.cssValue blocks url('file:...') single-quoted") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url('file:///etc/passwd')"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url('file:///etc/passwd')", silent), "")
   }
 
   test("Escape.cssValue blocks url(data:text/css,...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(data:text/css,body{color:red})"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(data:text/css,body{color:red})", silent), "")
   }
 
   test("Escape.cssValue blocks url(data:image/svg+xml,...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(data:image/svg+xml,<svg><script>alert(1)</script></svg>)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(data:image/svg+xml,<svg><script>alert(1)</script></svg>)", silent), "")
   }
 
   test("Escape.cssValue blocks url(data:application/javascript,...)") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.cssValue("url(data:application/javascript,alert(1))"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.cssValue("url(data:application/javascript,alert(1))", silent), "")
   }
 
   test("Escape.cssValue does NOT block url(data:image/png;base64,...)") {
-    val val1 = Escape.cssValue("url(data:image/png;base64,iVBORw0KGgo=)")
+    val val1 = Escape.cssValue("url(data:image/png;base64,iVBORw0KGgo=)", silent)
     assert(val1.nonEmpty, "raster image data URI should be allowed")
   }
 
   test("Escape.cssValue does NOT block url(data:image/webp;base64,...)") {
-    val val1 = Escape.cssValue("url(data:image/webp;base64,UklGRg==)")
+    val val1 = Escape.cssValue("url(data:image/webp;base64,UklGRg==)", silent)
     assert(val1.nonEmpty, "raster image data URI should be allowed")
   }
 
   test("Escape.cssValue(null) is empty string") {
-    assertEquals(Escape.cssValue(null), "")
+    assertEquals(Escape.cssValue(null, silent), "")
   }
 
   test("Escape.cssValue(None) is empty string") {
-    assertEquals(Escape.cssValue(None), "")
+    assertEquals(Escape.cssValue(None, silent), "")
   }
 
   test("Escape.cssValue escapes HTML-special chars like other attr values") {
     // The output must be safe for use inside an HTML attribute value.
-    assertEquals(Escape.cssValue("red\"><script>"), "red&quot;&gt;&lt;script&gt;")
+    assertEquals(Escape.cssValue("red\"><script>", silent), "red&quot;&gt;&lt;script&gt;")
   }
 
   // ── S-3: Escape.attr newline / tab escaping ────────────────────────────
@@ -335,44 +290,37 @@ class EscapeSpec extends FunSuite:
   }
 
   test("Escape.cssValue also escapes newline (via escapeAttrInner)") {
-    assertEquals(Escape.cssValue("10px\n"), "10px&#10;")
+    assertEquals(Escape.cssValue("10px\n", silent), "10px&#10;")
   }
 
   // ── urlForDom (client-side setAttribute counterpart of url) ────────────
 
   test("Escape.urlForDom blocks javascript:") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.urlForDom("javascript:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.urlForDom("javascript:alert(1)", silent), "")
   }
 
   test("Escape.urlForDom blocks whitespace/tab-bypass javascript:") {
-    MeltWarnings.mute()
-    try
-      assertEquals(Escape.urlForDom("  javascript:alert(1)"), "")
-      assertEquals(Escape.urlForDom("java\tscript:alert(1)"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.urlForDom("  javascript:alert(1)", silent), "")
+    assertEquals(Escape.urlForDom("java\tscript:alert(1)", silent), "")
   }
 
   test("Escape.urlForDom blocks data:image/svg+xml") {
-    MeltWarnings.mute()
-    try assertEquals(Escape.urlForDom("data:image/svg+xml,<svg onload=alert(1)>"), "")
-    finally MeltWarnings.resetHandler()
+    assertEquals(Escape.urlForDom("data:image/svg+xml,<svg onload=alert(1)>", silent), "")
   }
 
   test("Escape.urlForDom returns safe URLs verbatim (no entity escaping)") {
     // Unlike Escape.url, the DOM setAttribute path must NOT entity-escape:
     // ampersands stay literal so the browser receives the intended value.
-    assertEquals(Escape.urlForDom("https://example.com/p?a=1&b=2"), "https://example.com/p?a=1&b=2")
-    assertEquals(Escape.urlForDom("/page"), "/page")
-    assertEquals(Escape.urlForDom("data:image/png;base64,iVBORw0KGgo="), "data:image/png;base64,iVBORw0KGgo=")
+    assertEquals(Escape.urlForDom("https://example.com/p?a=1&b=2", silent), "https://example.com/p?a=1&b=2")
+    assertEquals(Escape.urlForDom("/page", silent), "/page")
+    assertEquals(Escape.urlForDom("data:image/png;base64,iVBORw0KGgo=", silent), "data:image/png;base64,iVBORw0KGgo=")
   }
 
   test("Escape.urlForDom(null / None) is empty string") {
-    assertEquals(Escape.urlForDom(null), "")
-    assertEquals(Escape.urlForDom(None), "")
+    assertEquals(Escape.urlForDom(null, silent), "")
+    assertEquals(Escape.urlForDom(None, silent), "")
   }
 
   test("Escape.urlForDom bypasses validation for TrustedUrl") {
-    assertEquals(Escape.urlForDom(TrustedUrl.unsafe("javascript:trusted()")), "javascript:trusted()")
+    assertEquals(Escape.urlForDom(TrustedUrl.unsafe("javascript:trusted()"), silent), "javascript:trusted()")
   }

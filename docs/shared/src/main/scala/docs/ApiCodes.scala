@@ -147,12 +147,12 @@ object ApiCodes:
        |val lang = param[String]("lang")
        |app.get(lang) { ctx =>
        |  val l = ctx.params.lang
-       |  IO.pure(ctx.render(AppPage(AppPage.Props(lang = l))))
+       |  IO.pure(ctx.render(AppPage(lang = l)))
        |}
        |
        |val slug = param[String]("slug")
        |app.get(lang / "guide" / slug) { ctx =>
-       |  IO.pure(ctx.render(GuidePage(GuidePage.Props(lang = ctx.params.lang, slug = ctx.params.slug))))
+       |  IO.pure(ctx.render(GuidePage(lang = ctx.params.lang, slug = ctx.params.slug)))
        |}""".stripMargin
 
   val meltkitPathParams: String =
@@ -233,7 +233,7 @@ object ApiCodes:
        |
        |// single default action
        |app.page("login")(
-       |  render = (_, form) => LoginPage(LoginPage.Props(form = form)),
+       |  render = (_, form) => LoginPage(form = form),
        |  action = ctx =>
        |    ctx.body.form[LoginForm].map {
        |      case Right(f) if f.email.contains("@") => ActionResult.Redirect("/dashboard")
@@ -244,7 +244,7 @@ object ApiCodes:
        |
        |// named actions: one form, `formaction="?/save"` / `?/publish`
        |app.page("posts")(
-       |  render  = (_, form) => PostEditorPage(PostEditorPage.Props(form = form)),
+       |  render  = (_, form) => PostEditorPage(form = form),
        |  actions = {
        |    case ("save", ctx)    => ctx.body.form[PostForm].map(_ => ActionResult.Redirect("/result/draft"))
        |    case ("publish", ctx) => ctx.body.form[PostForm].map(_ => ActionResult.Redirect("/result/published"))

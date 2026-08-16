@@ -1,26 +1,51 @@
 <script lang="scala">
-import docs.I18n
-import docs.components.Layout
-import docs.pages.guide.{
-  Introduction, Installation, QuickStart, Components, TemplateSyntax,
-  Reactivity, Computed, Effects, Events, LifecyclePage, ControlFlow,
-  SpecialElements, Transitions, TrustedHtml as HtmlPage, Css, Testing, Routing,
-  Ssr, Ssg, Adapters, FormActions, ServerFunctions, AsyncSsr, ServerEnv
-}
+  import docs.components.Layout
+  import docs.pages.guide.{
+    Adapters,
+    AsyncSsr,
+    Components,
+    Computed,
+    ControlFlow,
+    Css,
+    Effects,
+    Events,
+    FormActions,
+    Formatting,
+    Installation,
+    Introduction,
+    LifecyclePage,
+    QuickStart,
+    Reactivity,
+    Routing,
+    ServerEnv,
+    ServerFunctions,
+    SpecialElements,
+    Ssg,
+    Ssr,
+    TemplateSyntax,
+    Testing,
+    Transitions,
+    TrustedHtml as HtmlPage
+  }
+  import docs.I18n
 
-case class Props(basePath: String = "", lang: String = "en", slug: String = "")
+  case class Props(basePath: String = "", lang: String = "en", slug: String = "")
 
-val pageTitle  = I18n(props.lang).guideLinks(props.slug)
-val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
+  val pageTitle  = I18n(props.lang).guideLinks(props.slug)
+  val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
 </script>
 
 <Layout basePath={props.basePath} lang={props.lang} section="guide" slug={props.slug}>
-<article class="doc-page">
-  <div class="doc-page-header">
-    <div class="doc-breadcrumb">{breadcrumb}</div>
-    <h1 class="doc-title">{pageTitle}</h1>
-  </div>
-  {if props.slug == "introduction" then <Introduction lang={props.lang} basePath={props.basePath} />
+  <article class="doc-page">
+    <div class="doc-page-header">
+      <div class="doc-breadcrumb">
+        {breadcrumb}
+      </div>
+      <h1 class="doc-title">
+        {pageTitle}
+      </h1>
+    </div>
+    {if props.slug == "introduction" then <Introduction lang={props.lang} basePath={props.basePath} />
   else if props.slug == "installation" then <Installation lang={props.lang} basePath={props.basePath} />
   else if props.slug == "quick-start" then <QuickStart lang={props.lang} basePath={props.basePath} />
   else if props.slug == "components" then <Components lang={props.lang} basePath={props.basePath} />
@@ -35,6 +60,7 @@ val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
   else if props.slug == "transitions" then <Transitions lang={props.lang} basePath={props.basePath} />
   else if props.slug == "trusted-html" then <HtmlPage lang={props.lang} basePath={props.basePath} />
   else if props.slug == "css" then <Css lang={props.lang} basePath={props.basePath} />
+  else if props.slug == "formatting" then <Formatting lang={props.lang} basePath={props.basePath} />
   else if props.slug == "testing" then <Testing lang={props.lang} basePath={props.basePath} />
   else if props.slug == "routing" then <Routing lang={props.lang} basePath={props.basePath} />
   else if props.slug == "ssr" then <Ssr lang={props.lang} basePath={props.basePath} />
@@ -46,31 +72,35 @@ val breadcrumb = if props.lang == "ja" then "ガイド" else "Guide"
   else if props.slug == "server-env" then <ServerEnv lang={props.lang} basePath={props.basePath} />
   else <p>{props.slug}</p>
   }
-</article>
+  </article>
 </Layout>
 
 <style>
-.doc-page { padding: 0; }
+  .doc-page {
+    padding: 0;
+  }
 
-.doc-page-header {
-  padding-bottom: 28px;
-  margin-bottom: 36px;
-  border-bottom: 1px solid var(--line);
-}
-.doc-breadcrumb {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--fg-4);
-  margin-bottom: 12px;
-}
-.doc-title {
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  color: var(--fg);
-}
+  .doc-page-header {
+    padding-bottom: 28px;
+    margin-bottom: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-4);
+    margin-bottom: 12px;
+  }
+
+  .doc-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--fg);
+  }
 </style>
