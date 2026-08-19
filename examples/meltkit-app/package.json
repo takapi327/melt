@@ -1,5 +1,5 @@
 {
-  "name": "tailwind-ssr-server",
+  "name": "meltkit-app",
   "private": true,
   "type": "module",
   "devDependencies": {

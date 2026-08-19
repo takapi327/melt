@@ -32,7 +32,17 @@ meltkit-app/
 
 ## Run
 
-One command builds the client hydration bundle **and** starts the server —
+The UI is styled with **Tailwind CSS** — utility classes in `App.melt`, generated
+by the Tailwind CLI (scanning the `.melt` sources) and inlined into the template
+`<head>` at server startup. Generate the CSS once (re-run when classes change):
+
+```bash
+cd examples/meltkit-app
+pnpm install
+pnpm exec tailwindcss -i tailwind.css -o backend/src/main/resources/generated.css
+```
+
+One command then builds the client hydration bundle **and** starts the server —
 `run` on the root project links the frontend, then runs the backend:
 
 ```bash

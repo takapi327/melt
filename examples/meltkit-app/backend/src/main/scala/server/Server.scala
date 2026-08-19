@@ -30,7 +30,9 @@ import meltkit.*
     Future.successful(ctx.render(App(App.Props(initial = 0))))
   }
 
-  val template = scala.io.Source.fromResource("index.html").mkString
+  val rawTemplate = scala.io.Source.fromResource("index.html").mkString
+  val css         = scala.util.Try(scala.io.Source.fromResource("generated.css").mkString).getOrElse("")
+  val template    = rawTemplate.replace("%tailwind%", s"<style>$css</style>")
 
   UndertowServer
     .builder(app)

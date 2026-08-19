@@ -4,24 +4,31 @@
   val count = State(props.initial)
 </script>
 
-<main>
-  <h1>Melt full-stack app</h1>
-  <p class="sub">
-    SSR by the backend, hydrated in the browser — from a single
-    <code>enablePlugins(MeltkitAppPlugin)</code>.
-  </p>
-  <div class="counter">
-    <button onclick={_ => count -= 1}>−</button>
-    <span class="num">{count}</span>
-    <button onclick={_ => count += 1}>+</button>
+<main class="min-h-screen flex items-center justify-center bg-slate-100">
+  <div class="w-96 rounded-2xl bg-white p-8 text-center shadow-lg">
+    <h1 class="mb-1 text-2xl font-bold text-rose-600">
+      Melt full-stack app
+    </h1>
+    <p class="mb-6 text-sm text-slate-500">
+      SSR by the backend, hydrated in the browser — from a single
+      <code class="rounded bg-slate-100 px-1">enablePlugins(MeltkitAppPlugin)</code>.
+    </p>
+    <div class="flex items-center justify-center gap-4">
+      <button
+        class="h-12 w-12 rounded-lg border border-slate-200 text-xl font-semibold text-slate-700 hover:bg-slate-100"
+        onclick={_ => count -= 1}
+      >
+        −
+      </button>
+      <span class="min-w-[3ch] text-5xl font-black text-slate-800">
+        {count}
+      </span>
+      <button
+        class="h-12 w-12 rounded-lg bg-rose-500 text-xl font-semibold text-white hover:bg-rose-600"
+        onclick={_ => count += 1}
+      >
+        +
+      </button>
+    </div>
   </div>
 </main>
-
-<style>
-  main { max-width: 480px; margin: 3rem auto; font-family: system-ui, sans-serif; text-align: center; }
-  h1 { color: #c03050; }
-  .sub { color: #666; font-size: 0.9rem; }
-  .counter { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
-  .num { font-size: 3rem; font-weight: 800; min-width: 3ch; }
-  button { font-size: 1.5rem; width: 3rem; height: 3rem; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; }
-</style>

@@ -19,7 +19,7 @@ Melt は **フルスタックな Web アプリを 1 つの `.melt` ファイル�
 |---|---|
 | **SPA + API** | [http4s-spa](examples/http4s-spa) |
 | **SSR + Hydration** | [http4s-ssr](examples/http4s-ssr) |
-| **Tailwind CSS（SPA / SSR）** | [tailwind-app](examples/tailwind-app)・[tailwind-ssr-server](examples/tailwind-ssr-server) |
+| **Tailwind CSS（フルスタック SSR）** | [meltkit-app](examples/meltkit-app) |
 | **フォーム / Server Actions** | [form-actions](examples/form-actions-client) |
 | **Server Functions（型付き RPC）** | [server-functions](examples/server-functions) |
 | **静的サイト（SSG）** | [nested-layouts](examples/nested-layouts)・この docs サイト自体 |
@@ -195,8 +195,7 @@ Ok(html.body)
 
 | サンプル | 説明 |
 |---------|------|
-| [tailwind-app](examples/tailwind-app) | **Tailwind CSS**（SPA、Vite + `@tailwindcss/vite`） |
-| [tailwind-ssr-server](examples/tailwind-ssr-server) | **Tailwind CSS + SSR + Hydration**（MeltKit[Future] Undertow、CSS を `<head>` に inline） |
+| [meltkit-app](examples/meltkit-app) | **Tailwind CSS** + フルスタック SSR。単一 `enablePlugins(MeltkitAppPlugin)` で frontend/backend を自動派生し、Tailwind CSS を `<head>` に inline |
 | [scss-counter](examples/scss-counter) | SCSS（スコープ付きスタイル） |
 
 ### リアクティビティ・バインディング
