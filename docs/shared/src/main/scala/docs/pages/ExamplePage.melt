@@ -9,6 +9,7 @@
   val pageTitle = props.slug match
     case "counter"      => "Counter"
     case "todo-app"     => "Todo App"
+    case "tailwind"     => "Tailwind CSS"
     case "transitions"  => "Transitions"
     case "trusted-html" => "Trusted HTML"
     case "ssr"          => "SSR + Hydration"
@@ -18,6 +19,7 @@
   val code = props.slug match
     case "counter"  => CodeSamples.counterMelt
     case "todo-app" => CodeSamples.todoMelt
+    case "tailwind" => CodeSamples.tailwindMelt
     case _          => CodeSamples.helloMelt
 </script>
 

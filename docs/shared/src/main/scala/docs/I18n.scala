@@ -20,6 +20,8 @@ object I18n:
   case class HomeFeature(num: String, title: String, body: String)
 
   case class Home(
+    heroTitle:      String,
+    heroAccent:     String,
     tagline:        String,
     cta1:           String,
     cta2:           String,
@@ -104,12 +106,15 @@ object I18n:
     exampleLinks = SidebarLinks(
       Map(
         "counter"  -> "Counter",
-        "todo-app" -> "Todo App"
+        "todo-app" -> "Todo App",
+        "tailwind" -> "Tailwind CSS"
       )
     ),
     home = Home(
+      heroTitle  = "Full-stack web apps,",
+      heroAccent = "in one .melt file.",
       tagline =
-        "A single-file component framework for Scala.js. Compile Scala, HTML and CSS to lean DOM code — no runtime framework.",
+        "Write your UI once — ship it as a SPA, server-rendered pages, or a static site. Dashboards, forms, content sites, CRUD.",
       cta1          = "Get Started",
       cta2          = "View on GitHub",
       meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.8.4"),
@@ -207,11 +212,14 @@ object I18n:
     exampleLinks = SidebarLinks(
       Map(
         "counter"  -> "カウンター",
-        "todo-app" -> "Todo アプリ"
+        "todo-app" -> "Todo アプリ",
+        "tailwind" -> "Tailwind CSS"
       )
     ),
     home = Home(
-      tagline       = "Scala.js 向けのシングルファイルコンポーネントフレームワーク。Scala・HTML・CSS を 1 ファイルで書き、コンパイラが素の DOM コードを生成します。",
+      heroTitle     = "フルスタックな Web アプリを、",
+      heroAccent    = "1 つの .melt ファイルで。",
+      tagline       = "UI を一度書けば、SPA・サーバーレンダリング・静的サイトとして出力。ダッシュボード・フォーム・コンテンツサイト・CRUD まで。",
       cta1          = "はじめる",
       cta2          = "GitHub で見る",
       meta          = List("v0.1.0-SNAPSHOT", "Apache 2.0", "Scala 3.8.4"),

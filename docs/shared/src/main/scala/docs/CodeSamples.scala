@@ -77,6 +77,25 @@ object CodeSamples:
        |
        |<p>Hello, {props.name}!</p>""".stripMargin
 
+  val tailwindMelt: String =
+    """|<!-- App.melt — Tailwind utility classes, no <style> block -->
+       |<script lang="scala">
+       |  val count = State(0)
+       |</script>
+       |
+       |<div class="min-h-screen flex items-center justify-center bg-slate-100">
+       |  <div class="w-80 rounded-2xl bg-white p-8 text-center shadow-lg">
+       |    <h1 class="mb-1 text-2xl font-bold text-slate-800">Melt × Tailwind</h1>
+       |    <div class="my-6 text-6xl font-black text-rose-500">{count}</div>
+       |    <div class="flex justify-center gap-2">
+       |      <button class="rounded-lg bg-slate-200 px-4 py-2 font-semibold"
+       |              onclick={_ => count -= 1}>−</button>
+       |      <button class="rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white"
+       |              onclick={_ => count += 1}>+</button>
+       |    </div>
+       |  </div>
+       |</div>""".stripMargin
+
   case class Sample(label: String, code: String)
 
   val samples: List[Sample] = List(

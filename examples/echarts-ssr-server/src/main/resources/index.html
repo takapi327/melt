@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="%melt.lang%">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>%melt.title%</title>
+  <!-- Resolve the bare `echarts` specifier (emitted by @JSImport) at runtime.
+       In dev the server serves the raw Scala.js ES modules, so no bundler runs;
+       the import map points the browser at echarts from a CDN. -->
+  <script type="importmap">
+    { "imports": { "echarts": "https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.esm.min.js" } }
+  </script>
+  %melt.head%
+</head>
+<body>
+  %melt.body%
+</body>
+</html>

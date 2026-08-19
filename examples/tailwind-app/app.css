@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Scan the .melt sources for utility class names. Melt keeps `class="..."`
+   verbatim from .melt to the generated Scala / DOM, so Tailwind finds the
+   classes here in the source. */
+@source "./src/**/*.melt";

@@ -47,7 +47,7 @@ private val guides = List(
   "server-functions",
   "type-safety"
 )
-private val examples = List("counter", "todo-app")
+private val examples = List("counter", "todo-app", "tailwind")
 
 private val On = PageOptions(prerender = PrerenderOption.On)
 

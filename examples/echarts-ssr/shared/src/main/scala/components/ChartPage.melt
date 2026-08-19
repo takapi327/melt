@@ -1,0 +1,82 @@
+<script lang="scala">
+  // SSR-safe component. The browser-only echarts (@JSImport) lives in the
+  // platform-split `ChartHost` (jvm = no-op stub, js = real echarts), so this
+  // shared component cross-compiles: JVM renders the SSR HTML, JS hydrates and
+  // — in onMount, on the client only — draws the chart into the SSR'd <div>.
+  case class Props(categories: List[String] = Nil, values: List[Int] = Nil)
+
+  val data = State(props.values)
+  var chart: Option[ChartHost.Chart] = None
+
+  onMount {
+    chart = Some(ChartHost.render("melt-echarts", props.categories, data.value))
+  }
+
+  effect(data) { v =>
+    chart.foreach(c => ChartHost.update(c, props.categories, v))
+  }
+
+  def randomize(): Unit =
+    data.set(List.fill(props.categories.size)(scala.util.Random.nextInt(200) + 20))
+</script>
+
+<div class="wrap">
+  <h1>
+    ECharts × Melt — SSR + Hydration
+  </h1>
+  <p class="sub">
+    サーバが静的シェルを SSR し、ブラウザで hydrate 後に <code>onMount</code> が npm の echarts を <code>@JSImport</code> 経由で描画します。
+  </p>
+  <div id="melt-echarts" class="chart"></div>
+  <button class="btn" onclick={_ => randomize()}>
+    Randomize
+  </button>
+  <ul class="fallback">
+    {data.value.map(v => <li>{v}</li>)}
+  </ul>
+</div>
+
+<style>
+  .wrap {
+    max-width: 640px;
+    margin: 2rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  h1 {
+    color: #c03050;
+    margin-bottom: 0.25rem;
+  }
+
+  .sub {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0;
+  }
+
+  .chart {
+    width: 600px;
+    height: 400px;
+  }
+
+  .btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.2rem;
+    background: #c03050;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .btn:hover {
+    background: #a02040;
+  }
+
+  .fallback {
+    color: #888;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+  }
+</style>

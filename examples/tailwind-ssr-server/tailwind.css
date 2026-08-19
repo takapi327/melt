@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Scan the shared .melt components for utility class names. */
+@source "../tailwind-ssr/shared/src/**/*.melt";

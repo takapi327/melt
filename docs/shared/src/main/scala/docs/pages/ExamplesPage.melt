@@ -20,6 +20,41 @@
       </p>
     </div>
     <div class="example-grid">
+      <a class="example-card" href={base + "/examples/tailwind"}>
+        <div class="example-card-preview">
+          <div class="example-tailwind-demo">
+            <div class="example-tw-card">
+              <span class="example-tw-num">
+                0
+              </span>
+              <div class="example-tw-btns">
+                <span class="example-tw-btn">
+                  −
+                </span>
+                <span class="example-tw-btn example-tw-btn-primary">
+                  +
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="example-card-body">
+          <h3>
+            Tailwind CSS
+          </h3>
+          <p>
+            Style <code>.melt</code> templates with Tailwind utility classes — SPA or SSR.
+          </p>
+          <div class="example-tags">
+            <span class="example-tag">
+              Tailwind
+            </span>
+            <span class="example-tag">
+              Vite
+            </span>
+          </div>
+        </div>
+      </a>
       <a class="example-card" href={base + "/examples/counter"}>
         <div class="example-card-preview">
           <div class="example-counter-demo">
@@ -289,6 +324,54 @@
   }
 
   /* Mini previews */
+
+  .example-tailwind-demo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .example-tw-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .example-tw-num {
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 800;
+    color: #f43f5e;
+  }
+
+  .example-tw-btns {
+    display: flex;
+    gap: 6px;
+  }
+
+  .example-tw-btn {
+    width: 30px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    color: #334155;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .example-tw-btn-primary {
+    background: #f43f5e;
+    color: #fff;
+  }
 
   .example-counter-demo {
     display: flex;

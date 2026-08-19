@@ -1,0 +1,112 @@
+<script lang="scala" module>
+  import scala.scalajs.js
+  import scala.scalajs.js.annotation.JSImport
+
+  /** Minimal facade over the `echarts` npm package, imported via `@JSImport`.
+    * Lives in the module script so it is emitted once at the top level of the
+    * generated `object Chart` (shared across all instances). Vite (with
+    * `@scala-js/vite-plugin-scalajs`) resolves the bare `"echarts"` specifier
+    * from `node_modules` at bundle time. */
+  @js.native
+  trait EChartsInstance extends js.Object:
+    def setOption(option: js.Object): Unit = js.native
+    def resize():                     Unit = js.native
+    def dispose():                    Unit = js.native
+
+  @js.native
+  @JSImport("echarts", JSImport.Namespace)
+  object ECharts extends js.Object:
+    def init(dom: org.scalajs.dom.Element): EChartsInstance = js.native
+</script>
+
+<script lang="scala">
+  val chartRef = Ref.empty[dom.Element]
+  var chart: Option[EChartsInstance] = None
+
+  val categories = List("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+  val data       = State(List(120, 200, 150, 80, 70, 110, 130))
+
+  def buildOption(values: List[Int]): js.Object =
+    js.Dynamic
+      .literal(
+        title   = js.Dynamic.literal(text = "Weekly Sales", left = "center"),
+        tooltip = js.Dynamic.literal(),
+        xAxis   = js.Dynamic.literal(`type` = "category", data = js.Array(categories*)),
+        yAxis   = js.Dynamic.literal(`type` = "value"),
+        series  = js.Array(
+          js.Dynamic.literal(
+            `type`    = "bar",
+            data      = js.Array(values.map(v => (v: js.Any))*),
+            itemStyle = js.Dynamic.literal(color = "#c03050")
+          )
+        )
+      )
+      .asInstanceOf[js.Object]
+
+  onMount {
+    chartRef.foreach { el =>
+      val c = ECharts.init(el)
+      c.setOption(buildOption(data.value))
+      chart = Some(c)
+    }
+  }
+
+  effect(data) { values =>
+    chart.foreach(_.setOption(buildOption(values)))
+  }
+
+  def randomize(): Unit =
+    data.set(List.fill(categories.size)(scala.util.Random.nextInt(200) + 20))
+</script>
+
+<div class="wrap">
+  <h1>
+    ECharts × Melt
+  </h1>
+  <p class="sub">
+    npm の <code>echarts</code> を <code>@JSImport</code> で読み込み、<code>State</code> の変化で再描画します。
+  </p>
+  <div class="chart" bind:this={chartRef}></div>
+  <button class="btn" onclick={_ => randomize()}>
+    Randomize
+  </button>
+</div>
+
+<style>
+  .wrap {
+    max-width: 640px;
+    margin: 2rem auto;
+    font-family: system-ui, sans-serif;
+  }
+
+  h1 {
+    color: #c03050;
+    margin-bottom: 0.25rem;
+  }
+
+  .sub {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0;
+  }
+
+  .chart {
+    width: 600px;
+    height: 400px;
+  }
+
+  .btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1.2rem;
+    background: #c03050;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .btn:hover {
+    background: #a02040;
+  }
+</style>

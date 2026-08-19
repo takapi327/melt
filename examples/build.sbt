@@ -75,6 +75,102 @@ lazy val `media-binding` = project
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
+// ── Example: ECharts chart via @JSImport (npm interop through Vite) ───────────
+lazy val `echarts-chart` = project
+  .in(file("echarts-chart"))
+  .settings(
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
+  )
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
+
+// ── Example: ECharts via @JSImport with SSR + Hydration (crossProject) ────────
+// Proves a browser-only npm widget works in an SSR + hydration app: the shared
+// component cross-compiles (JVM SSR + JS hydrate) by isolating the @JSImport
+// echarts into the platform-split `ChartHost` (jvm no-op / js real).
+lazy val `echarts-ssr` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("echarts-ssr"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    meltHydration                   := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+
+// ── Example: Tailwind CSS (utility classes via the Vite @tailwindcss plugin) ──
+lazy val `tailwind-app` = project
+  .in(file("tailwind-app"))
+  .settings(
+    scalaJSUseMainModuleInitializer := true,
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
+  )
+  .enablePlugins(ScalaJSPlugin, MeltPlugin)
+
+// ── Example: Tailwind CSS with SSR + Hydration (crossProject, JVM-safe) ───────
+lazy val `tailwind-ssr` = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Full)
+  .in(file("tailwind-ssr"))
+  .settings(
+    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
+  )
+  .enablePlugins(MeltPlugin)
+  .jsConfigure(
+    _.settings(
+      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+    )
+  )
+  .jsSettings(
+    meltHydration                   := true,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
+    }
+  )
+
+lazy val tailwindSsrDir = file("tailwind-ssr")
+
+lazy val `tailwind-ssr-server` = project
+  .in(file("tailwind-ssr-server"))
+  .settings(
+    run / fork                                   := true,
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion,
+    meltkitAssetManifestClient                   := Some(`tailwind-ssr`.js),
+    meltkitViteDistDir                           := tailwindSsrDir / "dist",
+    meltkitViteManifestPath                      := tailwindSsrDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`tailwind-ssr`.jvm)
+
+// ── Example: ECharts SSR + Hydration server (MeltKit[Future] on Undertow) ─────
+lazy val echartsSsrDir = file("echarts-ssr")
+
+lazy val `echarts-ssr-server` = project
+  .in(file("echarts-ssr-server"))
+  .settings(
+    run / fork                                   := true,
+    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion,
+    meltkitAssetManifestClient                   := Some(`echarts-ssr`.js),
+    meltkitViteDistDir                           := echartsSsrDir / "dist",
+    meltkitViteManifestPath                      := echartsSsrDir / "dist" / ".vite" / "manifest.json"
+  )
+  .enablePlugins(MeltkitPlugin)
+  .dependsOn(`echarts-ssr`.jvm)
+
 // ── Example: Dimension Binding (bind:clientWidth / offsetWidth etc.) ───────────
 lazy val `dimension-binding` = project
   .in(file("dimension-binding"))
@@ -494,6 +590,7 @@ lazy val root = project
     `layout-effect`,
     `select-textarea-bind`,
     `media-binding`,
+    `echarts-chart`,
     `dimension-binding`,
     `reactive-scope`,
     `trusted-html`,

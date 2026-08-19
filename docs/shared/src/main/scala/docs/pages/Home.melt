@@ -18,11 +18,15 @@
       <div class="hero-eyebrow">
         <span class="eyebrow-dot"></span>
         <span>
-          Scala.js · SFC Framework
+          Scala.js · Full-Stack SFC
         </span>
       </div>
       <h1 class="hero-title">
-        Build reactive UIs<br /><span class="hero-accent">in pure Scala</span>
+        {t.heroTitle}
+        <br />
+        <span class="hero-accent">
+          {t.heroAccent}
+        </span>
       </h1>
       <p class="hero-sub">
         {t.tagline}

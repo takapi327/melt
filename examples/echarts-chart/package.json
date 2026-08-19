@@ -1,0 +1,12 @@
+{
+  "name": "echarts-chart",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "echarts": "^5.5.0"
+  },
+  "devDependencies": {
+    "@melt/vite-plugin": "workspace:*",
+    "vite": "^8.2.1"
+  }
+}
