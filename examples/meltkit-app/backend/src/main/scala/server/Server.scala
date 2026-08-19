@@ -13,33 +13,32 @@ import components.App
 import generated.AssetManifest
 import meltkit.*
 
-/** SSR + Hydration server for the auto-derived full-stack app.
+/** SSR + Hydration entry point for the auto-derived full-stack app.
   *
-  * This module is `meltkit-app-backend`, derived by `MeltkitAppPlugin` from the
-  * single `meltkit-app` project. It compiles `frontend/`'s `.melt` components in
-  * SSR mode and reads the frontend's asset manifest — no manual client/server
-  * wiring in build.sbt.
+  * `meltkit-app-backend`, derived by `MeltkitAppPlugin` from the single
+  * `meltkit-app` project: it compiles `frontend/`'s `.melt` components in SSR
+  * mode and reads the frontend's asset manifest — no manual client/server wiring.
   *
-  * {{{
-  * sbt "meltkit-app-frontend/fastLinkJS"   # hydration bundle
-  * sbt "meltkit-app-backend/run"           # http://localhost:9095
-  * }}}
+  * Defined flat with the Scala 3 `@main` annotation (no `object` wrapper).
+  *
+  * {{{ sbt "meltkit-app/run"   # links the frontend + starts the backend → :9095 }}}
   */
-object Server:
-  def main(args: Array[String]): Unit =
-    val app = MeltKit[Future]()
+@main def serve(): Unit =
+  val app = MeltKit[Future]()
 
-    app.get("") { ctx =>
-      Future.successful(ctx.render(App(App.Props(initial = 0))))
-    }
+  app.get("") { ctx =>
+    Future.successful(ctx.render(App(App.Props(initial = 0))))
+  }
 
-    UndertowServer
-      .builder(app)
-      .withPort(9095)
-      .withTemplate("<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\">%melt.head%</head><body>%melt.body%</body></html>")
-      .withManifest(AssetManifest.manifest)
-      .withClientDistDir(AssetManifest.clientDistDir)
-      .start()
-      .foreach(server => println(s"meltkit-app running on http://localhost:${ server.port }"))
+  val template = scala.io.Source.fromResource("index.html").mkString
 
-    Thread.currentThread().join()
+  UndertowServer
+    .builder(app)
+    .withPort(9095)
+    .withTemplate(template)
+    .withManifest(AssetManifest.manifest)
+    .withClientDistDir(AssetManifest.clientDistDir)
+    .start()
+    .foreach(server => println(s"meltkit-app running on http://localhost:${ server.port }"))
+
+  Thread.currentThread().join()

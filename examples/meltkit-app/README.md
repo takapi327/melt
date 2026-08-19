@@ -54,6 +54,10 @@ optimized `fullLinkJS`:
 Global / buildMode := MeltBuildMode.Full   // default: Fast
 ```
 
+With `Full`, the backend's asset manifest (`clientDistDir`) also points at the
+optimized `-opt` output, so the server **serves the optimized bundle** — not just
+builds it. `Fast` serves the `-fastopt` output.
+
 ## Server adapter
 
 Default is the built-in Undertow server (`MeltKit[Future]`, no cats-effect). To
