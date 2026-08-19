@@ -1,0 +1,27 @@
+<script lang="scala">
+  case class Props(initial: Int = 0)
+
+  val count = State(props.initial)
+</script>
+
+<main>
+  <h1>Melt full-stack app</h1>
+  <p class="sub">
+    SSR by the backend, hydrated in the browser — from a single
+    <code>enablePlugins(MeltkitAppPlugin)</code>.
+  </p>
+  <div class="counter">
+    <button onclick={_ => count -= 1}>−</button>
+    <span class="num">{count}</span>
+    <button onclick={_ => count += 1}>+</button>
+  </div>
+</main>
+
+<style>
+  main { max-width: 480px; margin: 3rem auto; font-family: system-ui, sans-serif; text-align: center; }
+  h1 { color: #c03050; }
+  .sub { color: #666; font-size: 0.9rem; }
+  .counter { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
+  .num { font-size: 3rem; font-weight: 800; min-width: 3ch; }
+  button { font-size: 1.5rem; width: 3rem; height: 3rem; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; }
+</style>

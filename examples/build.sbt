@@ -120,6 +120,14 @@ lazy val `tailwind-app` = project
   )
   .enablePlugins(ScalaJSPlugin, MeltPlugin)
 
+// ── Example: single-declaration full-stack SSR app (MeltkitAppPlugin) ─────────
+// One `enablePlugins(MeltkitAppPlugin)` derives `meltkit-appFrontend` (JS
+// hydration) and `meltkit-appBackend` (JVM Undertow SSR). You manage only
+// frontend/ and backend/ — no manual client crossProject + server wiring.
+lazy val `meltkit-app` = project
+  .in(file("meltkit-app"))
+  .enablePlugins(MeltkitAppPlugin)
+
 // ── Example: Tailwind CSS with SSR + Hydration (crossProject, JVM-safe) ───────
 lazy val `tailwind-ssr` = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Full)
