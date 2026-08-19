@@ -8,7 +8,7 @@
       Melt × Tailwind
     </h1>
     <p class="mb-6 text-sm text-slate-500">
-      ユーティリティクラス + リアクティブ state
+      Utility classes + reactive state
     </p>
     <div class="mb-6 text-6xl font-black text-rose-500">
       {count}

@@ -25,7 +25,7 @@
     ECharts × Melt — SSR + Hydration
   </h1>
   <p class="sub">
-    サーバが静的シェルを SSR し、ブラウザで hydrate 後に <code>onMount</code> が npm の echarts を <code>@JSImport</code> 経由で描画します。
+    The server SSRs the static shell; after hydration, <code>onMount</code> draws the chart on the client with npm echarts via <code>@JSImport</code>.
   </p>
   <div id="melt-echarts" class="chart"></div>
   <button class="btn" onclick={_ => randomize()}>

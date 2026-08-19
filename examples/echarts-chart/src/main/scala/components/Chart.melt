@@ -64,7 +64,7 @@
     ECharts × Melt
   </h1>
   <p class="sub">
-    npm の <code>echarts</code> を <code>@JSImport</code> で読み込み、<code>State</code> の変化で再描画します。
+    Loads npm <code>echarts</code> via <code>@JSImport</code> and redraws on <code>State</code> changes.
   </p>
   <div class="chart" bind:this={chartRef}></div>
   <button class="btn" onclick={_ => randomize()}>

@@ -1,38 +1,43 @@
 # echarts-chart
 
-npm の [ECharts](https://echarts.apache.org/) を `@JSImport` で読み込み、Melt コンポーネント内で
-チャートを描画・リアクティブ更新するサンプルです。「任意の npm/JS ライブラリを `.melt` から使う」
-方法を示します。
+Uses the npm package [ECharts](https://echarts.apache.org/) via `@JSImport` and
+renders a chart inside a Melt component, updating it reactively. Shows how to use
+any npm/JS library from a `.melt` file.
 
-## ポイント
+## Highlights
 
-- `Chart.melt` の **`<script lang="scala" module>`** に ECharts の `@JSImport` ファサードを定義。
-  モジュールスクリプトは生成コードの `object Chart` 直下（=トップレベル）に出るため、
-  `@js.native @JSImport("echarts", ...)` を `.melt` 内に置けます。
-- チャート DOM は `bind:this={chartRef}` で参照し、`onMount` で `ECharts.init(el).setOption(...)`。
-- `State[List[Int]]` の変化を `effect` で購読し、`setOption` で再描画（"Randomize" ボタン）。
-- バンドルは **Vite**。エントリ `index.js` の `import "scalajs:main.js"` を `vite.config.mjs` の
-  小さな自作リゾルバが sbt リンク済み出力へ解決し、Scala.js が出す `import "echarts"` は
-  Vite が `node_modules` から解決します（webpack / scalajs-bundler は不要）。
+- The ECharts `@JSImport` facade lives in `Chart.melt`'s
+  **`<script lang="scala" module>`**. Module scripts are emitted at the top level
+  of the generated `object Chart`, so `@js.native @JSImport("echarts", ...)` can
+  live inside the `.melt` file.
+- The chart DOM is referenced with `bind:this={chartRef}`; `onMount` calls
+  `ECharts.init(el).setOption(...)`.
+- An `effect` subscribes to `State[List[Int]]` and calls `setOption` to redraw
+  (the "Randomize" button).
+- Bundling is done by **Vite**. A small local resolver in `vite.config.mjs`
+  maps `import "scalajs:main.js"` (in `index.js`) to the sbt-linked output, and
+  Vite resolves the bare `"echarts"` import that Scala.js emits from
+  `node_modules` (no webpack / scalajs-bundler).
 
-## 実行
+## Run
 
 ```bash
-# 1. npm 依存（echarts / vite / @melt/vite-plugin）をインストール
+# 1. Install npm deps (echarts / vite / @melt/vite-plugin)
 pnpm install
 
-# 2. Scala.js をリンク（dev は fastLinkJS。ESModule 出力）
+# 2. Link Scala.js (dev uses fastLinkJS; ESModule output)
 sbt "echarts-chart/fastLinkJS"
 
-# 3. examples/echarts-chart で Vite dev サーバを起動（Node 20.19+/22.12+）
+# 3. Start the Vite dev server from examples/echarts-chart (Node 20.19+/22.12+)
 npx vite
 ```
 
-ブラウザで棒グラフが表示され、"Randomize" で値が更新されます。
-`vite build` する場合は先に `sbt "echarts-chart/fullLinkJS"` を実行してください
-（リゾルバが dev=fastopt / build=opt を自動で切り替えます）。
+A bar chart appears in the browser, and "Randomize" updates the values.
+For `vite build`, run `sbt "echarts-chart/fullLinkJS"` first (the resolver
+switches between dev=fastopt / build=opt automatically).
 
-> なぜ `@scala-js/vite-plugin-scalajs` を使わないか: 同プラグインは `sbt "print …/fullLinkJSOutput"`
-> の stdout 最終行を出力パスとして読むが、**sbt 2.0.0 はパスの後に `[success]` と ANSI 制御コードを
-> stdout へ出す**ため最終行がパスにならず壊れる。`vite.config.mjs` は代わりに小さな自作リゾルバで
-> リンク済み出力を直接指す。
+> Why not `@scala-js/vite-plugin-scalajs`: it reads the last stdout line of
+> `sbt "print .../fullLinkJSOutput"` as the output path, but **sbt 2.0.0 prints
+> `[success]` and an ANSI `ESC[0J` after the path**, so the last line is not the
+> directory and it breaks. `vite.config.mjs` instead uses a small local resolver
+> that points at the linked output directly.

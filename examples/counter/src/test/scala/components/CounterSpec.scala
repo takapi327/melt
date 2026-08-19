@@ -311,7 +311,7 @@ class CounterSpec extends MeltSuite:
         wrapper.appendChild(el)
     }
     val btn = org.scalajs.dom.document.createElement("button")
-    btn.textContent = "送信"
+    btn.textContent = "Submit"
     wrapper.appendChild(btn)
     wrapper
 
@@ -337,13 +337,13 @@ class CounterSpec extends MeltSuite:
 
   test("getByRole with name finds button by accessible name") {
     val c  = mount(headingFixture())
-    val el = c.getByRole("button", name = Some("送信"))
+    val el = c.getByRole("button", name = Some("Submit"))
     assertEquals(el.tagName.toLowerCase, "button")
   }
 
   test("queryByRole with name returns None when name does not match") {
     val c = mount(headingFixture())
-    assertEquals(c.queryByRole("button", name = Some("削除")), None)
+    assertEquals(c.queryByRole("button", name = Some("Delete")), None)
   }
 
   test("getByRole with level and name together") {
