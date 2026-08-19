@@ -128,6 +128,11 @@ object MeltkitAppPlugin extends AutoPlugin:
               case MeltServerAdapter.Undertow => None),
             meltCodegenMode            := "ssr",
             meltkitAssetManifestClient := Some(frontend),
+            // Follow buildMode so `buildMode := Full` serves the optimized (`-opt`)
+            // bundle: the asset manifest / clientDistDir point at fullLinkJS output.
+            meltkitClientFullLink := (buildMode.value match
+              case MeltBuildMode.Full => true
+              case MeltBuildMode.Fast => false),
             // Compile frontend's Melt components in SSR mode so the server can render them.
             Compile / unmanagedSourceDirectories += base / "frontend" / "src" / "main" / "scala"
           )

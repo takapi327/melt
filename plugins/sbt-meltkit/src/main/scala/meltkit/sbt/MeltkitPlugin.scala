@@ -155,6 +155,12 @@ object MeltkitPlugin extends AutoPlugin:
     val meltkitProd =
       settingKey[Boolean]("Enable production mode (Vite manifest)")
 
+    /** In dev mode (no Vite), generate the asset manifest from the client's
+      * `fullLinkJS` output (optimized, `-opt`) instead of `fastLinkJS` (`-fastopt`).
+      * Lets a raw (bundler-less) server serve the optimized bundle. */
+    val meltkitClientFullLink =
+      settingKey[Boolean]("Build the dev asset manifest from fullLinkJS instead of fastLinkJS")
+
     /** Filesystem path to the Vite `manifest.json` output. Only used
       * when [[meltkitProd]] is `true`.
       *
@@ -320,6 +326,7 @@ object MeltkitPlugin extends AutoPlugin:
     meltkitAssetManifestObject  := "AssetManifest",
 
     meltkitProd             := sys.env.get("MELT_PROD").exists(v => v == "true" || v == "1"),
+    meltkitClientFullLink   := false,
     meltkitViteManifestPath := baseDirectory.value / ".." / "dist" / ".vite" / "manifest.json",
     meltkitViteDistDir      := baseDirectory.value / ".." / "dist",
     meltkitIndexHtml        := {
@@ -381,6 +388,26 @@ object MeltkitPlugin extends AutoPlugin:
               objectName   = meltkitAssetManifestObject.value,
               manifestPath = meltkitViteManifestPath.value,
               distDir      = distDir
+            )
+          }
+        case Some(clientProject) if meltkitClientFullLink.value =>
+          Def.task {
+            val distDir = (clientProject / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value
+            meltkitIndexHtml.value.foreach(src => IO.copyFile(src, distDir / "index.html"))
+            val composed = melt.sbt.SourceMapComposer.composeDirectory(distDir)
+            if composed.nonEmpty then
+              streams.value.log.info(
+                s"[sbt-meltkit] composed .melt source maps in ${ composed.size } file(s)"
+              )
+            val isNode = meltMode.value.contains(MeltMode.Node)
+            generateAssetManifest(
+              streams      = streams.value,
+              outDir       = (Compile / sourceManaged).value / "generated",
+              pkgName      = meltkitAssetManifestPackage.value,
+              objectName   = meltkitAssetManifestObject.value,
+              report       = (clientProject / Compile / fullLinkJS).value.data,
+              distDir      = distDir,
+              isNodeServer = isNode
             )
           }
         case Some(clientProject) =>
