@@ -1,0 +1,10 @@
+<script lang="scala">
+  case class Props(initial: Int = 0)
+  val count = State(props.initial)
+</script>
+
+<div>
+  <h1>Melt App</h1>
+  <p>Count: {count}</p>
+  <button onclick={_ => count += 1}>+</button>
+</div>
