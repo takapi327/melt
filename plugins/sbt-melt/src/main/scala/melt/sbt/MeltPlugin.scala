@@ -98,7 +98,7 @@ object MeltPlugin extends AutoPlugin:
       case _      =>
         Left(s"""invalid meltCodegenMode "$raw" — expected "spa", "ssr", or "auto"""")
 
-  private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
+  private val pluginVersion: String = melt.build.Version.current
 
   private val ScalaJSPluginClassName = "org.scalajs.sbtplugin.ScalaJSPlugin$"
 
@@ -116,12 +116,8 @@ object MeltPlugin extends AutoPlugin:
     meltPublicEnv         := Map.empty,
     meltPublicEnvPackage  := "generated",
 
-    libraryDependencies += {
-      val v    = pluginVersion
-      val binV = scalaBinaryVersion.value
-      if hasScalaJSPlugin(thisProject.value) then "io.github.takapi327" % s"melt-runtime_sjs1_$binV" % v
-      else "io.github.takapi327"                                       %% "melt-runtime"             % v
-    },
+    // `%%` resolves to `melt-runtime_sjs1_3` on Scala.js consumers, `_3` on the JVM.
+    libraryDependencies += Dependencies.meltRuntime,
 
     meltGenerate := compileMeltFiles(
       streams = streams.value,
