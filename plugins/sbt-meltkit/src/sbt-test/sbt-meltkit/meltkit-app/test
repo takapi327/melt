@@ -1,8 +1,13 @@
-# MeltkitAppPlugin derives root{Frontend,Backend} from a single enablePlugins.
+# MeltkitAppPlugin derives root-frontend / root-backend from a single enablePlugins,
+# with per-side settings routed by .sharedSettings / .frontendSettings / .backendSettings.
 
 # Frontend (Scala.js) links its hydration bundle and generates the component.
 > root-frontend/fastLinkJS
 $ exists target/out/sjs1/scala-3.8.4/root-frontend/src_managed/main/melt/components/App.scala
+
+# .frontendSettings(meltkitSplitPackages := List("components")) reached the frontend:
+# each class in `components` is split into its own module (SmallModulesFor).
+$ exists target/out/sjs1/scala-3.8.4/root-frontend/root-frontend-fastopt/components.-App$.js
 
 # Backend (JVM) compiles the frontend's .melt in SSR mode and generates the asset manifest.
 > root-backend/compile

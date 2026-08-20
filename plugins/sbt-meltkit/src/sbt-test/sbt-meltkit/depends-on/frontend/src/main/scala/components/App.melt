@@ -1,0 +1,9 @@
+<script lang="scala">
+  val count = State(shared.Const.value)
+</script>
+
+<div>
+  <h1>Depends-on App</h1>
+  <p>Count: {count}</p>
+  <button onclick={_ => count += 1}>+</button>
+</div>

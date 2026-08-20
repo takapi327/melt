@@ -248,8 +248,7 @@ object MeltkitPlugin extends AutoPlugin:
     val meltkitRouterHydration =
       settingKey[Option[String]]("Client hydration entry moduleID for router-driven hydration")
 
-  private val pluginVersion: String = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")
-
+  import melt.sbt.Dependencies
   import melt.sbt.MeltPlugin.autoImport.{ meltCodegenMode, meltHydration }
 
   import autoImport.*
@@ -290,26 +289,17 @@ object MeltkitPlugin extends AutoPlugin:
     },
 
     // ── Auto-add meltkit core + adapter ───────────────────────────────────
+    // `%%` resolves per consumer platform (`_sjs1_3` on Scala.js, `_3` on the JVM), so
+    // the browser/node (JS) and http4s (JVM) adapters share the same `ModuleID`s.
     libraryDependencies ++= {
       if !meltkitManageRuntimeDeps.value then Seq.empty
       else
-        val v    = pluginVersion
-        val binV = scalaBinaryVersion.value // Scala 3 → "3"
-        // Core meltkit library (always added)
-        val core =
-          if hasScalaJSPlugin(thisProject.value) then "io.github.takapi327" % s"meltkit_sjs1_$binV" % v
-          else "io.github.takapi327"                                       %% "meltkit"             % v
-        // Adapter determined by meltMode
         val adapter = meltMode.value match
-          case Some(MeltMode.Browser) =>
-            Seq("io.github.takapi327" % s"meltkit-adapter-browser_sjs1_$binV" % v)
-          case Some(MeltMode.Node) =>
-            Seq("io.github.takapi327" % s"meltkit-adapter-node_sjs1_$binV" % v)
-          case Some(MeltMode.Http4s) =>
-            Seq("io.github.takapi327" %% "meltkit-adapter-http4s" % v)
-          case None =>
-            Seq.empty
-        core +: adapter
+          case Some(MeltMode.Browser) => Seq(Dependencies.meltkitAdapterBrowser)
+          case Some(MeltMode.Node)    => Seq(Dependencies.meltkitAdapterNode)
+          case Some(MeltMode.Http4s)  => Seq(Dependencies.meltkitAdapterHttp4s)
+          case None                   => Seq.empty
+        Dependencies.meltkit +: adapter
     },
 
     // For crossProject JVM side, auto-detect the JS counterpart via the
