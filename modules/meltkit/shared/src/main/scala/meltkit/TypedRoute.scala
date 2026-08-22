@@ -6,10 +6,10 @@
 
 package meltkit
 
+import scala.quoted.*
 import scala.NamedTuple.AnyNamedTuple
 import scala.NamedTuple.Concat
 import scala.NamedTuple.NamedTuple as NT
-import scala.quoted.*
 
 import meltkit.codec.PathParamDecoder
 import meltkit.codec.PathParamEncoder
@@ -88,24 +88,26 @@ extension (inline sc: StringContext)
 
 private[meltkit] object RouteMacros:
 
-  def routeImpl(scE: Expr[StringContext], argsE: Expr[Seq[Any]], regE: Expr[RouteRegistry[?]])(using Quotes): Expr[String] =
+  def routeImpl(scE: Expr[StringContext], argsE: Expr[Seq[Any]], regE: Expr[RouteRegistry[?]])(using
+    Quotes
+  ): Expr[String] =
     import quotes.reflect.*
 
     def elems(t: TypeRepr): List[TypeRepr] =
       t.asType match
-        case '[ EmptyTuple ] => Nil
-        case '[ h *: tl ]    => TypeRepr.of[h] :: elems(TypeRepr.of[tl])
-        case _               => List(t)
+        case '[EmptyTuple] => Nil
+        case '[h *: tl]    => TypeRepr.of[h] :: elems(TypeRepr.of[tl])
+        case _             => List(t)
 
     // Decode a route's `Segs` tuple into an ordered list of literal segments / typed params.
     def decodeSegs(segs: TypeRepr): List[Either[String, TypeRepr]] =
       elems(segs).flatMap {
         // static literal type: may itself contain '/', mirror runtime staticSegments split
         case ConstantType(StringConstant(lit)) => lit.split('/').filter(_.nonEmpty).toList.map(Left(_))
-        case s =>
+        case s                                 =>
           s.asType match
-            case '[ PathParam[n, a] ] => List(Right(TypeRepr.of[a]))
-            case _                    => report.errorAndAbort(s"unexpected route segment: ${ s.show }")
+            case '[PathParam[n, a]] => List(Right(TypeRepr.of[a]))
+            case _                  => report.errorAndAbort(s"unexpected route segment: ${ s.show }")
       }
 
     // Reflect on the registry object `R` and collect every `TypedRoute[P, Segs]` member.
@@ -119,12 +121,11 @@ private[meltkit] object RouteMacros:
           case AppliedType(tc, List(_, segs)) if tc.typeSymbol == typedRouteClass => Some(decodeSegs(segs))
           case _                                                                  => None
       }
-    if routes.isEmpty then
-      report.errorAndAbort(s"RouteRegistry object ${ objTpe.show } has no TypedRoute members")
+    if routes.isEmpty then report.errorAndAbort(s"RouteRegistry object ${ objTpe.show } has no TypedRoute members")
 
     val parts = scE match
       case '{ StringContext(${ Varargs(ps) }*) } => ps.toList.map(_.valueOrAbort)
-      case _                                      => report.errorAndAbort("route: literal parts required")
+      case _                                     => report.errorAndAbort("route: literal parts required")
     val args = argsE match
       case Varargs(as) => as.toList
       case _           => report.errorAndAbort("route: explicit args required")
@@ -154,7 +155,7 @@ private[meltkit] object RouteMacros:
         case '[t] =>
           Expr.summon[PathParamEncoder[t]] match
             case Some(enc) => '{ ${ enc }.encode(${ arg.asExprOf[t] }) }
-            case None =>
+            case None      =>
               report.errorAndAbort(s"no PathParamEncoder in scope for ${ arg.asTerm.tpe.widen.show }", arg)
     }
     val pieces: List[Expr[String]] =
