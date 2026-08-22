@@ -112,11 +112,30 @@ Melt は `{#if}` / `{#each}` のような独自構文を持たず、テンプレ
 - **特殊要素** — `melt:head` / `melt:window` / `melt:body` / `melt:element` / `melt:key` / `melt:boundary`
 - **サーバー** — SSR + ハイドレーション・ルーティング・Server Functions・フォームアクション
 
-構文と API の詳細は、動くコードの [サンプル](#サンプル) と docs サイト（`sbt docsJVM/run` で起動、ソースは `docs/`）を参照してください。
+構文と API の詳細は、動くコードの [サンプル](#サンプル) と docs サイト（`sbt "docs-backend/runMain docs.server"` で起動、ソースは `docs/`）を参照してください。
 
 ---
 
-## 使い方
+## クイックスタート
+
+[Giter8](https://www.foundweekends.org/giter8/) テンプレートから、動くフルスタックアプリの雛形を生成できます — [takapi327/melt.g8](https://github.com/takapi327/melt.g8)。
+
+```bash
+sbt new takapi327/melt.g8
+cd melt-app
+sbt run          # frontend をリンクし、SSR サーバーを http://localhost:8080 で起動
+```
+
+`enablePlugins(MeltkitAppPlugin)` 1 行で、`frontend/`（Scala.js ハイドレーション）と `backend/`（Undertow SSR）が自動派生されます。生成物には scalafmt / meltFmt 設定も含まれます。
+
+> [!NOTE]
+> Melt は 1.0 前で、まだ Maven Central に公開されていません。生成したプロジェクトをビルドするには、先に本体モジュールを `publishLocal` してください（手順は [melt.g8 の README](https://github.com/takapi327/melt.g8#prerequisite-until-melt-is-published) 参照）。
+
+より細かく手動でセットアップする場合は以下を参照してください。
+
+---
+
+## 使い方（手動セットアップ）
 
 ### 1. sbt セットアップ
 

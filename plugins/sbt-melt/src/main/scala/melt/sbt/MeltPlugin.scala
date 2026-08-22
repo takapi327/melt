@@ -105,6 +105,52 @@ object MeltPlugin extends AutoPlugin:
   private def hasScalaJSPlugin(project: sbt.ResolvedProject): Boolean =
     project.autoPlugins.exists(_.getClass.getName == ScalaJSPluginClassName)
 
+  /** Hidden Ivy configuration carrying the `.melt` formatter's classpath (`melt-format`
+    * + scalafmt-dynamic). Kept off `Compile` — and out of the plugin's own POM — so
+    * scalafmt-dynamic's `scala-xml_2.13` never collides with the `scala-xml_3` on the sbt
+    * 2.0 plugin / meta-build classpath. The formatter runs in a forked JVM instead.
+    */
+  private val MeltFmtToolConfig = config("meltfmt-tool").hide
+
+  @transient private val meltFmtToolClasspath =
+    taskKey[Seq[File]]("Resolved classpath for the `.melt` formatter, isolated from Compile")
+
+  /** `meltFmt` / `meltFmtCheck` — format (or verify) every `.melt` file under all
+    * projects' [[autoImport.meltSourceDirectories]]; the analogue of `scalafmtAll` for
+    * `.melt`. Forks `melt.format.MeltFmtMain` with the resolved formatter classpath and
+    * the build root as its working directory, so `.meltfmt.conf` (typically
+    * `include ".scalafmt.conf"`) and the source dirs resolve there.
+    */
+  private def meltFmtCommand(name: String, check: Boolean): Command =
+    Command.command(name) { state =>
+      val extracted = Project.extract(state)
+      val data      = extracted.structure.data
+      val meltRefs = extracted.structure.allProjectRefs.filter(ref => (ref / meltSourceDirectories).get(data).isDefined)
+      val dirs     = meltRefs
+        .flatMap(ref => (ref / meltSourceDirectories).get(data).getOrElse(Seq.empty))
+        .distinct
+        .filter(_.isDirectory)
+
+      if meltRefs.isEmpty || dirs.isEmpty then
+        state.log.warn("[meltfmt] no Melt source directories found")
+        state
+      else
+        val (next, cp) = extracted.runTask(meltRefs.head / meltFmtToolClasspath, state)
+        val root       = (LocalRootProject / baseDirectory).get(data).getOrElse(file("."))
+        val opts       = ForkOptions().withWorkingDirectory(root)
+        val args       =
+          Seq("-cp", cp.map(_.getAbsolutePath).mkString(java.io.File.pathSeparator), "melt.format.MeltFmtMain") ++
+            (if check then Seq("--check") else Seq.empty) ++ dirs.map(_.getAbsolutePath)
+        if Fork.java(opts, args) == 0 then next else next.fail
+    }
+
+  override def globalSettings: Seq[Setting[?]] = Seq(
+    commands ++= Seq(
+      meltFmtCommand("meltFmt", check      = false),
+      meltFmtCommand("meltFmtCheck", check = true)
+    )
+  )
+
   override def projectSettings: Seq[Setting[?]] = Seq(
     meltHydration         := false,
     meltHydrationRoot     := None,
@@ -118,6 +164,12 @@ object MeltPlugin extends AutoPlugin:
 
     // `%%` resolves to `melt-runtime_sjs1_3` on Scala.js consumers, `_3` on the JVM.
     libraryDependencies += Dependencies.meltRuntime,
+
+    // The `.melt` formatter's classpath, resolved into a hidden config so it never
+    // touches Compile (or the plugin POM). Consumed by the `meltFmt` command via a fork.
+    ivyConfigurations += MeltFmtToolConfig,
+    libraryDependencies += "io.github.takapi327" % "melt-format_3" % pluginVersion % MeltFmtToolConfig.name,
+    meltFmtToolClasspath                        := update.value.select(configurationFilter(MeltFmtToolConfig.name)),
 
     meltGenerate := compileMeltFiles(
       streams = streams.value,
