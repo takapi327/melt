@@ -75,7 +75,9 @@ case class GuideInstallation(
 // ── Quick Start ───────────────────────────────────────────────────────────────
 
 case class GuideQuickStart(
-  lead:         String,
+  lead:          String,
+  templateH3:    String,
+  templateIntro: String,
   step1H3:      String,
   step1Text:    String,
   step1Link:    String,
@@ -725,7 +727,12 @@ object GuideI18n:
     ),
 
     quickStart = GuideQuickStart(
-      lead       = "This guide builds a reactive counter from zero to running in under 5 minutes.",
+      lead          = "This guide builds a reactive counter from zero to running in under 5 minutes.",
+      templateH3    = "Scaffold from the template",
+      templateIntro =
+        "The fastest path: generate a full-stack app (Scala.js frontend + JVM SSR backend) from the " +
+          "takapi327/melt.g8 Giter8 template, then run it — a single enablePlugins(MeltkitAppPlugin) " +
+          "wires everything.",
       step1H3    = "Create the project",
       step1Text  = "Start from the Melt counter example or create a minimal sbt project with the plugin enabled (see ",
       step1Link  = "Installation",
@@ -1440,7 +1447,12 @@ object GuideI18n:
     ),
 
     quickStart = GuideQuickStart(
-      lead         = "このガイドでは、カウンターコンポーネントを 5 分以内でゼロから動かすところまで解説します。",
+      lead          = "このガイドでは、カウンターコンポーネントを 5 分以内でゼロから動かすところまで解説します。",
+      templateH3    = "テンプレートから生成する",
+      templateIntro =
+        "最短経路です。takapi327/melt.g8 の Giter8 テンプレートからフルスタックアプリ" +
+          "（Scala.js フロントエンド + JVM SSR バックエンド）を生成してそのまま起動できます。" +
+          "enablePlugins(MeltkitAppPlugin) 1 行ですべてが結線されます。",
       step1H3      = "プロジェクトを作成する",
       step1Text    = "Melt のカウンターサンプルをベースにするか、プラグインを有効化した最小限の sbt プロジェクトを作成します（",
       step1Link    = "インストール",

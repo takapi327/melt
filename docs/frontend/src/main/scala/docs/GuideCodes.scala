@@ -106,6 +106,11 @@ object GuideCodes:
        |# Serve with Vite (or any static server)
        |npx vite""".stripMargin
 
+  val quickStartTemplate: String =
+    """|sbt new takapi327/melt.g8
+       |cd melt-app
+       |sbt run""".stripMargin
+
   // ── Components ────────────────────────────────────────────────────────────
 
   val componentsGreetingMelt: String =

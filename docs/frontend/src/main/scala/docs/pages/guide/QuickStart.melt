@@ -13,6 +13,22 @@
   {t.lead}
 </p>
 <h3>
+  {t.templateH3}
+</h3>
+<p>
+  {t.templateIntro}
+</p>
+<div class="code-block">
+  <div class="code-block-header">
+    <span class="code-block-dot"></span>Terminal
+  </div>
+  <pre>
+    <code>
+      {GuideCodes.quickStartTemplate}
+    </code>
+  </pre>
+</div>
+<h3>
   {t.step1H3}
 </h3>
 <p>
