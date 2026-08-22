@@ -110,51 +110,13 @@ lazy val `echarts-ssr` = crossProject(JVMPlatform, JSPlatform)
     }
   )
 
-// ── Example: Tailwind CSS (utility classes via the Vite @tailwindcss plugin) ──
-lazy val `tailwind-app` = project
-  .in(file("tailwind-app"))
-  .settings(
-    scalaJSUseMainModuleInitializer := true,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
-  )
-  .enablePlugins(ScalaJSPlugin, MeltPlugin)
-
-// ── Example: Tailwind CSS with SSR + Hydration (crossProject, JVM-safe) ───────
-lazy val `tailwind-ssr` = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Full)
-  .in(file("tailwind-ssr"))
-  .settings(
-    libraryDependencies += "io.github.takapi327" %% "melt-runtime" % meltVersion
-  )
-  .enablePlugins(MeltPlugin)
-  .jsConfigure(
-    _.settings(
-      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
-    )
-  )
-  .jsSettings(
-    meltHydration                   := true,
-    scalaJSUseMainModuleInitializer := false,
-    scalaJSLinkerConfig ~= {
-      _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
-    }
-  )
-
-lazy val tailwindSsrDir = file("tailwind-ssr")
-
-lazy val `tailwind-ssr-server` = project
-  .in(file("tailwind-ssr-server"))
-  .settings(
-    run / fork                                   := true,
-    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion,
-    meltkitAssetManifestClient                   := Some(`tailwind-ssr`.js),
-    meltkitViteDistDir                           := tailwindSsrDir / "dist",
-    meltkitViteManifestPath                      := tailwindSsrDir / "dist" / ".vite" / "manifest.json"
-  )
-  .enablePlugins(MeltkitPlugin)
-  .dependsOn(`tailwind-ssr`.jvm)
+// ── Example: single-declaration full-stack SSR app (MeltkitAppPlugin) ─────────
+// One `enablePlugins(MeltkitAppPlugin)` derives `meltkit-appFrontend` (JS
+// hydration) and `meltkit-appBackend` (JVM Undertow SSR). You manage only
+// frontend/ and backend/ — no manual client crossProject + server wiring.
+lazy val `meltkit-app` = project
+  .in(file("meltkit-app"))
+  .enablePlugins(MeltkitAppPlugin)
 
 // ── Example: ECharts SSR + Hydration server (MeltKit[Future] on Undertow) ─────
 lazy val echartsSsrDir = file("echarts-ssr")

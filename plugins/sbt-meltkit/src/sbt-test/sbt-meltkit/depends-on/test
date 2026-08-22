@@ -1,0 +1,11 @@
+# .frontendDependsOn / .backendDependsOn wire project (classpath) dependencies onto the
+# derived projects. App.melt references `shared.Const`, so the frontend needs sharedJs on
+# its classpath and the backend needs sharedJvm — otherwise these fail to resolve it.
+
+# Frontend (Scala.js) links, resolving shared.Const from sharedJs (frontendDependsOn).
+> root-frontend/fastLinkJS
+
+# Backend (JVM) compiles the frontend's App.melt in SSR mode and its own Server,
+# resolving shared.Const from sharedJvm (backendDependsOn).
+> root-backend/compile
+$ exists target/out/jvm/scala-3.8.4/root-backend/src_managed/main/generated/AssetManifest.scala

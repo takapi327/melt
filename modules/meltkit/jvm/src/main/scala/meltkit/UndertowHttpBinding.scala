@@ -118,9 +118,21 @@ private[meltkit] class UndertowHttpBinding(
       // Static file serving (GET/HEAD only)
       if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, exchange, isHead) then return
 
+      // A request whose final path segment has a file extension is an asset request.
+      // If it wasn't served as a static file above, it must not be captured by a
+      // Param/Wildcard page route (which returns HTML and makes `.js`/`.css` module
+      // requests fail the browser's strict MIME check). Only a fully-static route may
+      // claim it; otherwise it falls through to a 404. Navigation requests (no
+      // extension) still match Param/Wildcard routes as before.
+      val assetLike = looksLikeStaticAsset(url.pathname)
+
       val matched = parsedMethod.flatMap { m =>
         app.routes.find { r =>
-          r.method == m && PathSegment.matches(r.segments, segments)
+          r.method == m && PathSegment.matches(r.segments, segments) &&
+          !(assetLike && r.segments.exists {
+            case PathSegment.Param(_) | PathSegment.Wildcard => true
+            case _                                           => false
+          })
         }
       }
 
@@ -253,6 +265,14 @@ private[meltkit] class UndertowHttpBinding(
       builder += (name.toString.toLowerCase -> values.asScala.mkString(", "))
     }
     builder.result()
+
+  /** A path is asset-like when its final segment carries a file extension (e.g.
+    * `/home.js`, `/styles/app.css`). Such requests are never SPA navigations, so they
+    * must resolve to a static file or a 404 — not the HTML page fallback. */
+  private def looksLikeStaticAsset(pathname: String): Boolean =
+    val slash = pathname.lastIndexOf('/')
+    val last  = if slash >= 0 then pathname.substring(slash + 1) else pathname
+    last.indexOf('.') > 0
 
   private def tryServeStaticFile(pathname: String, exchange: HttpServerExchange, isHead: Boolean): Boolean =
     if pathname == "/" || pathname == "/index.html" then return false

@@ -39,14 +39,14 @@ if $BUILD; then
 
   # Step 2: Compile Scala.js (fullLinkJS) and generate vite-inputs.json
   echo "[2/3] Compiling Scala.js and generating vite-inputs.json..."
-  sbt "docsJVM/meltkitViteInputGenerate"
+  sbt "docs-backend/meltkitViteInputGenerate"
 
-  # Step 3: Bundle JS/CSS with Vite → docs/dist
+  # Step 3: Bundle JS/CSS with Vite → docs/frontend/dist
   echo "[3/3] Building with Vite..."
   pnpm exec vite build
 fi
 
 if $SERVE; then
   echo "Starting SSR server (MELT_PROD=true)..."
-  MELT_PROD=true sbt "docsJVM/run server"
+  MELT_PROD=true sbt "docs-backend/runMain docs.server"
 fi

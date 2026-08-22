@@ -311,7 +311,17 @@ lazy val `sbt-melt` = MeltSbtPluginProject("sbt-melt", "plugins/sbt-melt")
   .dependsOn(codegen.jvm, `sass-preprocessor`)
   .settings(
     libraryDependencies += "com.github.sbt" % "sbt2-compat_sbt2_3" % "0.1.0",
-    libraryDependencies += "org.scalameta" %% "munit"              % "1.3.0" % Test
+    libraryDependencies += "org.scalameta" %% "munit"              % "1.3.0" % Test,
+    // Bakes `melt.build.Version.current` into the plugin (used by melt.sbt.Dependencies).
+    // sbt-meltkit depends on sbt-melt and inherits both — do not regenerate it there.
+    Compile / sourceGenerators += Def.task {
+      Generator.version(
+        version      = version.value,
+        scalaVersion = scalaVersion.value,
+        sbtVersion   = (pluginCrossBuild / sbtVersion).value,
+        dir          = (Compile / sourceManaged).value
+      )
+    }.taskValue
   )
 
 // ── sbt plugin: meltkit integration ──

@@ -1,29 +1,32 @@
-import org.scalajs.linker.interface.ModuleSplitStyle
-
-val meltVersion = "0.1.0-SNAPSHOT"
+import melt.sbt.Dependencies
 
 ThisBuild / scalaVersion   := "3.8.4"
 ThisBuild / publish / skip := true
 
 // ── Documentation site (SSR + Hydration + SSG) ───────────────────────────────
 //
-//   sbt "docsJVM/run server"   ← SSR dev server
-//   sbt "docsJVM/run generate" ← static site generation
-lazy val docs = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Full)
+// A single `enablePlugins(MeltkitAppPlugin)` derives the two projects this site
+// needs from `frontend/` (Melt pages, hydrated in the browser) and `backend/`
+// (the Undertow SSR server + the SSG generator):
+//
+//   sbt "docs-backend/runMain docs.server"    ← SSR dev server
+//   sbt "docs-backend/runMain docs.generate"  ← static site generation
+//
+// Per-project settings use the extension methods:
+//   .sharedSettings   — applied to both derived projects
+//   .frontendSettings — frontend (Scala.js) only
+//   .backendSettings  — backend (JVM) only
+lazy val docs = project
   .in(file("."))
-  .enablePlugins(MeltkitPlugin)
-  .settings(
-    // melt-codegen powers the in-browser playground compiler.
-    libraryDependencies += "io.github.takapi327" %% "melt-codegen" % meltVersion
+  .enablePlugins(MeltkitAppPlugin)
+  // melt-codegen powers the in-browser playground; needed by both the JS bundle
+  // (interactive compile) and the JVM server (SSR of the playground). The shared
+  // `Dependencies.meltCodegen` (`%%`) resolves to `_sjs1_3` on the frontend and `_3`
+  // on the backend; its version is the plugin's own `melt.build.Version.current`.
+  .sharedSettings(
+    libraryDependencies += Dependencies.meltCodegen
   )
-  .jsSettings(
-    // MeltkitPlugin sets ModuleKind.ESModule for Browser mode automatically.
-    // Only SmallModulesFor needs to be specified here.
-    scalaJSLinkerConfig ~= {
-      _.withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("docs")))
-    }
-  )
-  .jvmSettings(
-    run / fork := true
+  // Each `.melt` page becomes its own JS module so a page loads only its own code.
+  .frontendSettings(
+    meltkitSplitPackages := List("docs")
   )
