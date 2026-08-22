@@ -10,23 +10,16 @@
       Melt full-stack app
     </h1>
     <p class="mb-6 text-sm text-slate-500">
-      SSR by the backend, hydrated in the browser — from a single
-      <code class="rounded bg-slate-100 px-1">enablePlugins(MeltkitAppPlugin)</code>.
+      SSR by the backend, hydrated in the browser — from a single <code class="rounded bg-slate-100 px-1">enablePlugins(MeltkitAppPlugin)</code>.
     </p>
     <div class="flex items-center justify-center gap-4">
-      <button
-        class="h-12 w-12 rounded-lg border border-slate-200 text-xl font-semibold text-slate-700 hover:bg-slate-100"
-        onclick={_ => count -= 1}
-      >
+      <button class="h-12 w-12 rounded-lg border border-slate-200 text-xl font-semibold text-slate-700 hover:bg-slate-100" onclick={_ => count -= 1}>
         −
       </button>
       <span class="min-w-[3ch] text-5xl font-black text-slate-800">
         {count}
       </span>
-      <button
-        class="h-12 w-12 rounded-lg bg-rose-500 text-xl font-semibold text-white hover:bg-rose-600"
-        onclick={_ => count += 1}
-      >
+      <button class="h-12 w-12 rounded-lg bg-rose-500 text-xl font-semibold text-white hover:bg-rose-600" onclick={_ => count += 1}>
         +
       </button>
     </div>
