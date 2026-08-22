@@ -205,9 +205,19 @@ final class Template private[meltkit] (private val raw: String):
 
     // JSON-encode the import path so it is safely quoted in the JS context (also
     // escapes `</` to avoid closing the <script> element).
+    // On a stale page (a cached entry chunk importing hashed chunks that a newer build
+    // removed), the dynamic import rejects. Recover by reloading once so the browser
+    // refetches the fresh (`no-cache`) entry — throttled to avoid a reload loop when the
+    // module is genuinely broken. Mirrors Vite's `vite:preloadError` / SvelteKit's
+    // fall-back-to-full-navigation.
+    val recover =
+      """.catch(e => { var k = "__melt_reload__", n = Date.now(), p = +sessionStorage.getItem(k) || 0; """ +
+        """if (n - p < 10000) { console.error("[melt] failed to load hydration module", e); return; } """ +
+        """sessionStorage.setItem(k, "" + n); location.reload(); })"""
+
     def hydrateScript(chunk: String): String =
       val importArg = SimpleJson.encString(s"$strippedBase/$chunk")
-      s"""<script type="module"$nonceAttr>import($importArg).then(m => m.hydrate?.())</script>"""
+      s"""<script type="module"$nonceAttr>import($importArg).then(m => m.hydrate?.())$recover</script>"""
 
     val bootstrap = routerEntry match
       // Router-driven hydration: one entry module hydrates the whole app (composing

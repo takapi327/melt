@@ -46,3 +46,11 @@ class TemplateRouterHydrationTest extends munit.FunSuite:
     val html = tmpl.render(result, manifest, "", "en", "", Map.empty, None, routerEntry = Some("missing"))
     assertEquals(imports(html), 0)
   }
+
+  test("hydrate bootstrap recovers from a stale/missing chunk by reloading once") {
+    val html = tmpl.render(result, manifest, "", "en", "", Map.empty, None, routerEntry = Some("app"))
+    // A failed dynamic import (stale entry referencing a removed hashed chunk) triggers
+    // a throttled one-shot reload so the browser refetches the fresh entry.
+    assert(html.contains(".catch("), html)
+    assert(html.contains("location.reload()"), html)
+  }
