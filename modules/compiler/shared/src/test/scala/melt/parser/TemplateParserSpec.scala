@@ -1028,12 +1028,24 @@ class TemplateParserSpec extends munit.FunSuite:
 
   // ── Mixed text+expression in attribute value ──────────────────────────────
 
-  test("quoted attribute with embedded {expr} is treated as static (current behaviour)") {
-    // The parser reads until the closing quote without evaluating `{}`,
-    // so the literal brace content becomes part of the static value.
+  test("quoted attribute with embedded {expr} becomes a string-interpolated Dynamic attr") {
+    // Svelte-style interpolation: `{expr}` inside a quoted value lowers to an `Attr.Dynamic`
+    // whose expression is a Scala `s"..."` interpolation (the expressions are type-checked).
     val result = parse("""<div class="header {active}"></div>""")
     val div    = result.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(div.attrs, List(Attr.Static("class", "header {active}")))
+    assertEquals(div.attrs, List(Attr.Dynamic("class", """s"header ${active}"""")))
+  }
+
+  test("quoted attribute with no interpolation stays static") {
+    val result = parse("""<div class="header active"></div>""")
+    val div    = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Static("class", "header active")))
+  }
+
+  test("multiple interpolations in a quoted attribute (href with two params)") {
+    val result = parse("""<a href="/{lang}/guide/{slug}"></a>""")
+    val a      = result.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(a.attrs, List(Attr.Dynamic("href", """s"/${lang}/guide/${slug}"""")))
   }
 
   // ── Expression with Scala block comment ───────────────────────────────────
