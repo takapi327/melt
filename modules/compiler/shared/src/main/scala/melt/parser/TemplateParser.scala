@@ -451,21 +451,8 @@ private[parser] final class TemplateParser(
     if pos >= src.length then return Some(Attr.BooleanAttr(name))
 
     src(pos) match
-      case '"' =>
-        pos += 1
-        val start = pos
-        while pos < src.length && src(pos) != '"' do pos += 1
-        val value = HtmlEntities.decode(src.substring(start, pos))
-        if pos < src.length then pos += 1
-        Some(makeAttrStatic(name, value))
-
-      case '\'' =>
-        pos += 1
-        val start = pos
-        while pos < src.length && src(pos) != '\'' do pos += 1
-        val value = HtmlEntities.decode(src.substring(start, pos))
-        if pos < src.length then pos += 1
-        Some(makeAttrStatic(name, value))
+      case '"'  => Some(makeAttr(name, readQuotedValue('"')))
+      case '\'' => Some(makeAttr(name, readQuotedValue('\'')))
 
       case '{' =>
         pos += 1
@@ -487,6 +474,63 @@ private[parser] final class TemplateParser(
             )
           )
         Some(makeAttrStatic(name, HtmlEntities.decode(raw)))
+
+  /** Reads a quoted attribute value up to the closing `quote`, treating `{...}` interpolations
+    * as opaque (brace-depth aware) so a quote inside an expression does not end the value. */
+  private def readQuotedValue(quote: Char): String =
+    pos += 1
+    val start = pos
+    var depth = 0
+    while pos < src.length && (depth > 0 || src(pos) != quote) do
+      src(pos) match
+        case '{'              => depth += 1
+        case '}' if depth > 0 => depth -= 1
+        case _                => ()
+      pos += 1
+    val value = HtmlEntities.decode(src.substring(start, pos))
+    if pos < src.length then pos += 1
+    value
+
+  /** Builds an [[Attr]] from a quoted value, turning Svelte-style interpolation
+    * (`class="btn {variant}"`, `href="/users/{id}"`) into an `Attr.Dynamic` whose expression is a
+    * Scala string interpolation (`s"btn ${variant}"`). Non-interpolated values, directives
+    * (`bind:x`), and event handlers stay static. The interpolated expressions are type-checked by
+    * scalac; for compile-time-checked links use `href={route"..."}` (see meltkit `RouteRegistry`).
+    */
+  private def makeAttr(name: String, value: String): Attr =
+    if name.contains(':') || !value.contains('{') || (name.startsWith("on") && name.length > 2) then
+      makeAttrStatic(name, value)
+    else
+      val (parts, exprs) = parseAttrInterpolation(value)
+      if exprs.isEmpty then makeAttrStatic(name, value)
+      else Attr.Dynamic(name, buildInterpolationExpr(parts, exprs))
+
+  /** Splits `"/users/{id}/x/{y}"` into literal parts and `{}` expressions using [[ExprExtractor]]
+    * (which handles nested braces / string literals). `parts.length == exprs.length + 1`. */
+  private def parseAttrInterpolation(value: String): (List[String], List[String]) =
+    val parts = List.newBuilder[String]
+    val exprs = List.newBuilder[String]
+    val cur   = new StringBuilder
+    var i     = 0
+    while i < value.length do
+      if value(i) == '{' then
+        parts += cur.toString; cur.clear()
+        val (expr, end) = ExprExtractor.extract(value, i + 1)
+        exprs += expr.trim
+        i = end
+      else
+        cur += value(i); i += 1
+    parts += cur.toString
+    (parts.result(), exprs.result())
+
+  /** Renders literal parts + expressions as a Scala `s"..."` interpolation string. */
+  private def buildInterpolationExpr(parts: List[String], exprs: List[String]): String =
+    def esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "$$")
+    val sb = new StringBuilder("s\"")
+    sb ++= esc(parts.head)
+    exprs.zip(parts.tail).foreach { case (e, p) => sb ++= "${"; sb ++= e; sb ++= "}"; sb ++= esc(p) }
+    sb += '"'
+    sb.toString
 
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
