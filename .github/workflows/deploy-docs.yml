@@ -50,9 +50,11 @@ jobs:
         run: >-
           sbt
           "preprocessorJVM/publishLocal; preprocessorJS/publishLocal;
+          sass-preprocessor/publishLocal;
           compilerJVM/publishLocal; compilerJS/publishLocal;
           runtimeJVM/publishLocal; runtimeJS/publishLocal;
           codegenJVM/publishLocal; codegenJS/publishLocal;
+          meltFormat/publishLocal;
           meltkitJVM/publishLocal; meltkitJS/publishLocal;
           meltkit-adapter-browser/publishLocal;
           sbt-melt/publishLocal; sbt-meltkit/publishLocal"
@@ -61,7 +63,7 @@ jobs:
         run: pnpm --filter @melt/vite-plugin build
 
       - name: Generate Vite inputs (includes fullLinkJS)
-        run: sbt "docsJVM/meltkitViteInputGenerate"
+        run: sbt "docs-backend/meltkitViteInputGenerate"
         working-directory: docs
 
       - name: Vite build
@@ -71,7 +73,7 @@ jobs:
           MELT_BASE_PATH: /melt/
 
       - name: SSG generate
-        run: sbt "docsJVM/runMain docs.generate"
+        run: sbt "docs-backend/runMain docs.generate"
         working-directory: docs
         env:
           MELT_BASE_PATH: /melt/
@@ -82,7 +84,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/jvm/docs-dist
+          path: docs/backend/docs-dist
 
   deploy:
     name: Deploy to GitHub Pages
