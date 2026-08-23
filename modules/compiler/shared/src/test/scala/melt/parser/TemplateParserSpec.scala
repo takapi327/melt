@@ -6,7 +6,7 @@
 
 package melt.parser
 
-import melt.ast.{ Attr, TemplateNode }
+import melt.ast.{ Attr, InlineTemplatePart, TemplateNode }
 
 class TemplateParserSpec extends munit.FunSuite:
 
@@ -1046,6 +1046,77 @@ class TemplateParserSpec extends munit.FunSuite:
     val result = parse("""<a href="/{lang}/guide/{slug}"></a>""")
     val a      = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(a.attrs, List(Attr.Dynamic("href", """s"/${lang}/guide/${slug}"""")))
+  }
+
+  test("linkChecking routes URL-attribute interpolation through meltkit.checkedRoute") {
+    // With link-checking on, an interpolated `href` becomes a fully-qualified `checkedRoute`
+    // call so scalac validates the path against the RouteRegistry at compile time.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<a href="/users/{id}"></a>""", linkChecking = true)
+    val a             = nodes.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      a.attrs,
+      List(Attr.Dynamic("href", """_root_.meltkit.checkedRoute(_root_.scala.StringContext("/users/", ""))(id)"""))
+    )
+  }
+
+  test("linkChecking leaves non-URL attributes as plain s\"...\" interpolation") {
+    // Only URL attributes are routed; class/id/etc. stay ordinary string interpolations.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<div class="c-{n}"></div>""", linkChecking = true)
+    val div           = nodes.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Dynamic("class", """s"c-${n}"""")))
+  }
+
+  test("linkChecking with a routes object emits the type-parameter checkedRoute (no given needed)") {
+    // When the routes object is named, `checkedRoute[<obj>.type](...)` is emitted so the
+    // generated code needs no `given RouteRegistry` in scope.
+    val (nodes, _, _) =
+      TemplateParser.parseWithWarnings(
+        """<a href="/users/{id}"></a>""",
+        linkChecking = true,
+        routesObject = Some("routes.Routes")
+      )
+    val a = nodes.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(
+      a.attrs,
+      List(
+        Attr.Dynamic(
+          "href",
+          """_root_.meltkit.checkedRouteFor[routes.Routes.type](_root_.scala.StringContext("/users/", ""))(id)"""
+        )
+      )
+    )
+  }
+
+  test("linkChecking reaches URL attributes inside inline-HTML fragments ({ ...map(u => <a>) })") {
+    // Links written inside a `{ ...map(u => <a href="...">) }` block are parsed by a nested
+    // TemplateParser via ExprExtractor; the flag must propagate so they are route-checked too.
+    val (nodes, _, _) =
+      TemplateParser.parseWithWarnings(
+        """<div>{items.map(u => <a href="/users/{u.id}">x</a>)}</div>""",
+        linkChecking = true
+      )
+    val div  = nodes.head.asInstanceOf[TemplateNode.Element]
+    val tmpl = div.children.head.asInstanceOf[TemplateNode.InlineTemplate]
+    val a    = tmpl.parts.collectFirst {
+      case InlineTemplatePart.Html(ns) => ns.head.asInstanceOf[TemplateNode.Element]
+    }.get
+    assertEquals(
+      a.attrs,
+      List(Attr.Dynamic("href", """_root_.meltkit.checkedRoute(_root_.scala.StringContext("/users/", ""))(u.id)"""))
+    )
+  }
+
+  test("linkChecking leaves external / protocol-relative / fragment URLs as plain s\"...\"") {
+    // Only internal absolute paths (single leading `/`) are route-checked; external URLs,
+    // protocol-relative URLs, fragments, and fully-dynamic values fall back to `s"..."`.
+    def hrefExpr(src: String): String =
+      val (nodes, _, _) = TemplateParser.parseWithWarnings(src, linkChecking = true)
+      nodes.head.asInstanceOf[TemplateNode.Element].attrs.head.asInstanceOf[Attr.Dynamic].expr
+
+    assertEquals(hrefExpr("""<a href="https://x.dev/u/{id}"></a>"""), """s"https://x.dev/u/${id}"""")
+    assertEquals(hrefExpr("""<a href="//cdn.x.dev/{p}"></a>"""), """s"//cdn.x.dev/${p}"""")
+    assertEquals(hrefExpr("""<a href="#{anchor}"></a>"""), """s"#${anchor}"""")
+    assertEquals(hrefExpr("""<a href="{base}/users"></a>"""), """s"${base}/users"""")
   }
 
   // ── Expression with Scala block comment ───────────────────────────────────
