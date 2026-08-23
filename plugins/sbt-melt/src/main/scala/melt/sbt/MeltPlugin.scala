@@ -80,6 +80,20 @@ object MeltPlugin extends AutoPlugin:
     val meltPublicEnvPackage =
       settingKey[String]("Package for the generated PublicEnv object. Default: \"generated\".")
 
+    val meltLinkChecking =
+      settingKey[Boolean](
+        "Route URL-attribute interpolations (href/action/formaction, e.g. href=\"/users/{id}\") " +
+          "through meltkit's route\"...\" for compile-time route checking. Requires meltkit. " +
+          "Default: false (on under MeltkitPlugin/MeltkitAppPlugin)."
+      )
+
+    val meltLinkCheckingRoutes =
+      settingKey[Option[String]](
+        "Fully-qualified name of the routes object for link checking (e.g. \"routes.Routes\"). " +
+          "When set, links compile to checkedRoute[<obj>.type](...) so NO `given RouteRegistry` " +
+          "is needed. When None (default), a `given RouteRegistry` must be in scope instead."
+      )
+
     val SassPreprocessor: StylePreprocessor = melt.sass.SassPreprocessor
 
   import autoImport.*
@@ -152,15 +166,17 @@ object MeltPlugin extends AutoPlugin:
   )
 
   override def projectSettings: Seq[Setting[?]] = Seq(
-    meltHydration         := false,
-    meltHydrationRoot     := None,
-    meltStylePreprocessor := None,
-    meltCodegenMode       := "auto",
-    meltSourceDirectories := (Compile / unmanagedSourceDirectories).value,
-    meltOutputDirectory   := (Compile / sourceManaged).value / "melt",
-    meltPackage           := "",
-    meltPublicEnv         := Map.empty,
-    meltPublicEnvPackage  := "generated",
+    meltHydration          := false,
+    meltHydrationRoot      := None,
+    meltStylePreprocessor  := None,
+    meltCodegenMode        := "auto",
+    meltSourceDirectories  := (Compile / unmanagedSourceDirectories).value,
+    meltOutputDirectory    := (Compile / sourceManaged).value / "melt",
+    meltPackage            := "",
+    meltPublicEnv          := Map.empty,
+    meltPublicEnvPackage   := "generated",
+    meltLinkChecking       := false,
+    meltLinkCheckingRoutes := None,
 
     // `%%` resolves to `melt-runtime_sjs1_3` on Scala.js consumers, `_3` on the JVM.
     libraryDependencies += Dependencies.meltRuntime,
@@ -183,6 +199,8 @@ object MeltPlugin extends AutoPlugin:
       hydration     = meltHydration.value,
       hydrationRoot = meltHydrationRoot.value,
       preprocessor  = meltStylePreprocessor.value,
+      linkChecking  = meltLinkChecking.value,
+      routesObject  = meltLinkCheckingRoutes.value,
       reporter      = (Compile / compile / bspReporter).value
     ),
     Compile / sourceGenerators += meltGenerate.taskValue,
@@ -244,6 +262,8 @@ object MeltPlugin extends AutoPlugin:
     hydration:     Boolean,
     hydrationRoot: Option[String],
     preprocessor:  Option[StylePreprocessor],
+    linkChecking:  Boolean,
+    routesObject:  Option[String],
     reporter:      xsbti.Reporter
   ): Seq[File] =
     val log = streams.log
@@ -282,9 +302,11 @@ object MeltPlugin extends AutoPlugin:
         IO.createDirectory(outSubDir)
         val outFile = outSubDir / s"$objectName.scala"
 
-        val relPath  = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
-        val safeKey  = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
-        val cacheDir = streams.cacheDirectory / "melt" / safeKey / pluginVersion
+        val relPath = IO.relativize(outDir, outFile).getOrElse(outFile.getName)
+        val safeKey = relPath.replace(java.io.File.separatorChar, '_').replace('.', '_')
+        // Include linkChecking + routes object in the cache key so toggling either re-generates.
+        val cacheDir =
+          streams.cacheDirectory / "melt" / safeKey / s"${ pluginVersion }-lc$linkChecking-${ routesObject.getOrElse("") }"
 
         val cachedCompile = FileFunction.cached(cacheDir, FilesInfo.hash, FilesInfo.exists) { (_: Set[File]) =>
           log.info(s"[sbt-melt] Compiling ${ meltFile.getName } → ${ outFile.getName }")
@@ -301,7 +323,9 @@ object MeltPlugin extends AutoPlugin:
             mode         = compileMode,
             hydration    = emitHydration,
             preprocessor = stylePreprocessor,
-            sourcePath   = meltFile.getAbsolutePath
+            sourcePath   = meltFile.getAbsolutePath,
+            linkChecking = linkChecking,
+            routesObject = routesObject
           )
 
           result.warnings.foreach { w =>

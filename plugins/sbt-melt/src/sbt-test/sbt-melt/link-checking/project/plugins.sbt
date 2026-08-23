@@ -1,0 +1,4 @@
+sys.props.get("plugin.version") match {
+  case Some(v) => addSbtPlugin("io.github.takapi327" % "sbt-melt" % v)
+  case _       => sys.error("plugin.version not set. Run `sbt +publishLocal` in the monorepo root first.")
+}
