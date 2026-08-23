@@ -57,9 +57,11 @@ object MeltCompiler:
     mode:         CompileMode = CompileMode.SPA,
     hydration:    Boolean = false,
     preprocessor: StylePreprocessor = StylePreprocessor.cssOnly,
-    sourcePath:   String = ""
+    sourcePath:   String = "",
+    linkChecking: Boolean = false,
+    routesObject: Option[String] = None
   ): CompileResult =
-    MeltParser.parseWithWarnings(source) match
+    MeltParser.parseWithWarnings(source, linkChecking, routesObject) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
       case Right(result) =>

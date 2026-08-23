@@ -29,6 +29,11 @@ object SsrEmitter:
     if ir.propsType.exists(!_.isNamedTuple) then tracker ++= "import melt.runtime.json.PropsCodec\n"
     tracker ++= "import melt.runtime.render.*\n\n"
 
+    // User `<script>` imports, hoisted to file level so the object-level Props case class sees them.
+    if ir.scriptImports.nonEmpty then
+      ir.scriptImports.foreach(imp => tracker ++= s"$imp\n")
+      tracker += '\n'
+
     tracker ++= s"object ${ ir.objectName } {\n\n"
     tracker ++= s"""  private val _scopeId = "${ ir.scopeId }"\n\n"""
 

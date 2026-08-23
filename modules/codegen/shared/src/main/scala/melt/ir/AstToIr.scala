@@ -37,10 +37,14 @@ object AstToIr:
     // Calling extractScriptBody (which already strips typeDecls) and then
     // extractTypeDecls on the result would always yield an empty typeDecls list
     // (double-stripping bug).
-    val rawCode                    = ast.script.map(_.code.trim).getOrElse("")
-    val (allTypeDecls, scriptBody) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
-    val moduleBody                 = ast.moduleScript.map(_.code.trim).getOrElse("")
-    val propsType                  = detectPropsType(allTypeDecls, ast.script)
+    val rawCode                      = ast.script.map(_.code.trim).getOrElse("")
+    val (allTypeDecls, typeStripped) = if rawCode.isEmpty then (Nil, "") else splitTypeDecls(rawCode)
+    // Hoist leading `import`s to file level so the object-level Props case class (also hoisted
+    // out of `apply()`) can see them. Otherwise a `<script>` `import app.User` lands inside the
+    // render function and `case class Props(users: List[User])` fails with "Not found: type User".
+    val (scriptImports, scriptBody) = extractLeadingImports(typeStripped)
+    val moduleBody                  = ast.moduleScript.map(_.code.trim).getOrElse("")
+    val propsType                   = detectPropsType(allTypeDecls, ast.script)
     // For a non-Named-Tuple alias (type Props = X), remove the "type Props ..." decl from
     // typeDecls because the emitter's baseName != "Props" block already re-generates it.
     // ⚠ Use boundary-checked startsWith to avoid removing "type PropsAlias = ..." by accident.
@@ -60,13 +64,14 @@ object AstToIr:
     )
 
     IrComponent(
-      objectName  = objectName,
-      pkg         = pkg,
-      scopeId     = scopeId,
-      propsType   = propsType,
-      scriptBody  = scriptBody,
-      moduleBody  = moduleBody,
-      fileImports = ast.moduleScript.toList.flatMap(_.imports) ++
+      objectName    = objectName,
+      pkg           = pkg,
+      scopeId       = scopeId,
+      propsType     = propsType,
+      scriptBody    = scriptBody,
+      moduleBody    = moduleBody,
+      scriptImports = scriptImports,
+      fileImports   = ast.moduleScript.toList.flatMap(_.imports) ++
         ast.script.toList.flatMap(_.imports),
       typeDecls         = effectiveTypeDecls,
       style             = style,
@@ -496,6 +501,33 @@ object AstToIr:
           rest += line
           i += 1
       (typeDecls.toList, rest.mkString("\n"))
+
+  /** Splits `script` into (leadingImports, restBody).
+    *
+    * "Leading" = `import` lines appearing before the first non-import, non-blank statement
+    * (blank lines — including the placeholders left by [[splitTypeDecls]] where a hoisted type
+    * declaration used to be — are skipped, so an `import` above a `case class Props` still
+    * counts as leading). Each hoisted import is replaced by a blank line so `restBody` keeps its
+    * original line positions for source mapping. Imports that appear after real code are left in
+    * place (they may be scoped inside a block and are not safe to hoist).
+    */
+  private def extractLeadingImports(script: String): (List[String], String) =
+    if script.isEmpty then (Nil, script)
+    else
+      val lines     = script.linesIterator.toVector
+      val imports   = scala.collection.mutable.ListBuffer.empty[String]
+      val rest      = lines.toBuffer
+      var i         = 0
+      var inLeading = true
+      while inLeading && i < lines.length do
+        val trimmed = lines(i).trim
+        if trimmed.isEmpty then i += 1
+        else if trimmed.startsWith("import ") then
+          imports += trimmed
+          rest(i) = ""
+          i += 1
+        else inLeading = false
+      (imports.toList, rest.mkString("\n"))
 
   private def isTypeDeclStart(trimmed: String): Boolean =
     trimmed.startsWith("case class ") ||

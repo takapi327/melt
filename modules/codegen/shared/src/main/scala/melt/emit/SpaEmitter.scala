@@ -45,6 +45,11 @@ object SpaEmitter:
     tracker ++= "import melt.runtime.transition.*\n"
     tracker ++= "import melt.runtime.animate.*\n\n"
 
+    // User `<script>` imports, hoisted to file level so the object-level Props case class sees them.
+    if ir.scriptImports.nonEmpty then
+      ir.scriptImports.foreach(imp => tracker ++= s"$imp\n")
+      tracker += '\n'
+
     // ── file-level JS imports ──────────────────────────────────────────────
     ir.fileImports.zipWithIndex.foreach { (path, idx) =>
       tracker ++= s"""@js.native @JSImport("${ escapeStr(path) }", JSImport.Namespace)\n"""

@@ -32,6 +32,24 @@ class SsrCodeGenSpec extends munit.FunSuite:
     assert(code.contains("import melt.runtime.render.*"), code)
   }
 
+  test("script imports are hoisted to file level so the hoisted Props case class sees them") {
+    // A `<script>` `import` must land at file level (before `object`), not inside `apply()`,
+    // otherwise the object-level `case class Props(... : Imported)` fails to resolve the type.
+    val src =
+      """<script lang="scala">
+        |import model.User
+        |case class Props(users: List[User] = Nil)
+        |</script>
+        |<div></div>""".stripMargin
+    val code      = compile(src)
+    val importIdx = code.indexOf("import model.User")
+    val objectIdx = code.indexOf("object App")
+    val propsIdx  = code.indexOf("case class Props")
+    assert(importIdx >= 0, code)
+    assert(importIdx < objectIdx, s"import must precede `object`:\n$code")
+    assert(objectIdx < propsIdx, s"Props should be inside the object:\n$code")
+  }
+
   test("SsrCodeGen emits apply() returning RenderResult") {
     val code = compile("<div></div>")
     assert(code.contains("def apply"), code)
