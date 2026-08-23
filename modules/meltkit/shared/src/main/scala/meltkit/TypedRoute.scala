@@ -86,12 +86,56 @@ extension (inline sc: StringContext)
   inline def route(inline args: Any*)(using inline reg: RouteRegistry[?]): String =
     ${ RouteMacros.routeImpl('sc, 'args, 'reg) }
 
+/** The non-interpolator form of [[route]]. Semantically identical — same compile-time
+  * validation, same macro — but callable through a fully-qualified path
+  * (`_root_.meltkit.checkedRoute(StringContext(...))(args)`) with no import at the call site.
+  * This is what the Melt compiler emits for URL attributes under `meltLinkChecking := true`,
+  * since a string-interpolator prefix must be a bare identifier and cannot be qualified.
+  */
+inline def checkedRoute(inline sc: StringContext)(inline args: Any*)(using inline reg: RouteRegistry[?]): String =
+  ${ RouteMacros.routeImpl('sc, 'args, 'reg) }
+
+/** Type-parameter form of [[checkedRoute]]: the routes object is named by the type argument `R`
+  * instead of an in-scope [[RouteRegistry]] given, so **no given (and no import) is required at
+  * the call site**. This is what the Melt compiler emits when `meltLinkCheckingRoutes` names the
+  * routes object — e.g. `checkedRouteFor[routes.Routes.type]("/users/", "")(id)` — removing the
+  * `given RouteRegistry` boilerplate entirely. Same macro, same validation as [[checkedRoute]].
+  *
+  * Named distinctly from [[checkedRoute]] (rather than overloaded) so a bare
+  * `checkedRoute(sc)(args)` call is never ambiguous between the given-based and type-based forms.
+  */
+inline def checkedRouteFor[R](inline sc: StringContext)(inline args: Any*): String =
+  ${ RouteMacros.routeImplTyped[R]('sc, 'args) }
+
 private[meltkit] object RouteMacros:
 
   def routeImpl(scE: Expr[StringContext], argsE: Expr[Seq[Any]], regE: Expr[RouteRegistry[?]])(using
     Quotes
   ): Expr[String] =
     import quotes.reflect.*
+    // Reflect on the registry object `R` (from `RouteRegistry[R]`) and validate against it.
+    val objTpe = regE.asTerm.tpe.widen match
+      case AppliedType(_, List(r)) => r
+      case other                   => report.errorAndAbort(s"cannot read RouteRegistry type: ${ other.show }")
+    routeImplCore(objTpe, scE, argsE)
+
+  def routeImplTyped[R: Type](scE: Expr[StringContext], argsE: Expr[Seq[Any]])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    routeImplCore(TypeRepr.of[R], scE, argsE)
+
+  /** Shared validation + URL-building core. `objTpe` is the routes object type (`Routes.type`),
+    * obtained either from an in-scope `RouteRegistry[R]` given or from an explicit type argument.
+    * The `using q: Quotes` clause is first so the path-dependent `q.reflect.TypeRepr` parameter
+    * type resolves (callers pass a `TypeRepr` from the same ambient `Quotes`).
+    */
+  private def routeImplCore(using
+    q: Quotes
+  )(
+    objTpe: q.reflect.TypeRepr,
+    scE:    Expr[StringContext],
+    argsE:  Expr[Seq[Any]]
+  ): Expr[String] =
+    import q.reflect.*
 
     def elems(t: TypeRepr): List[TypeRepr] =
       t.asType match
@@ -110,10 +154,7 @@ private[meltkit] object RouteMacros:
             case _                  => report.errorAndAbort(s"unexpected route segment: ${ s.show }")
       }
 
-    // Reflect on the registry object `R` and collect every `TypedRoute[P, Segs]` member.
-    val objTpe = regE.asTerm.tpe.widen match
-      case AppliedType(_, List(r)) => r
-      case other                   => report.errorAndAbort(s"cannot read RouteRegistry type: ${ other.show }")
+    // Reflect on the routes object `objTpe` and collect every `TypedRoute[P, Segs]` member.
     val typedRouteClass = Symbol.requiredClass("meltkit.TypedRoute")
     val routes: List[List[Either[String, TypeRepr]]] =
       objTpe.typeSymbol.fieldMembers.flatMap { f =>
@@ -121,7 +162,7 @@ private[meltkit] object RouteMacros:
           case AppliedType(tc, List(_, segs)) if tc.typeSymbol == typedRouteClass => Some(decodeSegs(segs))
           case _                                                                  => None
       }
-    if routes.isEmpty then report.errorAndAbort(s"RouteRegistry object ${ objTpe.show } has no TypedRoute members")
+    if routes.isEmpty then report.errorAndAbort(s"routes object ${ objTpe.show } has no TypedRoute members")
 
     val parts = scE match
       case '{ StringContext(${ Varargs(ps) }*) } => ps.toList.map(_.valueOrAbort)
