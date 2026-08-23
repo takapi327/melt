@@ -249,7 +249,7 @@ object MeltkitPlugin extends AutoPlugin:
       settingKey[Option[String]]("Client hydration entry moduleID for router-driven hydration")
 
   import melt.sbt.Dependencies
-  import melt.sbt.MeltPlugin.autoImport.{ meltCodegenMode, meltHydration }
+  import melt.sbt.MeltPlugin.autoImport.{ meltCodegenMode, meltHydration, meltLinkChecking }
 
   import autoImport.*
 
@@ -269,6 +269,12 @@ object MeltkitPlugin extends AutoPlugin:
     },
     // Browser mode always needs hydration exports; other modes do not
     meltHydration := meltMode.value.contains(MeltMode.Browser),
+
+    // Meltkit projects always have meltkit on the classpath, so route the URL-attribute
+    // interpolations (href/action/formaction) through `checkedRoute` for compile-time link
+    // checking by default. Requires a `given RouteRegistry` in scope; users can opt out with
+    // `meltLinkChecking := false`.
+    meltLinkChecking := true,
 
     scalacOptions += "-Wnonunit-statement",
 
