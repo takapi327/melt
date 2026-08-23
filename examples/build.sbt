@@ -118,6 +118,17 @@ lazy val `meltkit-app` = project
   .in(file("meltkit-app"))
   .enablePlugins(MeltkitAppPlugin)
 
+// ── Example: compile-time type-safe links (MeltkitAppPlugin) ──────────────────
+// `meltLinkChecking` (on by default under MeltkitAppPlugin) validates every
+// template `href="/users/{u.id}"` against the shared `routes.Routes` — a broken
+// internal link is a compile error, not a runtime 404. No database required.
+lazy val `typed-links` = project
+  .in(file("typed-links"))
+  .enablePlugins(MeltkitAppPlugin)
+  // Name the routes object so links compile to `checkedRouteFor[routes.Routes.type]` — no
+  // `given RouteRegistry` boilerplate needed. Applied to both derived frontend + backend.
+  .sharedSettings(meltLinkCheckingRoutes := Some("routes.Routes"))
+
 // ── Example: ECharts SSR + Hydration server (MeltKit[Future] on Undertow) ─────
 lazy val echartsSsrDir = file("echarts-ssr")
 
