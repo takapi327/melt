@@ -32,7 +32,7 @@ import org.http4s.ember.server.EmberServerBuilder
   *   - '''field issues''': the `/new` action returns `NewPost` with a per-field
   *     `errors` map on validation failure.
   *
-  * {{{ sbt "server-functions-server/run" }}}
+  * {{{ sbt "server-functions/run" }}}
   */
 object Server extends IOApp.Simple:
 
