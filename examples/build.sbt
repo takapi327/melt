@@ -329,46 +329,24 @@ lazy val `jdk-ssr-server` = project
 
 // ── Example: Form actions + progressive enhancement ──────────────────────────
 //
-//   sbt "form-actions-server/run"
+//   sbt "form-actions/run"
+//
+// `MeltkitAppPlugin` on `MeltServerAdapter.Http4s`: one declaration derives
+// `form-actions-frontend` (hydration bundle) and `form-actions-backend` (http4s
+// SSR server). The adapter itself is added by the plugin; the http4s server and
+// circe are the example's own choices, so they stay explicit.
 
-lazy val `form-actions-client` = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Full)
-  .in(file("form-actions-client"))
-  .settings(
-    libraryDependencies += "io.github.takapi327" %% "meltkit" % meltVersion
-  )
-  .enablePlugins(MeltPlugin)
-  .jsConfigure(
-    _.settings(
-      libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % meltVersion
+lazy val `form-actions` = project
+  .in(file("form-actions"))
+  .enablePlugins(MeltkitAppPlugin)
+  .backendSettings(
+    meltkitServerAdapter := MeltServerAdapter.Http4s,
+    libraryDependencies ++= Seq(
+      "org.http4s" %% "http4s-ember-server" % "0.23.33",
+      "org.http4s" %% "http4s-dsl"          % "0.23.33",
+      "io.circe"   %% "circe-generic"       % "0.14.9"
     )
   )
-  .jsSettings(
-    meltHydration                   := true,
-    scalaJSUseMainModuleInitializer := false,
-    scalaJSLinkerConfig ~= {
-      _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(ModuleSplitStyle.SmallModulesFor(List("components")))
-    }
-  )
-
-lazy val formActionsClientDir  = file("form-actions-client")
-lazy val `form-actions-server` = project
-  .in(file("form-actions/server"))
-  .settings(
-    run / fork := true,
-    libraryDependencies ++= Seq(
-      "io.github.takapi327" %% "meltkit-adapter-http4s" % meltVersion,
-      "org.http4s"          %% "http4s-ember-server"    % "0.23.33",
-      "org.http4s"          %% "http4s-dsl"             % "0.23.33",
-      "io.circe"            %% "circe-generic"          % "0.14.9"
-    ),
-    meltkitAssetManifestClient := Some(`form-actions-client`.js),
-    meltkitViteDistDir         := formActionsClientDir / "dist",
-    meltkitViteManifestPath    := formActionsClientDir / "dist" / ".vite" / "manifest.json"
-  )
-  .enablePlugins(MeltkitPlugin)
-  .dependsOn(`form-actions-client`.jvm)
 
 // ── Example: Type-safe Server Functions (query/command/single-flight/optimistic) ─
 //
@@ -564,9 +542,10 @@ lazy val root = project
     `http4s-ssr-server`,
     `node-ssr-server`,
     `jdk-ssr-server`,
-    `form-actions-client`.jvm,
-    `form-actions-client`.js,
-    `form-actions-server`,
+    // `form-actions` itself is only the shell MeltkitAppPlugin derives from, so
+    // aggregate the two derived projects to keep the example compiled here.
+    LocalProject("form-actions-frontend"),
+    LocalProject("form-actions-backend"),
     `server-functions-client`.jvm,
     `server-functions-client`.js,
     `server-functions-server`,

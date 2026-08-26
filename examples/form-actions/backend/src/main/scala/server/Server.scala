@@ -35,7 +35,7 @@ import org.http4s.ember.server.EmberServerBuilder
   * on, `x-melt-enhance` header → JSON envelope); the enhance action honours the
   * clicked button's `formaction`, so named actions work with JS on or off.
   *
-  * {{{ sbt "form-actions-server/run" }}}
+  * {{{ sbt "form-actions/run" }}}
   */
 object Server extends IOApp.Simple:
 
