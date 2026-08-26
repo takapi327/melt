@@ -21,11 +21,8 @@ output types can never drift between the two sides.
 ## Run it
 
 ```bash
-# 1. build the client JS (from the repo root's examples build)
-sbt "server-functions-client/fastLinkJS"
-
-# 2. start the server
-sbt "server-functions-server/run"
+# from the examples build — links the hydration bundle, then starts the server
+sbt "server-functions/run"
 # → http://localhost:3000
 ```
 
@@ -36,18 +33,23 @@ sbt "server-functions-server/run"
 
 ## Layout
 
+One `enablePlugins(MeltkitAppPlugin)` derives `server-functions-frontend` (JS
+hydration) and `server-functions-backend` (http4s SSR). `frontend/` is compiled
+twice — to JS for hydration, and inside the backend for SSR — so the shared
+contract and the components live in one place.
+
 ```
-server-functions-client/          # crossProject (shared → JVM SSR + JS hydration)
-  shared/src/main/scala/components/
+server-functions/
+  frontend/src/main/scala/components/   # compiled to JS *and* into the backend
     Models.scala                  # Post, NewPost (errors: Map[String, List[String]])
     Api.scala                     # shared ServerFn contracts
     PostsPage.melt                # query/seed + single-flight + optimistic
     NewPostPage.melt              # field-issues form (use:form auto-binding + use:enhance)
     AwaitPostsPage.melt           # blocking async SSR (<melt:await>, nested boundary)
     StreamingPage.melt            # streaming async SSR (two independent boundaries)
-server-functions/server/
-  src/main/scala/server/Server.scala   # app.serve(...) + page actions
-  src/main/resources/index.html
+  backend/
+    src/main/scala/server/Server.scala   # app.serve(...) + page actions
+    src/main/resources/index.html
 ```
 
 > Note: server-function calls (`dispatch`/`optimistic`/`run`) are JS-only and live

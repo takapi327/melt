@@ -20,7 +20,7 @@ Melt は **フルスタックな Web アプリを 1 つの `.melt` ファイル�
 | **SPA + API** | [http4s-spa](examples/http4s-spa) |
 | **SSR + Hydration** | [http4s-ssr](examples/http4s-ssr) |
 | **Tailwind CSS（フルスタック SSR）** | [meltkit-app](examples/meltkit-app) |
-| **フォーム / Server Actions** | [form-actions](examples/form-actions-client) |
+| **フォーム / Server Actions** | [form-actions](examples/form-actions) |
 | **Server Functions（型付き RPC）** | [server-functions](examples/server-functions) |
 | **静的サイト（SSG）** | [nested-layouts](examples/nested-layouts)・この docs サイト自体 |
 | **Node.js サーバー** | [node-ssr](examples/node-ssr) |
@@ -259,7 +259,7 @@ Ok(html.body)
 
 | サンプル | 説明 |
 |---------|------|
-| [form-actions](examples/form-actions-client) | フォーム / Server Actions |
+| [form-actions](examples/form-actions) | フォーム / Server Actions |
 | [server-functions](examples/server-functions) | Server Functions（型付き RPC） |
 | [server-env](examples/server-env) | サーバー環境変数 |
 
