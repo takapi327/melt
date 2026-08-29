@@ -54,20 +54,18 @@ object MeltParser:
 
   /** Parses a `.melt` source and returns the AST together with any warnings.
     *
-    * @param linkChecking when `true`, URL attribute interpolations are compiled to meltkit's
-    *                     `checkedRoute` for compile-time route validation (opt-in).
-    * @param routesObject fully-qualified name of the routes object; when set, the type-parameter
-    *                     `checkedRoute[<obj>.type]` form is emitted (no `given RouteRegistry`).
+    * @param routesObject fully-qualified name of the routes object. When set, internal links in
+    *                     URL attributes are compiled to `checkedRouteFor[<obj>.type]` for
+    *                     compile-time route validation; `None` (default) disables link checking.
     */
   def parseWithWarnings(
     source:       String,
-    linkChecking: Boolean = false,
     routesObject: Option[String] = None
   ): Either[String, ParseResult] =
     try
       SectionSplitter.split(source).map { sections =>
         val (rawNodes, positions, templateWarnings) =
-          TemplateParser.parseWithWarnings(sections.templateSource, linkChecking, routesObject)
+          TemplateParser.parseWithWarnings(sections.templateSource, routesObject)
         // Comments are emitted by TemplateParser (so the formatter can preserve
         // them) but never render — strip them here so the rest of the compiler
         // pipeline (checkers, IR lowering, codegen) sees the AST it always has.

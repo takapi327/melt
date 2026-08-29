@@ -88,9 +88,11 @@ extension (inline sc: StringContext)
 
 /** The non-interpolator form of [[route]]. Semantically identical — same compile-time
   * validation, same macro — but callable through a fully-qualified path
-  * (`_root_.meltkit.checkedRoute(StringContext(...))(args)`) with no import at the call site.
-  * This is what the Melt compiler emits for URL attributes under `meltLinkChecking := true`,
+  * (`_root_.meltkit.checkedRoute(StringContext(...))(args)`) with no import at the call site,
   * since a string-interpolator prefix must be a bare identifier and cannot be qualified.
+  *
+  * The Melt compiler emits [[checkedRouteFor]] rather than this form; this one remains for
+  * hand-written call sites that prefer supplying the registry as a given.
   */
 inline def checkedRoute(inline sc: StringContext)(inline args: Any*)(using inline reg: RouteRegistry[?]): String =
   ${ RouteMacros.routeImpl('sc, 'args, 'reg) }
@@ -100,6 +102,9 @@ inline def checkedRoute(inline sc: StringContext)(inline args: Any*)(using inlin
   * the call site**. This is what the Melt compiler emits when `meltLinkCheckingRoutes` names the
   * routes object — e.g. `checkedRouteFor[routes.Routes.type]("/users/", "")(id)` — removing the
   * `given RouteRegistry` boilerplate entirely. Same macro, same validation as [[checkedRoute]].
+  *
+  * With no args (`checkedRouteFor[R](StringContext("/users"))()`) this validates a wholly static
+  * link and folds back to the string literal, so checking a static path costs nothing at runtime.
   *
   * Named distinctly from [[checkedRoute]] (rather than overloaded) so a bare
   * `checkedRoute(sc)(args)` call is never ambiguous between the given-based and type-based forms.
@@ -171,9 +176,36 @@ private[meltkit] object RouteMacros:
       case Varargs(as) => as.toList
       case _           => report.errorAndAbort("route: explicit args required")
 
-    val sb = new StringBuilder(parts.head)
-    for i <- args.indices do sb.append(' ').append(i).append(' ').append(parts(i + 1))
-    val segs = sb.toString.split('/').toList.filter(_.nonEmpty)
+    // A `StringContext` always has one more literal part than it has arguments. Check it
+    // explicitly: the path below is assembled by iterating `args`, so a short argument list
+    // would silently drop every literal part after the first (`"/users/" :: "" :: Nil` with no
+    // args would validate as `/users`, quietly accepting a link the author never wrote).
+    if parts.length != args.length + 1 then
+      report.errorAndAbort(
+        s"route: ${ parts.length } literal part(s) but ${ args.length } argument(s) — " +
+          s"expected ${ parts.length - 1 }. An empty interpolation (`{}`) in the path is the usual cause."
+      )
+
+    // `sb` encodes each argument as a ` <index> ` token so the path can be split into segments
+    // while still telling parameters apart from literal text. `pretty` mirrors it with the
+    // argument's type instead, and is kept verbatim (not rebuilt from the split segments) so the
+    // error message shows the path exactly as written — including a trailing `/`.
+    val sb     = new StringBuilder(parts.head)
+    val pretty = new StringBuilder(parts.head)
+    for i <- args.indices do
+      sb.append(' ').append(i).append(' ').append(parts(i + 1))
+      pretty.append("${").append(args(i).asTerm.tpe.widen.show).append('}').append(parts(i + 1))
+
+    // Only the path is routed: a query string or fragment is not part of any `TypedRoute`, so
+    // `/users?page=2` and `/users#top` must match `/users`. Cut at the first `?` or `#` before
+    // segmenting — an argument renders as ` <digits> `, so neither character can come from one.
+    val full     = sb.toString
+    val cut      = full.indexWhere(c => c == '?' || c == '#')
+    val pathOnly = if cut >= 0 then full.substring(0, cut) else full
+
+    // Empty segments are dropped, so `/users/` matches `/users` — the same normalisation the
+    // server applies when it splits an incoming request path (see `UndertowHttpBinding`).
+    val segs = pathOnly.split('/').toList.filter(_.nonEmpty)
     def argIdx(tok: String): Option[Int] =
       if tok.startsWith(" ") && tok.endsWith(" ") then tok.drop(1).dropRight(1).toIntOption else None
 
@@ -183,10 +215,8 @@ private[meltkit] object RouteMacros:
         case (Right(tpe), tok) => argIdx(tok).exists(i => args(i).asTerm.tpe.widen <:< tpe)
       }
 
-    val pretty =
-      segs.map(t => argIdx(t).map(i => "${" + args(i).asTerm.tpe.widen.show + "}").getOrElse(t)).mkString("/", "/", "")
     if !routes.exists(matches) then
-      report.errorAndAbort(s"no route matches '$pretty' (unknown path or wrong parameter type)")
+      report.errorAndAbort(s"no route matches '${ pretty.toString }' (unknown path or wrong parameter type)")
 
     // Build the runtime URL: static parts verbatim, each parameter via its PathParamEncoder
     // (so custom types serialize correctly — not a bare toString). Segment percent-encoding

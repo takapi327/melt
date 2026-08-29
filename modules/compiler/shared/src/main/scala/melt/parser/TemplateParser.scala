@@ -35,9 +35,12 @@ private[parser] final class TemplateParser(
   src:          String,
   baseOffset:   Int,
   posBuilder:   NodePositions.Builder,
-  linkChecking: Boolean        = false,
   routesObject: Option[String] = None
 ):
+
+  /** Link checking is on exactly when a routes object is named — declaring the routes IS
+    * the opt-in, so there is no separate on/off flag to keep in sync with it. */
+  private val linkChecking: Boolean = routesObject.exists(_.nonEmpty)
 
   private var pos: Int = 0
 
@@ -248,7 +251,7 @@ private[parser] final class TemplateParser(
                   "for raw HTML use {TrustedHtml.unsafe(...)} or bind:innerHTML={...}."
               )
             else
-              val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder, linkChecking, routesObject)
+              val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder, routesObject)
               pos = end
               val hasHtml = parts.exists(_.isInstanceOf[melt.ast.InlineTemplatePart.Html])
               if hasHtml then
@@ -357,7 +360,7 @@ private[parser] final class TemplateParser(
     * Called after `{@render ` has been consumed from the source.
     */
   private def parseRenderCall(): TemplateNode.RenderCall =
-    val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder, linkChecking, routesObject)
+    val (parts, end) = ExprExtractor.extractRich(src, pos, posBuilder, routesObject)
     pos = end
     val expr = parts.collect { case InlineTemplatePart.Code(c) => c }.mkString.trim
     TemplateNode.RenderCall(expr)
@@ -493,19 +496,38 @@ private[parser] final class TemplateParser(
     if pos < src.length then pos += 1
     value
 
+  /** Whether this attribute value is an internal link that should be route-checked: link
+    * checking on, a URL attribute, and a leading literal that is an internal absolute path. */
+  private def isCheckedLink(name: String, leadingLiteral: String): Boolean =
+    linkChecking && TemplateParser.urlAttrs.contains(name) && TemplateParser.isInternalPath(leadingLiteral)
+
   /** Builds an [[Attr]] from a quoted value, turning Svelte-style interpolation
     * (`class="btn {variant}"`, `href="/users/{id}"`) into an `Attr.Dynamic` whose expression is a
-    * Scala string interpolation (`s"btn ${variant}"`). Non-interpolated values, directives
-    * (`bind:x`), and event handlers stay static. The interpolated expressions are type-checked by
-    * scalac; for compile-time-checked links use `href={route"..."}` (see meltkit `RouteRegistry`).
+    * Scala string interpolation (`s"btn ${variant}"`). Directives (`bind:x`) and event handlers
+    * stay static, as do non-interpolated values — except internal links, which are route-checked
+    * whether or not they interpolate (see [[isCheckedLink]]).
     */
   private def makeAttr(name: String, value: String): Attr =
-    if name.contains(':') || !value.contains('{') || (name.startsWith("on") && name.length > 2) then
-      makeAttrStatic(name, value)
+    if name.contains(':') || (name.startsWith("on") && name.length > 2) then makeAttrStatic(name, value)
+    else if !value.contains('{') then
+      // No interpolation. A wholly literal internal path (`href="/users"`) is still a link:
+      // route it through `checkedRouteFor` with zero args so a typo in a static route is a
+      // compile error too. The macro constant-folds the no-arg case back to the literal.
+      if isCheckedLink(name, value) then Attr.Dynamic(name, buildRouteCall(List(value), Nil))
+      else makeAttrStatic(name, value)
     else
       val (parts, exprs) = parseAttrInterpolation(value)
+      // An empty `{}` carries no expression, so every downstream consumer has to invent one:
+      // `s"..."` would splice `${}` (a scalac syntax error on generated code), and the route
+      // call would drop the argument and every literal part after it, silently validating a
+      // shorter path than was written. Reject it here, where the position is still the `.melt`.
+      if exprs.exists(_.trim.isEmpty) then
+        throw MeltParseException(
+          s"""Empty interpolation `{}` in attribute `$name="$value"`. """ +
+            "Put a Scala expression between the braces, or remove them to keep the value literal."
+        )
       if exprs.isEmpty then makeAttrStatic(name, value)
-      else if linkChecking && TemplateParser.urlAttrs.contains(name) && TemplateParser.isInternalPath(parts.head) then
+      else if isCheckedLink(name, parts.head) then
         // Link-checking on + URL attribute pointing at an internal absolute path: route the
         // value through meltkit's `checkedRoute` so scalac validates the path (and each param's
         // type) against the in-scope RouteRegistry. A qualified call (not the `route"..."`
@@ -545,25 +567,22 @@ private[parser] final class TemplateParser(
     sb += '"'
     sb.toString
 
-  /** Renders literal parts + expressions as a fully-qualified `meltkit.checkedRoute` call:
-    * `_root_.meltkit.checkedRoute(_root_.scala.StringContext("/users/", ""))(id)`. The parts
-    * become the `StringContext` arguments (validated at compile time by the `checkedRoute`
-    * macro) and the expressions become the interpolated args. Qualified so no import is needed
-    * in the generated file.
+  /** Renders literal parts + expressions as a fully-qualified `meltkit.checkedRouteFor` call:
+    * `_root_.meltkit.checkedRouteFor[routes.Routes.type](_root_.scala.StringContext("/users/", ""))(id)`.
+    * The parts become the `StringContext` arguments (validated at compile time by the macro) and
+    * the expressions become the interpolated args. Fully qualified so no import is needed in the
+    * generated file, and the type-parameter form is used so no `given RouteRegistry` is required.
     *
-    * When [[routesObject]] names the routes object (from `meltLinkCheckingRoutes`), the
-    * type-parameter form `checkedRoute[routes.Routes.type](...)` is emitted instead, so no
-    * `given RouteRegistry` is required in scope. */
+    * A wholly literal path passes `exprs = Nil`; the macro then validates the path and folds the
+    * call back to the string literal, so a static link costs nothing at runtime. */
   private def buildRouteCall(parts: List[String], exprs: List[String]): String =
     def esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
     val quotedParts = parts.map(p => "\"" + esc(p) + "\"").mkString(", ")
     val argList = exprs.mkString(", ")
-    // With a routes object named, use the type-parameter `checkedRouteFor[obj.type]` (no given
-    // needed); otherwise the given-based `checkedRoute`.
-    val call = routesObject
-      .filter(_.nonEmpty)
-      .fold("_root_.meltkit.checkedRoute")(obj => s"_root_.meltkit.checkedRouteFor[$obj.type]")
-    s"$call(_root_.scala.StringContext($quotedParts))($argList)"
+    val obj = routesObject.getOrElse(
+      throw MeltParseException("internal: buildRouteCall without a routes object")
+    )
+    s"_root_.meltkit.checkedRouteFor[$obj.type](_root_.scala.StringContext($quotedParts))($argList)"
 
   private def makeAttrStatic(name: String, value: String): Attr =
     val colon = name.indexOf(':')
@@ -797,15 +816,15 @@ final class MeltParseException(val errorMessage: String) extends RuntimeExceptio
 
 object TemplateParser:
 
-  /** URL attributes whose interpolated value is routed through `route"..."` when link-checking
-    * is enabled (so the path is validated against the RouteRegistry at compile time). */
+  /** URL attributes whose value is routed through `checkedRouteFor` when link-checking is
+    * enabled (so the path is validated against the routes object at compile time). */
   private[parser] val urlAttrs: Set[String] = Set("href", "action", "formaction")
 
-  /** Whether an interpolated URL value is an internal absolute path eligible for route checking.
+  /** Whether a URL value is an internal absolute path eligible for route checking.
     * True only when the leading literal begins with a single `/`. This excludes external and
     * protocol-relative URLs (`https://…`, `//cdn…`), scheme links (`mailto:`, `tel:`), fragments
     * (`#…`), relative paths, and fully-dynamic values (leading `{expr}` → empty leading literal),
-    * all of which fall back to a plain `s"..."` interpolation instead of `checkedRoute`. */
+    * all of which stay plain strings instead of going through `checkedRouteFor`. */
   private[parser] def isInternalPath(firstLiteral: String): Boolean =
     firstLiteral.startsWith("/") && !firstLiteral.startsWith("//")
 
@@ -815,15 +834,13 @@ object TemplateParser:
 
   /** Parses the template and also returns node positions and any warnings.
     *
-    * @param linkChecking when `true`, URL attributes with `{}` interpolation are emitted via
-    *                     meltkit's `checkedRoute` for compile-time route validation.
     * @param routesObject fully-qualified name of the routes object (from `meltLinkCheckingRoutes`).
-    *                     When set, `checkedRoute[<obj>.type](...)` is emitted so no
-    *                     `given RouteRegistry` is needed; when `None`, the given-based form is used.
+    *                     When set, internal links in `href`/`action`/`formaction` are emitted as
+    *                     `checkedRouteFor[<obj>.type](...)` so scalac validates them; when `None`,
+    *                     link checking is off and links stay plain strings.
     */
   def parseWithWarnings(
     templateSource: String,
-    linkChecking:   Boolean = false,
     routesObject:   Option[String] = None
   ): (List[TemplateNode], NodePositions, List[(String, Int)]) =
     val builder = new NodePositions.Builder()
@@ -832,7 +849,6 @@ object TemplateParser:
         templateSource,
         baseOffset   = 0,
         posBuilder   = builder,
-        linkChecking = linkChecking,
         routesObject = routesObject
       )
     val nodes = p.parse()

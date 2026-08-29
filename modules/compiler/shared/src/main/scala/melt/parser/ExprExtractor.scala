@@ -109,7 +109,6 @@ private[parser] object ExprExtractor:
     src:          String,
     start:        Int,
     posBuilder:   melt.NodePositions.Builder,
-    linkChecking: Boolean = false,
     routesObject: Option[String] = None
   ): (List[melt.ast.InlineTemplatePart], Int) =
     import melt.ast.InlineTemplatePart
@@ -180,7 +179,6 @@ private[parser] object ExprExtractor:
               fragment,
               baseOffset   = i,
               posBuilder   = posBuilder,
-              linkChecking = linkChecking,
               routesObject = routesObject
             )
           val nodes    = fragParser.parseFragment()

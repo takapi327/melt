@@ -1042,42 +1042,26 @@ class TemplateParserSpec extends munit.FunSuite:
     assertEquals(div.attrs, List(Attr.Static("class", "header active")))
   }
 
+  /** Routes object name used by the link-checking tests; naming it turns link checking on. */
+  private val Routes: Option[String] = Some("routes.Routes")
+
+  private def hrefSrc(value: String): String = s"""<a href="$value"></a>"""
+
+  private def hrefAttrs(nodes: List[TemplateNode]): List[Attr] =
+    nodes.head.asInstanceOf[TemplateNode.Element].attrs
+
   test("multiple interpolations in a quoted attribute (href with two params)") {
     val result = parse("""<a href="/{lang}/guide/{slug}"></a>""")
     val a      = result.head.asInstanceOf[TemplateNode.Element]
     assertEquals(a.attrs, List(Attr.Dynamic("href", """s"/${lang}/guide/${slug}"""")))
   }
 
-  test("linkChecking routes URL-attribute interpolation through meltkit.checkedRoute") {
-    // With link-checking on, an interpolated `href` becomes a fully-qualified `checkedRoute`
-    // call so scalac validates the path against the RouteRegistry at compile time.
-    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<a href="/users/{id}"></a>""", linkChecking = true)
-    val a             = nodes.head.asInstanceOf[TemplateNode.Element]
+  test("link checking routes URL-attribute interpolation through checkedRouteFor") {
+    // With a routes object named, an interpolated `href` becomes a fully-qualified
+    // `checkedRouteFor` call so scalac validates the path against it at compile time.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings(hrefSrc("/users/{id}"), Routes)
     assertEquals(
-      a.attrs,
-      List(Attr.Dynamic("href", """_root_.meltkit.checkedRoute(_root_.scala.StringContext("/users/", ""))(id)"""))
-    )
-  }
-
-  test("linkChecking leaves non-URL attributes as plain s\"...\" interpolation") {
-    // Only URL attributes are routed; class/id/etc. stay ordinary string interpolations.
-    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<div class="c-{n}"></div>""", linkChecking = true)
-    val div           = nodes.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(div.attrs, List(Attr.Dynamic("class", """s"c-${n}"""")))
-  }
-
-  test("linkChecking with a routes object emits the type-parameter checkedRoute (no given needed)") {
-    // When the routes object is named, `checkedRoute[<obj>.type](...)` is emitted so the
-    // generated code needs no `given RouteRegistry` in scope.
-    val (nodes, _, _) =
-      TemplateParser.parseWithWarnings(
-        """<a href="/users/{id}"></a>""",
-        linkChecking = true,
-        routesObject = Some("routes.Routes")
-      )
-    val a = nodes.head.asInstanceOf[TemplateNode.Element]
-    assertEquals(
-      a.attrs,
+      hrefAttrs(nodes),
       List(
         Attr.Dynamic(
           "href",
@@ -1087,13 +1071,72 @@ class TemplateParserSpec extends munit.FunSuite:
     )
   }
 
-  test("linkChecking reaches URL attributes inside inline-HTML fragments ({ ...map(u => <a>) })") {
+  test("link checking routes a wholly literal internal path through checkedRouteFor") {
+    // A static link has no interpolation, but it is still a link: it goes through the macro
+    // with zero args so a typo in a static route is a compile error too. Regression for the
+    // gap where `href="/users"` was emitted as a plain static attribute and never checked.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings(hrefSrc("/users"), Routes)
+    assertEquals(
+      hrefAttrs(nodes),
+      List(
+        Attr.Dynamic(
+          "href",
+          """_root_.meltkit.checkedRouteFor[routes.Routes.type](_root_.scala.StringContext("/users"))()"""
+        )
+      )
+    )
+  }
+
+  test("an empty interpolation in an attribute is a parse error") {
+    // Regression: `href="/users/{}"` used to compile. The empty expression produced a route
+    // call with two literal parts but zero arguments, and the macro — which walks the parts by
+    // argument index — dropped everything after `/users/`, so it validated as `/users` and
+    // passed. Reject the empty braces at the source, where the position is still the `.melt`.
+    def err(src: String): String =
+      intercept[MeltParseException](TemplateParser.parseWithWarnings(src, Routes)).getMessage
+
+    assert(err(hrefSrc("/users/{}")).contains("Empty interpolation"))
+    // Not link-specific: any attribute, with or without link checking.
+    assert(err("""<div class="c-{}"></div>""").contains("Empty interpolation"))
+    assert(
+      intercept[MeltParseException](TemplateParser.parseWithWarnings(hrefSrc("/users/{}"))).getMessage
+        .contains("Empty interpolation")
+    )
+    // Whitespace-only braces are just as empty.
+    assert(err(hrefSrc("/users/{  }")).contains("Empty interpolation"))
+  }
+
+  test("link checking is off when no routes object is named") {
+    // Naming the routes object IS the opt-in — there is no separate on/off flag. Without it
+    // both literal and interpolated links stay exactly as they were.
+    val (lit, _, _) = TemplateParser.parseWithWarnings(hrefSrc("/users"))
+    assertEquals(hrefAttrs(lit), List(Attr.Static("href", "/users")))
+
+    val (dyn, _, _) = TemplateParser.parseWithWarnings(hrefSrc("/users/{id}"))
+    assertEquals(hrefAttrs(dyn), List(Attr.Dynamic("href", """s"/users/${id}"""")))
+  }
+
+  test("link checking leaves non-URL attributes as plain s\"...\" interpolation") {
+    // Only URL attributes are routed; class/id/etc. stay ordinary string interpolations.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<div class="c-{n}"></div>""", Routes)
+    val div           = nodes.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Dynamic("class", """s"c-${n}"""")))
+  }
+
+  test("link checking leaves a literal non-URL attribute static") {
+    // The literal branch must not sweep up ordinary attributes that happen to start with `/`.
+    val (nodes, _, _) = TemplateParser.parseWithWarnings("""<div data-path="/users"></div>""", Routes)
+    val div           = nodes.head.asInstanceOf[TemplateNode.Element]
+    assertEquals(div.attrs, List(Attr.Static("data-path", "/users")))
+  }
+
+  test("link checking reaches URL attributes inside inline-HTML fragments ({ ...map(u => <a>) })") {
     // Links written inside a `{ ...map(u => <a href="...">) }` block are parsed by a nested
-    // TemplateParser via ExprExtractor; the flag must propagate so they are route-checked too.
+    // TemplateParser via ExprExtractor; the routes object must propagate so they are checked too.
     val (nodes, _, _) =
       TemplateParser.parseWithWarnings(
         """<div>{items.map(u => <a href="/users/{u.id}">x</a>)}</div>""",
-        linkChecking = true
+        Routes
       )
     val div  = nodes.head.asInstanceOf[TemplateNode.Element]
     val tmpl = div.children.head.asInstanceOf[TemplateNode.InlineTemplate]
@@ -1102,21 +1145,32 @@ class TemplateParserSpec extends munit.FunSuite:
     }.get
     assertEquals(
       a.attrs,
-      List(Attr.Dynamic("href", """_root_.meltkit.checkedRoute(_root_.scala.StringContext("/users/", ""))(u.id)"""))
+      List(
+        Attr.Dynamic(
+          "href",
+          """_root_.meltkit.checkedRouteFor[routes.Routes.type](_root_.scala.StringContext("/users/", ""))(u.id)"""
+        )
+      )
     )
   }
 
-  test("linkChecking leaves external / protocol-relative / fragment URLs as plain s\"...\"") {
+  test("link checking leaves external / protocol-relative / fragment URLs alone") {
     // Only internal absolute paths (single leading `/`) are route-checked; external URLs,
-    // protocol-relative URLs, fragments, and fully-dynamic values fall back to `s"..."`.
-    def hrefExpr(src: String): String =
-      val (nodes, _, _) = TemplateParser.parseWithWarnings(src, linkChecking = true)
-      nodes.head.asInstanceOf[TemplateNode.Element].attrs.head.asInstanceOf[Attr.Dynamic].expr
+    // protocol-relative URLs, fragments, scheme links, and leading-dynamic values are not.
+    def href(src: String): Attr =
+      val (nodes, _, _) = TemplateParser.parseWithWarnings(src, Routes)
+      nodes.head.asInstanceOf[TemplateNode.Element].attrs.head
 
-    assertEquals(hrefExpr("""<a href="https://x.dev/u/{id}"></a>"""), """s"https://x.dev/u/${id}"""")
-    assertEquals(hrefExpr("""<a href="//cdn.x.dev/{p}"></a>"""), """s"//cdn.x.dev/${p}"""")
-    assertEquals(hrefExpr("""<a href="#{anchor}"></a>"""), """s"#${anchor}"""")
-    assertEquals(hrefExpr("""<a href="{base}/users"></a>"""), """s"${base}/users"""")
+    assertEquals(href("""<a href="https://x.dev/u/{id}"></a>"""), Attr.Dynamic("href", """s"https://x.dev/u/${id}""""))
+    assertEquals(href("""<a href="//cdn.x.dev/{p}"></a>"""), Attr.Dynamic("href", """s"//cdn.x.dev/${p}""""))
+    assertEquals(href("""<a href="#{anchor}"></a>"""), Attr.Dynamic("href", """s"#${anchor}""""))
+    assertEquals(href("""<a href="{base}/users"></a>"""), Attr.Dynamic("href", """s"${base}/users""""))
+    // Literal counterparts stay static — no macro call, no route lookup.
+    assertEquals(href("""<a href="https://x.dev/u"></a>"""), Attr.Static("href", "https://x.dev/u"))
+    assertEquals(href("""<a href="//cdn.x.dev/p"></a>"""), Attr.Static("href", "//cdn.x.dev/p"))
+    assertEquals(href("""<a href="#top"></a>"""), Attr.Static("href", "#top"))
+    assertEquals(href("""<a href="mailto:a@b.com"></a>"""), Attr.Static("href", "mailto:a@b.com"))
+    assertEquals(href("""<a href="about"></a>"""), Attr.Static("href", "about"))
   }
 
   // ── Expression with Scala block comment ───────────────────────────────────

@@ -48,6 +48,11 @@ object MeltCompiler:
     *                   to remap scalac error positions back to the original file.
     *                   Defaults to `""` (no source-map block) for backwards
     *                   compatibility with in-memory callers such as the LSP server.
+    * @param routesObject Fully-qualified name of the routes object (e.g. `"routes.Routes"`).
+    *                   When set, internal links in `href`/`action`/`formaction` — literal or
+    *                   interpolated — are compiled to `checkedRouteFor[<obj>.type]` so scalac
+    *                   rejects paths that no route matches. `None` (default) disables link
+    *                   checking: naming the routes object IS the opt-in.
     */
   def compile(
     source:       String,
@@ -58,10 +63,9 @@ object MeltCompiler:
     hydration:    Boolean = false,
     preprocessor: StylePreprocessor = StylePreprocessor.cssOnly,
     sourcePath:   String = "",
-    linkChecking: Boolean = false,
     routesObject: Option[String] = None
   ): CompileResult =
-    MeltParser.parseWithWarnings(source, linkChecking, routesObject) match
+    MeltParser.parseWithWarnings(source, routesObject) match
       case Left(err) =>
         CompileResult(None, None, List(CompileError(err, 0, 0, filename)), Nil)
       case Right(result) =>
