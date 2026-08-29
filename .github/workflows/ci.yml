@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup Java (corretto@17)
         if: matrix.java == 'corretto@17'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 17
@@ -80,7 +80,7 @@ jobs:
 
       - name: Setup Java (corretto@21)
         if: matrix.java == 'corretto@21'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 21
@@ -88,7 +88,7 @@ jobs:
 
       - name: Setup Java (corretto@25)
         if: matrix.java == 'corretto@25'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 25
@@ -103,7 +103,7 @@ jobs:
 
       - name: Setup Node.js
         if: contains('runtimeJS testkit meltkitJS', matrix.project)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -136,7 +136,7 @@ jobs:
 
       - name: Upload target directories
         if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-${{ matrix.scala }}-${{ matrix.project }}
           path: targets.tar
@@ -159,7 +159,7 @@ jobs:
 
       - name: Setup Java (corretto@17)
         if: matrix.java == 'corretto@17'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 17
@@ -167,7 +167,7 @@ jobs:
 
       - name: Setup Java (corretto@21)
         if: matrix.java == 'corretto@21'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 21
@@ -175,7 +175,7 @@ jobs:
 
       - name: Setup Java (corretto@25)
         if: matrix.java == 'corretto@25'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 25
@@ -185,7 +185,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Download target directories (3.8.4, compilerJVM)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerJVM
 
@@ -195,7 +195,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.8.4, compilerJS)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerJS
 
@@ -205,7 +205,7 @@ jobs:
           rm targets.tar
 
       - name: Download target directories (3.8.4, compilerNative)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: target-${{ matrix.os }}-${{ matrix.java }}-3.8.4-compilerNative
 
@@ -233,7 +233,7 @@ jobs:
 
       - name: Setup Java (corretto@17)
         if: matrix.java == 'corretto@17'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 17
@@ -241,7 +241,7 @@ jobs:
 
       - name: Setup Java (corretto@21)
         if: matrix.java == 'corretto@21'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 21
@@ -249,7 +249,7 @@ jobs:
 
       - name: Setup Java (corretto@25)
         if: matrix.java == 'corretto@25'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: corretto
           java-version: 25
