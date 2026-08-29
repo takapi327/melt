@@ -18,7 +18,7 @@ import org.scalajs.dom
   * `createElement`/`createTextNode` calls (used inside dynamic-section
   * render lambdas where the SSR content has been cleared).
   */
-final class HydrationCursor(private[this] var _current: dom.Node | Null):
+final class HydrationCursor(private var _current: dom.Node | Null):
 
   def current: dom.Node | Null = _current
 

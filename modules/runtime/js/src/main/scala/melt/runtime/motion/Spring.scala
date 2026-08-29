@@ -63,7 +63,7 @@ class Spring(
       _notify(_current)
 
       val settled = math.abs(_velocity) < precision && math.abs(_target - _current) < precision
-      if !settled then _rafId = dom.window.requestAnimationFrame(loop _).toInt
+      if !settled then _rafId = dom.window.requestAnimationFrame(t => loop(t)).toInt
       else
         _current  = _target
         _velocity = 0.0

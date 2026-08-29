@@ -570,7 +570,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     }
 
     val req = Request[IO](method = Method.POST, uri = uri"/login")
-      .withEntity("username=alice&password=secret")(
+      .withEntity("username=alice&password=secret")(using
         org.http4s.EntityEncoder.stringEncoder[IO]
       )
 
@@ -598,7 +598,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     }
 
     val req = Request[IO](method = Method.POST, uri = uri"/login")
-      .withEntity("username=bob&password=pass123")(
+      .withEntity("username=bob&password=pass123")(using
         org.http4s.EntityEncoder.stringEncoder[IO]
       )
 
@@ -626,7 +626,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     }
 
     val req = Request[IO](method = Method.POST, uri = uri"/login")
-      .withEntity("username=bob")(
+      .withEntity("username=bob")(using
         org.http4s.EntityEncoder.stringEncoder[IO]
       )
 
@@ -730,7 +730,7 @@ class Http4sAdapterTest extends CatsEffectSuite:
     }
 
     val req = Request[IO](method = Method.POST, uri = uri"/dual")
-      .withEntity("a=1&b=2")(
+      .withEntity("a=1&b=2")(using
         org.http4s.EntityEncoder.stringEncoder[IO]
       )
 

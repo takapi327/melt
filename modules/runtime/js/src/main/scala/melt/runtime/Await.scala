@@ -37,5 +37,5 @@ object Await:
     BoundaryScope.register(future)
     future.onComplete { result =>
       placeholder.replaceWith(handler(result))
-    }(scala.concurrent.ExecutionContext.Implicits.global)
+    }(using scala.concurrent.ExecutionContext.Implicits.global)
     placeholder

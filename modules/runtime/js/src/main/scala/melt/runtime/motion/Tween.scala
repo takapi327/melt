@@ -50,7 +50,7 @@ class Tween(
       val progress = math.min(elapsed / dur, 1.0)
       _current = from + (target - from) * easing(progress)
       _notify(_current)
-      if progress < 1.0 then _rafId = dom.window.requestAnimationFrame(loop(startTime) _).toInt
+      if progress < 1.0 then _rafId = dom.window.requestAnimationFrame(t => loop(startTime)(t)).toInt
       else
         _current = target
         _notify(_current)
