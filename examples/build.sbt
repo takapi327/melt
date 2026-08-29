@@ -6,6 +6,7 @@ val meltVersion = "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion   := "3.8.4"
 ThisBuild / publish / skip := true
+ThisBuild / scalacOptions += "-Werror"
 
 // ── Example: Hello World ──────────────────────────────────────────────────────
 lazy val `hello-world` = project

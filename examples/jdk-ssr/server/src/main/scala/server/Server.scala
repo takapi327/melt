@@ -83,7 +83,7 @@ object Server:
     ctx.body.json[CreateTodoBody].map {
       case Right(body) if body.text.nonEmpty =>
         val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
-        val _ = todoStore.synchronized { todoStore += todo }
+        val _    = todoStore.synchronized { todoStore += todo }
         ctx.json(SimpleJson.encodeTodo(todo))
       case Right(_) =>
         ctx.badRequest(BodyError.DecodeError("text must not be empty"))
@@ -124,7 +124,7 @@ object Server:
       case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
         val id   = synchronized { val i = nextUserId; nextUserId += 1; i }
         val user = User(id = id, name = body.name, email = body.email, role = body.role)
-        val _ = userStore.synchronized { userStore += user }
+        val _    = userStore.synchronized { userStore += user }
         ctx.json(SimpleJson.encodeUser(user))
       case Right(_) =>
         ctx.badRequest(BodyError.DecodeError("name and email must not be empty"))
