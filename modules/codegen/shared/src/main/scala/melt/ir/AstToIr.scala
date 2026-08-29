@@ -112,6 +112,9 @@ object AstToIr:
       case TemplateNode.Text(content) =>
         Some(IrNode.IrStaticText(content))
 
+      case TemplateNode.Comment(_) =>
+        None
+
       case TemplateNode.Expression(code) =>
         Some(lowerExpression(code, reactiveVars))
 

@@ -229,7 +229,7 @@ object MeltkitAppPlugin extends AutoPlugin:
               case MeltServerAdapter.Http4s   => Some(MeltMode.Http4s)
               case MeltServerAdapter.Undertow => None),
             meltCodegenMode            := "ssr",
-            meltkitAssetManifestClient := Some(frontend),
+            meltkitAssetManifestClient := Some(LocalProject(frontend.id)),
             // Follow buildMode so `buildMode := Full` serves the optimized (`-opt`)
             // bundle: the asset manifest / clientDistDir point at fullLinkJS output.
             meltkitClientFullLink := (buildMode.value match
