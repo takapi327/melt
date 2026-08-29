@@ -209,7 +209,7 @@ object Server:
   private def randomId(): String =
     // Use Web Crypto API (available in Node.js) instead of java.util.UUID
     val bytes = new scala.scalajs.js.typedarray.Uint8Array(16)
-    js.Dynamic.global.crypto.getRandomValues(bytes)
+    val _ = js.Dynamic.global.crypto.getRandomValues(bytes)
     bytes.toArray.map(b => f"${ b & 0xff }%02x").mkString
 
 /** Minimal JSON encoder/decoder — avoids circe dependency on the server. */
