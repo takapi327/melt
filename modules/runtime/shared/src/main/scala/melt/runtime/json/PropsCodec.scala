@@ -192,69 +192,107 @@ object PropsCodec:
       case p: Mirror.ProductOf[A] => productCodec[A](using p)
       case s: Mirror.SumOf[A]     => sumCodec[A](using s)
 
+  /** Codec for a product type. The field labels and per-element codecs are resolved at the
+    * inline call site and handed to this one class, so `encode` / `decode` exist once in the
+    * output rather than once per derived type.
+    */
+  private final class ProductCodec[A](
+    m:         Mirror.ProductOf[A],
+    labelsArr: Array[String],
+    codecsArr: Array[PropsCodec[?]]
+  ) extends PropsCodec[A]:
+
+    def encode(value: A, buf: StringBuilder): Unit =
+      val product = value.asInstanceOf[Product]
+      buf += '{'
+      var i = 0
+      val n = labelsArr.length
+      while i < n do
+        if i > 0 then buf += ','
+        buf ++= SimpleJson.encString(labelsArr(i))
+        buf += ':'
+        codecsArr(i).asInstanceOf[PropsCodec[Any]].encode(product.productElement(i), buf)
+        i += 1
+      buf += '}'
+
+    def decode(json: SimpleJson.JsonValue): A =
+      val obj = json match
+        case o: SimpleJson.JsonValue.Obj => o
+        case other                       => typeMismatch("object", other)
+      val values = new Array[Any](labelsArr.length)
+      var i      = 0
+      while i < labelsArr.length do
+        obj.fields.get(labelsArr(i)) match
+          case Some(SimpleJson.JsonValue.Null) | None =>
+            values(i) = codecsArr(i).decode(SimpleJson.JsonValue.Null)
+          case Some(v) =>
+            values(i) = codecsArr(i).decode(v)
+        i += 1
+      m.fromProduct(Tuple.fromArray(values))
+
+  /** Codec for a sum type. Shared across derived types for the same reason as [[ProductCodec]]. */
+  private final class SumCodec[A](
+    m:         Mirror.SumOf[A],
+    labelsArr: Array[String],
+    codecsArr: Array[PropsCodec[?]]
+  ) extends PropsCodec[A]:
+
+    def encode(value: A, buf: StringBuilder): Unit =
+      val ord = m.ordinal(value)
+      buf += '{'
+      buf ++= SimpleJson.encString("$type")
+      buf += ':'
+      buf ++= SimpleJson.encString(labelsArr(ord))
+      buf += ','
+      buf ++= SimpleJson.encString("$value")
+      buf += ':'
+      codecsArr(ord).asInstanceOf[PropsCodec[Any]].encode(value, buf)
+      buf += '}'
+
+    def decode(json: SimpleJson.JsonValue): A =
+      val obj = json match
+        case o: SimpleJson.JsonValue.Obj => o
+        case other                       => typeMismatch("object", other)
+      val tpe = obj.fields.get("$type") match
+        case Some(SimpleJson.JsonValue.Str(s)) => s
+        case _                                 => typeMismatch("a $type discriminator", json)
+      val idx = labelsArr.indexOf(tpe)
+      if idx < 0 then throw new IllegalArgumentException(s"PropsCodec: unknown case '$tpe' for a sum type")
+      val payload = obj.fields.getOrElse("$value", SimpleJson.JsonValue.Null)
+      codecsArr(idx).decode(payload).asInstanceOf[A]
+
+  /** Constructs a product codec from parts resolved by [[productCodec]]. Public only because an
+    * `inline` body may reference nothing the call site cannot see, and the call site is the user's
+    * package; not intended to be called directly.
+    */
+  def newProductCodec[A](
+    m:      Mirror.ProductOf[A],
+    labels: Array[String],
+    codecs: Array[PropsCodec[?]]
+  ): PropsCodec[A] = new ProductCodec[A](m, labels, codecs)
+
+  /** Constructs a sum codec from parts resolved by [[sumCodec]]. Public for the same reason as
+    * [[newProductCodec]]; not intended to be called directly.
+    */
+  def newSumCodec[A](
+    m:      Mirror.SumOf[A],
+    labels: Array[String],
+    codecs: Array[PropsCodec[?]]
+  ): PropsCodec[A] = new SumCodec[A](m, labels, codecs)
+
   inline def productCodec[A](using m: Mirror.ProductOf[A]): PropsCodec[A] =
-    new PropsCodec[A]:
-      private val labels:    List[String]         = summonLabels[m.MirroredElemLabels]
-      private val codecs:    List[PropsCodec[?]]  = summonCodecs[m.MirroredElemTypes]
-      private val labelsArr: Array[String]        = labels.toArray
-      private val codecsArr: Array[PropsCodec[?]] = codecs.toArray
-
-      def encode(value: A, buf: StringBuilder): Unit =
-        val product = value.asInstanceOf[Product]
-        buf += '{'
-        var i = 0
-        val n = labelsArr.length
-        while i < n do
-          if i > 0 then buf += ','
-          buf ++= SimpleJson.encString(labelsArr(i))
-          buf += ':'
-          codecsArr(i).asInstanceOf[PropsCodec[Any]].encode(product.productElement(i), buf)
-          i += 1
-        buf += '}'
-
-      def decode(json: SimpleJson.JsonValue): A =
-        val obj = json match
-          case o: SimpleJson.JsonValue.Obj => o
-          case other                       => typeMismatch("object", other)
-        val values = new Array[Any](labelsArr.length)
-        var i      = 0
-        while i < labelsArr.length do
-          obj.fields.get(labelsArr(i)) match
-            case Some(SimpleJson.JsonValue.Null) | None =>
-              values(i) = codecsArr(i).decode(SimpleJson.JsonValue.Null)
-            case Some(v) =>
-              values(i) = codecsArr(i).decode(v)
-          i += 1
-        m.fromProduct(Tuple.fromArray(values))
+    newProductCodec[A](
+      m,
+      summonLabels[m.MirroredElemLabels].toArray,
+      summonCodecs[m.MirroredElemTypes].toArray
+    )
 
   inline def sumCodec[A](using m: Mirror.SumOf[A]): PropsCodec[A] =
-    new PropsCodec[A]:
-      private val labelsArr: Array[String]        = summonLabels[m.MirroredElemLabels].toArray
-      private val codecsArr: Array[PropsCodec[?]] = summonCodecs[m.MirroredElemTypes].toArray
-
-      def encode(value: A, buf: StringBuilder): Unit =
-        val ord = m.ordinal(value)
-        buf += '{'
-        buf ++= SimpleJson.encString("$type")
-        buf += ':'
-        buf ++= SimpleJson.encString(labelsArr(ord))
-        buf += ','
-        buf ++= SimpleJson.encString("$value")
-        buf += ':'
-        codecsArr(ord).asInstanceOf[PropsCodec[Any]].encode(value, buf)
-        buf += '}'
-
-      def decode(json: SimpleJson.JsonValue): A =
-        val obj = json match
-          case o: SimpleJson.JsonValue.Obj => o
-          case other                       => typeMismatch("object", other)
-        val tpe = obj.fields.get("$type") match
-          case Some(SimpleJson.JsonValue.Str(s)) => s
-          case _                                 => typeMismatch("a $type discriminator", json)
-        val idx = labelsArr.indexOf(tpe)
-        if idx < 0 then throw new IllegalArgumentException(s"PropsCodec: unknown case '$tpe' for a sum type")
-        val payload = obj.fields.getOrElse("$value", SimpleJson.JsonValue.Null)
-        codecsArr(idx).decode(payload).asInstanceOf[A]
+    newSumCodec[A](
+      m,
+      summonLabels[m.MirroredElemLabels].toArray,
+      summonCodecs[m.MirroredElemTypes].toArray
+    )
 
   private inline def summonLabels[T <: Tuple]: List[String] =
     inline erasedValue[T] match

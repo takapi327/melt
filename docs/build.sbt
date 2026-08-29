@@ -19,6 +19,7 @@ ThisBuild / publish / skip := true
 lazy val docs = project
   .in(file("."))
   .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
   // melt-codegen powers the in-browser playground; needed by both the JS bundle
   // (interactive compile) and the JVM server (SSR of the playground). The shared
   // `Dependencies.meltCodegen` (`%%`) resolves to `_sjs1_3` on the frontend and `_3`

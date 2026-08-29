@@ -13,3 +13,11 @@ $ exists target/out/sjs1/scala-3.8.4/root-frontend/root-frontend-fastopt/compone
 > root-backend/compile
 $ exists target/out/jvm/scala-3.8.4/root-backend/src_managed/main/melt/components/App.scala
 $ exists target/out/jvm/scala-3.8.4/root-backend/src_managed/main/generated/AssetManifest.scala
+
+# .autoAggregate makes the root shell — which owns no sources of its own — run tasks on both
+# derived projects. Without it `root/compile` compiles nothing and silently succeeds.
+> root-frontend/clean
+> root-backend/clean
+> root/compile
+$ exists target/out/sjs1/scala-3.8.4/root-frontend/src_managed/main/melt/components/App.scala
+$ exists target/out/jvm/scala-3.8.4/root-backend/src_managed/main/melt/components/App.scala

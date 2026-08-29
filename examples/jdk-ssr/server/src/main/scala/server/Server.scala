@@ -83,7 +83,7 @@ object Server:
     ctx.body.json[CreateTodoBody].map {
       case Right(body) if body.text.nonEmpty =>
         val todo = Todo(id = UUID.randomUUID().toString, text = body.text)
-        todoStore.synchronized { todoStore += todo }
+        val _    = todoStore.synchronized { todoStore += todo }
         ctx.json(SimpleJson.encodeTodo(todo))
       case Right(_) =>
         ctx.badRequest(BodyError.DecodeError("text must not be empty"))
@@ -103,7 +103,7 @@ object Server:
   }
 
   app.delete("api/todos" / todoId) { ctx =>
-    todoStore.synchronized { todoStore.filterInPlace(_.id != ctx.params.id) }
+    val _ = todoStore.synchronized { todoStore.filterInPlace(_.id != ctx.params.id) }
     Future.successful(ctx.text(""))
   }
 
@@ -124,7 +124,7 @@ object Server:
       case Right(body) if body.name.nonEmpty && body.email.nonEmpty =>
         val id   = synchronized { val i = nextUserId; nextUserId += 1; i }
         val user = User(id = id, name = body.name, email = body.email, role = body.role)
-        userStore.synchronized { userStore += user }
+        val _    = userStore.synchronized { userStore += user }
         ctx.json(SimpleJson.encodeUser(user))
       case Right(_) =>
         ctx.badRequest(BodyError.DecodeError("name and email must not be empty"))
@@ -151,7 +151,7 @@ object Server:
   }
 
   app.delete("api/users" / userId) { ctx =>
-    userStore.synchronized { userStore.filterInPlace(_.id != ctx.params.id) }
+    val _ = userStore.synchronized { userStore.filterInPlace(_.id != ctx.params.id) }
     Future.successful(ctx.text(""))
   }
 

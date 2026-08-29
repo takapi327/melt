@@ -7,6 +7,8 @@ ThisBuild / version            := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion       := scala3
 ThisBuild / crossScalaVersions := Seq(scala3)
 
+ThisBuild / scalacOptions += "-Werror"
+
 // ── GitHub Actions ──
 ThisBuild / githubWorkflowJavaVersions := Seq(
   JavaSpec.corretto(java17),

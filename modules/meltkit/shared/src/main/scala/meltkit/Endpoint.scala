@@ -85,6 +85,11 @@ final case class Endpoint[P <: AnyNamedTuple, B, E, R] private[meltkit] (
         val value    = values(idx)
         idx += 1
         enc.asInstanceOf[PathParamEncoder[Any]].encode(value)
+      case PathSegment.Wildcard =>
+        throw new IllegalStateException(
+          "Endpoint.url: a wildcard segment has no value to build a URL from. " +
+            "PathSpec only produces Static and Param segments, so this Endpoint was not built through the DSL."
+        )
     }
     "/" + parts.mkString("/")
 

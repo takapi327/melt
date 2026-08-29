@@ -302,7 +302,7 @@ object SpaEmitter:
       case IrNode.IrDynamicText(expr, _, _) =>
         parentVar match
           case Some(parent) =>
-            buf ++= s"${ indent }Hydrating.text(${ expr.code }, $parent)\n"
+            buf ++= s"${ indent }val _ = Hydrating.text(${ expr.code }, $parent)\n"
             ""
           case None =>
             val v = ctr.nextTxt()
@@ -638,7 +638,7 @@ object SpaEmitter:
 
     val hasChildren = children.nonEmpty
     val childIndent = if hasChildren then indent + "  " else indent
-    if hasChildren then buf ++= s"${ indent }Hydrating.withChildren($v) {\n"
+    if hasChildren then buf ++= s"${ indent }val _ = Hydrating.withChildren($v) {\n"
 
     // mergeGroup-annotated IrDynamicText nodes are declared first (no inline subscribe),
     // then a single merged subscription is emitted per reactive var at the end of the block.
@@ -1031,7 +1031,7 @@ object SpaEmitter:
     val loopBody =
       s"""${ loopIndent }starts.zip(ends).foreach { case (startNode, endNode) =>
          |${ loopIndent }  val cursor = new HydrationCursor(startNode.nextSibling)
-         |${ loopIndent }  Hydrating.withCursor(cursor) {
+         |${ loopIndent }  val _ = Hydrating.withCursor(cursor) {
          |${ loopIndent }    $mountExpr
          |${ loopIndent }  }
          |${ loopIndent }  Hydrating.flush()

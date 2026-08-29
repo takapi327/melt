@@ -39,7 +39,7 @@ import org.scalajs.dom
   */
 object Hydrating:
 
-  private val stack = mutable.ArrayStack.empty[HydrationCursor]
+  private val stack = mutable.Stack.empty[HydrationCursor]
 
   /** True when the cursor stack is non-empty **and** the top cursor has a
     * non-null current node.

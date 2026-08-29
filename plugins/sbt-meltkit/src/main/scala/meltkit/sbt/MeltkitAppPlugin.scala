@@ -47,6 +47,7 @@ object MeltBuildMode:
   *
   * lazy val root = project.in(file("."))
   *   .enablePlugins(MeltkitAppPlugin)
+  *   .autoAggregate                                              // see "Aggregation" below
   *   .sharedSettings(libraryDependencies += "org" %% "lib" % v)  // both derived projects
   *   .frontendSettings(meltkitSplitPackages := List("pages"))    // frontend only
   *   .backendSettings(javaOptions += "-Xmx1g")                   // backend only
@@ -62,6 +63,17 @@ object MeltBuildMode:
   *   - `<root>-backend`  — JVM server (Undertow/http4s): compiles `frontend/`'s
   *     `.melt` sources in SSR mode (`unmanagedSourceDirectories`) and reads the
   *     frontend's asset manifest.
+  *
+  * ==Aggregation==
+  *
+  * Add `.autoAggregate` so `<root>/compile`, `<root>/test`, `<root>/clean` and the rest run on
+  * both derived projects. Without it the root is an empty shell: it owns no sources, so
+  * `<root>/compile` succeeds while compiling nothing.
+  *
+  * A plugin cannot supply this itself — `aggregate` belongs to the project definition, not to
+  * settings, and `derivedProjects` only adds projects, it never rewrites the one that enabled
+  * the plugin. sbt's built-in `Project.autoAggregate` expands to every subproject whose base
+  * directory sits under the root's, which is exactly `<base>/frontend` and `<base>/backend`.
   *
   * Per-project settings use the `.sharedSettings` / `.frontendSettings` /
   * `.backendSettings` extensions (plain `.settings` applies to the root shell only);
@@ -229,7 +241,7 @@ object MeltkitAppPlugin extends AutoPlugin:
               case MeltServerAdapter.Http4s   => Some(MeltMode.Http4s)
               case MeltServerAdapter.Undertow => None),
             meltCodegenMode            := "ssr",
-            meltkitAssetManifestClient := Some(frontend),
+            meltkitAssetManifestClient := Some(LocalProject(frontend.id)),
             // Follow buildMode so `buildMode := Full` serves the optimized (`-opt`)
             // bundle: the asset manifest / clientDistDir point at fullLinkJS output.
             meltkitClientFullLink := (buildMode.value match

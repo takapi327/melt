@@ -48,6 +48,6 @@ class AsyncBoundaryCtx:
     f.onComplete { _ =>
       _count -= 1
       if _count == 0 then onAllResolved()
-    }(scala.concurrent.ExecutionContext.Implicits.global)
+    }(using scala.concurrent.ExecutionContext.Implicits.global)
 
   def hasPending: Boolean = _count > 0

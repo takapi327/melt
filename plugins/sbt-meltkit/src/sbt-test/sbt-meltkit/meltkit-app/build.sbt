@@ -6,6 +6,7 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 // shell only, since in derivedProjects the project's settings are fully resolved).
 lazy val root = project.in(file("."))
   .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
   .sharedSettings(scalacOptions += "-deprecation")
   .frontendSettings(meltkitSplitPackages := List("components"))
   .backendSettings(run / fork := true)
