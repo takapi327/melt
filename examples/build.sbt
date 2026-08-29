@@ -118,6 +118,7 @@ lazy val `echarts-ssr` = crossProject(JVMPlatform, JSPlatform)
 lazy val `meltkit-app` = project
   .in(file("meltkit-app"))
   .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
 
 // ── Example: ECharts SSR + Hydration server (MeltKit[Future] on Undertow) ─────
 lazy val echartsSsrDir = file("echarts-ssr")
@@ -340,6 +341,7 @@ lazy val `jdk-ssr-server` = project
 lazy val `form-actions` = project
   .in(file("form-actions"))
   .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
   .backendSettings(
     meltkitServerAdapter := MeltServerAdapter.Http4s,
     libraryDependencies ++= Seq(
@@ -360,6 +362,7 @@ lazy val `form-actions` = project
 lazy val `server-functions` = project
   .in(file("server-functions"))
   .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
   .backendSettings(
     meltkitServerAdapter := MeltServerAdapter.Http4s,
     libraryDependencies ++= Seq(
@@ -520,12 +523,9 @@ lazy val root = project
     `http4s-ssr-server`,
     `node-ssr-server`,
     `jdk-ssr-server`,
-    // `form-actions` itself is only the shell MeltkitAppPlugin derives from, so
-    // aggregate the two derived projects to keep the example compiled here.
-    LocalProject("form-actions-frontend"),
-    LocalProject("form-actions-backend"),
-    LocalProject("server-functions-frontend"),
-    LocalProject("server-functions-backend"),
+    `meltkit-app`,
+    `form-actions`,
+    `server-functions`,
     `nested-layouts`.jvm,
     `nested-layouts`.js,
     `prefetch-app`.jvm,
