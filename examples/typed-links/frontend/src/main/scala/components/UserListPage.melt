@@ -9,12 +9,15 @@
     Users
   </h1>
   <p class="hint">
-    Every link below is checked at compile time against <code>routes.Routes</code>. Misspell the path and this file no longer compiles — a broken internal link is a build error, not a 404.
+    Every link below is checked at compile time against <code>routes.Routes</code> — the static <code>/users</code> as well as the parameterised <code>/users/{"{id}"}</code>. Misspell either path and this file no longer compiles: a broken internal link is a build error, not a 404.
+  </p>
+  <p class="hint">
+    <a href="/users">Reload this list</a> — a wholly literal link, checked against <code>Routes.list</code>.
   </p>
   <ul class="user-list">
     {props.users.map(u =>
       <li>
-        <a href="/users/{u.id}">{u.name}</a>
+        <a href="{u.id}">{u.name}</a>
         <span class="email">{u.email}</span>
       </li>
     )}

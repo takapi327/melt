@@ -23,9 +23,9 @@ import routes.Routes
   *   - here, as the server route `app.get(Routes.user)` (with `ctx.params.id: Long`), and
   *   - in `UserListPage.melt`, as the link `href="/users/{u.id}"`.
   *
-  * `MeltkitAppPlugin` turns on `meltLinkChecking`, so the template link is validated against
-  * `Routes` at compile time. Rename the route or break the link and the build fails — the
-  * "broken link = compile error" guarantee, end to end.
+  * `meltLinkCheckingRoutes := Some("routes.Routes")` turns link checking on, so the template
+  * link is validated against `Routes` at compile time. Rename the route or break the link and
+  * the build fails — the "broken link = compile error" guarantee, end to end.
   */
 @main def serve(): Unit =
   val app = MeltKit[Future]()

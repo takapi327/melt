@@ -25,8 +25,8 @@ That one value is used at **both** ends, and the compiler keeps them in sync:
 
 ## Wiring (one line)
 
-`MeltkitAppPlugin` turns on `meltLinkChecking`. Point it at the routes object once, in
-`examples/build.sbt`:
+Naming the routes object is the whole switch — there is no separate on/off key. Point it at
+the routes object once, in `examples/build.sbt`:
 
 ```scala
 lazy val `typed-links` = project
