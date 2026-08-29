@@ -1,0 +1,7 @@
+<script lang="scala">
+val id: Int = 42
+</script>
+
+<div>
+  <a href="/users/{}">empty interpolation — must not silently degrade to /users</a>
+</div>

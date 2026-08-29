@@ -1,7 +1,0 @@
-<script lang="scala">
-val slug: String = "hello"
-</script>
-
-<div>
-  <a href="/users/{slug}">profile</a>
-</div>

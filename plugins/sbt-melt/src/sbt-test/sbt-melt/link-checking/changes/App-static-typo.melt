@@ -3,5 +3,5 @@ val id: Int = 42
 </script>
 
 <div>
-  <a href="/admin/{id}">profile</a>
+  <a href="/usres">typo of the static route /users</a>
 </div>

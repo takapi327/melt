@@ -6,9 +6,8 @@ enablePlugins(MeltPlugin)
 
 meltCodegenMode := "ssr"
 
-// Link checking WITHOUT a `given RouteRegistry`: naming the routes object makes the
-// compiler emit `checkedRoute[routes.Routes.type](...)`, which needs no given in scope.
-meltLinkChecking       := true
+// Link checking needs no `given RouteRegistry`: naming the routes object makes the compiler
+// emit `checkedRouteFor[routes.Routes.type](...)`, and naming it IS the on/off switch.
 meltLinkCheckingRoutes := Some("routes.Routes")
 
 val pluginVersion = sys.props.getOrElse("plugin.version", "0.1.0-SNAPSHOT")

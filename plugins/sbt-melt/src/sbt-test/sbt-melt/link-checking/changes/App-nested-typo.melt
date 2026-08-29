@@ -1,9 +1,0 @@
-<script lang="scala">
-val ids: List[Int] = List(1, 2, 3)
-</script>
-
-<div>
-  {ids.map(i =>
-    <a href="/usres/{i}">nested typo</a>
-  )}
-</div>

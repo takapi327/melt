@@ -1,13 +1,19 @@
 <script lang="scala">
+import meltkit.route
+
 val id: Int = 42
 val q:  String = "melt"
-val ids: List[Int] = List(1, 2, 3)
 </script>
 
 <div>
+  <a href="/users">all users</a>
   <a href="/users/{id}">profile</a>
-  <a href="https://example.com/search/{q}">external</a>
-  {ids.map(i =>
-    <a href="/users/{i}">nested</a>
-  )}
+  <a href="/users/">trailing slash — same route</a>
+  <a href="/users?page=2">query string is not part of the route</a>
+  <a href="/users#top">nor is a fragment</a>
+  <a href="/users/{id}?tab=posts">both, on a parameterised path</a>
+  <a href="https://example.com/search">external</a>
+  <a href="#top">fragment</a>
+  <a href="mailto:a@b.com">mail</a>
+  <a href={route"/users/$id"}>hand-written interpolator</a>
 </div>

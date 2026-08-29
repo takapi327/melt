@@ -1,4 +1,4 @@
-# meltLinkChecking + meltLinkCheckingRoutes: URL-attribute links compile to the
+# meltLinkCheckingRoutes: URL-attribute links compile to the
 # type-parameter checkedRouteFor form and are validated with NO given RouteRegistry.
 
 # 1. A valid internal link — /users/{id: Int} matches routes.Routes.user — plus an external
