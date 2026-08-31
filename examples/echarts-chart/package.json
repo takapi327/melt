@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "echarts": "^5.5.0"
+    "echarts": "^6.1.0"
   },
   "devDependencies": {
     "@melt/vite-plugin": "workspace:*",
-    "vite": "^8.2.1"
+    "vite": "^8.2.2"
   }
 }
