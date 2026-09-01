@@ -33,6 +33,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions +=
     "meltkit-adapter-node",
     "meltkit-adapter-http4sJVM",
     "meltkit-adapter-http4sJS",
+    "meltkit-adapter-zio-http",
     "language-server"
   )
 ThisBuild / githubWorkflowBuildMatrixExclusions := Seq(
@@ -304,6 +305,27 @@ lazy val `meltkit-adapter-http4s` = crossProject(JVMPlatform, JSPlatform)
     jsEnv := Def.uncached(new org.scalajs.jsenv.nodejs.NodeJSEnv())
   )
 
+// ── MeltKit: zio-http adapter (JVM only, Scala 3.8+) ─────────────────────────
+// JVM only: zio-http ships `netty/server/NettyDriver` for the JVM but only the
+// client-side `internal/FetchDriver` for Scala.js, so `Server.live` has no JS
+// implementation. See memo/design-zio-http-adapter.md §5.1.
+lazy val `meltkit-adapter-zio-http` = project
+  .in(file("modules/meltkit-adapter-zio-http"))
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name         := "meltkit-adapter-zio-http",
+    scalaVersion := scala38,
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-http"     % "3.11.4",
+      "dev.zio" %% "zio-json"     % "0.10.0",
+      "dev.zio" %% "zio-test"     % "2.1.14" % Test,
+      "dev.zio" %% "zio-test-sbt" % "2.1.14" % Test
+    ),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+  )
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(meltkit.jvm)
+
 // ── sbt plugin: core compiler ──
 // The plugin forks a JVM process to run melt.MeltMain, avoiding Scala 3.3.x/3.8.x
 // TASTy incompatibility. In external projects the classpath is auto-resolved via the
@@ -382,6 +404,7 @@ lazy val root = project
     `meltkit-adapter-node`,
     `meltkit-adapter-http4s`.jvm,
     `meltkit-adapter-http4s`.js,
+    `meltkit-adapter-zio-http`,
     `sbt-melt`,
     `sbt-meltkit`,
     `language-server`
