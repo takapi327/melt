@@ -25,7 +25,7 @@ jobs:
         os: [ubuntu-latest]
         scala: [3.8.4]
         java: [corretto@17, corretto@21, corretto@25]
-        project: [preprocessorJVM, preprocessorJS, sass-preprocessor, compilerJVM, compilerJS, runtimeJVM, runtimeJS, codegenJVM, codegenJS, testkit, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS, language-server]
+        project: [preprocessorJVM, preprocessorJS, sass-preprocessor, compilerJVM, compilerJS, runtimeJVM, runtimeJS, codegenJVM, codegenJS, testkit, meltkitJVM, meltkitJS, meltkit-adapter-browser, meltkit-adapter-node, meltkit-adapter-http4sJVM, meltkit-adapter-http4sJS, meltkit-adapter-zio-http, language-server]
         exclude:
           - project: preprocessorJS
             java: corretto@21
