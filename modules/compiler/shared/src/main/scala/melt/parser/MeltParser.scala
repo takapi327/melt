@@ -52,11 +52,20 @@ object MeltParser:
   def parse(source: String): Either[String, MeltFile] =
     parseWithWarnings(source).map(_.ast)
 
-  /** Parses a `.melt` source and returns the AST together with any warnings. */
-  def parseWithWarnings(source: String): Either[String, ParseResult] =
+  /** Parses a `.melt` source and returns the AST together with any warnings.
+    *
+    * @param routesObject fully-qualified name of the routes object. When set, internal links in
+    *                     URL attributes are compiled to `checkedRouteFor[<obj>.type]` for
+    *                     compile-time route validation; `None` (default) disables link checking.
+    */
+  def parseWithWarnings(
+    source:       String,
+    routesObject: Option[String] = None
+  ): Either[String, ParseResult] =
     try
       SectionSplitter.split(source).map { sections =>
-        val (rawNodes, positions, templateWarnings) = TemplateParser.parseWithWarnings(sections.templateSource)
+        val (rawNodes, positions, templateWarnings) =
+          TemplateParser.parseWithWarnings(sections.templateSource, routesObject)
         // Comments are emitted by TemplateParser (so the formatter can preserve
         // them) but never render — strip them here so the rest of the compiler
         // pipeline (checkers, IR lowering, codegen) sees the AST it always has.

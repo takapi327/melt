@@ -279,6 +279,11 @@ object MeltkitPlugin extends AutoPlugin:
     // Browser mode always needs hydration exports; other modes do not
     meltHydration := meltMode.value.contains(MeltMode.Browser),
 
+    // Link checking has no separate on/off key: it is on exactly when `meltLinkCheckingRoutes`
+    // names the routes object (inherited from MeltPlugin, `None` by default). Meltkit projects
+    // always have meltkit on the classpath, so opting in is a one-line setting:
+    //   meltLinkCheckingRoutes := Some("routes.Routes")
+
     scalacOptions += "-Wnonunit-statement",
 
     // Auto-configure Scala.js linker settings based on meltMode (JS projects only).

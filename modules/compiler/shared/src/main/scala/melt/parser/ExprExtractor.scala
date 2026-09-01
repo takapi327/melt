@@ -106,9 +106,10 @@ private[parser] object ExprExtractor:
     *         a single `Code` element equivalent to `extract()`.
     */
   def extractRich(
-    src:        String,
-    start:      Int,
-    posBuilder: melt.NodePositions.Builder
+    src:          String,
+    start:        Int,
+    posBuilder:   melt.NodePositions.Builder,
+    routesObject: Option[String] = None
   ): (List[melt.ast.InlineTemplatePart], Int) =
     import melt.ast.InlineTemplatePart
 
@@ -173,9 +174,15 @@ private[parser] object ExprExtractor:
           // baseOffset = i so that positions recorded inside the fragment are
           // expressed as absolute offsets within the original templateSource.
           val fragment   = src.substring(i)
-          val fragParser = new TemplateParser(fragment, baseOffset = i, posBuilder = posBuilder)
-          val nodes      = fragParser.parseFragment()
-          val consumed   = fragParser.position
+          val fragParser =
+            new TemplateParser(
+              fragment,
+              baseOffset   = i,
+              posBuilder   = posBuilder,
+              routesObject = routesObject
+            )
+          val nodes    = fragParser.parseFragment()
+          val consumed = fragParser.position
           parts += InlineTemplatePart.Html(nodes)
           i += consumed
 

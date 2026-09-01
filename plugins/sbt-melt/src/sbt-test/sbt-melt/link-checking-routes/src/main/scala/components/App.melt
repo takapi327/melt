@@ -1,0 +1,13 @@
+<script lang="scala">
+val id: Int = 42
+val q:  String = "melt"
+val ids: List[Int] = List(1, 2, 3)
+</script>
+
+<div>
+  <a href="/users/{id}">profile</a>
+  <a href="https://example.com/search/{q}">external</a>
+  {ids.map(i =>
+    <a href="/users/{i}">nested</a>
+  )}
+</div>

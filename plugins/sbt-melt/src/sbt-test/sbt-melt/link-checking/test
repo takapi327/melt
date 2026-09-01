@@ -1,0 +1,27 @@
+# Static (non-interpolated) link checking. Naming meltLinkCheckingRoutes turns link
+# checking on; a wholly literal internal path is validated too, not just interpolated ones.
+
+# 1. Baseline — everything here must compile. A static internal link (/users), an interpolated
+#    one (/users/{id}), a trailing slash, and query strings / fragments (which are not part of
+#    any route and must be ignored when matching). Plus three values that must NOT be
+#    route-checked at all: an external https:// URL, a bare #fragment, and a mailto: link.
+#    Also a hand-written route"..." resolving the given RouteRegistry.
+> meltGenerate
+$ exists target/out/jvm/scala-3.8.4/link-checking/src_managed/main/melt/components/App.scala
+> compile
+
+# 2. A typo in a STATIC route — /usres against /users — is a compile error. This is the case
+#    that used to slip through: no interpolation meant no checking at all.
+$ copy-file changes/App-static-typo.melt src/main/scala/components/App.melt
+> meltGenerate
+-> compile
+
+# 3. A static path no route matches at all is a compile error.
+$ copy-file changes/App-static-unknown.melt src/main/scala/components/App.melt
+> meltGenerate
+-> compile
+
+# 4. An empty interpolation is rejected while generating, not silently degraded. /users/{}
+#    used to drop the empty argument AND the literal part after it, validating as /users.
+$ copy-file changes/App-empty-interpolation.melt src/main/scala/components/App.melt
+-> meltGenerate

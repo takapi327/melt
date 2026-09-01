@@ -1,0 +1,7 @@
+<script lang="scala">
+val id: Int = 42
+</script>
+
+<div>
+  <a href="/admin/settings">path that no route matches</a>
+</div>

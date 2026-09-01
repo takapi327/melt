@@ -1,0 +1,234 @@
+/**
+ * Copyright (c) 2026 by Takahiko Tominaga
+ * This software is licensed under the Apache License, Version 2.0 (the "License").
+ * For more information see LICENSE or https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package meltkit
+
+import scala.quoted.*
+import scala.NamedTuple.AnyNamedTuple
+import scala.NamedTuple.Concat
+import scala.NamedTuple.NamedTuple as NT
+
+import meltkit.codec.PathParamDecoder
+import meltkit.codec.PathParamEncoder
+
+/** A typed route that carries its **full path in the type** — static segments as singleton
+  * `String` literal types and dynamic segments as [[PathParam]]`[N, A]`, in order — via
+  * `Segs`, alongside the params NamedTuple `P` (used by handlers).
+  *
+  * A [[TypedRoute]] converts to a [[PathSpec]]`[P]` for runtime routing (`app.get(route)`), while
+  * its `Segs` type drives **compile-time link checking** through the `route"..."`
+  * interpolator (see [[RouteRegistry]]). This is the productionised form of the type-safe-links
+  * PoC: one definition yields both the compile-time type and the runtime segments/codecs.
+  *
+  * {{{
+  * val user = TypedRoute.root / "users" / param[Int]("id")   // TypedRoute[(id: Int), ("users", PathParam["id", Int])]
+  * app.get(user) { ctx => ... }                          // converts to PathSpec[(id: Int)]
+  * }}}
+  */
+final class TypedRoute[P <: AnyNamedTuple, Segs <: Tuple] private[meltkit] (
+  private[meltkit] val segments:      List[PathSegment],
+  private[meltkit] val paramDecoders: List[(String, PathParamDecoder[?])],
+  private[meltkit] val paramEncoders: List[(String, PathParamEncoder[?])]
+):
+
+  /** Appends a static segment; its singleton literal type is added to `Segs`. */
+  def /(s: String & Singleton): TypedRoute[P, Tuple.Append[Segs, s.type]] =
+    new TypedRoute(segments ++ PathSpec.staticSegments(s), paramDecoders, paramEncoders)
+
+  /** Appends a dynamic segment; `PathParam[N, A]` is added to `Segs` and `(N: A)` to `P`. */
+  def /[N <: String, A](
+    p: PathParam[N, A]
+  ): TypedRoute[Concat[P, NT[N *: EmptyTuple, A *: EmptyTuple]], Tuple.Append[Segs, PathParam[N, A]]] =
+    new TypedRoute(
+      segments :+ PathSegment.Param(p.paramName),
+      paramDecoders :+ (p.paramName -> p.decoder),
+      paramEncoders :+ (p.paramName -> p.encoder)
+    )
+
+  /** The runtime [[PathSpec]] for routing (drops the `Segs` type; routing uses `segments`). */
+  def toPathSpec: PathSpec[P] = PathSpec.of[P](segments, paramDecoders, paramEncoders)
+
+object TypedRoute:
+
+  /** The empty root route: `TypedRoute.root / "users" / param[Int]("id")`. */
+  val root: TypedRoute[PathSpec.Empty, EmptyTuple] = new TypedRoute(Nil, Nil, Nil)
+
+  /** Lets a [[TypedRoute]] be passed wherever a [[PathSpec]] is expected (`app.get(route)`). */
+  given routeToPathSpec[P <: AnyNamedTuple, S <: Tuple]: Conversion[TypedRoute[P, S], PathSpec[P]] =
+    _.toPathSpec
+
+/** A compile-time registry pointing at the object that holds the route `val`s. The
+  * `route"..."` interpolator reflects on `R`'s members to collect every [[TypedRoute]]
+  * automatically — no need to list route `.type`s by hand.
+  *
+  * {{{
+  * object Routes:
+  *   val user = TypedRoute.root / "users" / param[Int]("id")
+  *   val post = TypedRoute.root / "posts" / param[String]("slug")
+  *
+  * // in a *separate* scope (so param's implicit search does not evaluate this given):
+  * given RouteRegistry[Routes.type] = RouteRegistry()
+  * }}}
+  */
+final class RouteRegistry[R]
+object RouteRegistry:
+  def apply[R](): RouteRegistry[R] = new RouteRegistry[R]
+
+/** `route"/users/$id"` — a compile-time-checked link. Validates the literal path structure and
+  * each interpolated parameter's type against every [[TypedRoute]] found in the in-scope
+  * [[RouteRegistry]]'s object; an unknown route, wrong parameter type, or wrong arity is a
+  * **compile error**. Parameters are serialised with their [[PathParamEncoder]].
+  */
+extension (inline sc: StringContext)
+  inline def route(inline args: Any*)(using inline reg: RouteRegistry[?]): String =
+    ${ RouteMacros.routeImpl('sc, 'args, 'reg) }
+
+/** The non-interpolator form of [[route]]. Semantically identical — same compile-time
+  * validation, same macro — but callable through a fully-qualified path
+  * (`_root_.meltkit.checkedRoute(StringContext(...))(args)`) with no import at the call site,
+  * since a string-interpolator prefix must be a bare identifier and cannot be qualified.
+  *
+  * The Melt compiler emits [[checkedRouteFor]] rather than this form; this one remains for
+  * hand-written call sites that prefer supplying the registry as a given.
+  */
+inline def checkedRoute(inline sc: StringContext)(inline args: Any*)(using inline reg: RouteRegistry[?]): String =
+  ${ RouteMacros.routeImpl('sc, 'args, 'reg) }
+
+/** Type-parameter form of [[checkedRoute]]: the routes object is named by the type argument `R`
+  * instead of an in-scope [[RouteRegistry]] given, so **no given (and no import) is required at
+  * the call site**. This is what the Melt compiler emits when `meltLinkCheckingRoutes` names the
+  * routes object — e.g. `checkedRouteFor[routes.Routes.type]("/users/", "")(id)` — removing the
+  * `given RouteRegistry` boilerplate entirely. Same macro, same validation as [[checkedRoute]].
+  *
+  * With no args (`checkedRouteFor[R](StringContext("/users"))()`) this validates a wholly static
+  * link and folds back to the string literal, so checking a static path costs nothing at runtime.
+  *
+  * Named distinctly from [[checkedRoute]] (rather than overloaded) so a bare
+  * `checkedRoute(sc)(args)` call is never ambiguous between the given-based and type-based forms.
+  */
+inline def checkedRouteFor[R](inline sc: StringContext)(inline args: Any*): String =
+  ${ RouteMacros.routeImplTyped[R]('sc, 'args) }
+
+private[meltkit] object RouteMacros:
+
+  def routeImpl(scE: Expr[StringContext], argsE: Expr[Seq[Any]], regE: Expr[RouteRegistry[?]])(using
+    Quotes
+  ): Expr[String] =
+    import quotes.reflect.*
+    // Reflect on the registry object `R` (from `RouteRegistry[R]`) and validate against it.
+    val objTpe = regE.asTerm.tpe.widen match
+      case AppliedType(_, List(r)) => r
+      case other                   => report.errorAndAbort(s"cannot read RouteRegistry type: ${ other.show }")
+    routeImplCore(objTpe, scE, argsE)
+
+  def routeImplTyped[R: Type](scE: Expr[StringContext], argsE: Expr[Seq[Any]])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    routeImplCore(TypeRepr.of[R], scE, argsE)
+
+  /** Shared validation + URL-building core. `objTpe` is the routes object type (`Routes.type`),
+    * obtained either from an in-scope `RouteRegistry[R]` given or from an explicit type argument.
+    * The `using q: Quotes` clause is first so the path-dependent `q.reflect.TypeRepr` parameter
+    * type resolves (callers pass a `TypeRepr` from the same ambient `Quotes`).
+    */
+  private def routeImplCore(using
+    q: Quotes
+  )(
+    objTpe: q.reflect.TypeRepr,
+    scE:    Expr[StringContext],
+    argsE:  Expr[Seq[Any]]
+  ): Expr[String] =
+    import q.reflect.*
+
+    def elems(t: TypeRepr): List[TypeRepr] =
+      t.asType match
+        case '[EmptyTuple] => Nil
+        case '[h *: tl]    => TypeRepr.of[h] :: elems(TypeRepr.of[tl])
+        case _             => List(t)
+
+    // Decode a route's `Segs` tuple into an ordered list of literal segments / typed params.
+    def decodeSegs(segs: TypeRepr): List[Either[String, TypeRepr]] =
+      elems(segs).flatMap {
+        // static literal type: may itself contain '/', mirror runtime staticSegments split
+        case ConstantType(StringConstant(lit)) => lit.split('/').filter(_.nonEmpty).toList.map(Left(_))
+        case s                                 =>
+          s.asType match
+            case '[PathParam[n, a]] => List(Right(TypeRepr.of[a]))
+            case _                  => report.errorAndAbort(s"unexpected route segment: ${ s.show }")
+      }
+
+    // Reflect on the routes object `objTpe` and collect every `TypedRoute[P, Segs]` member.
+    val typedRouteClass = Symbol.requiredClass("meltkit.TypedRoute")
+    val routes: List[List[Either[String, TypeRepr]]] =
+      objTpe.typeSymbol.fieldMembers.flatMap { f =>
+        objTpe.memberType(f).widen match
+          case AppliedType(tc, List(_, segs)) if tc.typeSymbol == typedRouteClass => Some(decodeSegs(segs))
+          case _                                                                  => None
+      }
+    if routes.isEmpty then report.errorAndAbort(s"routes object ${ objTpe.show } has no TypedRoute members")
+
+    val parts = scE match
+      case '{ StringContext(${ Varargs(ps) }*) } => ps.toList.map(_.valueOrAbort)
+      case _                                     => report.errorAndAbort("route: literal parts required")
+    val args = argsE match
+      case Varargs(as) => as.toList
+      case _           => report.errorAndAbort("route: explicit args required")
+
+    // A `StringContext` always has one more literal part than it has arguments. Check it
+    // explicitly: the path below is assembled by iterating `args`, so a short argument list
+    // would silently drop every literal part after the first (`"/users/" :: "" :: Nil` with no
+    // args would validate as `/users`, quietly accepting a link the author never wrote).
+    if parts.length != args.length + 1 then
+      report.errorAndAbort(
+        s"route: ${ parts.length } literal part(s) but ${ args.length } argument(s) — " +
+          s"expected ${ parts.length - 1 }. An empty interpolation (`{}`) in the path is the usual cause."
+      )
+
+    // `sb` encodes each argument as a ` <index> ` token so the path can be split into segments
+    // while still telling parameters apart from literal text. `pretty` mirrors it with the
+    // argument's type instead, and is kept verbatim (not rebuilt from the split segments) so the
+    // error message shows the path exactly as written — including a trailing `/`.
+    val sb     = new StringBuilder(parts.head)
+    val pretty = new StringBuilder(parts.head)
+    for i <- args.indices do
+      sb.append(' ').append(i).append(' ').append(parts(i + 1))
+      pretty.append("${").append(args(i).asTerm.tpe.widen.show).append('}').append(parts(i + 1))
+
+    // Only the path is routed: a query string or fragment is not part of any `TypedRoute`, so
+    // `/users?page=2` and `/users#top` must match `/users`. Cut at the first `?` or `#` before
+    // segmenting — an argument renders as ` <digits> `, so neither character can come from one.
+    val full     = sb.toString
+    val cut      = full.indexWhere(c => c == '?' || c == '#')
+    val pathOnly = if cut >= 0 then full.substring(0, cut) else full
+
+    // Empty segments are dropped, so `/users/` matches `/users` — the same normalisation the
+    // server applies when it splits an incoming request path (see `UndertowHttpBinding`).
+    val segs = pathOnly.split('/').toList.filter(_.nonEmpty)
+    def argIdx(tok: String): Option[Int] =
+      if tok.startsWith(" ") && tok.endsWith(" ") then tok.drop(1).dropRight(1).toIntOption else None
+
+    def matches(route: List[Either[String, TypeRepr]]): Boolean =
+      route.length == segs.length && route.zip(segs).forall {
+        case (Left(lit), tok)  => argIdx(tok).isEmpty && lit == tok
+        case (Right(tpe), tok) => argIdx(tok).exists(i => args(i).asTerm.tpe.widen <:< tpe)
+      }
+
+    if !routes.exists(matches) then
+      report.errorAndAbort(s"no route matches '${ pretty.toString }' (unknown path or wrong parameter type)")
+
+    // Build the runtime URL: static parts verbatim, each parameter via its PathParamEncoder
+    // (so custom types serialize correctly — not a bare toString). Segment percent-encoding
+    // is a follow-up (needs a cross-platform URI-component encoder; see design memo §11).
+    val encoded: List[Expr[String]] = args.map { arg =>
+      arg.asTerm.tpe.widen.asType match
+        case '[t] =>
+          Expr.summon[PathParamEncoder[t]] match
+            case Some(enc) => '{ ${ enc }.encode(${ arg.asExprOf[t] }) }
+            case None      =>
+              report.errorAndAbort(s"no PathParamEncoder in scope for ${ arg.asTerm.tpe.widen.show }", arg)
+    }
+    val pieces: List[Expr[String]] =
+      Expr(parts.head) :: encoded.zip(parts.tail).flatMap { case (e, p) => List(e, Expr(p)) }
+    pieces.reduceLeft((a, b) => '{ ${ a } + ${ b } })
