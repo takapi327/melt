@@ -1,0 +1,9 @@
+# meltMode := Some(ZioHttp) selects the zio-http adapter: codegen runs in SSR mode and
+# meltkit + meltkit-adapter-zio-http land on the classpath without being declared.
+
+# The .melt component is generated in SSR mode (no hydration export).
+> meltGenerate
+$ exists target/out/jvm/scala-3.8.4/zio-http-server/src_managed/main/melt/components/App.scala
+
+# Main.scala imports meltkit.adapter.ziohttp, so this only compiles if the plugin added it.
+> compile

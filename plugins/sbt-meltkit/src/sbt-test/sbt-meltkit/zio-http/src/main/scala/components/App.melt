@@ -1,0 +1,7 @@
+<script lang="scala">
+  case class Props(name: String = "world")
+</script>
+
+<main>
+  <h1>Hello {props.name}</h1>
+</main>
