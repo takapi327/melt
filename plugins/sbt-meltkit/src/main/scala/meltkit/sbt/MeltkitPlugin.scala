@@ -36,6 +36,13 @@ object MeltMode:
   /** http4s SSR server (JVM / Node.js) — adds `meltkit-adapter-http4s`. Codegen: `ssr`. */
   case object Http4s extends MeltMode
 
+  /** zio-http SSR server — adds `meltkit-adapter-zio-http`. Codegen: `ssr`.
+    *
+    * JVM only: zio-http's server driver (`netty/server/NettyDriver`) has no Scala.js
+    * counterpart, so setting this on a Scala.js project fails at load time rather than
+    * producing a bundle that cannot serve. */
+  case object ZioHttp extends MeltMode
+
 /** sbt-meltkit plugin
   *
   * Integrates the Meltkit runtime into sbt projects. Requires [[melt.sbt.MeltPlugin]]
@@ -95,6 +102,7 @@ object MeltkitPlugin extends AutoPlugin:
     val Browser: MeltMode = MeltMode.Browser
     val Node:    MeltMode = MeltMode.Node
     val Http4s:  MeltMode = MeltMode.Http4s
+    val ZioHttp: MeltMode = MeltMode.ZioHttp
 
     /** Client sub-project whose Scala.js `fastLinkJS` public modules
       * drive the auto-generated `AssetManifest` object.
@@ -265,6 +273,7 @@ object MeltkitPlugin extends AutoPlugin:
         case Some(MeltMode.Browser) => "spa"
         case Some(MeltMode.Node)    => "ssr"
         case Some(MeltMode.Http4s)  => "ssr"
+        case Some(MeltMode.ZioHttp) => "ssr"
         case None                   => "auto"
     },
     // Browser mode always needs hydration exports; other modes do not
@@ -295,9 +304,16 @@ object MeltkitPlugin extends AutoPlugin:
       if !meltkitManageRuntimeDeps.value then Seq.empty
       else
         val adapter = meltMode.value match
-          case Some(MeltMode.Browser) => Seq(Dependencies.meltkitAdapterBrowser)
-          case Some(MeltMode.Node)    => Seq(Dependencies.meltkitAdapterNode)
-          case Some(MeltMode.Http4s)  => Seq(Dependencies.meltkitAdapterHttp4s)
+          case Some(MeltMode.Browser)                                        => Seq(Dependencies.meltkitAdapterBrowser)
+          case Some(MeltMode.Node)                                           => Seq(Dependencies.meltkitAdapterNode)
+          case Some(MeltMode.Http4s)                                         => Seq(Dependencies.meltkitAdapterHttp4s)
+          case Some(MeltMode.ZioHttp) if hasScalaJSPlugin(thisProject.value) =>
+            throw new MessageOnlyException(
+              "[sbt-meltkit] meltMode := Some(ZioHttp) is not available on Scala.js: zio-http " +
+                "publishes a Scala.js artifact but no server driver for it, so `Server.serve` has " +
+                "no implementation. Use MeltMode.Node or MeltMode.Http4s for a Scala.js server."
+            )
+          case Some(MeltMode.ZioHttp) => Seq(Dependencies.meltkitAdapterZioHttp)
           case None                   => Seq.empty
         Dependencies.meltkit +: adapter
     },
