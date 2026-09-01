@@ -6,16 +6,15 @@
 
 package meltkit.adapter.ziohttp.test
 
-import zio.*
-import zio.http.{ Body, Request, Response as ZResponse, Status, URL }
-import zio.json.{ DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder }
-import zio.test.*
-
 import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpAdapter
 import meltkit.adapter.ziohttp.ZioInstances.given
 import meltkit.adapter.ziohttp.ZioJsonBodyDecoder.given
 import meltkit.adapter.ziohttp.ZioJsonBodyEncoder.given
+import zio.*
+import zio.http.{ Body, Request, Response as ZResponse, Status, URL }
+import zio.json.{ DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder }
+import zio.test.*
 
 /** The zio-json bridges, exercised through a hand-written endpoint.
   *

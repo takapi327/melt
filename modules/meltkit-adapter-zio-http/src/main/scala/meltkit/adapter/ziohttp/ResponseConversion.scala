@@ -6,9 +6,8 @@
 
 package meltkit.adapter.ziohttp
 
-import zio.http.{ Body, Cookie, Header, Headers, MediaType, Response as ZResponse, Status }
-
 import meltkit.{ Response as MeltResponse, ResponseCookie, StreamingResponse }
+import zio.http.{ Body, Cookie, Header, Headers, MediaType, Response as ZResponse, Status }
 
 /** Converts `meltkit`'s transport-neutral [[meltkit.Response]] into a zio-http `Response`. */
 private[ziohttp] object ResponseConversion:
@@ -16,14 +15,14 @@ private[ziohttp] object ResponseConversion:
   /** Maps a Melt response cookie onto zio-http's `Cookie.Response`. */
   def toZioCookie(c: ResponseCookie): Cookie.Response =
     Cookie.Response(
-      name     = c.name,
-      content  = c.value,
-      domain   = c.options.domain,
-      path     = Some(zio.http.Path.decode(c.options.path)),
-      isSecure = c.options.secure,
+      name       = c.name,
+      content    = c.value,
+      domain     = c.options.domain,
+      path       = Some(zio.http.Path.decode(c.options.path)),
+      isSecure   = c.options.secure,
       isHttpOnly = c.options.httpOnly,
-      maxAge   = c.options.maxAge.map(zio.Duration.fromSeconds),
-      sameSite = c.options.sameSite match
+      maxAge     = c.options.maxAge.map(zio.Duration.fromSeconds),
+      sameSite   = c.options.sameSite match
         case "Strict" => Some(Cookie.SameSite.Strict)
         case "Lax"    => Some(Cookie.SameSite.Lax)
         case "None"   => Some(Cookie.SameSite.None)
@@ -38,9 +37,9 @@ private[ziohttp] object ResponseConversion:
     */
   def toZioResponse(r: MeltResponse): ZResponse =
     val status = Status.fromInt(r.status)
-    val body = r match
+    val body   = r match
       case StreamingResponse(_, _, b: ZStreamBody, _, _) => Body.fromStreamChunked(b.stream)
-      case _                                            => Body.fromString(r.body)
+      case _                                             => Body.fromString(r.body)
 
     val contentType =
       Header.ContentType(MediaType.forContentType(r.contentType).getOrElse(MediaType.text.plain))

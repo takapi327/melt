@@ -6,10 +6,9 @@
 
 package meltkit.adapter.ziohttp
 
-import zio.json.{ DecoderOps, JsonDecoder }
-
 import meltkit.codec.BodyDecoder
 import meltkit.BodyError
+import zio.json.{ DecoderOps, JsonDecoder }
 
 /** Supplies a [[meltkit.codec.BodyDecoder]] for any type with a zio-json `JsonDecoder`.
   *

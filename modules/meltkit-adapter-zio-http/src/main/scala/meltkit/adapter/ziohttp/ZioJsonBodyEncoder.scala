@@ -6,9 +6,8 @@
 
 package meltkit.adapter.ziohttp
 
-import zio.json.{ EncoderOps, JsonEncoder }
-
 import meltkit.codec.BodyEncoder
+import zio.json.{ EncoderOps, JsonEncoder }
 
 /** Supplies a [[meltkit.codec.BodyEncoder]] for any type with a zio-json `JsonEncoder`, so
   * `ctx.ok(value)` / `ctx.created(value)` can return it as JSON.

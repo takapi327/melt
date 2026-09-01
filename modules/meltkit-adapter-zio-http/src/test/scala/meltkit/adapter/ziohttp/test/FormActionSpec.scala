@@ -9,10 +9,6 @@ package meltkit.adapter.ziohttp.test
 import java.io.File
 import java.nio.file.Files
 
-import zio.*
-import zio.http.{ Body, Header, Request, Response as ZResponse, Status, URL }
-import zio.test.*
-
 import melt.runtime.json.PropsCodec
 import melt.runtime.render.RenderResult
 
@@ -20,6 +16,9 @@ import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpAdapter
 import meltkit.adapter.ziohttp.ZioInstances.given
 import meltkit.codec.FormDataDecoder
+import zio.*
+import zio.http.{ Body, Header, Request, Response as ZResponse, Status, URL }
+import zio.test.*
 
 /** Form actions (`app.page`) over the zio-http adapter.
   *
@@ -56,7 +55,8 @@ object FormActionSpec extends ZIOSpecDefault:
     a.page("login")(
       render = (_, form: Option[LoginForm]) =>
         val errors = form.toList.flatMap(_.errors).map(e => s"<p class=\"error\">$e</p>").mkString
-        RenderResult(body = s"<form method=\"post\">$errors</form>", head = ""),
+        RenderResult(body = s"<form method=\"post\">$errors</form>", head = "")
+      ,
       action = ctx =>
         ctx.body.form[LoginForm].map {
           case Right(f) if !f.email.contains("@") =>
@@ -67,7 +67,7 @@ object FormActionSpec extends ZIOSpecDefault:
     )
 
     a.page("posts")(
-      render = (_, form: Option[LoginForm]) => RenderResult(body = "<form method=\"post\"></form>", head = ""),
+      render  = (_, form: Option[LoginForm]) => RenderResult(body = "<form method=\"post\"></form>", head = ""),
       actions = {
         case ("save", ctx)    => ctx.body.form[LoginForm].map(_ => ActionResult.Redirect("/result/draft"))
         case ("publish", ctx) => ctx.body.form[LoginForm].map(_ => ActionResult.Redirect("/result/published"))

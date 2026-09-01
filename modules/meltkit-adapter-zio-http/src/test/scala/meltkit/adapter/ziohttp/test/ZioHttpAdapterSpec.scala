@@ -9,14 +9,13 @@ package meltkit.adapter.ziohttp.test
 import java.io.File
 import java.nio.file.Files
 
-import zio.*
-import zio.http.{ Method, Request, Response as ZResponse, Status, URL }
-import zio.test.*
-
 import melt.runtime.render.RenderResult
 
 import meltkit.*
 import meltkit.adapter.ziohttp.{ ZioHttpAdapter, ZioInstances }
+import zio.*
+import zio.http.{ Method, Request, Response as ZResponse, Status, URL }
+import zio.test.*
 import ZioInstances.given
 
 /** Request dispatch through the adapter, exercised without starting a server.
@@ -113,7 +112,7 @@ object ZioHttpAdapterSpec extends ZIOSpecDefault:
           app.get("api/ping") { ctx => ZIO.succeed(ctx.text("pong")) }
 
           for
-            routes   <- ZioHttpAdapter.ssrRoutes(app, dist, ViteManifest.empty)
+            routes  <- ZioHttpAdapter.ssrRoutes(app, dist, ViteManifest.empty)
             root    <- run(routes, get("/"))
             api     <- run(routes, get("/api/ping"))
             asset   <- run(routes, get("/app.js"))
@@ -135,7 +134,7 @@ object ZioHttpAdapterSpec extends ZIOSpecDefault:
           val app = MeltKit[App]()
           for
             routes <- ZioHttpAdapter.ssrRoutes(app, dist, ViteManifest.empty)
-            res <- run(routes, get("/../../etc/passwd"))
+            res    <- run(routes, get("/../../etc/passwd"))
           yield assertTrue(res.status == Status.NotFound)
         }
       }

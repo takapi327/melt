@@ -6,20 +6,18 @@
 
 package meltkit.adapter.ziohttp
 
-import scala.NamedTuple.AnyNamedTuple
-
 import java.io.File
 
-import zio.ZIO
-import zio.http.codec.PathCodec.trailing
-import zio.http.{ handler, Handler, Method, Path, Request, Response as ZResponse, Routes, Status }
+import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
 import meltkit.*
 import meltkit.codec.BodyDecoder
 import meltkit.exceptions.BodyDecodeException
-
+import zio.http.{ handler, Handler, Method, Path, Request, Response as ZResponse, Routes, Status }
+import zio.http.codec.PathCodec.trailing
+import zio.ZIO
 import ZioInstances.ZTask
 
 /** Serves a [[meltkit.MeltKit]] router over zio-http.
@@ -102,7 +100,7 @@ object ZioHttpAdapter:
     basePath:      String,
     clientDistDir: Option[File],
     cspConfig:     Option[CspConfig] = None,
-    routerEntry:   Option[String] = None
+    routerEntry:   Option[String]    = None
   )
 
   private object Ssr:
@@ -178,7 +176,12 @@ object ZioHttpAdapter:
     val corsPreflight: Option[ZResponse] = corsCfg.collect {
       case cfg if Cors.isPreflight(RequestAdapters.corsView(request)) =>
         ResponseConversion.toZioResponse(
-          PlainResponse(204, "text/plain; charset=utf-8", "", Cors.preflightHeaders(cfg, RequestAdapters.corsView(request)))
+          PlainResponse(
+            204,
+            "text/plain; charset=utf-8",
+            "",
+            Cors.preflightHeaders(cfg, RequestAdapters.corsView(request))
+          )
         )
     }
 
@@ -218,8 +221,8 @@ object ZioHttpAdapter:
           }
       }
 
-    val event   = RequestAdapters.requestEvent[R](request, locals)
-    val hooked  = RequestAdapters.runHooks(app.hooks, event, effect)
+    val event  = RequestAdapters.requestEvent[R](request, locals)
+    val hooked = RequestAdapters.runHooks(app.hooks, event, effect)
 
     val rendered = withCsp(withCors(hooked))
       .map(ResponseConversion.toZioResponse)
@@ -254,7 +257,7 @@ object ZioHttpAdapter:
       case e: BodyDecodeException => ZIO.succeed(Response.badRequest(e.error.message))
       case e                      =>
         app.errorHandler match
-          case None => ZIO.fail(e)
+          case None             => ZIO.fail(e)
           case Some(errHandler) =>
             val errorCtx = factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])
             ZIO

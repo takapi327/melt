@@ -6,16 +6,15 @@
 
 package meltkit.adapter.ziohttp.test
 
-import zio.*
-import zio.test.*
-
 import melt.runtime.render.{ RenderResult, ServerRenderer }
 import melt.runtime.Async
 
 import meltkit.*
-import meltkit.adapter.ziohttp.{ ZioHttpMeltContext, ZStreamBody }
+import meltkit.adapter.ziohttp.{ ZStreamBody, ZioHttpMeltContext }
 import meltkit.adapter.ziohttp.ZioInstances.given
 import meltkit.codec.BodyDecoder
+import zio.*
+import zio.test.*
 
 /** Async and streaming SSR (`<melt:await>`) through the zio-http context.
   *
@@ -100,7 +99,10 @@ object RenderStreamSpec extends ZIOSpecDefault:
       // incremental flush while still looking correct in the collected output.
       val ctx = ctxWith(appWithList)
       ctx.renderStream(awaitShell(list())).map { res =>
-        assertTrue(res.isInstanceOf[StreamingResponse], res.asInstanceOf[StreamingResponse].stream.isInstanceOf[ZStreamBody])
+        assertTrue(
+          res.isInstanceOf[StreamingResponse],
+          res.asInstanceOf[StreamingResponse].stream.isInstanceOf[ZStreamBody]
+        )
       }
     },
     test("renderStream flushes the shell first, then the swap chunk, then one tail seed") {

@@ -6,9 +6,8 @@
 
 package meltkit.adapter.ziohttp
 
-import zio.stream.ZStream
-
 import meltkit.StreamBody
+import zio.stream.ZStream
 
 /** Carries the byte stream of a streaming-SSR response for the zio-http adapter.
   *

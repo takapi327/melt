@@ -6,11 +6,9 @@
 
 package meltkit.adapter.ziohttp
 
-import zio.ZIO
-import zio.http.Request
-
 import meltkit.*
-
+import zio.http.Request
+import zio.ZIO
 import ZioInstances.ZTask
 
 /** Views a zio-http `Request` through the transport-neutral interfaces `meltkit` hooks and CORS

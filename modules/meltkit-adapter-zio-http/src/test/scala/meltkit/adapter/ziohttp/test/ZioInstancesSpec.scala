@@ -6,11 +6,10 @@
 
 package meltkit.adapter.ziohttp.test
 
+import meltkit.adapter.ziohttp.ZioInstances
 import zio.*
 import zio.test.*
 import zio.test.Assertion.*
-
-import meltkit.adapter.ziohttp.ZioInstances
 import ZioInstances.given
 
 /** The effect type-class bridges, with `Recover` under the most load.

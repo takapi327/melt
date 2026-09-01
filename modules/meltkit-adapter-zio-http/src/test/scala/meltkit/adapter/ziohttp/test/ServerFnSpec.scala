@@ -6,14 +6,13 @@
 
 package meltkit.adapter.ziohttp.test
 
-import zio.*
-import zio.http.{ Body, Request, Response as ZResponse, Status, URL }
-import zio.test.*
-
 import melt.runtime.json.PropsCodec
 
 import meltkit.*
 import meltkit.adapter.ziohttp.{ ZioHttpAdapter, ZioInstances }
+import zio.*
+import zio.http.{ Body, Request, Response as ZResponse, Status, URL }
+import zio.test.*
 import ZioInstances.given
 
 /** Server Functions over the zio-http adapter.
@@ -31,7 +30,7 @@ object ServerFnSpec extends ZIOSpecDefault:
   private type App[A] = ZIO[Env, Throwable, A]
 
   private trait PostStore:
-    def all: UIO[List[Post]]
+    def all:           UIO[List[Post]]
     def like(id: Int): UIO[Post]
 
   private val storeLayer: ULayer[PostStore] =

@@ -8,19 +8,18 @@ package server
 
 import java.io.File
 
-import zio.*
-import zio.http.Server
-
 import components.App
 import generated.AssetManifest
 import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpAdapter
 import meltkit.adapter.ziohttp.ZioInstances.given
+import zio.*
+import zio.http.Server
 
 /** A service resolved from the ZIO environment inside route handlers. */
 trait Greeter:
-  def greet:      UIO[String]
-  def nextVisit:  UIO[Int]
+  def greet:     UIO[String]
+  def nextVisit: UIO[Int]
 
 object Greeter:
   val live: ULayer[Greeter] =

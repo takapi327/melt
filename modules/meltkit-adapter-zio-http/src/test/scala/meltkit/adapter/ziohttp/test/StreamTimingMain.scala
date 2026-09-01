@@ -9,15 +9,14 @@ package meltkit.adapter.ziohttp.test
 import java.io.File
 import java.nio.file.Files
 
-import zio.*
-import zio.http.Server
-
 import melt.runtime.render.{ RenderResult, ServerRenderer }
 import melt.runtime.Async
 
 import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpAdapter
 import meltkit.adapter.ziohttp.ZioInstances.given
+import zio.*
+import zio.http.Server
 
 /** A real zio-http server whose single page has three `<melt:await>` boundaries resolving at
   * staggered delays, used to measure when each chunk actually reaches a client socket.

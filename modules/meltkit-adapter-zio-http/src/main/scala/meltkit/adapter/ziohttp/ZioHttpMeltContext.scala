@@ -6,21 +6,19 @@
 
 package meltkit.adapter.ziohttp
 
-import scala.NamedTuple.AnyNamedTuple
 import scala.util.NotGiven
-
-import zio.stream.ZStream
-import zio.{ Ref, ZIO }
-import zio.http.Request
+import scala.NamedTuple.AnyNamedTuple
 
 import melt.runtime.render.RenderResult
 
 import meltkit.*
 import meltkit.codec.{ BodyDecoder, BodyEncoder, FormDataDecoder }
 import meltkit.exceptions.BodyDecodeException
-
-import ZioInstances.ZTask
+import zio.{ Ref, ZIO }
+import zio.http.Request
+import zio.stream.ZStream
 import ZioInstances.given
+import ZioInstances.ZTask
 
 /** zio-http implementation of [[meltkit.ServerMeltContext]].
   *
@@ -46,13 +44,13 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
   private val request:     Request,
   private val bodyDecoder: BodyDecoder[B],
   private val _locals:     Locals,
-  private val templateOpt: Option[Template] = None,
-  private val manifest:    ViteManifest = ViteManifest.empty,
-  private val lang:        String = "en",
-  private val basePath:    String = "",
-  private val nonce:       Option[String] = None,
+  private val templateOpt: Option[Template]                        = None,
+  private val manifest:    ViteManifest                            = ViteManifest.empty,
+  private val lang:        String                                  = "en",
+  private val basePath:    String                                  = "",
+  private val nonce:       Option[String]                          = None,
   private val app:         Option[ServerMeltKitPlatform[ZTask[R]]] = None,
-  private val routerEntry: Option[String] = None
+  private val routerEntry: Option[String]                          = None
 ) extends ServerMeltContext[ZTask[R], P, B, RenderResult]:
 
   def requestPath: String = request.path.encode
@@ -172,7 +170,7 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
                   ZStream
                     .fromZIO(Ref.make(List.empty[(String, String)]))
                     .flatMap { seedRef =>
-                      val headS = ZStream.succeed(head + SsrRenderScope.streamSwapBootstrap(nonce))
+                      val headS  = ZStream.succeed(head + SsrRenderScope.streamSwapBootstrap(nonce))
                       val chunkS = ZStream
                         .fromIterable(pending)
                         .mapZIOParUnordered(ZioHttpMeltContext.streamConcurrency) { s =>
@@ -198,7 +196,7 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
     component: => RenderResult
   ): (RenderResult, SsrRenderScope[ZTask[R]]) =
     val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[ZTask[R], PathSpec.Empty, Any, RenderResult]])
-    val wrap = new SsrRenderScope.BranchWrap:
+    val wrap    = new SsrRenderScope.BranchWrap:
       def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
     SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
 
