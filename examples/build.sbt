@@ -351,6 +351,16 @@ lazy val `form-actions` = project
     )
   )
 
+// ── Example: SSR + Hydration on zio-http (MeltkitAppPlugin) ──────────────────
+// `MeltServerAdapter.ZioHttp` derives a JVM backend on zio-http. The handlers keep
+// ZIO's environment — `MeltKit` is instantiated at `[A] =>> ZIO[Env, Throwable, A]` —
+// so `ZIO.service` / `ZLayer` work inside them.
+lazy val `zio-http-ssr` = project
+  .in(file("zio-http-ssr"))
+  .enablePlugins(MeltkitAppPlugin)
+  .autoAggregate
+  .backendSettings(meltkitServerAdapter := MeltServerAdapter.ZioHttp)
+
 // ── Example: Type-safe Server Functions (query/command/single-flight/optimistic) ─
 //
 //   sbt "server-functions/run"
@@ -524,6 +534,7 @@ lazy val root = project
     `node-ssr-server`,
     `jdk-ssr-server`,
     `meltkit-app`,
+    `zio-http-ssr`,
     `form-actions`,
     `server-functions`,
     `nested-layouts`.jvm,
