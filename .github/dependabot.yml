@@ -24,6 +24,15 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+    # TypeScript is held at 5.x. packages/vite-plugin builds its .d.ts with
+    # `tsup --dts`, which bundles rollup-plugin-dts 6.x; that reads TypeScript
+    # internals removed in 7.0 and dies with "Cannot read properties of
+    # undefined (reading 'useCaseSensitiveFileNames')". tsup's peer range is
+    # >=4.5.0, so nothing stops the install — only the build fails. Drop this
+    # once tsup ships a TypeScript 7 compatible dts pipeline.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # VS Code extension — standalone npm project, not part of the pnpm workspace.
   - package-ecosystem: "npm"

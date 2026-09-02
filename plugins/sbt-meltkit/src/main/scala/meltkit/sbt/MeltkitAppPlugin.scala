@@ -87,6 +87,17 @@ object MeltBuildMode:
   * The Melt components in `frontend/` are therefore compiled twice — once to JS
   * (hydration) and once inside the backend (SSR) — which is exactly the crossProject
   * this plugin removes the boilerplate for.
+  *
+  * ==Working directory==
+  *
+  * The backend forks `Compile / run` and points it at `backend/`. This is load-bearing rather
+  * than cosmetic: `ServerConfig`'s `outputDir` / `publicDir` / `assetsDir` resolve against the
+  * process working directory, and a relative `assetsDir` such as `"../frontend/dist/assets"`
+  * only resolves from `backend/`. Both halves are needed — sbt defaults `run / baseDirectory`
+  * to the *build root*, not the project, so forking alone still starts one level too high.
+  * `runMain` shares the `run` scope's runner, so it inherits both. Get this wrong and an SSG
+  * run writes its output to the wrong directory and silently skips `public/` and the Vite
+  * assets: no error, just a site with no CSS.
   */
 object MeltkitAppPlugin extends AutoPlugin:
 
@@ -239,8 +250,9 @@ object MeltkitAppPlugin extends AutoPlugin:
         Project(id = proj.id + "-backend", base = base / "backend")
           .enablePlugins(MeltkitPlugin)
           .settings(
-            run / fork := true,
-            meltMode   := (meltkitServerAdapter.value match
+            Compile / run / fork          := true,
+            Compile / run / baseDirectory := baseDirectory.value,
+            meltMode                      := (meltkitServerAdapter.value match
               case MeltServerAdapter.Http4s   => Some(MeltMode.Http4s)
               case MeltServerAdapter.ZioHttp  => Some(MeltMode.ZioHttp)
               case MeltServerAdapter.Undertow => None),
