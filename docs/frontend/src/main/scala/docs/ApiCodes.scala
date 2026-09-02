@@ -130,7 +130,8 @@ object ApiCodes:
        |
        |// Pick your adapter:
        |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-browser" % "0.1.0-SNAPSHOT"  // Scala.js
-       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0-SNAPSHOT"  // JVM / Node""".stripMargin
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-http4s"  % "0.1.0-SNAPSHOT"  // JVM / Node
+       |libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-zio-http" % "0.1.0-SNAPSHOT"  // JVM (ZIO)""".stripMargin
 
   val meltkitRoutes: String =
     """|import meltkit.*

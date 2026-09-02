@@ -349,7 +349,7 @@ object ApiI18n:
     meltkit = ApiMeltkit(
       title = "MeltKit",
       lead  =
-        "MeltKit is Melt's server framework — a type-safe routing DSL and request/response model that works on both Node.js and the JVM via http4s. It handles SSR, API routes, and static file serving.",
+        "MeltKit is Melt's server framework — a type-safe routing DSL and request/response model that works on both Node.js and the JVM via http4s or zio-http. It handles SSR, API routes, and static file serving.",
       scala38Note =
         "Requires Scala 3.8+ — MeltKit uses NamedTuple for type-safe path parameters, which requires Scala 3.8 or later.",
       installH2      = "Installation",
@@ -600,7 +600,7 @@ object ApiI18n:
     meltkit = ApiMeltkit(
       title = "MeltKit",
       lead  =
-        "MeltKit は Melt のサーバーフレームワークです。型安全なルーティング DSL とリクエスト/レスポンスモデルを提供し、Node.js と JVM (http4s 経由) の両方で動作します。SSR、API ルート、静的ファイル配信を処理します。",
+        "MeltKit は Melt のサーバーフレームワークです。型安全なルーティング DSL とリクエスト/レスポンスモデルを提供し、Node.js と JVM (http4s / zio-http 経由) の両方で動作します。SSR、API ルート、静的ファイル配信を処理します。",
       scala38Note       = "Scala 3.8 以上が必要です — MeltKit は型安全なパスパラメータに NamedTuple を使用しています。Scala 3.8 以降が必要です。",
       installH2         = "インストール",
       routesH2          = "ルート定義",

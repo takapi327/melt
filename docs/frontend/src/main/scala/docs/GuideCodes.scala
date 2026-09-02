@@ -912,6 +912,35 @@ object GuideCodes:
        |  .build
        |  .useForever""".stripMargin
 
+  val adaptersZioDep: String =
+    """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-zio-http" % "0.1.0-SNAPSHOT""""
+
+  val adaptersZioSetup: String =
+    """|import meltkit.*
+       |import meltkit.adapter.ziohttp.ZioHttpAdapter
+       |import meltkit.adapter.ziohttp.ZioInstances.given
+       |import zio.*
+       |import zio.http.Server
+       |
+       |// ZIO is ZIO[R, E, A] while MeltKit takes one type parameter, so the
+       |// environment is kept by passing ZIO as a type lambda. This is the only
+       |// line your app adds; `ZLayer` DI keeps working inside handlers.
+       |type Env    = Greeter
+       |type App[A] = ZIO[Env, Throwable, A]
+       |
+       |val app = MeltKit[App]()
+       |
+       |app.get("") { ctx =>
+       |  ZIO.serviceWithZIO[Greeter](_.greet).map(g => ctx.render(Home(Home.Props(greeting = g))))
+       |}
+       |
+       |object Main extends ZIOAppDefault:
+       |  def run =
+       |    ZioHttpAdapter
+       |      .ssrRoutes(app, new File(AssetManifest.clientDistDir), AssetManifest.manifest)
+       |      .flatMap(Server.serve)
+       |      .provide(Server.defaultWithPort(8080), Greeter.live)""".stripMargin
+
   val adaptersNodeDep: String =
     """libraryDependencies += "io.github.takapi327" %% "meltkit-adapter-node" % "0.1.0-SNAPSHOT""""
 

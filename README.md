@@ -24,6 +24,7 @@ Melt は **フルスタックな Web アプリを 1 つの `.melt` ファイル�
 | **Server Functions（型付き RPC）** | [server-functions](examples/server-functions) |
 | **静的サイト（SSG）** | [nested-layouts](examples/nested-layouts)・この docs サイト自体 |
 | **Node.js サーバー** | [node-ssr](examples/node-ssr) |
+| **zio-http（ZIO エコシステム）** | [zio-http-ssr](examples/zio-http-ssr) |
 | **Todo / CRUD** | [todo-app](examples/todo-app) |
 
 （全サンプルは [サンプル](#サンプル) を参照）
@@ -262,6 +263,7 @@ Ok(html.body)
 | [form-actions](examples/form-actions) | フォーム / Server Actions |
 | [server-functions](examples/server-functions) | Server Functions（型付き RPC） |
 | [server-env](examples/server-env) | サーバー環境変数 |
+| [zio-http-ssr](examples/zio-http-ssr) | zio-http で SSR + Hydration（ZLayer DI） |
 
 ### npm ライブラリ連携・可視化
 

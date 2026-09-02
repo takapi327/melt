@@ -27,4 +27,8 @@ trait Dependencies:
   val meltkitAdapterNode    = component("meltkit-adapter-node")
   val meltkitAdapterHttp4s  = component("meltkit-adapter-http4s")
 
+  /** JVM only — zio-http ships no server driver for Scala.js, so this must never be added to a
+    * Scala.js project (see `MeltMode.ZioHttp`). */
+  val meltkitAdapterZioHttp = component("meltkit-adapter-zio-http")
+
 object Dependencies extends Dependencies

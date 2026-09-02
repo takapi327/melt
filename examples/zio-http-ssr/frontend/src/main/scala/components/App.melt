@@ -1,0 +1,116 @@
+<script lang="scala">
+  case class Props(greeting: String = "", visitors: Int = 0)
+
+  val count = State(0)
+</script>
+
+<main class="page">
+  <div class="card">
+    <h1>
+      {props.greeting}
+    </h1>
+    <p class="hint">
+      Rendered on the server by zio-http, hydrated in the browser. The greeting and the visitor count came from a <code>ZLayer</code> service, read inside the route handler with <code>ZIO.serviceWithZIO</code>.
+    </p>
+    <p class="visitors">
+      Visitor #{props.visitors}
+    </p>
+    <div class="counter">
+      <button onclick={_ => count -= 1}>
+        −
+      </button>
+      <span class="value">
+        {count}
+      </span>
+      <button class="primary" onclick={_ => count += 1}>
+        +
+      </button>
+    </div>
+  </div>
+</main>
+
+<style>
+  .page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    font-family: system-ui, sans-serif;
+    margin: 0;
+  }
+
+  .card {
+    width: 24rem;
+    padding: 2rem;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.5rem;
+    color: #dc2626;
+  }
+
+  .hint {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #64748b;
+  }
+
+  code {
+    background: #f1f5f9;
+    border-radius: 0.25rem;
+    padding: 0 0.25rem;
+  }
+
+  .visitors {
+    margin: 0 0 1.5rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+
+  .counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  button {
+    height: 3rem;
+    width: 3rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #f1f5f9;
+  }
+
+  button.primary {
+    border-color: transparent;
+    background: #f43f5e;
+    color: #fff;
+  }
+
+  button.primary:hover {
+    background: #e11d48;
+  }
+
+  .value {
+    min-width: 3ch;
+    font-size: 3rem;
+    font-weight: 900;
+    color: #1e293b;
+  }
+</style>

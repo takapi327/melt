@@ -26,6 +26,9 @@ object MeltServerAdapter:
   /** http4s adapter (`meltkit-adapter-http4s`), `MeltKit[IO]`. JVM. */
   case object Http4s extends MeltServerAdapter
 
+  /** zio-http adapter (`meltkit-adapter-zio-http`), `MeltKit[[A] =>> ZIO[R, Throwable, A]]`. JVM. */
+  case object ZioHttp extends MeltServerAdapter
+
 /** Scala.js linking mode used by `root/run`. */
 sealed abstract class MeltBuildMode
 object MeltBuildMode:
@@ -239,6 +242,7 @@ object MeltkitAppPlugin extends AutoPlugin:
             run / fork := true,
             meltMode   := (meltkitServerAdapter.value match
               case MeltServerAdapter.Http4s   => Some(MeltMode.Http4s)
+              case MeltServerAdapter.ZioHttp  => Some(MeltMode.ZioHttp)
               case MeltServerAdapter.Undertow => None),
             meltCodegenMode            := "ssr",
             meltkitAssetManifestClient := Some(LocalProject(frontend.id)),

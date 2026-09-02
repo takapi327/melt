@@ -78,21 +78,21 @@ case class GuideQuickStart(
   lead:          String,
   templateH3:    String,
   templateIntro: String,
-  step1H3:      String,
-  step1Text:    String,
-  step1Link:    String,
-  step2H3:      String,
-  step2Intro:   String,
-  step2Outro:   Option[String],
-  step3H3:      String,
-  step3Intro:   String,
-  step4H3:      String,
-  step5H3:      String,
-  step5Intro:   String,
-  step5Outro:   String,
-  noSetupTitle: String,
-  noSetupText:  String,
-  noSetupLink:  String
+  step1H3:       String,
+  step1Text:     String,
+  step1Link:     String,
+  step2H3:       String,
+  step2Intro:    String,
+  step2Outro:    Option[String],
+  step3H3:       String,
+  step3Intro:    String,
+  step4H3:       String,
+  step5H3:       String,
+  step5Intro:    String,
+  step5Outro:    String,
+  noSetupTitle:  String,
+  noSetupText:   String,
+  noSetupLink:   String
 )
 
 // ── Components ────────────────────────────────────────────────────────────────
@@ -487,6 +487,10 @@ case class GuideAdapters(
   lead:         String,
   http4sH2:     String,
   http4sIntro:  String,
+  zioH2:        String,
+  zioIntro:     String,
+  zioNoteTitle: String,
+  zioNoteText:  String,
   nodeH2:       String,
   nodeIntro:    String,
   browserH2:    String,
@@ -502,6 +506,8 @@ case class GuideAdapters(
   choiceLi2Kit: Option[String],
   choiceLi3Pre: Option[String],
   choiceLi3Kit: Option[String],
+  choiceLi4Pre: Option[String],
+  choiceLi4Kit: Option[String],
   multiTitle:   Option[String],
   multiText:    Option[String]
 )
@@ -729,10 +735,9 @@ object GuideI18n:
     quickStart = GuideQuickStart(
       lead          = "This guide builds a reactive counter from zero to running in under 5 minutes.",
       templateH3    = "Scaffold from the template",
-      templateIntro =
-        "The fastest path: generate a full-stack app (Scala.js frontend + JVM SSR backend) from the " +
-          "takapi327/melt.g8 Giter8 template, then run it — a single enablePlugins(MeltkitAppPlugin) " +
-          "wires everything.",
+      templateIntro = "The fastest path: generate a full-stack app (Scala.js frontend + JVM SSR backend) from the " +
+        "takapi327/melt.g8 Giter8 template, then run it — a single enablePlugins(MeltkitAppPlugin) " +
+        "wires everything.",
       step1H3    = "Create the project",
       step1Text  = "Start from the Melt counter example or create a minimal sbt project with the plugin enabled (see ",
       step1Link  = "Installation",
@@ -1191,8 +1196,14 @@ object GuideI18n:
     adapters = GuideAdapters(
       lead =
         "MeltKit adapters connect your app to a specific runtime environment. Choose the adapter that matches your deployment target.",
-      http4sH2     = "http4s (JVM + Scala.js)",
-      http4sIntro  = "The meltkit-adapter-http4s module integrates MeltKit with http4s for production JVM deployments:",
+      http4sH2    = "http4s (JVM + Scala.js)",
+      http4sIntro = "The meltkit-adapter-http4s module integrates MeltKit with http4s for production JVM deployments:",
+      zioH2       = "zio-http (JVM)",
+      zioIntro    =
+        "The meltkit-adapter-zio-http module runs MeltKit on zio-http. MeltKit takes a unary type constructor while ZIO is ZIO[R, E, A], so you keep the environment by passing ZIO as a type lambda — one line in your app, and ZLayer DI works inside handlers as usual. SSR, hydration, Server Functions, form actions, streaming SSR, and SSG all work unchanged. Bodies are decoded with zio-json.",
+      zioNoteTitle = "JVM only",
+      zioNoteText  =
+        "zio-http publishes a Scala.js artifact, but its server driver has no Scala.js counterpart, so this adapter is JVM-only. Setting it on a Scala.js project fails at build load time rather than producing a bundle that cannot serve.",
       nodeH2       = "Node.js",
       nodeIntro    = "Deploy to Node.js with meltkit-adapter-node:",
       browserH2    = "Browser (SPA)",
@@ -1205,10 +1216,12 @@ object GuideI18n:
       choiceH2     = Some("Choosing an Adapter"),
       choiceLi1Pre = Some("Already using http4s → "),
       choiceLi1Kit = Some("meltkit-adapter-http4s"),
-      choiceLi2Pre = Some("Want to run on the Node.js ecosystem → "),
-      choiceLi2Kit = Some("meltkit-adapter-node"),
-      choiceLi3Pre = Some("Building a serverless SPA → "),
-      choiceLi3Kit = Some("meltkit-adapter-browser"),
+      choiceLi2Pre = Some("Already using ZIO → "),
+      choiceLi2Kit = Some("meltkit-adapter-zio-http"),
+      choiceLi3Pre = Some("Want to run on the Node.js ecosystem → "),
+      choiceLi3Kit = Some("meltkit-adapter-node"),
+      choiceLi4Pre = Some("Building a serverless SPA → "),
+      choiceLi4Kit = Some("meltkit-adapter-browser"),
       multiTitle   = Some("Combining Multiple Adapters"),
       multiText    = Some(
         "You can also switch by environment — for example, start quickly with the Node.js adapter during development and deploy to http4s in production."
@@ -1318,10 +1331,10 @@ object GuideI18n:
         "The body is a { case Async.Done(x) => … } partial function (the same match you would write for a query's Async state); <melt:pending> supplies the Loading fallback, so you need not write a Loading arm. The value is a Query — a server function called with no manual seed.",
       serverH2    = "Rendering with renderAsync",
       serverIntro =
-        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, Node, and JVM (Undertow) server adapters, and static generation (SSG) resolves the same boundaries at build time — baking the data straight into the HTML.",
+        "Render the page with ctx.renderAsync instead of ctx.render. It evaluates the shell, resolves every <melt:await> query through the app's app.serve registry (the same in-process path single-flight uses), splices each resolved branch over its marker, and returns F[Response]. A page with no boundary behaves exactly like ctx.render. renderAsync is available on the http4s, zio-http, Node, and JVM (Undertow) server adapters, and static generation (SSG) resolves the same boundaries at build time — baking the data straight into the HTML.",
       streamingH2    = "Streaming with renderStream",
       streamingIntro =
-        "ctx.renderStream sends the shell — with each boundary's <melt:pending> fallback — immediately for a fast first paint, then streams each resolved branch as a chunk the client swaps over its fallback (React 18 renderToPipeableStream-style). It is implemented on all three server adapters — http4s, Node.js, and JVM (Undertow). Boundaries resolve concurrently and each chunk flushes as soon as it settles (out-of-order — a slow boundary never delays a faster one). The final DOM and hydration seed are identical to renderAsync, so you write the same <melt:await> and only change the call. A page with no boundary falls back transparently to a single blocking response, as does static generation (SSG), which always resolves at build time.",
+        "ctx.renderStream sends the shell — with each boundary's <melt:pending> fallback — immediately for a fast first paint, then streams each resolved branch as a chunk the client swaps over its fallback (React 18 renderToPipeableStream-style). It is implemented on every server adapter — http4s, zio-http, Node.js, and JVM (Undertow). Boundaries resolve concurrently and each chunk flushes as soon as it settles (out-of-order — a slow boundary never delays a faster one). The final DOM and hydration seed are identical to renderAsync, so you write the same <melt:await> and only change the call. A page with no boundary falls back transparently to a single blocking response, as does static generation (SSG), which always resolves at build time.",
       streamingNote =
         "Streaming needs JS on the client for the swap, so blocking renderAsync remains the SEO-safe default; reach for renderStream when the slowest boundary would otherwise delay the whole page (TTFB). The server-functions example's /stream route shows it end to end (curl -N to watch the chunks arrive). Per-boundary progressive hydration is planned.",
       seedH2    = "Hydration without a refetch",
@@ -1335,7 +1348,7 @@ object GuideI18n:
         "A <melt:await> must sit outside any reactive region — a conditional, a list, <melt:key>, or {#snippet} — so its server-rendered marker stays stable for hydration; the compiler enforces this. Nesting one inside another await's branch is allowed (the inner boundary resolves in a later round); place it in an element rather than inside a conditional or list within the branch.",
       httpOnlyTitle = "Server adapters",
       httpOnlyText  =
-        "Blocking async SSR is implemented by the http4s, Node, and JVM (Undertow) server adapters. The JVM built-in server resolves queries synchronously (its SyncRunner), so a query with a truly asynchronous implementation should run on the http4s or Node adapter. ctx.render (with a seeded prop) works everywhere."
+        "Blocking async SSR is implemented by the http4s, zio-http, Node, and JVM (Undertow) server adapters. The JVM built-in server resolves queries synchronously (its SyncRunner), so a query with a truly asynchronous implementation should run on the http4s, zio-http, or Node adapter. ctx.render (with a seeded prop) works everywhere."
     ),
     serverEnv = GuideServerEnv(
       lead =
@@ -1449,10 +1462,9 @@ object GuideI18n:
     quickStart = GuideQuickStart(
       lead          = "このガイドでは、カウンターコンポーネントを 5 分以内でゼロから動かすところまで解説します。",
       templateH3    = "テンプレートから生成する",
-      templateIntro =
-        "最短経路です。takapi327/melt.g8 の Giter8 テンプレートからフルスタックアプリ" +
-          "（Scala.js フロントエンド + JVM SSR バックエンド）を生成してそのまま起動できます。" +
-          "enablePlugins(MeltkitAppPlugin) 1 行ですべてが結線されます。",
+      templateIntro = "最短経路です。takapi327/melt.g8 の Giter8 テンプレートからフルスタックアプリ" +
+        "（Scala.js フロントエンド + JVM SSR バックエンド）を生成してそのまま起動できます。" +
+        "enablePlugins(MeltkitAppPlugin) 1 行ですべてが結線されます。",
       step1H3      = "プロジェクトを作成する",
       step1Text    = "Melt のカウンターサンプルをベースにするか、プラグインを有効化した最小限の sbt プロジェクトを作成します（",
       step1Link    = "インストール",
@@ -1874,9 +1886,15 @@ object GuideI18n:
     ),
 
     adapters = GuideAdapters(
-      lead         = "MeltKit アダプターはアプリを特定のランタイム環境に接続します。デプロイターゲットに合ったアダプターを選択してください。",
-      http4sH2     = "http4s アダプター（JVM）",
-      http4sIntro  = "meltkit-adapter-http4s モジュールは MeltKit を http4s と統合し、JVM でのプロダクション運用を可能にします。",
+      lead        = "MeltKit アダプターはアプリを特定のランタイム環境に接続します。デプロイターゲットに合ったアダプターを選択してください。",
+      http4sH2    = "http4s アダプター（JVM）",
+      http4sIntro = "meltkit-adapter-http4s モジュールは MeltKit を http4s と統合し、JVM でのプロダクション運用を可能にします。",
+      zioH2       = "zio-http アダプター（JVM）",
+      zioIntro    =
+        "meltkit-adapter-zio-http モジュールは MeltKit を zio-http 上で動かします。MeltKit は型パラメータ 1 つの型構築子を取りますが ZIO は ZIO[R, E, A] なので、型ラムダとして渡すことで環境 R を保持します。アプリ側で追加するのはこの 1 行だけで、ハンドラ内では ZLayer による DI がそのまま使えます。SSR・ハイドレーション・Server Functions・フォームアクション・ストリーミング SSR・SSG はすべてそのまま動作します。ボディのデコードには zio-json を使います。",
+      zioNoteTitle = "JVM 専用",
+      zioNoteText  =
+        "zio-http は Scala.js アーティファクトも公開していますが、サーバードライバに Scala.js 版が存在しないため、このアダプターは JVM 専用です。Scala.js プロジェクトに設定した場合は、配信できないバンドルを作ってしまう前に、ビルドのロード時点でエラーになります。",
       nodeH2       = "Node.js アダプター",
       nodeIntro    = "Node.js にデプロイする場合は meltkit-adapter-node を使います。SSR と SSG の両方に対応しています。",
       browserH2    = "ブラウザ SPA アダプター",
@@ -1888,10 +1906,12 @@ object GuideI18n:
       choiceH2     = Some("アダプターの選び方"),
       choiceLi1Pre = Some("既に http4s を使っている → "),
       choiceLi1Kit = Some("meltkit-adapter-http4s"),
-      choiceLi2Pre = Some("Node.js エコシステムで動かしたい → "),
-      choiceLi2Kit = Some("meltkit-adapter-node"),
-      choiceLi3Pre = Some("サーバーなしの SPA を作りたい → "),
-      choiceLi3Kit = Some("meltkit-adapter-browser"),
+      choiceLi2Pre = Some("既に ZIO を使っている → "),
+      choiceLi2Kit = Some("meltkit-adapter-zio-http"),
+      choiceLi3Pre = Some("Node.js エコシステムで動かしたい → "),
+      choiceLi3Kit = Some("meltkit-adapter-node"),
+      choiceLi4Pre = Some("サーバーなしの SPA を作りたい → "),
+      choiceLi4Kit = Some("meltkit-adapter-browser"),
       multiTitle   = Some("複数アダプターの組み合わせ"),
       multiText    = Some("開発時は Node.js アダプターで素早く起動し、プロダクションでは http4s にデプロイするような環境別の切り替えも可能です。")
     ),
@@ -1991,10 +2011,10 @@ object GuideI18n:
         "本体は { case Async.Done(x) => … } の部分関数です（query の Async 状態に対して書く match と同じ）。<melt:pending> が Loading フォールバックを担うので、Loading の分岐を書く必要はありません。value は Query — 手動 seed なしで呼び出したサーバー関数です。",
       serverH2    = "renderAsync で描画",
       serverIntro =
-        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・Node・JVM（Undertow）の各サーバーアダプターで利用でき、静的サイト生成（SSG）でも同じ境界をビルド時に解決してデータを HTML に焼き込みます。",
+        "ページは ctx.render の代わりに ctx.renderAsync で描画します。シェルを評価し、各 <melt:await> の query をアプリの app.serve レジストリ経由で解決し（single-flight と同じインプロセス経路）、解決済み分岐をマーカーに差し込み、F[Response] を返します。境界のないページは ctx.render と完全に同じ挙動です。renderAsync は http4s・zio-http・Node・JVM（Undertow）の各サーバーアダプターで利用でき、静的サイト生成（SSG）でも同じ境界をビルド時に解決してデータを HTML に焼き込みます。",
       streamingH2    = "renderStream でストリーミング",
       streamingIntro =
-        "ctx.renderStream は、まずシェル（各境界の <melt:pending> フォールバック付き）を即座に送出して first paint を速め、続いて各境界の解決済み分岐をチャンクとして流し、クライアントがフォールバックの上に差し替えます（React 18 の renderToPipeableStream と同じ方式）。http4s・Node.js・JVM（Undertow）の 3 つのサーバーアダプターすべてで実装されています。境界は並行に解決され、各チャンクは解決した端から flush されます（完了順＝out-of-order。遅い境界が速い境界を待たせません）。最終的な DOM と hydration の seed は renderAsync と同一なので、同じ <melt:await> を書いて呼び出しだけを変えます。境界のないページは透過的に単一のブロッキング応答へフォールバックし、静的サイト生成（SSG）も常にビルド時に解決します。",
+        "ctx.renderStream は、まずシェル（各境界の <melt:pending> フォールバック付き）を即座に送出して first paint を速め、続いて各境界の解決済み分岐をチャンクとして流し、クライアントがフォールバックの上に差し替えます（React 18 の renderToPipeableStream と同じ方式）。http4s・zio-http・Node.js・JVM（Undertow）のすべてのサーバーアダプターで実装されています。境界は並行に解決され、各チャンクは解決した端から flush されます（完了順＝out-of-order。遅い境界が速い境界を待たせません）。最終的な DOM と hydration の seed は renderAsync と同一なので、同じ <melt:await> を書いて呼び出しだけを変えます。境界のないページは透過的に単一のブロッキング応答へフォールバックし、静的サイト生成（SSG）も常にビルド時に解決します。",
       streamingNote =
         "ストリーミングは差し替えにクライアントの JS が必要なため、SEO 安全な既定はブロッキングの renderAsync のままです。最も遅い境界がページ全体を遅らせてしまう場合に renderStream を選びます（TTFB 改善）。server-functions サンプルの /stream ルートでエンドツーエンドに確認できます（curl -N でチャンクの到着が見えます）。境界ごとの段階的 hydration は今後対応予定です。",
       seedH2    = "再取得なしの hydration",
@@ -2008,7 +2028,7 @@ object GuideI18n:
         "<melt:await> はリアクティブ領域の外（条件分岐・リスト・<melt:key>・{#snippet} の内側ではない場所）に置く必要があります。サーバー描画のマーカーが hydration のために安定するためで、コンパイラが強制します。別の await の分岐の中にネストするのは可能です（内側の境界は後続のラウンドで解決）。分岐内では条件分岐やリストの中ではなく要素の中に置いてください。",
       httpOnlyTitle = "サーバーアダプター",
       httpOnlyText  =
-        "ブロッキング非同期 SSR は http4s・Node・JVM（Undertow）の各サーバーアダプターで実装されています。JVM 内蔵サーバーは query を同期的に解決する（SyncRunner）ため、実際に非同期な実装を持つ query は http4s か Node アダプターで動かしてください。ctx.render（seeded prop）はどこでも動作します。"
+        "ブロッキング非同期 SSR は http4s・zio-http・Node・JVM（Undertow）の各サーバーアダプターで実装されています。JVM 内蔵サーバーは query を同期的に解決する（SyncRunner）ため、実際に非同期な実装を持つ query は http4s・zio-http・Node のいずれかのアダプターで動かしてください。ctx.render（seeded prop）はどこでも動作します。"
     ),
     serverEnv = GuideServerEnv(
       lead =
