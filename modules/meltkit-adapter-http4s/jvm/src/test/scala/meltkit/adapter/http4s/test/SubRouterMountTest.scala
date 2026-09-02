@@ -8,8 +8,9 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
-import cats.effect.IO
 import melt.runtime.render.RenderResult
+
+import cats.effect.IO
 import meltkit.*
 import meltkit.adapter.http4s.Http4sAdapter
 import meltkit.adapter.http4s.Http4sAdapter.given
