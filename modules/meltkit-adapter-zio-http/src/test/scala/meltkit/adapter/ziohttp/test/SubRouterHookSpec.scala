@@ -6,13 +6,12 @@
 
 package meltkit.adapter.ziohttp.test
 
-import zio.*
-import zio.http.{ Request, Response as ZResponse, Status, URL }
-import zio.test.*
-
 import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpAdapter
 import meltkit.adapter.ziohttp.ZioInstances.given
+import zio.*
+import zio.http.{ Request, Response as ZResponse, Status, URL }
+import zio.test.*
 
 /** Hooks carried by `app.route(prefix, sub)`.
   *
