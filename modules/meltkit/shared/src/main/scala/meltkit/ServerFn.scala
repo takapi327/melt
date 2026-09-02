@@ -117,6 +117,12 @@ object ServerFn:
     * adapters and the client stub agree. */
   private[meltkit] val prefix = "_melt/fn"
 
+  /** First segment of [[prefix]]. A server-function route is identified by its name, not by
+    * where its declaring router was mounted, so `MeltKit.route` leaves routes under this
+    * segment unprefixed — otherwise a mounted sub-router's functions would sit at a path the
+    * generated client never calls. */
+  private[meltkit] val reservedRoot = PathSegment.Static(prefix.takeWhile(_ != '/'))
+
   /** Declares a mutation (non-form) server function.
     *
     * The returned [[CommandFn]] is a pure value: it carries the endpoint and the

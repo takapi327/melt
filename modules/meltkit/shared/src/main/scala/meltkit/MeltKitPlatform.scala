@@ -100,6 +100,12 @@ trait MeltKitPlatform[F[_], C]:
     val segs = prefix.split('/').filter(_.nonEmpty).map(PathSegment.Static(_)).toList
     _layouts += (segs -> wrap)
 
+  /** Every registered layout with its prefix segments, for [[route]] to re-scope. */
+  private[meltkit] def allLayouts: List[(List[PathSegment], (() => C) => C)] = _layouts.toList
+
+  private[meltkit] def addLayout(segs: List[PathSegment], wrap: (() => C) => C): Unit =
+    _layouts += (segs -> wrap)
+
   /** The layouts that apply to `path`, outermost first (shortest prefix first). */
   private[meltkit] def layoutsFor(path: String): List[(() => C) => C] =
     layoutsWithPrefixFor(path).map(_._2)
@@ -315,19 +321,64 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def use(fn: (RequestEvent[F], Resolve[F]) => F[Response]): Unit =
     _hooks += (Nil -> ServerHook(fn))
 
-  /** Mounts a sub-router under `prefix`, carrying its hooks with it.
+  /** Mounts a sub-router under `prefix`, carrying everything it declared.
     *
-    * The base implementation moves only the routes. A sub-router built with its own
-    * `use` guard would then be served unprotected — the guard is registered on an
-    * object the adapter never sees. Re-registering each hook under the mount prefix
-    * keeps it running for exactly the routes it arrived with, and no others.
+    * The base implementation moves only the routes, so a sub-router's hooks, server
+    * functions, layouts and page options used to vanish at the mount without a word — a
+    * guard written with `use` stopped guarding, and a `serve`d function stopped existing.
+    * Each of those is re-registered here, scoped to the mount point.
+    *
+    * Two things are deliberately not re-scoped:
+    *
+    *   - Server-function routes and names stay global. Their wire path is fixed
+    *     (`_melt/fn/<name>`) and the generated client calls it by name, so prefixing would
+    *     move them somewhere nothing asks for. A name colliding across the mount is an
+    *     error, matching `serve`'s own duplicate check.
+    *   - The not-found / error handlers and the CSP / CORS config are whole-app settings
+    *     an adapter reads from the served app only. There is no meaningful per-prefix
+    *     reading of them, so declaring one on a sub-router is rejected at mount time rather
+    *     than silently ignored.
     */
   override def route(prefix: String, sub: MeltKitPlatform[F, RenderResult]): Unit =
-    super.route(prefix, sub)
     sub match
-      case s: ServerMeltKitPlatform[F] @unchecked =>
-        s.scopedHooks.foreach { case (segs, hook) => _hooks += ((PathSegment.Static(prefix) :: segs) -> hook) }
-      case _ => ()
+      case s: ServerMeltKitPlatform[F] @unchecked => mount(prefix, s)
+      case _                                      => super.route(prefix, sub)
+
+  private def mount(prefix: String, sub: ServerMeltKitPlatform[F]): Unit =
+    rejectWholeAppSettings(prefix, sub)
+
+    val at = PathSegment.Static(prefix)
+
+    sub.routes.foreach { r =>
+      if r.segments.headOption.contains(ServerFn.reservedRoot) then addRoute(r)
+      else addRoute(r.withPrefix(prefix))
+    }
+
+    sub.scopedHooks.foreach { case (segs, hook) => _hooks += ((at :: segs) -> hook) }
+    sub.allLayouts.foreach { case (segs, wrap) => addLayout(at :: segs, wrap) }
+    sub._pageOptions.foreach { case (segs, options) => _pageOptions(at :: segs) = options }
+
+    sub._serverFnNames.foreach { name =>
+      if !_serverFnNames.add(name) then
+        throw new IllegalArgumentException(
+          s"Duplicate server function name: '$name'. It is declared both on the router mounted at " +
+            s"'$prefix' and on the router mounting it. Each ServerFn.query/command must have a unique name."
+        )
+    }
+    sub._serverFnImpls.foreach { case (name, impl) => _serverFnImpls(name) = impl }
+
+  private def rejectWholeAppSettings(prefix: String, sub: ServerMeltKitPlatform[F]): Unit =
+    val declared = List(
+      Option.when(sub.notFoundHandler.isDefined)("onNotFound"),
+      Option.when(sub.errorHandler.isDefined)("onError"),
+      Option.when(sub.cspConfig.isDefined)("csp"),
+      Option.when(sub.corsConfig.isDefined)("cors")
+    ).flatten
+    if declared.nonEmpty then
+      throw new IllegalArgumentException(
+        s"Cannot mount a router at '$prefix' that declares ${ declared.mkString(" / ") }: these apply to " +
+          "the whole app and are read from the served router only. Declare them on the router you serve."
+      )
 
   // ── Pages with form actions ────────────────────────────────────────────
 
@@ -460,6 +511,9 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   /** True when the request is a client `use:enhance` fetch (wants a JSON envelope). */
   private def isEnhanceRequest[P <: AnyNamedTuple](ctx: ServerMeltContext[F, P, Unit, RenderResult]): Boolean =
     ctx.header("x-melt-enhance").exists(_.equalsIgnoreCase("true"))
+
+  /** Every served function name, for duplicate detection across a mount. */
+  private[meltkit] def serverFnNames: Set[String] = _serverFnNames.toSet
 
   /** The registered hooks with their mount prefixes, for [[route]] to re-scope. */
   private[meltkit] def scopedHooks: List[(List[PathSegment], ServerHook[F])] = _hooks.toList
