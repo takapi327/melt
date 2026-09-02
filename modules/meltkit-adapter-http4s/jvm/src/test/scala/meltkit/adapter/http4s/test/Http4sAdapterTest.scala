@@ -517,6 +517,82 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(capturedHeader, Some("abc123"))
       }
 
+  /** A sub-router guarded by its own auth hook, mounted under `admin`. */
+  private def guardedAdminApp: MeltKit[IO] =
+    val admin = MeltKit[IO]()
+    admin.use { (event, resolve) =>
+      event.header("x-admin-token") match
+        case Some("secret") => resolve()
+        case _              => IO.pure(meltkit.Response.text("forbidden").withStatus(403))
+    }
+    admin.get("users") { ctx => IO.pure(ctx.text("TOP SECRET")) }
+
+    val app = MeltKit[IO]()
+    app.get("public") { ctx => IO.pure(ctx.text("open")) }
+    app.route("admin", admin)
+    app
+
+  test("a hook registered on a mounted sub-router still guards its routes"):
+    // Mounting must carry the sub-router's hooks, or an auth guard written on the
+    // sub-router silently stops running and the route is served unprotected.
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users")
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .map { resp =>
+        assertEquals(resp.map(_.status.code), Some(403))
+      }
+
+  test("a mounted sub-router's hook lets an authorised request through"):
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users")
+      .withHeaders(Header.Raw(ci"X-Admin-Token", "secret"))
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assertEquals(resp.map(_.status.code), Some(200))
+        resp.get.as[String].map(assertEquals(_, "TOP SECRET"))
+      }
+
+  test("a mounted sub-router's hook does not run outside its prefix"):
+    // The guard is scoped to what it was mounted under; sibling routes stay open.
+    val req = Request[IO](method = Method.GET, uri = uri"/public")
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assertEquals(resp.map(_.status.code), Some(200))
+        resp.get.as[String].map(assertEquals(_, "open"))
+      }
+
+  test("sub-router hooks compose through two levels of mounting"):
+    val inner = MeltKit[IO]()
+    inner.use { (event, resolve) =>
+      event.header("x-inner") match
+        case Some(_) => resolve()
+        case None    => IO.pure(meltkit.Response.text("no").withStatus(403))
+    }
+    inner.get("thing") { ctx => IO.pure(ctx.text("deep")) }
+
+    val middle = MeltKit[IO]()
+    middle.route("v1", inner)
+
+    val app = MeltKit[IO]()
+    app.route("api", middle)
+
+    val blocked = Request[IO](method = Method.GET, uri = uri"/api/v1/thing")
+    val allowed = blocked.withHeaders(Header.Raw(ci"X-Inner", "y"))
+
+    for
+      a <- Http4sAdapter.routes(app).run(blocked).value
+      b <- Http4sAdapter.routes(app).run(allowed).value
+    yield
+      assertEquals(a.map(_.status.code), Some(403))
+      assertEquals(b.map(_.status.code), Some(200))
+
   test("ServerHook.sequence composes hooks in order"):
     val app      = MeltKit[IO]()
     val order    = scala.collection.mutable.ListBuffer[Int]()

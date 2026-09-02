@@ -218,7 +218,14 @@ trait MeltKitPlatform[F[_], C]:
   */
 trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
-  private val _hooks = ListBuffer[ServerHook[F]]()
+  /** Hooks paired with the path prefix they are scoped to.
+    *
+    * `use` registers with an empty prefix (applies to every request). [[route]]
+    * re-registers a mounted sub-router's hooks under the mount prefix, so a guard
+    * written on the sub-router keeps guarding exactly the routes it came with.
+    * Prefixes accumulate, which is what makes nested mounting compose.
+    */
+  private val _hooks = ListBuffer[(List[PathSegment], ServerHook[F])]()
 
   // ── Page Options ──────────────────────────────────────────────────────
 
@@ -302,11 +309,25 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     * }}}
     */
   def use(hook: ServerHook[F]): Unit =
-    _hooks += hook
+    _hooks += (Nil -> hook)
 
   /** Registers a hook from a simple function. */
   def use(fn: (RequestEvent[F], Resolve[F]) => F[Response]): Unit =
-    _hooks += ServerHook(fn)
+    _hooks += (Nil -> ServerHook(fn))
+
+  /** Mounts a sub-router under `prefix`, carrying its hooks with it.
+    *
+    * The base implementation moves only the routes. A sub-router built with its own
+    * `use` guard would then be served unprotected — the guard is registered on an
+    * object the adapter never sees. Re-registering each hook under the mount prefix
+    * keeps it running for exactly the routes it arrived with, and no others.
+    */
+  override def route(prefix: String, sub: MeltKitPlatform[F, RenderResult]): Unit =
+    super.route(prefix, sub)
+    sub match
+      case s: ServerMeltKitPlatform[F] @unchecked =>
+        s.scopedHooks.foreach { case (segs, hook) => _hooks += ((PathSegment.Static(prefix) :: segs) -> hook) }
+      case _ => ()
 
   // ── Pages with form actions ────────────────────────────────────────────
 
@@ -440,7 +461,23 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   private def isEnhanceRequest[P <: AnyNamedTuple](ctx: ServerMeltContext[F, P, Unit, RenderResult]): Boolean =
     ctx.header("x-melt-enhance").exists(_.equalsIgnoreCase("true"))
 
-  private[meltkit] def hooks: List[ServerHook[F]] = _hooks.toList
+  /** The registered hooks with their mount prefixes, for [[route]] to re-scope. */
+  private[meltkit] def scopedHooks: List[(List[PathSegment], ServerHook[F])] = _hooks.toList
+
+  /** The hooks an adapter runs, in registration order.
+    *
+    * A hook mounted under a prefix is wrapped so that a request outside that prefix
+    * passes straight through — the guard applies to its own routes, not the whole app.
+    */
+  private[meltkit] def hooks: List[ServerHook[F]] =
+    _hooks.toList.map {
+      case (Nil, hook)  => hook
+      case (segs, hook) =>
+        new ServerHook[F]:
+          def handle(event: RequestEvent[F], resolve: Resolve[F]): F[Response] =
+            val actual = event.requestPath.split('/').filter(_.nonEmpty).toList
+            if PathSegment.matchesPrefix(segs, actual) then hook.handle(event, resolve) else resolve()
+    }
 
   // ── CSP Configuration ─────────────────────────────────────────────────
 

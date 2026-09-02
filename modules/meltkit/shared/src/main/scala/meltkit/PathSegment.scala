@@ -42,3 +42,16 @@ object PathSegment:
           case (Param(_), _)    => true
           case (Wildcard, _)    => true
         }
+
+  /** Returns `true` when `pattern` matches the *leading* segments of `actual`.
+    *
+    * Unlike [[matches]] the lengths need not be equal: `actual` may be deeper. The
+    * empty pattern matches everything, which is what an unscoped hook wants.
+    */
+  private[meltkit] def matchesPrefix(pattern: List[PathSegment], actual: List[String]): Boolean =
+    pattern.length <= actual.length &&
+      pattern.zip(actual).forall {
+        case (Static(s), seg) => s == seg
+        case (Param(_), _)    => true
+        case (Wildcard, _)    => true
+      }
