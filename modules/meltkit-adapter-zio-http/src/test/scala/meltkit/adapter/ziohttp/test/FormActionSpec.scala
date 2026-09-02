@@ -117,8 +117,6 @@ object FormActionSpec extends ZIOSpecDefault:
       }
     },
     test("use:enhance gets a JSON failure envelope instead of HTML") {
-      // The same action, selected by the `x-melt-enhance` header — the client patches the form
-      // in place rather than replacing the document.
       post("/login", "email=nope&password=secret", enhance = true).map { o =>
         assertTrue(
           o.body.contains("\"type\":\"failure\""),
@@ -147,8 +145,6 @@ object FormActionSpec extends ZIOSpecDefault:
       }
     },
     test("the CSRF hook rejects a cross-origin form POST") {
-      // `ServerHook.csrf` guards state-changing submits by checking `Origin`; it runs through the
-      // adapter's hook chain, so a missing or foreign origin must never reach the action.
       val guarded = MeltKit[App]()
       guarded.use(ServerHook.csrf[App]())
       guarded.page("login")(

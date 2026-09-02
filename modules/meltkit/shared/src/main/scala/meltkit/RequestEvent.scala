@@ -23,6 +23,17 @@ trait RequestEvent[F[_]]:
   /** The path component of the request URL (e.g. `"/users/42"`). */
   def requestPath: String
 
+  /** The path split into the exact segments the router matched against.
+    *
+    * Adapters must derive this from the same value they route on, not by re-splitting
+    * [[requestPath]]. The two can differ — http4s routes on percent-decoded `pathInfo`
+    * segments while `requestPath` renders the raw `uri.path` — and a prefix-scoped hook
+    * comparing against the raw string would then skip a request the router accepted.
+    * That reads as an auth bypass: `/%61dmin/users` reaches the handler with its guard
+    * silently not run.
+    */
+  def pathSegments: List[String]
+
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String]
 

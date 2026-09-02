@@ -27,6 +27,7 @@ class MiddlewareCsrfTest extends munit.FunSuite:
     new RequestEvent[Id]:
       override val method:                 String                    = m
       override val requestPath:            String                    = path
+      override val pathSegments:           List[String]              = path.split('/').filter(_.nonEmpty).toList
       override val locals:                 Locals                    = new Locals()
       override val headers:                Map[String, String]       = h
       override val queryParams:            Map[String, List[String]] = Map.empty
