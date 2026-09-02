@@ -475,9 +475,10 @@ object Http4sAdapter:
     sharedLocals: Locals
   ): RequestEvent[F2] =
     new RequestEvent[F2]:
-      val method      = request.method.name
-      val requestPath = request.uri.path.renderString
-      val locals      = sharedLocals
+      val method       = request.method.name
+      val requestPath  = request.uri.path.renderString
+      val pathSegments = request.pathInfo.segments.toList.map(_.decoded())
+      val locals       = sharedLocals
 
       def query(name: String): Option[String] =
         request.uri.query.params.get(name)

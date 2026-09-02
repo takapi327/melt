@@ -313,8 +313,9 @@ private[meltkit] class NodeHttpBinding(
     httpMethod:    String
   ): RequestEvent[Future] =
     new RequestEvent[Future]:
-      val method      = httpMethod
-      val requestPath = meltUrl.pathname
+      val method       = httpMethod
+      val requestPath  = meltUrl.pathname
+      val pathSegments = meltUrl.pathname.split('/').filter(_.nonEmpty).toList
       def query(name:    String): Option[String] = meltUrl.query(name)
       def queryAll(name: String): List[String]   = meltUrl.queryAll(name)
       val queryParams = meltUrl.searchParams

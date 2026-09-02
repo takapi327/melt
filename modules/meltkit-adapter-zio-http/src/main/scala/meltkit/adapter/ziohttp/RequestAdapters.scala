@@ -19,9 +19,10 @@ private[ziohttp] object RequestAdapters:
   /** Exposes the request to [[meltkit.ServerHook]]s. */
   def requestEvent[R](request: Request, sharedLocals: Locals): RequestEvent[ZTask[R]] =
     new RequestEvent[ZTask[R]]:
-      val method      = request.method.name
-      val requestPath = request.path.encode
-      val locals      = sharedLocals
+      val method       = request.method.name
+      val requestPath  = request.path.encode
+      val pathSegments = request.path.segments.toList
+      val locals       = sharedLocals
 
       def query(name: String): Option[String] = request.queryParam(name)
 

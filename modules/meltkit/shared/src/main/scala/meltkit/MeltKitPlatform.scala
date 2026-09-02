@@ -475,8 +475,8 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
       case (segs, hook) =>
         new ServerHook[F]:
           def handle(event: RequestEvent[F], resolve: Resolve[F]): F[Response] =
-            val actual = event.requestPath.split('/').filter(_.nonEmpty).toList
-            if PathSegment.matchesPrefix(segs, actual) then hook.handle(event, resolve) else resolve()
+            if PathSegment.matchesPrefix(segs, event.pathSegments) then hook.handle(event, resolve)
+            else resolve()
     }
 
   // ── CSP Configuration ─────────────────────────────────────────────────
