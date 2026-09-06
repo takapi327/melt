@@ -235,3 +235,33 @@ class SsgGeneratorSpec extends munit.FunSuite:
       assert(!html.contains("Loading…"), html)                               // marker + pending replaced
       assert(html.contains("data-melt-queries"), html)                       // seed injected for hydration
     }
+
+  test("a prerender-enabled page behind a guard is not baked into the output"):
+    withTempDir { out =>
+      val admin = MeltKit[[A] =>> A]()
+      admin.use { (_, _) => Response.text("forbidden").withStatus(403) }
+      admin.get("dashboard", On)(ctx => ctx.render(RenderResult(body = "<p>TOP SECRET</p>", head = "")))
+
+      val app = MeltKit[[A] =>> A]()
+      app.get("", On)(ctx => ctx.render(RenderResult(body = "<p>home</p>", head = "")))
+      app.route("admin", admin)
+
+      SsgGenerator.run(app, config(out))
+
+      assert(Files.exists(out.resolve("index.html")), "the public page should still be generated")
+      val leaked = out.resolve("admin/dashboard/index.html")
+      assert(
+        !Files.exists(leaked),
+        "guarded page baked to disk: " + (if Files.exists(leaked) then Files.readString(leaked) else "")
+      )
+    }
+
+  test("a prerender-enabled page guarded on the served router is not baked either"):
+    withTempDir { out =>
+      val app = MeltKit[[A] =>> A]()
+      app.use { (_, _) => Response.text("forbidden").withStatus(403) }
+      app.get("private", On)(ctx => ctx.render(RenderResult(body = "<p>TOP SECRET</p>", head = "")))
+
+      SsgGenerator.run(app, config(out))
+      assert(!Files.exists(out.resolve("private/index.html")), "guarded page baked to disk")
+    }

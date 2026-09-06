@@ -39,7 +39,7 @@ private[meltkit] class UndertowHttpBinding(
       val query    = exchange.getQueryString
       val rawUrl   = if query.isEmpty then path else s"$path?$query"
       val url      = Url.parse(rawUrl, s"http://${ config.host }:${ config.port }")
-      val segments = url.pathname.split('/').filter(_.nonEmpty).toList
+      val segments = url.pathSegments
 
       val hdrs    = parseHeaders(exchange)
       val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
@@ -349,7 +349,7 @@ private[meltkit] class UndertowHttpBinding(
     new RequestEvent[Future]:
       val method       = httpMethod
       val requestPath  = meltUrl.pathname
-      val pathSegments = meltUrl.pathname.split('/').filter(_.nonEmpty).toList
+      val pathSegments = meltUrl.pathSegments
       def query(name:    String): Option[String] = meltUrl.query(name)
       def queryAll(name: String): List[String]   = meltUrl.queryAll(name)
       val queryParams = meltUrl.searchParams

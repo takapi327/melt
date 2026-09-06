@@ -113,3 +113,18 @@ class RenderAsyncTest extends CatsEffectSuite:
         assert(resp.body.contains("<main>static</main>"), resp.body)
         assert(!resp.body.contains("data-melt-queries"), resp.body)
       }
+
+  test("an SSR await cannot resolve a guarded router's query across a mount"):
+    val q   = ServerFn.query[Unit, List[Int]]("guarded.nums")
+    val sub = MeltKit[IO]()
+    sub.use { (_, _) => IO.pure(meltkit.Response.text("forbidden").withStatus(403)) }
+    sub.serve(q) { (_, _) => IO.pure(List(1, 2, 3)) }
+
+    val app = MeltKit[IO]()
+    app.route("admin", sub)
+
+    val ctx = ctxWith(app)
+    ctx.renderAsync(awaitShell(q())).map { res =>
+      val html = res.body
+      assert(!html.contains("<li>1</li>"), s"guarded query resolved in-process: $html")
+    }
