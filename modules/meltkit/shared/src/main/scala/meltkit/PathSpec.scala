@@ -82,6 +82,35 @@ object PathSpec:
   private[meltkit] def staticSegments(s: String): List[PathSegment] =
     s.split('/').filter(_.nonEmpty).toList.map(PathSegment.Static(_))
 
+  /** Parses a route path written as a string, rejecting parameter placeholders.
+    *
+    * Melt spells a path parameter as `param[T]("name")` and composes it with `/`. A string
+    * cannot carry one: `"users/:id"` registers a literal segment named `:id`, which no real
+    * request ever matches, and the route silently answers 404 forever. Other routers accept
+    * `:id`, `[id]` and `{id}`, so all three are named here rather than left to fail quietly.
+    */
+  private[meltkit] def fromRoutePath(s: String): PathSpec[Empty] =
+    rejectPlaceholders(s)
+    fromString(s)
+
+  /** [[staticSegments]] for a mount or layout prefix, with the same placeholder check. */
+  private[meltkit] def prefixSegments(s: String): List[PathSegment] =
+    rejectPlaceholders(s)
+    staticSegments(s)
+
+  private def rejectPlaceholders(s: String): Unit =
+    val offending = s.split('/').filter(_.nonEmpty).filter { seg =>
+      seg.startsWith(":") ||
+      (seg.startsWith("[") && seg.endsWith("]")) ||
+      (seg.startsWith("{") && seg.endsWith("}"))
+    }
+    if offending.nonEmpty then
+      throw new IllegalArgumentException(
+        s"Path '$s' contains a parameter placeholder (${ offending.mkString(", ") }). A path string only " +
+          "holds static segments — a placeholder becomes a literal segment that never matches. Use " +
+          "param[T](\"name\") instead, e.g. \"users\" / param[Int](\"id\")."
+      )
+
   /** Converts a plain `String` to a no-param `PathSpec[Empty]`.
     *
     * Slashes in `s` produce multiple static segments, so `"api/users"` is
