@@ -77,3 +77,31 @@ class RoutePathValidationTest extends munit.FunSuite:
     val fn = ServerFn.command[Int, Int]("posts.like")
     a.serve(fn)((in, _) => IO.pure(in + 1))
     assert(a.serverFnNames.contains("posts.like"))
+
+  test("a placeholder embedded in a longer segment is rejected"):
+    assert(rejected(app.get("users/user-:id")(ctx => IO.pure(ctx.text("x")))).contains("user-:id"))
+
+  test("an unbalanced bracket is rejected"):
+    assert(rejected(app.get("users/[id")(ctx => IO.pure(ctx.text("x")))).contains("[id"))
+
+  test("an unbalanced brace is rejected"):
+    assert(rejected(app.get("users/{id")(ctx => IO.pure(ctx.text("x")))).contains("{id"))
+
+  test("a wildcard segment is rejected"):
+    assert(rejected(app.get("files/*")(ctx => IO.pure(ctx.text("x")))).contains("*"))
+
+  test("a placeholder in a page path with PageOptions is rejected"):
+    assert(
+      rejected(app.get("posts/:id", PageOptions(prerender = PrerenderOption.On))(ctx => IO.pure(ctx.text("x"))))
+        .contains(":id")
+    )
+
+  test("a placeholder in a page path with named actions is rejected"):
+    assert(
+      rejected(
+        app.page("posts/:id")(
+          render  = (_, _: Option[String]) => RenderResult(body = "", head = ""),
+          actions = { case (_, _) => IO.pure(ActionResult.Redirect("/")) }
+        )
+      ).contains(":id")
+    )

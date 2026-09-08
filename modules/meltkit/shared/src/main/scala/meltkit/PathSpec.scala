@@ -86,8 +86,9 @@ object PathSpec:
     *
     * Melt spells a path parameter as `param[T]("name")` and composes it with `/`. A string
     * cannot carry one: `"users/:id"` registers a literal segment named `:id`, which no real
-    * request ever matches, and the route silently answers 404 forever. Other routers accept
-    * `:id`, `[id]` and `{id}`, so all three are named here rather than left to fail quietly.
+    * request ever matches, and the route silently answers 404 forever. Other routers spell it
+    * `:id`, `[id]`, `{id}` or `*`, so all of those are rejected rather than left to fail
+    * quietly. A catch-all is `getAll`, not `*`.
     */
   private[meltkit] def fromRoutePath(s: String): PathSpec[Empty] =
     rejectPlaceholders(s)
@@ -98,12 +99,17 @@ object PathSpec:
     rejectPlaceholders(s)
     staticSegments(s)
 
+  /** Characters that mean "parameter" or "wildcard" in another router's path syntax.
+    *
+    * Matched anywhere in a segment, not just at its edges: Express accepts `user-:id`, and a
+    * mistyped `[id` is as dead as a well-formed `[id]`. A static segment has no reason to
+    * carry any of them, so treating them all as a mistake costs nothing and catches the
+    * partial forms that a whole-segment check lets through.
+    */
+  private val placeholderChars = Set(':', '*', '[', ']', '{', '}')
+
   private def rejectPlaceholders(s: String): Unit =
-    val offending = s.split('/').filter(_.nonEmpty).filter { seg =>
-      seg.startsWith(":") ||
-      (seg.startsWith("[") && seg.endsWith("]")) ||
-      (seg.startsWith("{") && seg.endsWith("}"))
-    }
+    val offending = s.split('/').filter(_.nonEmpty).filter(_.exists(placeholderChars.contains))
     if offending.nonEmpty then
       throw new IllegalArgumentException(
         s"Path '$s' contains a parameter placeholder (${ offending.mkString(", ") }). A path string only " +
