@@ -7,9 +7,9 @@
 package meltkit.test
 
 import scala.compiletime.uninitialized
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.*
 import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.*
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import meltkit.*
 import meltkit.fetch.RequestInit
@@ -47,7 +47,7 @@ class UndertowSubRouterTest extends munit.FunSuite:
 
   override def beforeAll(): Unit =
     server = Await.result(UndertowServer.builder(app).withHost("127.0.0.1").withPort(port).start(), 30.seconds)
-    base = s"http://127.0.0.1:$port"
+    base   = s"http://127.0.0.1:$port"
 
   override def afterAll(): Unit =
     if server != null then Await.result(server.stop(), 30.seconds)
@@ -68,3 +68,12 @@ class UndertowSubRouterTest extends munit.FunSuite:
 
   test("a percent-encoded mount prefix does not slip past the guard"):
     assert(get("/%61dmin/users")._1 != 200)
+
+  test("a request outside the mount that matches no route still reaches static serving"):
+    assertEquals(get("/nothing-here")._1, 404)
+
+  test("the guard answers for a path that does not exist under the mount"):
+    assertEquals(get("/admin/does-not-exist")._1, 403)
+
+  test("an authorised caller gets 404 for a path that does not exist"):
+    assertEquals(get("/admin/does-not-exist", Some("secret"))._1, 404)
