@@ -94,15 +94,23 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
 
   // ── MeltContext: render ────────────────────────────────────────────────
 
+  /** `component` wrapped in every layout registered for this request's path.
+    *
+    * Applied by all render entry points, not just [[render]]: `renderAsync` and
+    * `renderStream` used to skip it, so a page rendered with an `<melt:await>` boundary
+    * silently lost its layouts. Composing inside the render scope also lets a layout carry
+    * its own boundary, which is how a layout gets per-request data.
+    */
+  private def laidOut(component: => RenderResult): RenderResult =
+    app match
+      case Some(a) => a.wrapLayouts(requestPath, () => component)
+      case None    => component
+
   override def render(component: => RenderResult): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
-        val composed = Router.withPath(requestPath) {
-          app match
-            case Some(a) => a.wrapLayouts(requestPath, () => component)
-            case None    => component
-        }
+        val composed = Router.withPath(requestPath)(laidOut(component))
         composeResponse(template, composed, 200)
 
   /** Blocking async SSR on a synchronous effect: resolve every `<melt:await>`
@@ -116,7 +124,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
       case Some(template) =>
         app match
           case None =>
-            runner.pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+            runner.pure(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             // Derive the effect type classes from the synchronous runner (resolution
             // is sequential — a sync effect has no real concurrency).
@@ -135,7 +143,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
             val wrap    = new SsrRenderScope.BranchWrap:
               def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
             val (result, scope) =
-              SsrRenderScope.withScope[F, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
+              SsrRenderScope.withScope[F, RenderResult](resolve, wrap)(Router.withPath(requestPath)(laidOut(component)))
             if !scope.nonEmpty then runner.pure(composeResponse(template, result, 200))
             else
               runner.map(scope.resolveAll(using runner, flatMapF, pureF, recover, parallel)) { resolved =>
@@ -157,7 +165,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
           case Some(template) =>
             app match
               case None =>
-                runner.pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+                runner.pure(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
               case Some(a) =>
                 // The Undertow binding always fixes F = Future, so the built-in
                 // Future type classes (concurrent) drive resolution here.
@@ -171,7 +179,7 @@ final class JvmMeltContext[F[_], P <: AnyNamedTuple, B](
                   def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
                 val (result, scope) =
                   SsrRenderScope.withScope[scala.concurrent.Future, RenderResult](resolve, wrap)(
-                    Router.withPath(requestPath)(component)
+                    Router.withPath(requestPath)(laidOut(component))
                   )
                 if !scope.nonEmpty then runner.pure(composeResponse(template, result, 200))
                 else
