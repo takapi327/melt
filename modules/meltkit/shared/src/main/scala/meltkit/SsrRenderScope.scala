@@ -107,8 +107,11 @@ final class SsrRenderScope[F[_]] private[meltkit] (
       val round = pendingFrom(from)
       if round.isEmpty then pure.pure((frags, seeds))
       else
-        val next = pendingSize
-        flatMap.flatMap(parallel.parTraverse(round)(s => resolveOne(s))) { outcomes =>
+        val next     = pendingSize
+        val distinct = round.map(s => s.query.key -> s).toMap.values.toList
+        flatMap.flatMap(parallel.parTraverse(distinct)(s => functor.map(fetch(s))(s.query.key -> _))) { fetched =>
+          val byKey    = fetched.toMap
+          val outcomes = round.map(s => outcomeOf(s, byKey(s.query.key)))
           loop(next, frags ++ outcomes.map(o => o.id -> o.fragment), seeds ++ outcomes.flatMap(_.seed))
         }
     loop(0, Nil, Nil)
@@ -137,11 +140,20 @@ final class SsrRenderScope[F[_]] private[meltkit] (
         (SsrRenderScope.streamChunk(s.id, html, nonce), seeds)
     }
 
-  private def resolveOne[Out](s: SsrRenderScope.Suspended[Out])(using
-    functor: Functor[F],
+  /** Runs one boundary's query. Boundaries naming the same query with the same arguments
+    * share a single call: a layout and the page under it reach shared data by awaiting the
+    * same query, and re-running it would cost a second trip for a value already in hand. */
+  private def fetch(s: SsrRenderScope.Suspended[?])(using
     recover: Recover[F]
-  ): F[SsrRenderScope.Outcome] =
-    functor.map(recover.attempt(resolveQuery(s.query.name, s.query.argsJson))) {
+  ): F[Either[Throwable, Option[String]]] =
+    recover.attempt(resolveQuery(s.query.name, s.query.argsJson))
+
+  /** Renders one boundary's branch from an already-fetched result. */
+  private def outcomeOf[Out](
+    s:      SsrRenderScope.Suspended[Out],
+    result: Either[Throwable, Option[String]]
+  ): SsrRenderScope.Outcome =
+    result match
       case Right(Some(json)) =>
         val fragment = renderBranchIn {
           try s.renderBranch(Async.Done(s.query.outCodec.decode(SimpleJson.parse(json))))
@@ -152,7 +164,12 @@ final class SsrRenderScope[F[_]] private[meltkit] (
         SsrRenderScope.Outcome(s.id, fragment, Some(s.query.key -> json))
       case Right(None) => SsrRenderScope.Outcome(s.id, renderBranchIn(s.renderBranch(Async.Loading)), None)
       case Left(e)     => SsrRenderScope.Outcome(s.id, renderBranchIn(s.renderBranch(Async.Failed(e))), None)
-    }
+
+  private def resolveOne[Out](s: SsrRenderScope.Suspended[Out])(using
+    functor: Functor[F],
+    recover: Recover[F]
+  ): F[SsrRenderScope.Outcome] =
+    functor.map(fetch(s))(outcomeOf(s, _))
 
   /** Renders a branch with the request ambient (`wrapBranch`, e.g. `Router.withPath`)
     * AND this scope active, so any nested `<melt:await>` the branch renders registers

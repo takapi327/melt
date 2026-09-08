@@ -8,8 +8,9 @@ package meltkit.adapter.http4s.test
 
 import munit.CatsEffectSuite
 
-import cats.effect.IO
 import melt.runtime.render.RenderResult
+
+import cats.effect.IO
 import meltkit.*
 import meltkit.adapter.http4s.Http4sAdapter.given
 import meltkit.adapter.http4s.Http4sMeltContext
@@ -87,4 +88,48 @@ class LayoutCompositionTest extends CatsEffectSuite:
     ctxWith(a).renderAsync(page).map { res =>
       assert(res.body.contains("<b>1,2</b>"), res.body)
       assert(res.body.contains("<p>page</p>"), res.body)
+    }
+
+  /** A boundary awaiting `q`, rendered with `label` around the resolved value. */
+  private def boundary(r: melt.runtime.render.ServerRenderer, label: String, q: meltkit.Query[List[Int]]): Unit =
+    val id = SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")
+    r.push("<!--melt:sb:" + id + "-->")
+    r.push("<i></i>")
+    r.push("<!--/melt:sb:" + id + "-->")
+    SsrRenderScope.current.foreach(
+      _.suspend(
+        id,
+        q,
+        {
+          case melt.runtime.Async.Done(xs) => RenderResult(s"<$label>" + xs.mkString(",") + s"</$label>", "")
+          case _                           => RenderResult("", "")
+        }
+      )
+    )
+
+  test("the same query awaited by a layout and its page runs once"):
+    val nums  = ServerFn.query[Unit, List[Int]]("shared.nums")
+    val calls = new java.util.concurrent.atomic.AtomicInteger(0)
+
+    val a = MeltKit[IO]()
+    a.serve(nums) { (_, _) => IO(calls.incrementAndGet()).as(List(1, 2)) }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      r.push("<nav>")
+      boundary(r, "nav", nums())
+      r.push("</nav>")
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    def pageWithAwait: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      r.push("<main>")
+      boundary(r, "main", nums())
+      r.push("</main>")
+      r.result()
+
+    ctxWith(a).renderAsync(pageWithAwait).map { res =>
+      assert(res.body.contains("<nav>1,2</nav>"), res.body)
+      assert(res.body.contains("<main>1,2</main>"), res.body)
+      assertEquals(calls.get(), 1)
     }
