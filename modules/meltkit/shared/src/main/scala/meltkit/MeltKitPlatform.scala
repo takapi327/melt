@@ -33,12 +33,11 @@ private[meltkit] trait MeltContextFactory[F[_], C]:
 private[meltkit] final class Route[F[_], C](
   val method:    HttpMethod,
   val segments:  List[PathSegment],
-  val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]],
-  val owner:     MeltKitPlatform[F, C]
+  val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]]
 ):
   /** Returns a copy of this route sitting at `to` instead of its current segments. */
   private[meltkit] def copyAt(to: List[PathSegment]): Route[F, C] =
-    Route(method, to, tryHandle, owner)
+    Route(method, to, tryHandle)
 
 /** The MeltKit routing DSL — platform-agnostic base trait.
   *
@@ -165,7 +164,7 @@ trait MeltKitPlatform[F[_], C]:
           val params  = decoded.foldRight(EmptyTuple: Tuple)(_ *: _).asInstanceOf[P]
           Some(() => handler(factory.build(params, summon[BodyDecoder[Unit]])))
         else None
-    _routes += Route(method, spec.segments, tryHandle, this)
+    _routes += Route(method, spec.segments, tryHandle)
 
   def get[P <: AnyNamedTuple](spec: PathSpec[P])(handler: MeltContext[F, P, Unit, C] => F[Response]): Unit =
     register("GET", spec)(handler)
@@ -190,7 +189,7 @@ trait MeltKitPlatform[F[_], C]:
   def getAll(handler: MeltContext[F, NamedTuple.Empty, Unit, C] => F[Response]): Unit =
     val tryHandle: (List[String], MeltContextFactory[F, C]) => Option[() => F[Response]] =
       (_, factory) => Some(() => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
-    _routes += Route("GET", List(PathSegment.Wildcard), tryHandle, this)
+    _routes += Route("GET", List(PathSegment.Wildcard), tryHandle)
 
   /** Mounts a sub-router under a static path prefix.
     *
@@ -254,15 +253,19 @@ trait MeltKitPlatform[F[_], C]:
   */
 trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
 
-  /** Hooks paired with the routes they cover, or `None` for "every request".
+  /** Hooks paired with the path area they guard, or `None` for "every request".
     *
     * `use` registers `None`. [[route]] re-registers a mounted sub-router's hooks against the
-    * concrete route patterns it carried over, so a guard written on a sub-router keeps
-    * guarding exactly the routes it arrived with — no more and no fewer. A mount prefix is
-    * not enough to express that: mounting at `""`, or mounting two routers at the same
-    * prefix, would make one router's guard cover the other's routes.
+    * mount prefix, so the prefix — a line the developer wrote once — is the protected area.
+    *
+    * Scoping to the routes the sub-router happens to declare would be more precise and is
+    * the wrong trade. It answers 404 for a path that does not exist under a guarded prefix
+    * and 403 for one that does, which lets an unauthenticated caller enumerate the protected
+    * surface; it also moves the security boundary every time a route is added or removed;
+    * and it takes the choice away from the app, which can no longer answer 404 to hide that
+    * the area exists at all. The prefix is coarser and fails closed.
     */
-  private val _hooks = ListBuffer[() => List[(Option[MeltKitPlatform[F, RenderResult]], ServerHook[F])]]()
+  private val _hooks = ListBuffer[() => List[(Option[List[PathSegment]], ServerHook[F])]]()
 
   // ── Page Options ──────────────────────────────────────────────────────
 
@@ -390,7 +393,8 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
       case s: ServerMeltKitPlatform[F] @unchecked =>
         rejectWholeAppSettings(prefix, s)
         rejectDuplicateServerFns(prefix, s)
-        _hooks += (() => hooksFrom(s))
+        val at = PathSpec.staticSegments(prefix)
+        _hooks += (() => hooksFrom(at, s))
       case _ => ()
     super.route(prefix, sub)
 
@@ -560,31 +564,43 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     _serverFnNames.toSet ++ serverMounts.flatMap((_, sub) => sub.serverFnNames)
 
   /** The registered hooks with the route patterns they cover, for [[route]] to re-scope. */
-  private[meltkit] def scopedHooks: List[(Option[MeltKitPlatform[F, RenderResult]], ServerHook[F])] =
+  private[meltkit] def scopedHooks: List[(Option[List[PathSegment]], ServerHook[F])] =
     _hooks.toList.flatMap(_())
 
-  /** A mounted router's hooks. An unscoped hook becomes scoped to the router it was written
-    * on; one that is already scoped keeps that scope, so nesting needs no rewriting. */
+  /** A mounted router's hooks, re-scoped to the area it was mounted into.
+    *
+    * An unguarded hook becomes scoped to the mount prefix; an already-scoped one has the
+    * prefix prepended, so nesting composes. Server-function routes are the exception: they
+    * keep a fixed wire path and never move under the prefix, so an unscoped hook is also
+    * registered against each one by exact path — otherwise a router's guard would stop
+    * covering the functions it declared.
+    */
   private def hooksFrom(
+    at:  List[PathSegment],
     sub: ServerMeltKitPlatform[F]
-  ): List[(Option[MeltKitPlatform[F, RenderResult]], ServerHook[F])] =
-    sub.scopedHooks.map {
-      case (None, hook)   => (Some(sub), hook)
-      case (scoped, hook) => (scoped, hook)
+  ): List[(Option[List[PathSegment]], ServerHook[F])] =
+    val fnPaths = sub.routes.map(_.segments).filter(_.headOption.contains(ServerFn.reservedRoot))
+    sub.scopedHooks.flatMap {
+      case (None, hook)       => (Some(at) -> hook) :: fnPaths.map(p => Some(p) -> hook)
+      case (Some(area), hook) =>
+        List(
+          (if area.headOption.contains(ServerFn.reservedRoot) then Some(area) else Some(at ::: area)) -> hook
+        )
     }
 
   /** The hooks an adapter runs, in registration order.
     *
-    * A hook mounted under a prefix is wrapped so that a request outside that prefix
-    * passes straight through — the guard applies to its own routes, not the whole app.
+    * A hook carried in from a mount runs for every request inside the mounted area,
+    * including one that resolves to no route. A request outside the area passes straight
+    * through.
     */
   private[meltkit] def hooks: List[ServerHook[F]] =
     scopedHooks.map {
-      case (None, hook)        => hook
-      case (Some(owner), hook) =>
+      case (None, hook)       => hook
+      case (Some(area), hook) =>
         new ServerHook[F]:
           def handle(event: RequestEvent[F], resolve: Resolve[F]): F[Response] =
-            if routeOwnerFor(event).exists(owner.contains) then hook.handle(event, resolve) else resolve()
+            if PathSegment.covers(area, event.pathSegments) then hook.handle(event, resolve) else resolve()
     }
 
   /** True when some registered hook would run for `route` on an HTTP request.
@@ -593,23 +609,24 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     * is guarded would be written to disk unprotected. Prerendering has to refuse such a
     * route rather than publish what a guard exists to withhold.
     */
-  private[meltkit] def hooksApplyTo(route: Route[F, RenderResult]): Boolean =
+  /** True when some hook guards the area this request falls in.
+    *
+    * Adapters consult this when no route matched. A guarded area has to answer for paths
+    * inside it that do not exist, or the 403/404 difference tells an unauthenticated caller
+    * exactly which paths are there. When this is `false` the adapter falls through as
+    * before, so a request outside every guarded area still reaches static file serving.
+    */
+  private[meltkit] def hooksCover(event: RequestEvent[F]): Boolean =
     scopedHooks.exists {
-      case (None, _)        => true
-      case (Some(owner), _) => owner.contains(route.owner)
+      case (None, _)       => true
+      case (Some(area), _) => PathSegment.covers(area, event.pathSegments)
     }
 
-  /** The router that declared the route this request resolves to, if any.
-    *
-    * A hook carried in from a mount guards the routes that router contributed — not every
-    * path under the mount point. Matching on the path alone cannot tell the two apart: the
-    * mounting router may declare the same path itself, or the same path under a different
-    * method, and its route would then be guarded by someone else's hook. Resolving the route
-    * the way dispatch does and asking who owns it is exact.
-    */
-  private def routeOwnerFor(event: RequestEvent[F]): Option[MeltKitPlatform[F, RenderResult]] =
-    val on = event.pathSegments
-    routes.find(r => r.method == event.method && PathSegment.matches(r.segments, on)).map(_.owner)
+  private[meltkit] def hooksApplyTo(route: Route[F, RenderResult]): Boolean =
+    scopedHooks.exists {
+      case (None, _)       => true
+      case (Some(area), _) => area.length <= route.segments.length && area == route.segments.take(area.length)
+    }
 
   // ── CSP Configuration ─────────────────────────────────────────────────
 
@@ -722,7 +739,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
             .asInstanceOf[ServerMeltContext[F, P, Unit, RenderResult]]
           Some(() => handler(ctx))
         else None
-    addRoute(Route(method, spec.segments, tryHandle, this))
+    addRoute(Route(method, spec.segments, tryHandle))
 
   def post[P <: AnyNamedTuple](spec: PathSpec[P])(
     handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
@@ -803,7 +820,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
           val ctx     = factory.build(params, ep.bodyDecoder).asInstanceOf[ServerMeltContext[F, P, B, RenderResult]]
           Some(() => functor.map(handler(ctx))(lift.lift))
         else None
-    addRoute(Route(ep.method, ep.spec.segments, tryHandle, this))
+    addRoute(Route(ep.method, ep.spec.segments, tryHandle))
 
   /** Registers the server-side implementation of a server function — a
     * [[CommandFn]] or a [[QueryFn]].

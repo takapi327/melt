@@ -239,7 +239,7 @@ class SubRouterMountTest extends CatsEffectSuite:
       .value
       .map(resp => assertEquals(resp.map(_.status.code), Some(403)))
 
-  test("a root-mounted guard does not leak onto the parent's own routes"):
+  test("mounting a guarded router at the root protects the whole app"):
     val sub = guarded(MeltKit[IO]())
     sub.get("thing") { ctx => IO.pure(ctx.text("sub")) }
 
@@ -251,9 +251,9 @@ class SubRouterMountTest extends CatsEffectSuite:
       .routes(app)
       .run(org.http4s.Request[IO](Method.GET, uri"/parent"))
       .value
-      .map(resp => assertEquals(resp.map(_.status.code), Some(200)))
+      .map(resp => assertEquals(resp.map(_.status.code), Some(403)))
 
-  test("a guard on one sub-router does not leak onto another at the same prefix"):
+  test("a guarded mount protects its prefix even for another router mounted there"):
     val secured = guarded(MeltKit[IO]())
     secured.get("secret") { ctx => IO.pure(ctx.text("secret")) }
 
@@ -268,7 +268,7 @@ class SubRouterMountTest extends CatsEffectSuite:
       .routes(app)
       .run(org.http4s.Request[IO](Method.GET, uri"/api/open"))
       .value
-      .map(resp => assertEquals(resp.map(_.status.code), Some(200)))
+      .map(resp => assertEquals(resp.map(_.status.code), Some(403)))
 
   test("a route added to a sub-router after mounting is still served"):
     val sub = MeltKit[IO]()
@@ -426,7 +426,7 @@ class SubRouterMountTest extends CatsEffectSuite:
     a.route("b", b)
     intercept[IllegalArgumentException](b.route("a", a))
 
-  test("a sub-router's guard does not block the mounting router's own route at the same path"):
+  test("a guarded mount protects a path the mounting router declares itself"):
     val sub = guarded(MeltKit[IO]())
     sub.get("users") { ctx => IO.pure(ctx.text("sub")) }
 
@@ -434,9 +434,9 @@ class SubRouterMountTest extends CatsEffectSuite:
     app.get("admin/users") { ctx => IO.pure(ctx.text("parent")) }
     app.route("admin", sub)
 
-    status(app, "/admin/users").map(assertEquals(_, Some(200)))
+    status(app, "/admin/users").map(assertEquals(_, Some(403)))
 
-  test("a guard scoped to a POST route does not block a GET at the same path"):
+  test("a guarded mount protects every method under its prefix"):
     val sub = guarded(MeltKit[IO]())
     sub.post("users") { ctx => IO.pure(ctx.text("created")) }
 
@@ -444,7 +444,7 @@ class SubRouterMountTest extends CatsEffectSuite:
     app.get("admin/users") { ctx => IO.pure(ctx.text("read")) }
     app.route("admin", sub)
 
-    status(app, "/admin/users").map(assertEquals(_, Some(200)))
+    status(app, "/admin/users").map(assertEquals(_, Some(403)))
 
   private val secret = ServerFn.query[Ping, Pong]("sub.secret")
   private val poke   = ServerFn.command[Ping, Pong]("parent.poke")
@@ -485,3 +485,35 @@ class SubRouterMountTest extends CatsEffectSuite:
       .value
       .flatMap(resp => resp.get.as[String])
       .map(body => assert(body.contains("classified"), s"mounted query not refreshable: $body"))
+
+  /** A guarded router mounted at `admin`, alongside an open sibling route. */
+  private def adminMount: MeltKit[IO] =
+    val sub = guarded(MeltKit[IO]())
+    sub.get("users") { ctx => IO.pure(ctx.text("TOP SECRET")) }
+    val app = MeltKit[IO]()
+    app.get("public") { ctx => IO.pure(ctx.text("open")) }
+    app.route("admin", sub)
+    app
+
+  test("a guarded mount answers for a path that does not exist under it"):
+    val app = adminMount
+    for
+      exists  <- status(app, "/admin/users")
+      missing <- status(app, "/admin/does-not-exist")
+      deep    <- status(app, "/admin/a/b/c")
+    yield
+      assertEquals(exists, Some(403))
+      assertEquals(missing, Some(403))
+      assertEquals(deep, Some(403))
+
+  test("an authorised caller still gets 404 for a path that does not exist"):
+    val app = adminMount
+    Http4sAdapter
+      .routes(app)
+      .run(
+        org.http4s
+          .Request[IO](Method.GET, uri"/admin/does-not-exist")
+          .putHeaders(Header.Raw(ci"X-Admin-Token", "secret"))
+      )
+      .value
+      .map(resp => assertEquals(resp.map(_.status.code), None))

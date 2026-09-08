@@ -45,6 +45,15 @@ object PathSegment:
       case _ =>
         pattern.length == actual.length && eachMatches(pattern, actual)
 
+  /** Returns `true` when `area` is `actual` or an ancestor of it.
+    *
+    * Used for the area a mounted router's hooks guard. Unlike [[matches]] this is about
+    * containment, not routing: the empty area covers every path, and a request deeper than
+    * the area is still inside it.
+    */
+  private[meltkit] def covers(area: List[PathSegment], actual: List[String]): Boolean =
+    area.length <= actual.length && eachMatches(area, actual)
+
   private def eachMatches(pattern: List[PathSegment], actual: List[String]): Boolean =
     pattern.zip(actual).forall {
       case (Static(s), seg) => s == seg
