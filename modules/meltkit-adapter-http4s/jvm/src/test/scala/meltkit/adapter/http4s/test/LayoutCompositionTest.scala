@@ -133,3 +133,120 @@ class LayoutCompositionTest extends CatsEffectSuite:
       assert(res.body.contains("<main>1,2</main>"), res.body)
       assertEquals(calls.get(), 1)
     }
+
+  /** Compiles a streamed response body so its boundaries actually resolve. */
+  private def drain(resp: meltkit.Response): IO[String] =
+    resp match
+      case StreamingResponse(_, _, b: meltkit.adapter.http4s.Http4sAdapter.Fs2StreamBody[IO] @unchecked, _, _) =>
+        b.toStream.through(fs2.text.utf8.decode).compile.string
+      case other => IO.pure(other.body)
+
+  /** A boundary awaiting `q`, labelled, for the dedup cases below. */
+  private def boundaryOf(r: melt.runtime.render.ServerRenderer, label: String, q: meltkit.Query[Int]): Unit =
+    val id = SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")
+    r.push("<!--melt:sb:" + id + "-->")
+    r.push("<i></i>")
+    r.push("<!--/melt:sb:" + id + "-->")
+    SsrRenderScope.current.foreach(
+      _.suspend(
+        id,
+        q,
+        {
+          case melt.runtime.Async.Done(v)   => RenderResult(s"<$label>$v</$label>", "")
+          case melt.runtime.Async.Failed(_) => RenderResult(s"<$label-err/>", "")
+          case melt.runtime.Async.Loading   => RenderResult(s"<$label-load/>", "")
+        }
+      )
+    )
+
+  test("the same query with different arguments is not merged"):
+    val twice = ServerFn.query[Int, Int]("dedup.twice")
+    val seen  = scala.collection.mutable.ListBuffer.empty[Int]
+
+    val a = MeltKit[IO]()
+    a.serve(twice) { (in, _) => IO { seen += in; in * 10 } }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "one", twice(1))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    def page: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "two", twice(2))
+      r.result()
+
+    ctxWith(a).renderAsync(page).map { res =>
+      assertEquals(seen.toList.sorted, List(1, 2))
+      assert(res.body.contains("<one>10</one>"), res.body)
+      assert(res.body.contains("<two>20</two>"), res.body)
+    }
+
+  test("a shared query that fails renders the error branch in every boundary"):
+    val boom  = ServerFn.query[Int, Int]("dedup.boom")
+    val calls = new java.util.concurrent.atomic.AtomicInteger(0)
+
+    val a = MeltKit[IO]()
+    a.serve(boom) { (_, _) => IO(calls.incrementAndGet()) *> IO.raiseError(new RuntimeException("down")) }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "nav", boom(1))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    def page: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "main", boom(1))
+      r.result()
+
+    ctxWith(a).renderAsync(page).map { res =>
+      assertEquals(calls.get(), 1)
+      assert(res.body.contains("<nav-err/>"), res.body)
+      assert(res.body.contains("<main-err/>"), res.body)
+      assert(!res.body.contains("data-melt-queries"), res.body)
+    }
+
+  test("a shared query nobody served renders the loading branch in every boundary"):
+    val absent = ServerFn.query[Int, Int]("dedup.absent")
+
+    val a = MeltKit[IO]()
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "nav", absent(1))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    def page: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "main", absent(1))
+      r.result()
+
+    ctxWith(a).renderAsync(page).map { res =>
+      assert(res.body.contains("<nav-load/>"), res.body)
+      assert(res.body.contains("<main-load/>"), res.body)
+    }
+
+  test("streaming resolves each top-level boundary in its own scope, so a shared query runs per chunk"):
+    val shared = ServerFn.query[Int, Int]("dedup.streamed")
+    val calls  = new java.util.concurrent.atomic.AtomicInteger(0)
+
+    val a = MeltKit[IO]()
+    a.serve(shared) { (in, _) => IO(calls.incrementAndGet()).as(in) }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "nav", shared(1))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    def page: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "main", shared(1))
+      r.result()
+
+    ctxWith(a).renderStream(page).flatMap(drain).map { _ =>
+      assertEquals(calls.get(), 2)
+    }
+
+  test("ctx.renderPage composes the registered layout"):
+    val html = ctxWith(appWithLayout).renderPage(page).body
+    assert(html.contains("<shell><p>page</p></shell>"), html)

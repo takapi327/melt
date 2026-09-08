@@ -95,7 +95,7 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
     * silently lost its layouts. Composing inside the render scope also lets a layout carry
     * its own boundary, which is how a layout gets per-request data.
     */
-  private def laidOut(component: => RenderResult): RenderResult =
+  override private[meltkit] def laidOut(component: => RenderResult): RenderResult =
     app match
       case Some(a) => a.wrapLayouts(requestPath, () => component)
       case None    => component

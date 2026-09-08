@@ -84,6 +84,14 @@ trait ServerMeltContext[F[_], P <: AnyNamedTuple, B, C] extends MeltContext[F, P
     * written against `renderStream` still works on every server context. */
   def renderStream(component: => C): F[Response] = renderAsync(component)
 
+  /** `component` wrapped in the layouts registered for this request's path.
+    *
+    * Declared here so every render entry point can reach it, including [[renderPage]],
+    * which builds its document without a [[Template]] and would otherwise drop the layouts
+    * the other entry points apply. The default is identity, for contexts with no app.
+    */
+  private[meltkit] def laidOut(component: => C): C = component
+
 /** Makes [[ServerMeltContext.renderAsync]] / [[ServerMeltContext.renderStream]]
   * callable from `app.get` handlers, whose `ctx` is statically a [[MeltContext]]
   * but is always a server context at runtime. */
@@ -115,7 +123,10 @@ extension [F[_], P <: AnyNamedTuple, B](ctx: MeltContext[F, P, B, RenderResult])
     lang:      String = "en",
     head:      String = ""
   ): PlainResponse =
-    ctx.html(component.toHtmlDocument(title, lang, head))
+    val composed = ctx match
+      case s: ServerMeltContext[F, P, B, RenderResult] @unchecked => s.laidOut(component)
+      case _                                                      => component
+    ctx.html(composed.toHtmlDocument(title, lang, head))
 
   def renderAsync(component: => RenderResult): F[Response] =
     ctx match

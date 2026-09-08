@@ -45,3 +45,38 @@ class JvmLayoutCompositionTest extends munit.FunSuite:
   test("renderAsync composes the registered layout"):
     val res = Await.result(ctxWith(appWithLayout).renderAsync(page), 5.seconds)
     assert(res.body.contains("<shell><p>page</p></shell>"), res.body)
+
+  test("renderStream composes the registered layout"):
+    val res = Await.result(ctxWith(appWithLayout).renderStream(page), 5.seconds)
+    assert(res.body.contains("<shell><p>page</p></shell>"), res.body)
+
+  test("distinct queries run in the order they were registered"):
+    val q     = ServerFn.query[Int, Int]("ordered.q")
+    val order = scala.collection.mutable.ListBuffer.empty[Int]
+
+    val a = MeltKit[Future]()
+    a.serve(q) { (in, _) => Future { order += in; in } }
+
+    def boundaryOf(r: melt.runtime.render.ServerRenderer, n: Int): Unit =
+      val id = SsrRenderScope.current.map(_.nextId()).getOrElse("melt-sb-0")
+      r.push("<!--melt:sb:" + id + "-->")
+      r.push("<i></i>")
+      r.push("<!--/melt:sb:" + id + "-->")
+      SsrRenderScope.current.foreach(
+        _.suspend(
+          id,
+          q(n),
+          {
+            case melt.runtime.Async.Done(v) => RenderResult(s"<v>$v</v>", "")
+            case _                          => RenderResult("", "")
+          }
+        )
+      )
+
+    def page6: RenderResult =
+      val r = melt.runtime.render.ServerRenderer()
+      (1 to 6).foreach(n => boundaryOf(r, n))
+      r.result()
+
+    Await.result(ctxWith(a).renderAsync(page6), 5.seconds)
+    assertEquals(order.toList, List(1, 2, 3, 4, 5, 6))
