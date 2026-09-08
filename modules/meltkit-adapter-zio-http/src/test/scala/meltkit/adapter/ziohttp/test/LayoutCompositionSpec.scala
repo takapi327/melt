@@ -6,15 +6,14 @@
 
 package meltkit.adapter.ziohttp.test
 
-import zio.*
-import zio.test.*
-
 import melt.runtime.render.RenderResult
 
 import meltkit.*
 import meltkit.adapter.ziohttp.ZioHttpMeltContext
 import meltkit.adapter.ziohttp.ZioInstances.given
 import meltkit.codec.BodyDecoder
+import zio.*
+import zio.test.*
 
 /** Layout composition across the zio-http context's render entry points.
   *
