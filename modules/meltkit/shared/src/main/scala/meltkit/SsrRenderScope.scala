@@ -91,7 +91,12 @@ final class SsrRenderScope[F[_]] private[meltkit] (
 
   /** Like [[resolveAll]] but returns the raw `key -> json` seed entries instead of
     * a built JSON object, so streaming SSR can merge seeds across chunks into one
-    * `data-melt-queries` script at the tail. Fragments are parent-first. */
+    * `data-melt-queries` script at the tail. Fragments are parent-first.
+    *
+    * Boundaries naming the same query with the same arguments are fetched once per round,
+    * kept in registration order by `distinctBy` — a `Map` of five or more entries iterates
+    * in an unspecified order, and the blocking path's `Parallel` is sequential, so the order
+    * the queries run in would stop matching the order they were written in. */
   private[meltkit] def resolveAllRaw(using
     functor:  Functor[F],
     flatMap:  FlatMap[F],
@@ -108,7 +113,7 @@ final class SsrRenderScope[F[_]] private[meltkit] (
       if round.isEmpty then pure.pure((frags, seeds))
       else
         val next     = pendingSize
-        val distinct = round.map(s => s.query.key -> s).toMap.values.toList
+        val distinct = round.distinctBy(_.query.key)
         flatMap.flatMap(parallel.parTraverse(distinct)(s => functor.map(fetch(s))(s.query.key -> _))) { fetched =>
           val byKey    = fetched.toMap
           val outcomes = round.map(s => outcomeOf(s, byKey(s.query.key)))
