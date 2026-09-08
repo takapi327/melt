@@ -39,7 +39,7 @@ private[meltkit] class UndertowHttpBinding(
       val query    = exchange.getQueryString
       val rawUrl   = if query.isEmpty then path else s"$path?$query"
       val url      = Url.parse(rawUrl, s"http://${ config.host }:${ config.port }")
-      val segments = url.pathname.split('/').filter(_.nonEmpty).toList
+      val segments = url.pathSegments
 
       val hdrs    = parseHeaders(exchange)
       val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
@@ -115,9 +115,6 @@ private[meltkit] class UndertowHttpBinding(
             streamEc     = Some(ec)
           )
 
-      // Static file serving (GET/HEAD only)
-      if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, exchange, isHead) then return
-
       // A request whose final path segment has a file extension is an asset request.
       // If it wasn't served as a static file above, it must not be captured by a
       // Param/Wildcard page route (which returns HTML and makes `.js`/`.css` module
@@ -136,17 +133,30 @@ private[meltkit] class UndertowHttpBinding(
         }
       }
 
+      /** Static files are tried after routing so that a guard covering the path answers first. */
+      def serveStaticOrNotFound(): Unit =
+        if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, exchange, isHead) then ()
+        else sendText(exchange, 404, "Not Found")
+
       matched match
         case None =>
+          val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
           app.notFoundHandler match
-            case None =>
-              sendText(exchange, 404, "Not Found")
             case Some(handler) =>
-              val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
               val inner =
                 Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
               val wrapped = runHooks(app.hooks, event, inner)
               writeResponse(applyCors(wrapped), exchange, isHead, nonce)
+            case None =>
+              if !app.hooksCover(event) then serveStaticOrNotFound()
+              else
+                val unclaimed = PlainResponse(404, "text/plain; charset=utf-8", "Not Found")
+                val wrapped   = runHooks(app.hooks, event, Future.successful(unclaimed))
+                wrapped.onComplete {
+                  case scala.util.Success(r) if r eq unclaimed => serveStaticOrNotFound()
+                  case _                                       =>
+                    writeResponse(applyCors(wrapped), exchange, isHead, nonce)
+                }
 
         case Some(route) =>
           val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -347,8 +357,9 @@ private[meltkit] class UndertowHttpBinding(
     httpMethod:    String
   ): RequestEvent[Future] =
     new RequestEvent[Future]:
-      val method      = httpMethod
-      val requestPath = meltUrl.pathname
+      val method       = httpMethod
+      val requestPath  = meltUrl.pathname
+      val pathSegments = meltUrl.pathSegments
       def query(name:    String): Option[String] = meltUrl.query(name)
       def queryAll(name: String): List[String]   = meltUrl.queryAll(name)
       val queryParams = meltUrl.searchParams

@@ -189,10 +189,12 @@ object ZioHttpAdapter:
       app.routes.find(r => r.method == m && PathSegment.matches(r.segments, segments))
     }
 
+    val unclaimed: Response = Response.notFound("Not Found")
+
     val effect: ZIO[R, Throwable, Response] = matched match
       case None =>
         app.notFoundHandler match
-          case None          => ZIO.succeed(Response.notFound("Not Found"))
+          case None          => ZIO.succeed(unclaimed)
           case Some(handler) =>
             ZIO.suspendSucceed(handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
       case Some(route) =>
@@ -224,18 +226,25 @@ object ZioHttpAdapter:
     val event  = RequestAdapters.requestEvent[R](request, locals)
     val hooked = RequestAdapters.runHooks(app.hooks, event, effect)
 
-    val rendered = withCsp(withCors(hooked))
-      .map(ResponseConversion.toZioResponse)
-      .catchAllCause(cause => ZIO.succeed(internalServerError(cause.squash)))
+    /** Headers, conversion and failure handling applied to whatever the hooks settled on. */
+    def finish(e: ZIO[R, Throwable, Response]): ZIO[R, Nothing, ZResponse] =
+      withCsp(withCors(e))
+        .map(ResponseConversion.toZioResponse)
+        .catchAllCause(cause => ZIO.succeed(internalServerError(cause.squash)))
 
-    // Melt declined the request: try the client build before settling for the 404.
     val routeOrStatic = ssr.clientDistDir match
       case Some(dir) if matched.isEmpty && app.notFoundHandler.isEmpty =>
-        staticFile(dir, path).flatMap {
-          case Some(file) => ZIO.succeed(file)
-          case None       => rendered
-        }
-      case _ => rendered
+        hooked.foldCauseZIO(
+          cause => ZIO.succeed(internalServerError(cause.squash)),
+          resp =>
+            if resp eq unclaimed then
+              staticFile(dir, path).flatMap {
+                case Some(file) => ZIO.succeed(file)
+                case None       => finish(ZIO.succeed(resp))
+              }
+            else finish(ZIO.succeed(resp))
+        )
+      case _ => finish(hooked)
 
     // A CORS preflight is answered before routing: OPTIONS is not a routable Melt method.
     corsPreflight match

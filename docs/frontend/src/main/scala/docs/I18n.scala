@@ -113,7 +113,7 @@ object I18n:
     home = Home(
       heroTitle  = "Full-stack web apps,",
       heroAccent = "in one .melt file.",
-      tagline =
+      tagline    =
         "Write your UI once — ship it as a SPA, server-rendered pages, or a static site. Dashboards, forms, content sites, CRUD.",
       cta1          = "Get Started",
       cta2          = "View on GitHub",

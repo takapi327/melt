@@ -22,6 +22,14 @@ case class Url(
   origin:       String,
   hash:         String = ""
 ):
+  /** [[pathname]] split into routable segments, empty ones dropped.
+    *
+    * The single source for both route matching and `RequestEvent.pathSegments` on the
+    * adapters that route off a [[Url]]. Deriving the two separately is how a prefix-scoped
+    * guard ends up disagreeing with the router about which path a request is on.
+    */
+  def pathSegments: List[String] = pathname.split('/').filter(_.nonEmpty).toList
+
   /** Returns the first value of the named query parameter, if present. */
   def query(name: String): Option[String] =
     searchParams.get(name).flatMap(_.headOption)

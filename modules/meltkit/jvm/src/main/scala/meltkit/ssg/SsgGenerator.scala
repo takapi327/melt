@@ -60,6 +60,13 @@ object SsgGenerator:
       .filter(r => r.method == "GET" && r.segments != List(PathSegment.Wildcard))
       .flatMap { route =>
         app.pageOptionsFor(route.segments) match
+          case Some(opts) if opts.prerender != PrerenderOption.Off && app.hooksApplyTo(route) =>
+            System.err.println(
+              s"[meltkit-ssg] Warning: /${ route.segments.collect { case PathSegment.Static(v) => v }.mkString("/") }" +
+                " has prerender=On but its router declares hooks, which do not run during generation — skipped" +
+                " rather than published unguarded"
+            )
+            Nil
           case Some(opts) if opts.prerender != PrerenderOption.Off =>
             val hasDynamic = route.segments.exists(_.isInstanceOf[PathSegment.Param])
             if !hasDynamic then

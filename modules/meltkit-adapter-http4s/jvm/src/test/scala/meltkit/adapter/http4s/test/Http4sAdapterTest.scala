@@ -517,6 +517,171 @@ class Http4sAdapterTest extends CatsEffectSuite:
         assertEquals(capturedHeader, Some("abc123"))
       }
 
+  /** A sub-router guarded by its own auth hook, mounted under `admin`. */
+  private def guardedAdminApp: MeltKit[IO] =
+    val admin = MeltKit[IO]()
+    admin.use { (event, resolve) =>
+      event.header("x-admin-token") match
+        case Some("secret") => resolve()
+        case _              => IO.pure(meltkit.Response.text("forbidden").withStatus(403))
+    }
+    admin.get("users") { ctx => IO.pure(ctx.text("TOP SECRET")) }
+
+    val app = MeltKit[IO]()
+    app.get("public") { ctx => IO.pure(ctx.text("open")) }
+    app.route("admin", admin)
+    app
+
+  test("a hook registered on a mounted sub-router still guards its routes"):
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users")
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .map { resp =>
+        assertEquals(resp.map(_.status.code), Some(403))
+      }
+
+  test("a mounted sub-router's hook lets an authorised request through"):
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users")
+      .withHeaders(Header.Raw(ci"X-Admin-Token", "secret"))
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assertEquals(resp.map(_.status.code), Some(200))
+        resp.get.as[String].map(assertEquals(_, "TOP SECRET"))
+      }
+
+  test("a mounted sub-router's hook does not run outside its prefix"):
+    val req = Request[IO](method = Method.GET, uri = uri"/public")
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .flatMap { resp =>
+        assertEquals(resp.map(_.status.code), Some(200))
+        resp.get.as[String].map(assertEquals(_, "open"))
+      }
+
+  test("sub-router hooks compose through two levels of mounting"):
+    val inner = MeltKit[IO]()
+    inner.use { (event, resolve) =>
+      event.header("x-inner") match
+        case Some(_) => resolve()
+        case None    => IO.pure(meltkit.Response.text("no").withStatus(403))
+    }
+    inner.get("thing") { ctx => IO.pure(ctx.text("deep")) }
+
+    val middle = MeltKit[IO]()
+    middle.route("v1", inner)
+
+    val app = MeltKit[IO]()
+    app.route("api", middle)
+
+    val blocked = Request[IO](method = Method.GET, uri = uri"/api/v1/thing")
+    val allowed = blocked.withHeaders(Header.Raw(ci"X-Inner", "y"))
+
+    for
+      a <- Http4sAdapter.routes(app).run(blocked).value
+      b <- Http4sAdapter.routes(app).run(allowed).value
+    yield
+      assertEquals(a.map(_.status.code), Some(403))
+      assertEquals(b.map(_.status.code), Some(200))
+
+  test("percent-encoded prefix cannot slip past a sub-router guard"):
+    val req = Request[IO](method = Method.GET, uri = Uri.unsafeFromString("/%61dmin/users"))
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .map { resp =>
+        assertEquals(resp.map(_.status.code), Some(403))
+      }
+
+  test("a sub-router guard covers non-GET methods"):
+    val admin = MeltKit[IO]()
+    admin.use { (event, resolve) =>
+      event.header("x-admin-token") match
+        case Some("secret") => resolve()
+        case _              => IO.pure(meltkit.Response.text("forbidden").withStatus(403))
+    }
+    admin.post("users") { ctx => IO.pure(ctx.text("CREATED")) }
+
+    val app = MeltKit[IO]()
+    app.route("admin", admin)
+
+    val req = Request[IO](method = Method.POST, uri = uri"/admin/users")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assertEquals(resp.map(_.status.code), Some(403))
+      }
+
+  test("a sub-router guard covers the mount root itself"):
+    val admin = MeltKit[IO]()
+    admin.use { (_, _) => IO.pure(meltkit.Response.text("forbidden").withStatus(403)) }
+    admin.get("") { ctx => IO.pure(ctx.text("ROOT")) }
+
+    val app = MeltKit[IO]()
+    app.route("admin", admin)
+
+    val req = Request[IO](method = Method.GET, uri = uri"/admin")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { resp =>
+        assertEquals(resp.map(_.status.code), Some(403))
+      }
+
+  test("a trailing slash does not slip past a sub-router guard"):
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users/")
+    Http4sAdapter
+      .routes(guardedAdminApp)
+      .run(req)
+      .value
+      .map { resp =>
+        assert(!resp.exists(_.status.code == 200), s"unguarded hit: ${ resp.map(_.status.code) }")
+      }
+
+  test("an app-wide hook registered after route() still runs first-registered-first"):
+    val order = scala.collection.mutable.ListBuffer[String]()
+    val admin = MeltKit[IO]()
+    admin.use { (_, resolve) => IO(order += "sub") *> resolve() }
+    admin.get("users") { ctx => IO.pure(ctx.text("ok")) }
+
+    val app = MeltKit[IO]()
+    app.use { (_, resolve) => IO(order += "before") *> resolve() }
+    app.route("admin", admin)
+    app.use { (_, resolve) => IO(order += "after") *> resolve() }
+
+    val req = Request[IO](method = Method.GET, uri = uri"/admin/users")
+    Http4sAdapter
+      .routes(app)
+      .run(req)
+      .value
+      .map { _ => assertEquals(order.toList, List("before", "sub", "after")) }
+
+  test("the same sub-router mounted twice is guarded at both mounts"):
+    val guard = MeltKit[IO]()
+    guard.use { (_, _) => IO.pure(meltkit.Response.text("forbidden").withStatus(403)) }
+    guard.get("thing") { ctx => IO.pure(ctx.text("secret")) }
+
+    val app = MeltKit[IO]()
+    app.route("a", guard)
+    app.route("b", guard)
+
+    for
+      x <- Http4sAdapter.routes(app).run(Request[IO](method = Method.GET, uri = uri"/a/thing")).value
+      y <- Http4sAdapter.routes(app).run(Request[IO](method = Method.GET, uri = uri"/b/thing")).value
+    yield
+      assertEquals(x.map(_.status.code), Some(403))
+      assertEquals(y.map(_.status.code), Some(403))
+
   test("ServerHook.sequence composes hooks in order"):
     val app      = MeltKit[IO]()
     val order    = scala.collection.mutable.ListBuffer[Int]()

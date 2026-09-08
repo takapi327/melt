@@ -161,6 +161,15 @@ final class Http4sAdapter[F[_]: Concurrent: meltkit.Defer] private (
       matched match
         case None =>
           app.notFoundHandler match
+            case None if app.hooksCover(event) =>
+              val passThrough: Response = PlainResponse(404, "text/plain; charset=utf-8", "Not Found")
+              val wrapped = Http4sAdapter.runHooks(app.hooks, event, Concurrent[F].pure(passThrough))
+              OptionT(wrapped.flatMap { r =>
+                if r eq passThrough then Concurrent[F].pure(Option.empty[org.http4s.Response[F]])
+                else
+                  withCspHeader(applyCors(Concurrent[F].pure(r)))
+                    .map(res => Some(Http4sAdapter.toHttp4sResponse[F](res)))
+              })
             case None          => OptionT.none
             case Some(handler) =>
               val innerEffect = meltkit.Defer[F].defer {
@@ -353,7 +362,20 @@ object Http4sAdapter:
           }
 
           matched match
-            case None        => OptionT.none
+            case None =>
+              val guardLocals = new Locals()
+              val guardEvent  = buildRequestEvent(request, guardLocals)
+              if !app.hooksCover(guardEvent) then OptionT.none
+              else
+                val passThrough: Response = PlainResponse(404, "text/plain; charset=utf-8", "Not Found")
+                val wrapped = runHooks(app.hooks, guardEvent, Concurrent[F].pure(passThrough))
+                OptionT(wrapped.flatMap { r =>
+                  if r eq passThrough then Concurrent[F].pure(Option.empty[org.http4s.Response[F]])
+                  else
+                    corsCfg
+                      .fold(Concurrent[F].pure(r))(cfg => withCorsHeaders(cfg, request, Concurrent[F].pure(r)))
+                      .map(res => Some(toHttp4sResponse[F](res)))
+                })
             case Some(route) =>
               val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
               val locals    = new Locals()
@@ -475,9 +497,10 @@ object Http4sAdapter:
     sharedLocals: Locals
   ): RequestEvent[F2] =
     new RequestEvent[F2]:
-      val method      = request.method.name
-      val requestPath = request.uri.path.renderString
-      val locals      = sharedLocals
+      val method       = request.method.name
+      val requestPath  = request.uri.path.renderString
+      val pathSegments = request.pathInfo.segments.toList.map(_.decoded())
+      val locals       = sharedLocals
 
       def query(name: String): Option[String] =
         request.uri.query.params.get(name)

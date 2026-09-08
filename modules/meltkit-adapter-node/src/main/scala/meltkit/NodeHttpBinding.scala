@@ -31,7 +31,7 @@ private[meltkit] class NodeHttpBinding(
     val method   = req.method.toUpperCase
     val rawUrl   = if req.url == null then "/" else req.url
     val url      = Url.parse(rawUrl, s"http://${ config.host }:${ config.port }")
-    val segments = url.pathname.split('/').filter(_.nonEmpty).toList
+    val segments = url.pathSegments
 
     val hdrs    = parseHeaders(req.headers)
     val cookies = hdrs.get("cookie").map(CookieJar.parseCookieHeader).getOrElse(Map.empty)
@@ -107,26 +107,42 @@ private[meltkit] class NodeHttpBinding(
           routerEntry  = config.routerHydration
         )
 
-    // Try static file serving first (GET/HEAD only)
-    if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, res, isHead) then return
+    val assetLike = looksLikeStaticAsset(url.pathname)
 
     val matched = parsedMethod.flatMap { m =>
       app.routes.find { r =>
-        r.method == m && PathSegment.matches(r.segments, segments)
+        r.method == m && PathSegment.matches(r.segments, segments) &&
+        !(assetLike && r.segments.exists {
+          case PathSegment.Param(_) | PathSegment.Wildcard => true
+          case _                                           => false
+        })
       }
     }
 
+    /** Static files are tried after routing so that a guard covering the path answers first. */
+    def serveStaticOrNotFound(): Unit =
+      if (routeMethod == "GET" || isHead) && tryServeStaticFile(url.pathname, res, isHead) then ()
+      else
+        res.writeHead(404, js.Dictionary("Content-Type" -> "text/plain; charset=utf-8"))
+        res.end("Not Found")
+
     matched match
       case None =>
+        val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
         app.notFoundHandler match
-          case None =>
-            res.writeHead(404, js.Dictionary("Content-Type" -> "text/plain; charset=utf-8"))
-            res.end("Not Found")
           case Some(handler) =>
-            val event = buildRequestEvent(url, hdrs, cookies, locals, routeMethod)
             val inner = Future(()).flatMap(_ => handler(factory.build(PathSpec.emptyValue, summon[BodyDecoder[Unit]])))
             val wrapped = runHooks(app.hooks, event, inner)
             writeResponse(applyCors(wrapped), res, isHead, nonce)
+          case None =>
+            if !app.hooksCover(event) then serveStaticOrNotFound()
+            else
+              val unclaimed = PlainResponse(404, "text/plain; charset=utf-8", "Not Found")
+              val wrapped   = runHooks(app.hooks, event, Future.successful(unclaimed))
+              wrapped.onComplete {
+                case scala.util.Success(r) if r eq unclaimed => serveStaticOrNotFound()
+                case _                                       => writeResponse(applyCors(wrapped), res, isHead, nonce)
+              }
 
       case Some(route) =>
         val rawValues = route.segments.zip(segments).collect { case (PathSegment.Param(_), v) => v }
@@ -225,6 +241,14 @@ private[meltkit] class NodeHttpBinding(
     dict.foreach { case (k, v) => builder += (k.toLowerCase -> v) }
     builder.result()
 
+  /** A request whose final path segment carries a file extension is an asset request, never a
+    * navigation. It must resolve to a file or a 404 rather than being claimed by a
+    * `Param`/`Wildcard` page route, which would answer HTML and fail the browser's MIME check. */
+  private def looksLikeStaticAsset(pathname: String): Boolean =
+    val slash = pathname.lastIndexOf('/')
+    val last  = if slash >= 0 then pathname.substring(slash + 1) else pathname
+    last.indexOf('.') > 0
+
   private def tryServeStaticFile(pathname: String, res: ServerResponse, isHead: Boolean): Boolean =
     config.clientDistDir match
       case None          => false
@@ -313,8 +337,9 @@ private[meltkit] class NodeHttpBinding(
     httpMethod:    String
   ): RequestEvent[Future] =
     new RequestEvent[Future]:
-      val method      = httpMethod
-      val requestPath = meltUrl.pathname
+      val method       = httpMethod
+      val requestPath  = meltUrl.pathname
+      val pathSegments = meltUrl.pathSegments
       def query(name:    String): Option[String] = meltUrl.query(name)
       def queryAll(name: String): List[String]   = meltUrl.queryAll(name)
       val queryParams = meltUrl.searchParams
