@@ -250,3 +250,32 @@ class LayoutCompositionTest extends CatsEffectSuite:
   test("ctx.renderPage composes the registered layout"):
     val html = ctxWith(appWithLayout).renderPage(page).body
     assert(html.contains("<shell><p>page</p></shell>"), html)
+
+  test("ctx.render leaves a boundary for the client instead of resolving it"):
+    val nums = ServerFn.query[Int, Int]("plain.nums")
+    val a    = MeltKit[IO]()
+    a.serve(nums) { (in, _) => IO.pure(in * 10) }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "nav", nums(4))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    val html = ctxWith(a).render(page).body
+    assert(html.contains("melt:sb:"), html)
+    assert(!html.contains("<nav>40</nav>"), html)
+    assert(!html.contains("data-melt-queries"), html)
+
+  test("ctx.renderAsync is what resolves that same boundary"):
+    val nums = ServerFn.query[Int, Int]("plain.nums.async")
+    val a    = MeltKit[IO]()
+    a.serve(nums) { (in, _) => IO.pure(in * 10) }
+    a.layout("") { child =>
+      val r = melt.runtime.render.ServerRenderer()
+      boundaryOf(r, "nav", nums(4))
+      RenderResult(r.result().body + child().body, "")
+    }
+
+    ctxWith(a).renderAsync(page).map { res =>
+      assert(res.body.contains("<nav>40</nav>"), res.body)
+    }
