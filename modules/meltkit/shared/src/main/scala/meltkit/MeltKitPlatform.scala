@@ -114,8 +114,7 @@ trait MeltKitPlatform[F[_], C]:
     * router-driven hydration entry — see the design doc.)
     */
   def layout(prefix: String)(wrap: (() => C) => C): Unit =
-    val segs = prefix.split('/').filter(_.nonEmpty).map(PathSegment.Static(_)).toList
-    _layouts += (segs -> wrap)
+    _layouts += (PathSpec.prefixSegments(prefix) -> wrap)
 
   /** Every registered layout with its prefix segments, for [[route]] to re-scope. */
   private[meltkit] def allLayouts: List[(List[PathSegment], (() => C) => C)] =
@@ -170,7 +169,7 @@ trait MeltKitPlatform[F[_], C]:
     register("GET", spec)(handler)
 
   def get(path: String)(handler: MeltContext[F, PathSpec.Empty, Unit, C] => F[Response]): Unit =
-    register("GET", PathSpec.fromString(path))(handler)
+    register("GET", PathSpec.fromRoutePath(path))(handler)
 
   /** Registers a catch-all GET handler that matches any path not already
     * matched by a more-specific route.
@@ -209,7 +208,7 @@ trait MeltKitPlatform[F[_], C]:
         s"Cannot mount a router at '$prefix' that already contains the router mounting it: resolving the " +
           "mount would not terminate."
       )
-    _mounts += (PathSpec.staticSegments(prefix) -> sub)
+    _mounts += (PathSpec.prefixSegments(prefix) -> sub)
 
   /** True when `router` is this router or anything mounted below it. */
   private[meltkit] def contains(router: MeltKitPlatform[?, ?]): Boolean =
@@ -340,7 +339,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def get(path: String, options: PageOptions)(
     handler: MeltContext[F, NamedTuple.Empty, Unit, RenderResult] => F[Response]
   ): Unit =
-    val spec = PathSpec.fromString(path)
+    val spec = PathSpec.fromRoutePath(path)
     _pageOptions(spec.segments) = options
     get(spec)(handler)
 
@@ -393,7 +392,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
       case s: ServerMeltKitPlatform[F] @unchecked =>
         rejectWholeAppSettings(prefix, s)
         rejectDuplicateServerFns(prefix, s)
-        val at = PathSpec.staticSegments(prefix)
+        val at = PathSpec.prefixSegments(prefix)
         _hooks += (() => hooksFrom(at, s))
       case _ => ()
     super.route(prefix, sub)
@@ -502,14 +501,14 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
     render:  (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
     actions: PartialFunction[(String, ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult]), F[ActionResult[A]]]
   )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
-    registerActionPage(PathSpec.fromString(path), render, ctx => actions.lift((actionKey(ctx), ctx)))
+    registerActionPage(PathSpec.fromRoutePath(path), render, ctx => actions.lift((actionKey(ctx), ctx)))
 
   /** [[page]] (single default action) with a string path (no path parameters). */
   def page[A](path: String)(
     render: (MeltContext[F, PathSpec.Empty, Unit, RenderResult], Option[A]) => RenderResult,
     action: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[ActionResult[A]]
   )(using pure: Pure[F], functor: Functor[F], codec: PropsCodec[A]): Unit =
-    registerActionPage(PathSpec.fromString(path), render, ctx => Some(action(ctx)))
+    registerActionPage(PathSpec.fromRoutePath(path), render, ctx => Some(action(ctx)))
 
   /** Shared registration for the two [[page]] families: `GET` renders with
     * `form = None`; `POST` resolves the action via `dispatch` (`None` → 400) and
@@ -749,7 +748,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def post(path: String)(
     handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
   ): Unit =
-    registerServer("POST", PathSpec.fromString(path))(handler)
+    registerServer("POST", PathSpec.fromRoutePath(path))(handler)
 
   def put[P <: AnyNamedTuple](spec: PathSpec[P])(
     handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
@@ -759,7 +758,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def put(path: String)(
     handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
   ): Unit =
-    registerServer("PUT", PathSpec.fromString(path))(handler)
+    registerServer("PUT", PathSpec.fromRoutePath(path))(handler)
 
   def delete[P <: AnyNamedTuple](spec: PathSpec[P])(
     handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
@@ -769,7 +768,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def delete(path: String)(
     handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
   ): Unit =
-    registerServer("DELETE", PathSpec.fromString(path))(handler)
+    registerServer("DELETE", PathSpec.fromRoutePath(path))(handler)
 
   def patch[P <: AnyNamedTuple](spec: PathSpec[P])(
     handler: ServerMeltContext[F, P, Unit, RenderResult] => F[Response]
@@ -779,7 +778,7 @@ trait ServerMeltKitPlatform[F[_]] extends MeltKitPlatform[F, RenderResult]:
   def patch(path: String)(
     handler: ServerMeltContext[F, PathSpec.Empty, Unit, RenderResult] => F[Response]
   ): Unit =
-    registerServer("PATCH", PathSpec.fromString(path))(handler)
+    registerServer("PATCH", PathSpec.fromRoutePath(path))(handler)
 
   // ── Typed endpoints ─────────────────────────────────────────────────────
 

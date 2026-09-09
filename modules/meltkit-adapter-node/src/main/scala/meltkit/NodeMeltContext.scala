@@ -88,15 +88,23 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
 
   // ── MeltContext: render ────────────────────────────────────────────────
 
+  /** `component` wrapped in every layout registered for this request's path.
+    *
+    * Applied by all render entry points, not just [[render]]: `renderAsync` and
+    * `renderStream` used to skip it, so a page rendered with an `<melt:await>` boundary
+    * silently lost its layouts. Composing inside the render scope also lets a layout carry
+    * its own boundary, which is how a layout gets per-request data.
+    */
+  override private[meltkit] def laidOut(component: => RenderResult): RenderResult =
+    app match
+      case Some(a) => a.wrapLayouts(requestPath, () => component)
+      case None    => component
+
   override def render(component: => RenderResult): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
-        val composed = Router.withPath(requestPath) {
-          app match
-            case Some(a) => a.wrapLayouts(requestPath, () => component)
-            case None    => component
-        }
+        val composed = Router.withPath(requestPath)(laidOut(component))
         composeResponse(template, composed, 200)
 
   /** Blocking async SSR: resolve every `<melt:await>` boundary in-process (via the
@@ -109,7 +117,7 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
       case Some(template) =>
         app match
           case None =>
-            Future.successful(composeResponse(template, Router.withPath(requestPath)(component), 200))
+            Future.successful(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val resolve =
               a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[Future, PathSpec.Empty, Any, RenderResult]])
@@ -117,7 +125,9 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
             val wrap = new SsrRenderScope.BranchWrap:
               def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
             val (result, scope) =
-              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
+              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(
+                Router.withPath(requestPath)(laidOut(component))
+              )
             if !scope.nonEmpty then Future.successful(composeResponse(template, result, 200))
             else
               scope.resolveAll.map { resolved =>
@@ -134,14 +144,16 @@ final class NodeMeltContext[P <: AnyNamedTuple, B](
       case Some(template) =>
         app match
           case None =>
-            Future.successful(composeResponse(template, Router.withPath(requestPath)(component), 200))
+            Future.successful(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val resolve =
               a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[Future, PathSpec.Empty, Any, RenderResult]])
             val wrap = new SsrRenderScope.BranchWrap:
               def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
             val (result, scope) =
-              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(Router.withPath(requestPath)(component))
+              SsrRenderScope.withScope[Future, RenderResult](resolve, wrap)(
+                Router.withPath(requestPath)(laidOut(component))
+              )
             if !scope.nonEmpty then Future.successful(composeResponse(template, result, 200))
             else
               val (head, tail) = composeStreamParts(template, result)

@@ -117,15 +117,23 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
 
   def redirect(path: String, permanent: Boolean): PlainResponse = Response.redirect(path, permanent)
 
+  /** `component` wrapped in every layout registered for this request's path.
+    *
+    * Applied by all render entry points, not just [[render]]: `renderAsync` and
+    * `renderStream` used to skip it, so a page rendered with an `<melt:await>` boundary
+    * silently lost its layouts. Composing inside the render scope also lets a layout carry
+    * its own boundary, which is how a layout gets per-request data.
+    */
+  override private[meltkit] def laidOut(component: => RenderResult): RenderResult =
+    app match
+      case Some(a) => a.wrapLayouts(requestPath, () => component)
+      case None    => component
+
   def render(component: => RenderResult): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
-        val composed = Router.withPath(requestPath) {
-          app match
-            case Some(a) => a.wrapLayouts(requestPath, () => component)
-            case None    => component
-        }
+        val composed = Router.withPath(requestPath)(laidOut(component))
         composeResponse(template, composed, 200)
 
   /** Blocking async SSR: resolve every `<melt:await>` boundary, then splice the resolved
@@ -136,7 +144,7 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
       case None           => ZIO.fail(missingTemplate)
       case Some(template) =>
         app match
-          case None    => ZIO.succeed(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case None    => ZIO.succeed(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val (result, scope) = renderInScope(a, component)
             if !scope.nonEmpty then ZIO.succeed(composeResponse(template, result, 200))
@@ -156,7 +164,7 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
       case None           => ZIO.fail(missingTemplate)
       case Some(template) =>
         app match
-          case None    => ZIO.succeed(composeResponse(template, Router.withPath(requestPath)(component), 200))
+          case None    => ZIO.succeed(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val (result, scope) = renderInScope(a, component)
             if !scope.nonEmpty then ZIO.succeed(composeResponse(template, result, 200))
@@ -198,7 +206,7 @@ final class ZioHttpMeltContext[R, P <: AnyNamedTuple, B](
     val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[ZTask[R], PathSpec.Empty, Any, RenderResult]])
     val wrap    = new SsrRenderScope.BranchWrap:
       def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
-    SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
+    SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(laidOut(component)))
 
   /** Composes the shell for streaming and splits it where the page body ends.
     *

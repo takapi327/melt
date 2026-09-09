@@ -420,6 +420,10 @@ case class GuideRouting(
   pageOptsIntro:         String,
   infoTitle:             Option[String],
   infoText:              Option[String],
+  subRouterH2:           Option[String] = None,
+  subRouterIntro:        Option[String] = None,
+  subRouterGuardIntro:   Option[String] = None,
+  subRouterNote:         Option[String] = None,
   layoutsH2:             Option[String] = None,
   layoutsIntro:          Option[String] = None,
   layoutsHydrationIntro: Option[String] = None,
@@ -1089,22 +1093,34 @@ object GuideI18n:
       routesH2        = "Defining routes",
       pathParamsH2    = "Path parameters",
       pathParamsIntro = "Declare parameters with param[T](\"name\") and combine them with /:",
-      pathParamsOutro = Option.empty[String],
-      ctxTableH2      = Option.empty[String],
-      ctxMethodH      = Option.empty[String],
-      ctxDescH        = Option.empty[String],
-      ctxRenderDesc   = Option.empty[String],
-      ctxHtmlDesc     = Option.empty[String],
-      ctxParamsDesc   = Option.empty[String],
-      ctxQueryDesc    = Option.empty[String],
-      ctxLocalsDesc   = Option.empty[String],
-      pageOptsH2      = "PageOptions",
-      pageOptsIntro   = "Control SSR, CSR, and prerendering per route:",
-      infoTitle       = Option.empty[String],
-      infoText        = Option.empty[String],
-      layoutsH2       = Some("Nested layouts"),
-      layoutsIntro    = Some(
-        "A layout is a component with a {children} slot. Register layouts by path prefix with app.layout: the empty prefix \"\" is the root layout, and deeper prefixes nest inside it (shortest prefix = outermost). Each page under a prefix is composed inside its layouts during SSR."
+      pathParamsOutro = Some(
+        "A path string holds static segments only. Writing a placeholder in one — :id, [id], {id} or * — is rejected when the route is registered, because it would otherwise become a literal segment that no request ever matches."
+      ),
+      ctxTableH2     = Option.empty[String],
+      ctxMethodH     = Option.empty[String],
+      ctxDescH       = Option.empty[String],
+      ctxRenderDesc  = Option.empty[String],
+      ctxHtmlDesc    = Option.empty[String],
+      ctxParamsDesc  = Option.empty[String],
+      ctxQueryDesc   = Option.empty[String],
+      ctxLocalsDesc  = Option.empty[String],
+      pageOptsH2     = "PageOptions",
+      pageOptsIntro  = "Control SSR, CSR, and prerendering per route:",
+      infoTitle      = Option.empty[String],
+      infoText       = Option.empty[String],
+      subRouterH2    = Some("Sub-routers"),
+      subRouterIntro = Some(
+        "Build a router on its own and mount it with app.route(prefix, sub). Everything the sub-router declared comes with it — routes, hooks, layouts, page options and server functions — and mounting is resolved on read, so anything declared after the mount still counts."
+      ),
+      subRouterGuardIntro = Some(
+        "The mount prefix is a protected area, not a hint. A hook registered on the sub-router runs for every request inside the prefix: any method, a path that does not exist, a static file, and a route the mounting router declared itself. That is deliberate — answering 403 for a real path and 404 for a missing one would let an unauthenticated caller map the whole area, and it would take away the app's own choice to hide that the area exists."
+      ),
+      subRouterNote = Some(
+        "Mounting a sub-router that declares onNotFound, onError, csp or cors fails: those are whole-app settings an adapter reads from the router it serves, so carrying them under a prefix would mean nothing. Server functions keep their fixed wire path (_melt/fn/<name>) rather than moving under the prefix, and a name declared on both sides is an error."
+      ),
+      layoutsH2    = Some("Nested layouts"),
+      layoutsIntro = Some(
+        "A layout is a component with a {children} slot. Register layouts by path prefix with app.layout: the empty prefix \"\" is the root layout, and deeper prefixes nest inside it (shortest prefix = outermost). Every render entry point composes them — render, renderPage, renderAsync and renderStream alike — so a page carrying a <melt:await> boundary keeps its layouts. A layout may carry its own <melt:await> too, which is how it reaches per-request data; awaiting the same query from a layout and the page under it runs the server function once."
       ),
       layoutsHydrationIntro = Some(
         "For client hydration, set meltkitRouterHydration in build.sbt and export a single hydrate entry: the whole composed layout tree is hydrated by one router-driven entry (BrowserAdapter.hydrate) that claims the server-rendered DOM, rather than one hydrate call per component."
@@ -1785,23 +1801,34 @@ object GuideI18n:
       routesH2        = "ルートを定義する",
       pathParamsH2    = "パスパラメータ",
       pathParamsIntro = "param[T](\"name\") でパラメータを宣言し、/ で連結します。",
-      pathParamsOutro =
-        Some("パラメータの型は Scala の型システムで検査されます。param[Int](\"page\") と宣言すれば、ctx.params.page は Int として型安全に取得できます。"),
-      ctxTableH2    = Some("ctx でレスポンスを構築する"),
-      ctxMethodH    = Some("メソッド"),
-      ctxDescH      = Some("説明"),
-      ctxRenderDesc = Some("コンポーネントを HTML にレンダリングしてレスポンスを返す"),
-      ctxHtmlDesc   = Some("プレーンテキストの文字列でレスポンスを返す"),
-      ctxParamsDesc = Some("パスパラメータへのアクセス"),
-      ctxQueryDesc  = Some("クエリパラメータへのアクセス"),
-      ctxLocalsDesc = Some("リクエストスコープのストレージ"),
-      pageOptsH2    = "PageOptions",
-      pageOptsIntro = "ルートごとに SSR・CSR・プリレンダリングを制御します。",
-      infoTitle     = Some("詳細は SSR/SSG ガイドを参照"),
-      infoText      = Some("SSR の仕組みについては サーバーサイドレンダリング、静的ページ生成については 静的サイト生成 を参照してください。"),
-      layoutsH2     = Some("ネストレイアウト"),
-      layoutsIntro  = Some(
-        "レイアウトは {children} スロットを持つコンポーネントです。app.layout でパス接頭辞に紐づけて登録します。空接頭辞 \"\" が最外(ルート)レイアウトで、深い接頭辞はその内側にネストします(短い接頭辞ほど外側)。接頭辞配下の各ページは SSR 時にレイアウトの中に合成されます。"
+      pathParamsOutro = Some(
+        "パラメータの型は Scala の型システムで検査されます。param[Int](\"page\") と宣言すれば、ctx.params.page は Int として型安全に取得できます。なお、パス文字列は静的セグメントのみを保持します。:id / [id] / {id} / * のようなプレースホルダを書いた場合はルート登録時にエラーになります（そのままではどのリクエストにもマッチしないリテラルセグメントになるためです）。"
+      ),
+      ctxTableH2     = Some("ctx でレスポンスを構築する"),
+      ctxMethodH     = Some("メソッド"),
+      ctxDescH       = Some("説明"),
+      ctxRenderDesc  = Some("コンポーネントを HTML にレンダリングしてレスポンスを返す"),
+      ctxHtmlDesc    = Some("プレーンテキストの文字列でレスポンスを返す"),
+      ctxParamsDesc  = Some("パスパラメータへのアクセス"),
+      ctxQueryDesc   = Some("クエリパラメータへのアクセス"),
+      ctxLocalsDesc  = Some("リクエストスコープのストレージ"),
+      pageOptsH2     = "PageOptions",
+      pageOptsIntro  = "ルートごとに SSR・CSR・プリレンダリングを制御します。",
+      infoTitle      = Some("詳細は SSR/SSG ガイドを参照"),
+      infoText       = Some("SSR の仕組みについては サーバーサイドレンダリング、静的ページ生成については 静的サイト生成 を参照してください。"),
+      subRouterH2    = Some("サブルーター"),
+      subRouterIntro = Some(
+        "ルーターを単体で組み立て、app.route(prefix, sub) でマウントします。サブルーターが宣言したもの（ルート・フック・レイアウト・ページオプション・Server Functions）はすべて一緒に運ばれます。マウントは参照時に解決されるため、マウント後に宣言したものも有効です。"
+      ),
+      subRouterGuardIntro = Some(
+        "マウント接頭辞は「保護領域の宣言」です。サブルーターに登録したフックは、その接頭辞配下のあらゆるリクエストで実行されます — メソッドを問わず、存在しないパスでも、静的ファイルでも、マウントした側が自分で宣言したルートでも。これは意図的です。実在するパスだけ 403 で存在しないパスが 404 になると、認証なしで保護領域の構造を推測できてしまい、「未認証には 404 を返して存在自体を隠す」という選択もアプリから奪われるためです。"
+      ),
+      subRouterNote = Some(
+        "onNotFound / onError / csp / cors を宣言したサブルーターのマウントは失敗します。これらはアダプタが「配信するルーター」からのみ読むアプリ全体の設定で、接頭辞単位で持つ意味がないためです。Server Functions は接頭辞配下へ移動せず固定の wire path（_melt/fn/<name>）のままで、名前が両側で衝突した場合はエラーになります。"
+      ),
+      layoutsH2    = Some("ネストレイアウト"),
+      layoutsIntro = Some(
+        "レイアウトは {children} スロットを持つコンポーネントです。app.layout でパス接頭辞に紐づけて登録します。空接頭辞 \"\" が最外(ルート)レイアウトで、深い接頭辞はその内側にネストします(短い接頭辞ほど外側)。合成はすべての描画入口で行われます — render / renderPage / renderAsync / renderStream のいずれでも同じで、<melt:await> を含むページでもレイアウトは失われません。レイアウト自身が <melt:await> を持つこともでき、これがリクエストごとのデータを取得する手段です。レイアウトと配下のページが同じクエリを await した場合、Server Function の実行は 1 回です。"
       ),
       layoutsHydrationIntro = Some(
         "クライアントハイドレーションでは、build.sbt で meltkitRouterHydration を設定し、単一の hydrate エントリをエクスポートします。合成されたレイアウトツリー全体が、コンポーネントごとの hydrate 呼び出しではなく、サーバ描画済み DOM を claim する単一の router 駆動エントリ(BrowserAdapter.hydrate)でハイドレートされます。"

@@ -141,15 +141,23 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
   /** Evaluates `component` inside `Router.withPath(requestPath)` so that
     * `Router.currentPath` returns the correct path during SSR rendering.
     */
+  /** `component` wrapped in every layout registered for this request's path.
+    *
+    * Applied by all render entry points, not just [[render]]: `renderAsync` and
+    * `renderStream` used to skip it, so a page rendered with an `<melt:await>` boundary
+    * silently lost its layouts. Composing inside the render scope also lets a layout carry
+    * its own boundary, which is how a layout gets per-request data.
+    */
+  override private[meltkit] def laidOut(component: => RenderResult): RenderResult =
+    app match
+      case Some(a) => a.wrapLayouts(requestPath, () => component)
+      case None    => component
+
   override def render(component: => RenderResult): PlainResponse =
     templateOpt match
       case None           => throw missingTemplate
       case Some(template) =>
-        val composed = Router.withPath(requestPath) {
-          app match
-            case Some(a) => a.wrapLayouts(requestPath, () => component)
-            case None    => component
-        }
+        val composed = Router.withPath(requestPath)(laidOut(component))
         composeResponse(template, composed, 200)
 
   /** Blocking async SSR: evaluate the shell inside a [[SsrRenderScope]], then
@@ -165,7 +173,8 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
         app match
           case None =>
             // No server-function registry wired → nothing to resolve; render synchronously.
-            summon[meltkit.Pure[F]].pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+            summon[meltkit.Pure[F]]
+              .pure(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]])
             // Each deferred branch re-establishes the request path (the ThreadLocal
@@ -173,7 +182,7 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
             val wrap = new SsrRenderScope.BranchWrap:
               def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
             val (result, scope) =
-              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
+              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(laidOut(component)))
             if !scope.nonEmpty then summon[meltkit.Pure[F]].pure(composeResponse(template, result, 200))
             else
               summon[meltkit.Functor[F]].map(scope.resolveAll) { resolved =>
@@ -198,13 +207,13 @@ final class Http4sMeltContext[F[_]: Concurrent, P <: AnyNamedTuple, B](
       case Some(template) =>
         app match
           case None =>
-            Concurrent[F].pure(composeResponse(template, Router.withPath(requestPath)(component), 200))
+            Concurrent[F].pure(composeResponse(template, Router.withPath(requestPath)(laidOut(component)), 200))
           case Some(a) =>
             val resolve = a.resolveQueryFn(this.asInstanceOf[ServerMeltContext[F, PathSpec.Empty, Any, RenderResult]])
             val wrap    = new SsrRenderScope.BranchWrap:
               def apply(thunk: => RenderResult): RenderResult = Router.withPath(requestPath)(thunk)
             val (result, scope) =
-              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(component))
+              SsrRenderScope.withScope(resolve, wrap)(Router.withPath(requestPath)(laidOut(component)))
             if !scope.nonEmpty then Concurrent[F].pure(composeResponse(template, result, 200))
             else
               val (head, tail) = composeStreamParts(template, result)
