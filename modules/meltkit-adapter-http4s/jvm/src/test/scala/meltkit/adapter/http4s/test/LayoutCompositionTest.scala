@@ -6,6 +6,8 @@
 
 package meltkit.adapter.http4s.test
 
+import scala.jdk.CollectionConverters.*
+
 import munit.CatsEffectSuite
 
 import melt.runtime.render.RenderResult
@@ -161,10 +163,10 @@ class LayoutCompositionTest extends CatsEffectSuite:
 
   test("the same query with different arguments is not merged"):
     val twice = ServerFn.query[Int, Int]("dedup.twice")
-    val seen  = scala.collection.mutable.ListBuffer.empty[Int]
+    val seen  = new java.util.concurrent.ConcurrentLinkedQueue[Int]()
 
     val a = MeltKit[IO]()
-    a.serve(twice) { (in, _) => IO { seen += in; in * 10 } }
+    a.serve(twice) { (in, _) => IO { seen.add(in); in * 10 } }
     a.layout("") { child =>
       val r = melt.runtime.render.ServerRenderer()
       boundaryOf(r, "one", twice(1))
@@ -177,7 +179,7 @@ class LayoutCompositionTest extends CatsEffectSuite:
       r.result()
 
     ctxWith(a).renderAsync(page).map { res =>
-      assertEquals(seen.toList.sorted, List(1, 2))
+      assertEquals(seen.iterator.asScala.toList.sorted, List(1, 2))
       assert(res.body.contains("<one>10</one>"), res.body)
       assert(res.body.contains("<two>20</two>"), res.body)
     }
