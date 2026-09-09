@@ -739,6 +739,30 @@ object GuideCodes:
        |
        |app.get(lang / "guide" / slug, opts) { ctx => ... }""".stripMargin
 
+  val routingSubRouter: String =
+    """|// Build a router on its own, guard it, then mount it.
+       |val admin = MeltKit[IO]()
+       |
+       |admin.use { (event, resolve) =>
+       |  event.cookie("admin_session") match
+       |    case Some(_) => resolve()
+       |    case None    => IO.pure(Response.text("Forbidden").withStatus(403))
+       |}
+       |
+       |admin.get("users") { ctx => IO.pure(ctx.render(UserList())) }
+       |admin.post("users") { ctx => ... }
+       |
+       |val app = MeltKit[IO]()
+       |app.get("") { ctx => IO.pure(ctx.render(Home())) }
+       |app.route("admin", admin)   // → /admin/users""".stripMargin
+
+  val routingSubRouterGuarded: String =
+    """|GET  /admin/users        → 403   (the guard runs)
+       |POST /admin/users        → 403   (every method under the prefix)
+       |GET  /admin/nothing      → 403   (a path that does not exist, too)
+       |GET  /admin/app.js       → 403   (a static file under the prefix)
+       |GET  /                   → 200   (outside the prefix, untouched)""".stripMargin
+
   val routingNestedLayouts: String =
     """|// A layout is a component with a {children} slot:
        |// AppShell.melt

@@ -101,6 +101,24 @@
     </code>
   </pre>
 </div>
+{t.subRouterH2.map((h: String) => <h2>{h}</h2>)}
+{t.subRouterIntro.map((p: String) => <p>{p}</p>)}
+{t.subRouterH2.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.routingSubRouter}</code></pre>
+  </div>
+)}
+{t.subRouterGuardIntro.map((p: String) => <p>{p}</p>)}
+{t.subRouterH2.map(_ =>
+  <div class="code-block">
+    <pre><code>{GuideCodes.routingSubRouterGuarded}</code></pre>
+  </div>
+)}
+{t.subRouterNote.map((note: String) =>
+  <div class="callout callout-warning">
+    <p>{note}</p>
+  </div>
+)}
 {t.layoutsH2.map((h: String) => <h2>{h}</h2>)}
 {t.layoutsIntro.map((p: String) => <p>{p}</p>)}
 {t.layoutsH2.map(_ =>
