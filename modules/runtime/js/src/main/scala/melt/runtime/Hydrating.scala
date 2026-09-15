@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 import org.scalajs.dom
 
@@ -39,7 +39,9 @@ import org.scalajs.dom
   */
 object Hydrating:
 
-  private val stack = mutable.Stack.empty[HydrationCursor]
+  // js.Array used as a stack rather than mutable.Stack — see
+  // memo/design-bundle-size.md §2.6 for why Scala collections are avoided here.
+  private val stack = js.Array[HydrationCursor]()
 
   /** True when the cursor stack is non-empty **and** the top cursor has a
     * non-null current node.
@@ -49,22 +51,22 @@ object Hydrating:
     * `false` — restoring normal SPA creation/append behaviour inside
     * those lambdas.
     */
-  def isActive: Boolean = stack.nonEmpty && (stack.top.current != null)
+  def isActive: Boolean = (stack.length > 0) && (stack(stack.length - 1).current != null)
 
   // ── Node creation / claiming ──────────────────────────────────────────────
 
   /** Claims the next matching element from the cursor, or creates a fresh one. */
   def element(tag: String): dom.Element =
-    if stack.nonEmpty then
-      stack.top.nextElement(tag) match
+    if stack.length > 0 then
+      stack(stack.length - 1).nextElement(tag) match
         case null => dom.document.createElement(tag)
         case el   => el
     else dom.document.createElement(tag)
 
   /** Claims the next matching namespaced element, or creates a fresh one. */
   def elementNS(ns: String, tag: String): dom.Element =
-    if stack.nonEmpty then
-      stack.top.nextElement(tag) match
+    if stack.length > 0 then
+      stack(stack.length - 1).nextElement(tag) match
         case null => dom.document.createElementNS(ns, tag)
         case el   => el
     else dom.document.createElementNS(ns, tag)
@@ -73,8 +75,8 @@ object Hydrating:
     * Does NOT append; the caller's parent handles insertion conditionally.
     */
   def textNode(content: String): dom.Text =
-    if stack.nonEmpty then
-      stack.top.nextText() match
+    if stack.length > 0 then
+      stack(stack.length - 1).nextText() match
         case null => dom.document.createTextNode(content)
         case t    => t
     else dom.document.createTextNode(content)
@@ -87,7 +89,7 @@ object Hydrating:
     */
   def text(v: State[?], parent: dom.Node): dom.Text =
     if isActive then
-      val node = stack.top.nextText() match
+      val node = stack(stack.length - 1).nextText() match
         case null => dom.document.createTextNode(v.value.toString)
         case t    => t
       val cancel = v.subscribe(a => node.textContent = a.toString)
@@ -98,7 +100,7 @@ object Hydrating:
   /** Claims/creates a text node for a `Signal` and subscribes reactively. */
   def text(signal: Signal[?], parent: dom.Node): dom.Text =
     if isActive then
-      val node = stack.top.nextText() match
+      val node = stack(stack.length - 1).nextText() match
         case null => dom.document.createTextNode(signal.value.toString)
         case t    => t
       val cancel = signal.subscribe(a => node.textContent = a.toString)
@@ -109,7 +111,7 @@ object Hydrating:
   /** Claims/creates a static-string text node.  Skips append when claiming. */
   def text(value: String, parent: dom.Node): dom.Text =
     if isActive then
-      stack.top.nextText() match
+      stack(stack.length - 1).nextText() match
         case null => dom.document.createTextNode(value)
         case t    => t
     else Bind.text(value, parent)
@@ -117,7 +119,7 @@ object Hydrating:
   /** Claims/creates a static-Int text node.  Skips append when claiming. */
   def text(value: Int, parent: dom.Node): dom.Text =
     if isActive then
-      stack.top.nextText() match
+      stack(stack.length - 1).nextText() match
         case null => dom.document.createTextNode(value.toString)
         case t    => t
     else Bind.text(value, parent)
@@ -133,7 +135,7 @@ object Hydrating:
     */
   def dynAnchor(parent: dom.Element): dom.Comment =
     if isActive then
-      stack.top.consumeDyn(parent) match
+      stack(stack.length - 1).consumeDyn(parent) match
         case null =>
           val c = dom.document.createComment("melt")
           parent.appendChild(c)
@@ -157,7 +159,8 @@ object Hydrating:
     val childCursor = new HydrationCursor(parent.firstChild)
     stack.push(childCursor)
     try f
-    finally stack.pop()
+    finally
+      val _ = stack.pop()
 
   /** Pushes `cursor` onto the stack while `f` runs, then pops it.
     * Used by the hydration entry to activate claim mode for the
@@ -167,7 +170,8 @@ object Hydrating:
   def withCursor[A](cursor: HydrationCursor)(f: => A): A =
     stack.push(cursor)
     try f
-    finally stack.pop()
+    finally
+      val _ = stack.pop()
 
   // ── Post-hydration flush ──────────────────────────────────────────────────
 

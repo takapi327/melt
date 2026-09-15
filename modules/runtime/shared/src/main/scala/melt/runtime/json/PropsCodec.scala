@@ -168,9 +168,15 @@ object PropsCodec:
       }
       buf += '}'
     def decode(j: SimpleJson.JsonValue): Map[String, V] = j match
-      case o: SimpleJson.JsonValue.Obj => o.fields.map((k, vv) => k -> inner.decode(vv))
-      case SimpleJson.JsonValue.Null   => Map.empty
-      case other                       => typeMismatch("Map", other)
+      // Materialising the immutable `Map` the signature promises is what pulls the
+      // collection hierarchy into a Scala.js bundle (see SimpleJson.JsonFields), so it
+      // happens here and nowhere else: only a Props type that declares a `Map` pays.
+      case o: SimpleJson.JsonValue.Obj =>
+        val b = Map.newBuilder[String, V]
+        o.fields.foreach((k, vv) => b += (k -> inner.decode(vv)))
+        b.result()
+      case SimpleJson.JsonValue.Null => Map.empty
+      case other                     => typeMismatch("Map", other)
 
   /** Automatic derivation for any product type (case class / Tuple).
     *
@@ -191,6 +197,21 @@ object PropsCodec:
     inline m match
       case p: Mirror.ProductOf[A] => productCodec[A](using p)
       case s: Mirror.SumOf[A]     => sumCodec[A](using s)
+
+  /** Minimal [[Product]] over an `Array[Any]`, handed to `Mirror.ProductOf.fromProduct`.
+    *
+    * The obvious spelling is `m.fromProduct(Tuple.fromArray(values))`, but `Tuple.fromArray`
+    * reaches `scala.runtime.Tuples` → `ArraySeq` → `ClassTag` / `Manifest`, and makes
+    * `TupleXXL` reachable — whose `toString` calls `Predef.wrapRefArray`, which runs
+    * `Predef`'s module initialiser, which assigns `immutable.Set` / `immutable.Map` and
+    * thereby drags the CHAMP hierarchy and `java.util.Formatter` into a Scala.js bundle.
+    * `fromProduct` only ever reads `productArity` / `productElement`, so a hand-rolled
+    * `Product` avoids all of it. See `memo/design-bundle-size.md` §2.6.
+    */
+  private final class ArrayProduct(elems: Array[Any]) extends Product:
+    def productArity:           Int     = elems.length
+    def productElement(n: Int): Any     = elems(n)
+    def canEqual(that:    Any): Boolean = true
 
   /** Codec for a product type. The field labels and per-element codecs are resolved at the
     * inline call site and handed to this one class, so `encode` / `decode` exist once in the
@@ -228,7 +249,7 @@ object PropsCodec:
           case Some(v) =>
             values(i) = codecsArr(i).decode(v)
         i += 1
-      m.fromProduct(Tuple.fromArray(values))
+      m.fromProduct(new ArrayProduct(values))
 
   /** Codec for a sum type. Shared across derived types for the same reason as [[ProductCodec]]. */
   private final class SumCodec[A](

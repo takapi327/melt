@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 /** Post-mount callback queue for [[onMount]] lifecycle hooks.
   *
@@ -37,13 +37,15 @@ private[runtime] object OnMount:
   /** Pairs a pending callback with the [[OwnerNode]] that was current when it was registered. */
   private final case class PendingMount(owner: Option[OwnerNode], fn: MountContext => Unit)
 
-  private val pending = mutable.Queue[PendingMount]()
+  // js.Array used as a FIFO queue rather than mutable.Queue — see
+  // memo/design-bundle-size.md §2.6 for why Scala collections are avoided here.
+  private val pending = js.Array[PendingMount]()
 
   /** Enqueues [fn] to run after the next [[Mount.apply]] call (or [[flush]]).
     * Captures the current [[Owner]] node so cleanup can be attributed correctly.
     */
   def register(fn: MountContext => Unit): Unit =
-    pending.enqueue(PendingMount(Owner.current, fn))
+    pending.push(PendingMount(Owner.current, fn))
 
   /** Runs all pending callbacks in FIFO order.
     *
@@ -57,8 +59,8 @@ private[runtime] object OnMount:
     * Called by [[Mount.apply]] immediately after `target.appendChild(component)`.
     */
   def flush(): Unit =
-    while pending.nonEmpty do
-      val PendingMount(owner, fn) = pending.dequeue()
+    while pending.length > 0 do
+      val PendingMount(owner, fn) = pending.remove(0)
       val ctx                     = new MountContextImpl(owner)
       try fn(ctx)
       catch case _: Throwable => ()

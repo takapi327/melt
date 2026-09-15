@@ -1024,13 +1024,15 @@ object SpaEmitter:
     val loopIndent = if ir.propsType.isDefined && !propsDefaults then "      " else "    "
 
     val loopBody =
-      s"""${ loopIndent }starts.zip(ends).foreach { case (startNode, endNode) =>
-         |${ loopIndent }  val cursor = new HydrationCursor(startNode.nextSibling)
+      s"""${ loopIndent }var _i = 0
+         |${ loopIndent }while _i < starts.length && _i < ends.length do
+         |${ loopIndent }  val startNode = starts(_i)
+         |${ loopIndent }  val cursor    = new HydrationCursor(startNode.nextSibling)
          |${ loopIndent }  val _ = Hydrating.withCursor(cursor) {
          |${ loopIndent }    $mountExpr
          |${ loopIndent }  }
          |${ loopIndent }  Hydrating.flush()
-         |${ loopIndent }}""".stripMargin
+         |${ loopIndent }  _i += 1""".stripMargin
 
     buf ++= s"""  /** Hydration entry exported as `$moduleId.js` via the
                 |    * sbt/Scala.js asset pipeline.
@@ -1045,13 +1047,15 @@ object SpaEmitter:
                 |      null,
                 |      false
                 |    )
-                |    val starts = scala.collection.mutable.ListBuffer.empty[dom.Node]
-                |    val ends   = scala.collection.mutable.ListBuffer.empty[dom.Node]
+                |    // js.Array rather than mutable.ListBuffer: a Scala collection here reaches
+                |    // the immutable hierarchy and costs ~40 KB gzip per bundle.
+                |    val starts = scala.scalajs.js.Array[dom.Node]()
+                |    val ends   = scala.scalajs.js.Array[dom.Node]()
                 |    var cur: dom.Node = walker.nextNode()
                 |    while cur != null do
                 |      val text = cur.asInstanceOf[dom.Comment].data
-                |      if text.startsWith(startMarker) then starts += cur
-                |      else if text.startsWith(endMarker) then ends += cur
+                |      if text.startsWith(startMarker) then { val _ = starts.push(cur) }
+                |      else if text.startsWith(endMarker) then { val _ = ends.push(cur) }
                 |      cur = walker.nextNode()
                 |$resolveProps$guardOpen$loopBody$guardClose
                 |

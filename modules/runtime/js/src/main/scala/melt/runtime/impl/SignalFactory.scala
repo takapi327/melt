@@ -6,7 +6,7 @@
 
 package melt.runtime.impl
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 import melt.runtime.{ Batch, Cleanup, Signal }
 
@@ -26,26 +26,32 @@ private[runtime] object JsSignal:
   */
 private[runtime] final class JsSignal[A] private (private var _current: A) extends Signal[A]:
 
-  private val _pre  = mutable.ListBuffer.empty[A => Unit]
-  private val _bind = mutable.ListBuffer.empty[A => Unit]
-  private val _post = mutable.ListBuffer.empty[A => Unit]
+  private val _pre  = js.Array[A => Unit]()
+  private val _bind = js.Array[A => Unit]()
+  private val _post = js.Array[A => Unit]()
+
+  /** Removes `f` by identity. js.Array rather than mutable.ListBuffer: `ListBuffer`'s
+    * `subtractOne` reaches `Predef` and the immutable collection hierarchy, which costs
+    * ~41 KB gzip in a Scala.js bundle. See memo/design-bundle-size.md §2.6. Handles are
+    * only ever removed through the closure `subscribe` returns, so identity is enough. */
+  private def drop(lane: js.Array[A => Unit], f: A => Unit): Unit =
+    val i = lane.indexOf(f)
+    if i >= 0 then
+      val _ = lane.splice(i, 1)
 
   def value: A = _current
 
   def subscribe(f: A => Unit): () => Unit =
-    _bind += f
-    () =>
-      _bind -= f; ()
+    val _ = _bind.push(f)
+    () => drop(_bind, f)
 
   private[runtime] def subscribePre(f: A => Unit): () => Unit =
-    _pre += f
-    () =>
-      _pre -= f; ()
+    val _ = _pre.push(f)
+    () => drop(_pre, f)
 
   private[runtime] def subscribePost(f: A => Unit): () => Unit =
-    _post += f
-    () =>
-      _post -= f; ()
+    val _ = _post.push(f)
+    () => drop(_post, f)
 
   def map[B](f: A => B): Signal[B] =
     val derived = JsSignal.create[B](f(_current))
@@ -78,14 +84,14 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
     derived
 
   private lazy val _batchFlush: () => Unit = () =>
-    _pre.toList.foreach(_(_current))
-    _bind.toList.foreach(_(_current))
-    _post.toList.foreach(_(_current))
+    _pre.jsSlice().foreach(_(_current))
+    _bind.jsSlice().foreach(_(_current))
+    _post.jsSlice().foreach(_(_current))
 
   private[runtime] def emit(value: A): Unit =
     _current = value
     if Batch.isBatching then Batch.enqueue(_batchFlush)
     else
-      _pre.toList.foreach(_(value))
-      _bind.toList.foreach(_(value))
-      _post.toList.foreach(_(value))
+      _pre.jsSlice().foreach(_(value))
+      _bind.jsSlice().foreach(_(value))
+      _post.jsSlice().foreach(_(value))
