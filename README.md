@@ -54,6 +54,53 @@ button { font-size: 1.5rem; cursor: pointer; }
 - **ランタイム最小・仮想 DOM なし** — `State` / `Signal` / `Memo` の小さなランタイムのみ。木の再描画も diff もない細粒度更新
 - **明示的なリアクティビティ** — `effect` の依存値は必ず明示。暗黙トラッキングによる無限ループが起きない
 
+## バンドルサイズ
+
+同一のカウンターコンポーネントで比較した実測値です。
+
+| | raw (min) | gzip | brotli |
+|---|---:|---:|---:|
+| Solid 1.9.15 | 10.1 KB | 4.2 KB | 3.8 KB |
+| Svelte 5.57 | 29.6 KB | 11.7 KB | 10.7 KB |
+| **Melt — SPA** | 56.0 KB | **16.4 KB** | 14.3 KB |
+| **Melt — SSR + ハイドレーション** | 69.0 KB | **20.8 KB** | 18.0 KB |
+| Vue 3.5.42 | 67.5 KB | 26.9 KB | 24.5 KB |
+| Laminar 17.2.1（SPA） | 119.6 KB | 32.4 KB | 27.1 KB |
+| React 19.3 | 222.8 KB | 69.2 KB | 59.9 KB |
+
+<sub>測定条件: Scala 3.8.4 / Scala.js 1.22 / 2026-09 時点。Scala.js の `fullLinkJS` は ESModule 出力では minify されないため、esbuild（`--bundle --minify --format=esm`）を通した後で計測しています。JS 系フレームワークは Vite 7.3 の production build。Melt の SPA 行のみハイドレーションを含まないため、順位ではなく SPA → SSR の差分（+4.4 KB）として読んでください。</sub>
+
+> [!WARNING]
+> **コンポーネントで `Map` / `Set` を使うとバンドルサイズが大きく増えます。**
+>
+> Scala 標準ライブラリのハッシュ系コレクションは JVM 向けに設計されており、Scala.js では実装一式がバンドルに載ります。上の基準構成に各型を足したときの増分は次のとおりです。
+>
+> | 使うもの | 増分 (gzip) |
+> |---|---:|
+> | `List` / `Seq` / `Option` / case class | **+0.1 KB** |
+> | `s"..."` 補間子 | +0.01 KB |
+> | `Vector` | +9.8 KB |
+> | タプル（`List[(A, B)]` など） | +9.7 KB |
+> | `f"..."` 補間子 / `.format` | +10.9 KB |
+> | `.sortBy` | +16.9 KB |
+> | **`Map`** | **+21.1 KB** |
+> | **`Set`** | **+31.8 KB** |
+>
+> **効くのはクライアントに到達するコードだけです。** `.melt` の `<script>` と Props が対象で、バックエンドのルート・ldbc のクエリ・Server Function の実装本体は JS に含まれないため、そちらでは自由に使えます。
+>
+> **回避策**: サーバ側で `List[case class]` に変換してから渡してください（+0.5 KB）。
+>
+> ```scala
+> // ✗ 型に Map が残る（+21 KB）— case class で包んでも同じ
+> case class Props(meta: Map[String, String])
+>
+> // ○ Map が型から消える（+0.5 KB）
+> case class Entry(k: String, v: String)
+> case class Props(meta: List[Entry])
+> ```
+>
+> この変換は**サーバ側で行う必要があります**。クライアント側で詰め替えても、`Map` は既にバンドルに含まれているため効果がありません。
+
 ## モジュール
 
 | モジュール | JVM | JS | 説明 |
