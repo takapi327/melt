@@ -43,23 +43,66 @@ object SimpleJson:
     * Measured cost of that chain: **~41 KB gzip**. See `memo/design-bundle-size.md` §2.6.
     * `mutable.AnyRefMap` avoids it but is deprecated, so it fails the build's `-Werror`.
     *
-    * JSON objects in Melt's payloads (component Props, server-function envelopes)
-    * carry a handful of fields, so linear lookup over two parallel arrays is both
-    * smaller and fast enough. Insertion order is preserved so a parsed document
-    * keeps its field order.
+    * Two parallel arrays with a linear scan, plus a hash index once an object grows
+    * past [[JsonFields.indexThreshold]] fields. Insertion order is preserved, so a
+    * parsed document keeps its field order.
     */
   final class JsonFields private[json] (initialCapacity: Int):
     private var ks:    Array[String]    = new Array[String](initialCapacity)
     private var vs:    Array[JsonValue] = new Array[JsonValue](initialCapacity)
     private var count: Int              = 0
 
-    private def indexOf(key: String): Int =
-      var i = 0
-      var r = -1
-      while r < 0 && i < count do
-        if ks(i) == key then r = i
-        i += 1
+    /** Open-addressing index over [[ks]], built lazily once an object grows past
+      * [[JsonFields.indexThreshold]] fields. Each slot holds `position + 1`, so `0`
+      * means empty. Plain `Array[Int]` keeps this free of Scala collections.
+      *
+      * Without it, building an n-field object is O(n²) because every insert scans
+      * for a duplicate key. Measured on Scala.js: 1,000 fields 3 ms, 5,000 fields
+      * 72 ms. Hydration payloads are far smaller, but a `Map`-valued prop is not
+      * bounded, so the index keeps the worst case linear.
+      */
+    private var idx:  Array[Int] = null
+    private var mask: Int        = 0
+
+    private def slotFor(key: String): Int =
+      // Scramble: String.hashCode has weak low bits, which open addressing relies on.
+      val h0 = key.hashCode
+      val h  = h0 ^ (h0 >>> 16)
+      var i  = h & mask
+      var r  = -1
+      var go = true
+      while go do
+        val slot = idx(i)
+        if slot == 0 then
+          r = ~i; go = false
+        else if ks(slot - 1) == key then
+          r = slot - 1; go = false
+        else i = (i + 1) & mask
       r
+
+    private def rebuildIndex(): Unit =
+      var cap = 8
+      while cap < count * 2 do cap <<= 1
+      idx  = new Array[Int](cap)
+      mask = cap - 1
+      var i = 0
+      while i < count do
+        val s = slotFor(ks(i))
+        // Freshly built from distinct keys, so every probe lands on a free slot.
+        if s < 0 then idx(~s) = i + 1
+        i += 1
+
+    private def indexOf(key: String): Int =
+      if idx ne null then
+        val s = slotFor(key)
+        if s < 0 then -1 else s
+      else
+        var i = 0
+        var r = -1
+        while r < 0 && i < count do
+          if ks(i) == key then r = i
+          i += 1
+        r
 
     /** Appends a field, or replaces the value of an existing key in place. */
     private[json] def put(key: String, value: JsonValue): Unit =
@@ -77,6 +120,12 @@ object SimpleJson:
         ks(count) = key
         vs(count) = value
         count += 1
+        if idx eq null then
+          if count >= JsonFields.indexThreshold then rebuildIndex()
+        else if count * 2 > mask then rebuildIndex()
+        else
+          val s = slotFor(key)
+          if s < 0 then idx(~s) = count
 
     def size:    Int     = count
     def isEmpty: Boolean = count == 0
@@ -144,6 +193,11 @@ object SimpleJson:
       b.toString
 
   object JsonFields:
+    /** Field count at which a hash index replaces the linear scan. Below it the scan
+      * is cheaper than the index it would have to build; JSON objects in hydration
+      * payloads sit well under this. */
+    private[json] val indexThreshold = 16
+
     def empty: JsonFields = new JsonFields(4)
 
     /** Builds from key/value pairs, for tests and hand-written payloads. */
