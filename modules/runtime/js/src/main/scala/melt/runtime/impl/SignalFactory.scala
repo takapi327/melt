@@ -6,7 +6,7 @@
 
 package melt.runtime.impl
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 import melt.runtime.{ Batch, Cleanup, Signal }
 
@@ -26,26 +26,42 @@ private[runtime] object JsSignal:
   */
 private[runtime] final class JsSignal[A] private (private var _current: A) extends Signal[A]:
 
-  private val _pre  = mutable.ListBuffer.empty[A => Unit]
-  private val _bind = mutable.ListBuffer.empty[A => Unit]
-  private val _post = mutable.ListBuffer.empty[A => Unit]
+  // js.Map keyed by a monotonic id rather than mutable.ListBuffer: linking a Scala
+  // collection drags the immutable hierarchy into the bundle (~41 KB gzip), see
+  // memo/design-bundle-size.md §2.6. A js.Map keeps insertion order for the three
+  // notification phases while making removal O(1). An earlier js.Array + indexOf
+  // version was O(n) per cancel, i.e. quadratic when subscriptions are released in
+  // reverse order — the normal teardown order (measured: 4,000 cancels took 144 ms).
+  private val _pre    = js.Map[Int, A => Unit]()
+  private val _bind   = js.Map[Int, A => Unit]()
+  private val _post   = js.Map[Int, A => Unit]()
+  private var _nextId = 0
+
+  private def addTo(lane: js.Map[Int, A => Unit], f: A => Unit): () => Unit =
+    val id = _nextId
+    _nextId += 1
+    lane(id) = f
+    () => val _ = lane.delete(id)
+
+  /** Snapshot before notifying: a subscriber may cancel during the callback. */
+  private def snapshot(lane: js.Map[Int, A => Unit]): js.Array[A => Unit] =
+    val out = js.Array[A => Unit]()
+    lane.foreach { (_, f) =>
+      out.push(f)
+      ()
+    }
+    out
 
   def value: A = _current
 
   def subscribe(f: A => Unit): () => Unit =
-    _bind += f
-    () =>
-      _bind -= f; ()
+    addTo(_bind, f)
 
   private[runtime] def subscribePre(f: A => Unit): () => Unit =
-    _pre += f
-    () =>
-      _pre -= f; ()
+    addTo(_pre, f)
 
   private[runtime] def subscribePost(f: A => Unit): () => Unit =
-    _post += f
-    () =>
-      _post -= f; ()
+    addTo(_post, f)
 
   def map[B](f: A => B): Signal[B] =
     val derived = JsSignal.create[B](f(_current))
@@ -78,14 +94,14 @@ private[runtime] final class JsSignal[A] private (private var _current: A) exten
     derived
 
   private lazy val _batchFlush: () => Unit = () =>
-    _pre.toList.foreach(_(_current))
-    _bind.toList.foreach(_(_current))
-    _post.toList.foreach(_(_current))
+    snapshot(_pre).foreach(_(_current))
+    snapshot(_bind).foreach(_(_current))
+    snapshot(_post).foreach(_(_current))
 
   private[runtime] def emit(value: A): Unit =
     _current = value
     if Batch.isBatching then Batch.enqueue(_batchFlush)
     else
-      _pre.toList.foreach(_(value))
-      _bind.toList.foreach(_(value))
-      _post.toList.foreach(_(value))
+      snapshot(_pre).foreach(_(value))
+      snapshot(_bind).foreach(_(value))
+      snapshot(_post).foreach(_(value))

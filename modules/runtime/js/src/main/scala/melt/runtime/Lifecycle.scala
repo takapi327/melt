@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 import org.scalajs.dom
 
@@ -21,7 +21,10 @@ import org.scalajs.dom
   */
 object Lifecycle:
 
-  private val registry = mutable.HashMap[dom.Element, OwnerNode]()
+  // js.Map rather than mutable.HashMap: linking any Scala map into a Scala.js
+  // bundle makes the immutable collection hierarchy reachable, which costs ~41 KB
+  // gzip. See memo/design-bundle-size.md §2.6.
+  private val registry = js.Map[dom.Element, OwnerNode]()
 
   // ── Registration ──────────────────────────────────────────────────────────
 
@@ -44,7 +47,10 @@ object Lifecycle:
 
   /** Destroys the [[OwnerNode]] registered for [el] and removes it from the registry. */
   def destroy(el: dom.Element): Unit =
-    registry.remove(el).foreach(_.destroy())
+    registry.get(el).foreach { owner =>
+      registry.delete(el)
+      owner.destroy()
+    }
 
   /** Destroys all registered elements within [root] (inclusive).
     *
@@ -65,9 +71,11 @@ object Lifecycle:
     */
   def destroyTree(root: dom.Element): Unit =
     // root.contains(el) is true when el == root OR el is a descendant of root
-    val targets = registry.keys.filter(root.contains).toList
-    val nodes   = targets.flatMap(registry.get)
-    targets.foreach(registry.remove)
+    val targets = js.Array[dom.Element]()
+    registry.keys.foreach(el => if root.contains(el) then targets.push(el))
+    val nodes = js.Array[OwnerNode]()
+    targets.foreach(el => registry.get(el).foreach(nodes.push(_)))
+    targets.foreach(registry.delete)
     // Destroy all nodes. OwnerNode.destroy() is idempotent — children that are
     // destroyed by a parent's cascade become no-ops when reached directly.
     nodes.foreach(_.destroy())

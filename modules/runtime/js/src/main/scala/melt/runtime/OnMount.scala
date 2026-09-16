@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 /** Post-mount callback queue for [[onMount]] lifecycle hooks.
   *
@@ -37,13 +37,18 @@ private[runtime] object OnMount:
   /** Pairs a pending callback with the [[OwnerNode]] that was current when it was registered. */
   private final case class PendingMount(owner: Option[OwnerNode], fn: MountContext => Unit)
 
-  private val pending = mutable.Queue[PendingMount]()
+  // js.Array + head index used as a FIFO queue rather than mutable.Queue — see
+  // memo/design-bundle-size.md §2.6 for why Scala collections are avoided here.
+  // The head index matters: `remove(0)` shifts the whole array, which would make
+  // draining N callbacks quadratic.
+  private val pending = js.Array[PendingMount]()
+  private var head    = 0
 
   /** Enqueues [fn] to run after the next [[Mount.apply]] call (or [[flush]]).
     * Captures the current [[Owner]] node so cleanup can be attributed correctly.
     */
   def register(fn: MountContext => Unit): Unit =
-    pending.enqueue(PendingMount(Owner.current, fn))
+    val _ = pending.push(PendingMount(Owner.current, fn))
 
   /** Runs all pending callbacks in FIFO order.
     *
@@ -57,8 +62,14 @@ private[runtime] object OnMount:
     * Called by [[Mount.apply]] immediately after `target.appendChild(component)`.
     */
   def flush(): Unit =
-    while pending.nonEmpty do
-      val PendingMount(owner, fn) = pending.dequeue()
-      val ctx                     = new MountContextImpl(owner)
+    // Callbacks may register more callbacks, so re-check `length` each turn rather
+    // than snapshotting it. Once drained, reset both so the backing array does not
+    // grow without bound across mounts.
+    while head < pending.length do
+      val PendingMount(owner, fn) = pending(head)
+      head += 1
+      val ctx = new MountContextImpl(owner)
       try fn(ctx)
       catch case _: Throwable => ()
+    pending.length = 0
+    head           = 0

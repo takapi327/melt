@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 /** Scoped cleanup mechanism for component subscription management.
   *
@@ -28,15 +28,17 @@ import scala.collection.mutable
   */
 object Cleanup:
 
-  private val scopes = mutable.Stack[mutable.ListBuffer[() => Unit]]()
+  // js.Array of js.Array rather than mutable.Stack of mutable.ListBuffer — see
+  // memo/design-bundle-size.md §2.6 for why Scala collections are avoided here.
+  private val scopes = js.Array[js.Array[() => Unit]]()
 
   /** Begin a new component scope. */
   def pushScope(): Unit =
-    scopes.push(mutable.ListBuffer.empty)
+    val _ = scopes.push(js.Array[() => Unit]())
 
   /** End the current scope and return all registered cleanup functions. */
   def popScope(): List[() => Unit] =
-    if scopes.nonEmpty then scopes.pop().toList
+    if scopes.length > 0 then scopes.pop().toList
     else Nil
 
   /** Register a cleanup function in the current scope.
@@ -46,7 +48,8 @@ object Cleanup:
     */
   def register(f: () => Unit): Unit =
     if Owner.current.isDefined then Owner.register(f)
-    else if scopes.nonEmpty then scopes.top += f
+    else if scopes.length > 0 then
+      val _ = scopes(scopes.length - 1).push(f)
 
   /** Execute all cleanup functions from a scope. */
   def runAll(cleanups: List[() => Unit]): Unit =

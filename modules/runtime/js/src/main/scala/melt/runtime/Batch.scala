@@ -6,7 +6,7 @@
 
 package melt.runtime
 
-import scala.collection.mutable
+import scala.scalajs.js
 
 /** Batches reactive updates so that subscribers are notified only once
   * after all mutations in a `batch { }` block complete.
@@ -21,7 +21,13 @@ object Batch:
   /** Set of flush functions keyed by identity to avoid duplicates.
     * Each entry is a `() => Unit` that reads the current value and notifies subscribers.
     */
-  private val pending: mutable.LinkedHashSet[() => Unit] = mutable.LinkedHashSet.empty
+  // js.Set rather than mutable.LinkedHashSet: linking a Scala Set drags the
+  // immutable collection hierarchy into the bundle (~41 KB gzip), see
+  // memo/design-bundle-size.md §2.6. js.Set keeps both properties this queue needs —
+  // insertion order and "enqueue at most once" — with O(1) membership. An earlier
+  // js.Array + indexOf version was O(n) per enqueue, i.e. quadratic over a batch
+  // (measured: 4,000 enqueues took 132 ms).
+  private val pending: js.Set[() => Unit] = new js.Set()
 
   def isBatching: Boolean = depth > 0
 
@@ -33,14 +39,15 @@ object Batch:
   /** Registers a flush function. If the same function is already pending,
     * it is not added again (dedup by reference identity).
     */
-  def enqueue(f: () => Unit): Unit = pending += f
+  def enqueue(f: () => Unit): Unit =
+    val _ = pending.add(f)
 
   private def flush(): Unit =
     flushing = true
     try
       // Iterate and clear — new enqueues during flush are processed in the same pass
-      while pending.nonEmpty do
-        val fns = pending.toList
+      while pending.size > 0 do
+        val fns = js.Array.from(pending)
         pending.clear()
         fns.foreach(_())
     finally flushing = false
