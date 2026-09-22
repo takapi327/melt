@@ -383,6 +383,24 @@ lazy val `language-server` = project
   .enablePlugins(AutomateHeaderPlugin)
   .dependsOn(codegen.jvm)
 
+// ── Benchmarks (JMH, JVM) ──
+// Deliberately NOT aggregated by `root`: `sbt test` / `publishLocal` / CI must not
+// build or run benchmarks. Invoke explicitly:
+//
+//   sbt "benchmarks/Jmh/run -i 10 -wi 5 -f 2 .*RoutingBench.*"
+//
+// See memo/design-benchmarks.md.
+lazy val benchmarks = project
+  .in(file("benchmarks/jvm"))
+  .enablePlugins(JmhPlugin, AutomateHeaderPlugin)
+  .settings(BuildSettings.commonSettings)
+  .settings(
+    name           := "melt-benchmarks",
+    scalaVersion   := scala38,
+    publish / skip := true
+  )
+  .dependsOn(meltkit.jvm, runtime.jvm)
+
 // ── Root (no publish) ──
 lazy val root = project
   .in(file("."))

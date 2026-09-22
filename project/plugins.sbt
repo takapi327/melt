@@ -6,6 +6,7 @@ addSbtPlugin("com.github.sbt"     % "sbt-header"               % "5.11.0")
 addSbtPlugin("com.github.sbt"     % "sbt-github-actions"       % "0.31.0")
 addSbtPlugin("com.eed3si9n"       % "sbt-assembly"             % "2.3.1")
 addSbtPlugin("com.github.sbt"     % "sbt-boilerplate"          % "0.8.0")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh"                  % "0.4.8")
 // sbt-ci-release will be added when publishing to Maven Central.
 // Excluded in Phase 0 because sbt-git (a dependency of sbt-ci-release) throws NoWorkTreeException in git worktree environments.
 // addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.5.12")
